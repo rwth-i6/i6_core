@@ -1,0 +1,672 @@
+__all__ = ["System", "select_element", "Corpus"]
+
+import copy
+import logging
+import types
+import re
+
+from sisyphus import *
+
+Path = setup_path(__package__)
+
+import recipe.i6_asr.allophones as allophones
+import recipe.i6_asr.costa as costa
+import recipe.i6_asr.returnn as returnn
+import recipe.i6_asr.features as features
+import recipe.i6_asr.mm as mm
+import recipe.i6_asr.recognition as recog
+import recipe.i6_asr.rasr as rasr
+import recipe.i6_asr.vtln as vtln
+
+from .mm_sequence import AlignSplitAccumulateSequence
+
+
+class System:
+    def __init__(self):
+        self.csp = {"base": rasr.CommonRasrParameters()}
+        rasr.csp_add_default_output(self.csp["base"])
+
+        self.default_mixture_scorer = rasr.DiagonalMaximumScorer
+
+        self.alignments = (
+            {}
+        )  # type: dict[str,dict[str,list[rasr.FlagDependentFlowAttribute]]]
+        self.ctm_files = {}
+        self.feature_caches = {}
+        self.feature_bundles = {}
+        self.feature_flows = {}
+        self.feature_scorers = {}
+        self.lattice_caches = {}
+        self.lattice_bundles = {}
+        self.mixtures = {}
+        self.nn_configs = {}
+        self.nn_models = {}
+
+        self.allophone_files = {}
+        self.cart_questions = {}
+        self.normalization_matrices = {}
+        self.stm_files = {}
+
+        self.scorers = {}
+        self.scorer_args = {}
+        self.scorer_hyp_arg = {}
+
+        self.jobs = {"base": {}}  # type: dict[str,dict[str,Job]]
+
+    def set_corpus(self, name, corpus, concurrent, segment_path=None):
+        """
+        :param str name:
+        :param tk.Object corpus:
+        :param int concurrent:
+        :param recipe.util.MultiOutputPath segment_path:
+        """
+        self.csp[name] = rasr.CommonRasrParameters(base=self.csp["base"])
+        rasr.csp_set_corpus(self.csp[name], corpus)
+        self.csp[name].concurrent = concurrent
+        self.csp[name].segment_path = segment_path
+
+        self.alignments[name] = {}
+        self.ctm_files[name] = {}
+        self.feature_caches[name] = {}
+        self.feature_bundles[name] = {}
+        self.feature_flows[name] = {}
+        self.feature_scorers[name] = {}
+        self.lattice_caches[name] = {}
+        self.lattice_bundles[name] = {}
+        self.mixtures[name] = {}
+        self.nn_configs[name] = {}
+        self.nn_models[name] = {}
+
+        self.normalization_matrices[name] = {}
+
+        self.jobs[name] = {}
+
+    def add_overlay(self, origin, name):
+        self.csp[name] = rasr.CommonRasrParameters(base=self.csp[origin])
+
+        self.alignments[name] = {}
+        self.ctm_files[name] = {}
+        self.feature_caches[name] = copy.deepcopy(self.feature_caches[origin])
+        self.feature_bundles[name] = copy.deepcopy(self.feature_bundles[origin])
+        self.feature_flows[name] = copy.deepcopy(self.feature_flows[origin])
+        self.feature_scorers[name] = copy.deepcopy(self.feature_scorers[origin])
+        self.lattice_caches[name] = {}
+        self.lattice_bundles[name] = {}
+        self.mixtures[name] = {}
+        self.nn_configs[name] = {}
+        self.nn_models[name] = {}
+
+        self.normalization_matrices[name] = {}
+
+        self.jobs[name] = {}
+
+    def copy_from_system(self, origin_system, origin_name, target_name=None):
+        """
+        Import the dictionaries from another System
+        :param System origin_system:
+        :param str origin_name: Name of the dataset in another system
+        :param str target_name: Name of the dataset in current system (optional) (default=origin_name)
+        """
+        if not target_name:
+            target_name = origin_name
+
+        self.csp[target_name] = rasr.CommonRasrParameters(
+            base=origin_system.csp[origin_name]
+        )
+
+        self.alignments[target_name] = copy.deepcopy(
+            origin_system.alignments[origin_name]
+        )
+        self.ctm_files[target_name] = copy.deepcopy(
+            origin_system.ctm_files[origin_name]
+        )
+        self.feature_caches[target_name] = copy.deepcopy(
+            origin_system.feature_caches[origin_name]
+        )
+        self.feature_bundles[target_name] = copy.deepcopy(
+            origin_system.feature_bundles[origin_name]
+        )
+        self.feature_flows[target_name] = copy.deepcopy(
+            origin_system.feature_flows[origin_name]
+        )
+        self.feature_scorers[target_name] = copy.deepcopy(
+            origin_system.feature_scorers[origin_name]
+        )
+        self.lattice_caches[target_name] = copy.deepcopy(
+            origin_system.lattice_caches[origin_name]
+        )
+        self.lattice_bundles[target_name] = copy.deepcopy(
+            origin_system.lattice_bundles[origin_name]
+        )
+        self.mixtures[target_name] = copy.deepcopy(origin_system.mixtures[origin_name])
+        self.nn_configs[target_name] = copy.deepcopy(
+            origin_system.nn_configs[origin_name]
+        )
+        self.nn_models[target_name] = copy.deepcopy(
+            origin_system.nn_models[origin_name]
+        )
+        # self.stm_files      [target_name] = copy.deepcopy(origin_system.stm_files[origin_name])
+
+        self.normalization_matrices[target_name] = copy.deepcopy(
+            origin_system.normalization_matrices[origin_name]
+        )
+
+        self.jobs[target_name] = {}
+
+    def set_sclite_scorer(self, corpus, **kwargs):
+        self.scorers[corpus] = recog.Sclite
+        self.scorer_args[corpus] = {"ref": self.stm_files[corpus], **kwargs}
+        self.scorer_hyp_arg[corpus] = "hyp"
+
+    def set_kaldi_scorer(self, corpus, mapping):
+        self.scorers[corpus] = recog.KaldiScorer
+        self.scorer_args[corpus] = {
+            "corpus_path": self.csp[corpus].corpus_config.file,
+            "map": mapping,
+        }
+        self.scorer_hyp_arg[corpus] = "ctm"
+
+    def store_allophones(self, source_corpus, target_corpus="base", **kwargs):
+        self.jobs[target_corpus]["allophones"] = allophones.StoreAllophones(
+            self.csp[source_corpus], **kwargs
+        )
+        self.allophone_files[target_corpus] = self.jobs[target_corpus][
+            "allophones"
+        ].allophone_file
+        if self.csp[target_corpus].acoustic_model_post_config is None:
+            self.csp[target_corpus].acoustic_model_post_config = rasr.RasrConfig()
+        self.csp[
+            target_corpus
+        ].acoustic_model_post_config.allophones.add_from_file = self.allophone_files[
+            target_corpus
+        ]
+
+    def replace_named_flow_attr(self, corpus, flow_regex, attr_name, new_value):
+        pattern = re.compile(flow_regex)
+        for name, flow in self.feature_flows[corpus].items():
+            if pattern.match(name) and attr_name in flow.named_attributes:
+                flow.named_attributes[attr_name].value = new_value
+
+    def energy_features(self, corpus, prefix="", **kwargs):
+        self.jobs[corpus]["energy_features"] = f = features.EnergyJob(
+            self.csp[corpus], **kwargs
+        )
+        f.add_alias("%s%s_energy_features" % (prefix, corpus))
+        self.feature_caches[corpus]["energy"] = f.feature_path["energy"]
+        self.feature_bundles[corpus]["energy"] = f.feature_bundle["energy"]
+
+        feature_path = rasr.FlagDependentFlowAttribute(
+            "cache_mode",
+            {
+                "task_dependent": self.feature_caches[corpus]["energy"],
+                "bundle": self.feature_bundles[corpus]["energy"],
+            },
+        )
+        self.feature_flows[corpus]["energy"] = features.basic_cache_flow(feature_path)
+        self.feature_flows[corpus]["uncached_energy"] = f.feature_flow
+
+    def mfcc_features(self, corpus, num_deriv=2, num_features=33, prefix="", **kwargs):
+        """
+        :param str corpus:
+        :param int num_deriv:
+        :param int num_features:
+        :param str prefix:
+        """
+        self.jobs[corpus]["mfcc_features"] = f = features.MfccJob(
+            self.csp[corpus], **kwargs
+        )
+        f.add_alias("%s%s_mfcc_features" % (prefix, corpus))
+        self.feature_caches[corpus]["mfcc"] = f.feature_path["mfcc"]
+        self.feature_bundles[corpus]["mfcc"] = f.feature_bundle["mfcc"]
+
+        feature_path = rasr.FlagDependentFlowAttribute(
+            "cache_mode",
+            {
+                "task_dependent": self.feature_caches[corpus]["mfcc"],
+                "bundle": self.feature_bundles[corpus]["mfcc"],
+            },
+        )
+        self.feature_flows[corpus]["mfcc"] = features.basic_cache_flow(feature_path)
+        self.feature_flows[corpus]["mfcc+deriv"] = features.add_derivatives(
+            self.feature_flows[corpus]["mfcc"], num_deriv
+        )
+        if num_features is not None:
+            self.feature_flows[corpus]["mfcc+deriv"] = features.select_features(
+                self.feature_flows[corpus]["mfcc+deriv"], "0-%d" % (num_features - 1)
+            )
+        self.feature_flows[corpus]["uncached_mfcc"] = f.feature_flow
+
+    def fb_features(self, corpus, **kwargs):
+        self.jobs[corpus]["fb_features"] = f = features.FilterbankJob(
+            self.csp[corpus], **kwargs
+        )
+        f.add_alias("%s_fb_features" % corpus)
+        self.feature_caches[corpus]["filterbank"] = f.feature_path["filterbank"]
+        self.feature_bundles[corpus]["filterbank"] = f.feature_bundle["filterbank"]
+
+        feature_path = rasr.FlagDependentFlowAttribute(
+            "cache_mode",
+            {
+                "task_dependent": self.feature_caches[corpus]["fb"],
+                "bundle": self.feature_bundles[corpus]["fb"],
+            },
+        )
+        self.feature_flows[corpus]["fb"] = features.basic_cache_flow(feature_path)
+        self.feature_flows[corpus]["uncached_fb"] = f.feature_flow
+
+    def gt_features(self, corpus, prefix="", **kwargs):
+        self.jobs[corpus]["gt_features"] = f = features.GammatoneJob(
+            self.csp[corpus], **kwargs
+        )
+        if "gt_options" in kwargs and "channels" in kwargs.get("gt_options"):
+            f.add_alias(
+                "%s%s_gt_%i_features"
+                % (prefix, corpus, kwargs.get("gt_options").get("channels"))
+            )
+        else:
+            f.add_alias("%s%s_gt_features" % (prefix, corpus))
+        self.feature_caches[corpus]["gt"] = f.feature_path["gt"]
+        self.feature_bundles[corpus]["gt"] = f.feature_bundle["gt"]
+
+        feature_path = rasr.FlagDependentFlowAttribute(
+            "cache_mode",
+            {
+                "task_dependent": self.feature_caches[corpus]["gt"],
+                "bundle": self.feature_bundles[corpus]["gt"],
+            },
+        )
+        self.feature_flows[corpus]["gt"] = features.basic_cache_flow(feature_path)
+        self.feature_flows[corpus]["uncached_gt"] = f.feature_flow
+
+    def plp_features(self, corpus, num_deriv=2, num_features=23, **kwargs):
+        self.jobs[corpus]["plp_features"] = f = features.PlpJob(
+            self.csp[corpus], **kwargs
+        )
+        f.add_alias("%s_plp_features" % corpus)
+        self.feature_caches[corpus]["plp"] = f.feature_path["plp"]
+        self.feature_bundles[corpus]["plp"] = f.feature_bundle["plp"]
+
+        feature_path = rasr.FlagDependentFlowAttribute(
+            "cache_mode",
+            {
+                "task_dependent": self.feature_caches[corpus]["plp"],
+                "bundle": self.feature_bundles[corpus]["plp"],
+            },
+        )
+        self.feature_flows[corpus]["plp"] = features.basic_cache_flow(feature_path)
+        self.feature_flows[corpus]["plp+deriv"] = features.add_derivatives(
+            self.feature_flows[corpus]["plp"], num_deriv
+        )
+        if num_features is not None:
+            self.feature_flows[corpus]["plp+deriv"] = features.select_features(
+                self.feature_flows[corpus]["plp+deriv"], "0-%d" % (num_features - 1)
+            )
+        self.feature_flows[corpus]["uncached_plp"] = f.feature_flow
+
+    def vtln_features(self, name, corpus, raw_feature_flow, warping_map, **kwargs):
+        name = "%s+vtln" % name
+        self.jobs[corpus]["%s_features" % name] = f = vtln.VTLNFeaturesJob(
+            self.csp[corpus], raw_feature_flow, warping_map, **kwargs
+        )
+        self.feature_caches[corpus][name] = f.feature_path["vtln"]
+        self.feature_bundles[corpus][name] = f.feature_bundle["vtln"]
+        feature_path = rasr.FlagDependentFlowAttribute(
+            "cache_mode",
+            {
+                "task_dependent": self.feature_caches[corpus][name],
+                "bundle": self.feature_bundles[corpus][name],
+            },
+        )
+        self.feature_flows[corpus][name] = features.basic_cache_flow(feature_path)
+        self.feature_flows[corpus]["uncached_" + name] = f.feature_flow
+
+    def add_energy_to_features(self, corpus, flow):
+        self.feature_flows[corpus]["energy,%s" % flow] = features.sync_energy_features(
+            self.feature_flows[corpus][flow], self.feature_flows[corpus]["energy"]
+        )
+
+    def normalize(self, corpus, flow, target_corpora, **kwargs):
+        feature_flow = copy.deepcopy(self.feature_flows[corpus][flow])
+        feature_flow.flags = {"cache_mode": "bundle"}
+        new_flow_name = "%s+norm" % flow
+
+        self.jobs[corpus][
+            "normalize_%s" % flow
+        ] = j = features.CovarianceNormalizationJob(
+            self.csp[corpus], feature_flow, **kwargs
+        )
+        self.normalization_matrices[corpus][new_flow_name] = j.normalization_matrix
+
+        for c in target_corpora:
+            self.feature_flows[c][new_flow_name] = features.add_linear_transform(
+                self.feature_flows[c][flow], j.normalization_matrix
+            )
+
+    def costa(self, corpus, prefix="", **kwargs):
+        self.jobs[corpus]["costa"] = j = costa.CostaJob(self.csp[corpus], **kwargs)
+        j.add_alias("%scosta_%s" % (prefix, corpus))
+        tk.register_output("%s%s.costa.log.gz" % (prefix, corpus), j.log_file)
+
+    def linear_alignment(self, name, corpus, flow, prefix="", **kwargs):
+        """
+        :param str name:
+        :param str corpus:
+        :param str flow:
+        :param str prefix:
+        """
+        name = "linear_alignment_%s" % name
+        self.jobs[corpus][name] = j = mm.LinearAlignmentJob(
+            self.csp[corpus], self.feature_flows[corpus][flow], **kwargs
+        )
+        j.add_alias(prefix + name)
+        self.mixtures[corpus][name] = j.mixtures
+        if hasattr(j, "alignment_path") and hasattr(j, "alignment_bundle"):
+            self.alignments[corpus][name] = rasr.FlagDependentFlowAttribute(
+                "cache_mode",
+                {"task_dependent": j.alignment_path, "bundle": j.alignment_bundle},
+            )
+
+    def align(self, name, corpus, flow, feature_scorer, **kwargs):
+        j = mm.AlignmentJob(
+            csp=self.csp[corpus],
+            feature_flow=select_element(self.feature_flows, corpus, flow),
+            feature_scorer=select_element(self.feature_scorers, corpus, feature_scorer),
+            **kwargs
+        )
+
+        self.jobs[corpus]["alignment_%s" % name] = j
+        self.alignments[corpus][name] = rasr.FlagDependentFlowAttribute(
+            "cache_mode",
+            {"task_dependent": j.alignment_path, "bundle": j.alignment_bundle},
+        )
+
+    def estimate_mixtures(
+        self, name, corpus, flow, old_mixtures=None, alignment=None, prefix="", **kwargs
+    ):
+        name = "estimate_mixtures_%s" % name
+        j = mm.EstimateMixturesJob(
+            csp=self.csp[corpus],
+            old_mixtures=select_element(self.mixtures, corpus, old_mixtures),
+            feature_flow=self.feature_flows[corpus][flow],
+            alignment=select_element(self.alignments, corpus, alignment),
+            **kwargs
+        )
+        j.add_alias("{}{}".format(prefix, name))
+
+        self.jobs[corpus][name] = j
+        self.mixtures[corpus][name] = j.mixtures
+        self.feature_scorers[corpus][name] = self.default_mixture_scorer(j.mixtures)
+
+    def train(self, name, corpus, sequence, flow, **kwargs):
+        """
+        :param str name:
+        :param str corpus:
+        :param list[str] sequence: action sequence
+        :param str flow:
+        :param kwargs: passed on to :class:`AlignSplitAccumulateSequence`
+        """
+        name = "train_%s" % name
+        if "feature_scorer" not in kwargs:
+            kwargs["feature_scorer"] = self.default_mixture_scorer
+        self.jobs[corpus][name] = j = AlignSplitAccumulateSequence(
+            self.csp[corpus],
+            sequence,
+            select_element(self.feature_flows, corpus, flow),
+            **kwargs
+        )
+
+        self.mixtures[corpus][name] = j.selected_mixtures
+        self.alignments[corpus][name] = j.selected_alignments
+        self.feature_scorers[corpus][name] = [
+            self.default_mixture_scorer(m) for m in j.selected_mixtures
+        ]
+
+    def wcts(
+        self,
+        name,
+        corpus,
+        flow,
+        feature_scorer,
+        pronunciation_scale,
+        lm_scale,
+        pruning_params,
+        parallelize_conversion=False,
+        **kwargs
+    ):
+        pruning_config = recog.pruning_config(**pruning_params)
+        pron_scale_config = rasr.RasrConfig()
+        pron_scale_config.pronunciation_scale = pronunciation_scale
+        self.csp[corpus].language_model_config.scale = lm_scale
+
+        rec = recog.WordConditionedTreeSearchJob(
+            csp=self.csp[corpus],
+            feature_flow=self.feature_flows[corpus][flow],
+            feature_scorer=select_element(self.feature_scorers, corpus, feature_scorer),
+            recognizer_config=pron_scale_config,
+            recognizer_config2=pruning_config,
+            **kwargs
+        )
+        rec.set_vis_name("WCTS %s" % name)
+        name = "wcts_%s" % name
+        rec.add_alias(name)
+        self.jobs[corpus][name] = rec
+
+        self.jobs[corpus]["lat2ctm_%s" % name] = lat2ctm = recog.LatticeToCtmJob(
+            csp=self.csp[corpus],
+            lattice_cache=rec.lattice_path
+            if parallelize_conversion
+            else rec.lattice_bundle,
+            parallelize=parallelize_conversion,
+        )
+        lat2ctm.add_alias("ctm_%s" % name)
+        self.ctm_files[corpus][name] = lat2ctm.ctm_file
+
+        kwargs = copy.deepcopy(self.scorer_args[corpus])
+        kwargs[self.scorer_hyp_arg[corpus]] = lat2ctm.ctm_file
+        scorer = self.scorers[corpus](**kwargs)
+
+        self.jobs[corpus]["scorer_%s" % name] = scorer
+        tk.register_output("%s.reports" % name, scorer.report_dir)
+
+    def recog(
+        self,
+        name,
+        corpus,
+        flow,
+        feature_scorer,
+        pronunciation_scale,
+        lm_scale,
+        parallelize_conversion=False,
+        lattice_to_ctm_kwargs=None,
+        prefix="",
+        **kwargs
+    ):
+        if lattice_to_ctm_kwargs is None:
+            lattice_to_ctm_kwargs = {}
+
+        self.csp[corpus].language_model_config.scale = lm_scale
+        model_combination_config = rasr.RasrConfig()
+        model_combination_config.pronunciation_scale = pronunciation_scale
+
+        rec = recog.AdvancedTreeSearchJob(
+            csp=self.csp[corpus],
+            feature_flow=select_element(self.feature_flows, corpus, flow),
+            feature_scorer=select_element(self.feature_scorers, corpus, feature_scorer),
+            model_combination_config=model_combination_config,
+            **kwargs
+        )
+        rec.set_vis_name("Recog %s%s" % (prefix, name))
+        rec.add_alias("%srecog_%s" % (prefix, name))
+        self.jobs[corpus]["recog_%s" % name] = rec
+
+        self.jobs[corpus]["lat2ctm_%s" % name] = lat2ctm = recog.LatticeToCtmJob(
+            csp=self.csp[corpus],
+            lattice_cache=rec.lattice_bundle,
+            parallelize=parallelize_conversion,
+            **lattice_to_ctm_kwargs
+        )
+        self.ctm_files[corpus]["recog_%s" % name] = lat2ctm.ctm_file
+
+        kwargs = copy.deepcopy(self.scorer_args[corpus])
+        kwargs[self.scorer_hyp_arg[corpus]] = lat2ctm.ctm_file
+        scorer = self.scorers[corpus](**kwargs)
+
+        self.jobs[corpus]["scorer_%s" % name] = scorer
+        tk.register_output("%srecog_%s.reports" % (prefix, name), scorer.report_dir)
+
+    def optimize_am_lm(
+        self, name, corpus, initial_am_scale, initial_lm_scale, prefix="", **kwargs
+    ):
+        j = recog.OptimizeAMandLMScale(
+            csp=self.csp[corpus],
+            lattice_cache=self.jobs[corpus][name].lattice_bundle,
+            initial_am_scale=initial_am_scale,
+            initial_lm_scale=initial_lm_scale,
+            scorer_cls=self.scorers[corpus],
+            scorer_kwargs=self.scorer_args[corpus],
+            scorer_hyp_param_name=self.scorer_hyp_arg[corpus],
+            **kwargs
+        )
+        self.jobs[corpus]["optimize_%s" % name] = j
+        tk.register_output("%soptimize_%s.log" % (prefix, name), j.log_file)
+
+    def recog_and_optimize(
+        self,
+        name,
+        corpus,
+        flow,
+        feature_scorer,
+        pronunciation_scale,
+        lm_scale,
+        parallelize_conversion=False,
+        lattice_to_ctm_kwargs=None,
+        prefix="",
+        **kwargs
+    ):
+        self.recog(
+            name,
+            corpus,
+            flow,
+            feature_scorer,
+            pronunciation_scale,
+            lm_scale,
+            parallelize_conversion,
+            lattice_to_ctm_kwargs,
+            prefix,
+            **kwargs
+        )
+
+        recog_name = "recog_%s" % name
+        opt_name = "optimize_%s" % recog_name
+
+        self.optimize_am_lm(
+            recog_name,
+            corpus,
+            pronunciation_scale,
+            lm_scale,
+            prefix=prefix,
+            opt_only_lm_scale=True,
+        )
+
+        opt_job = self.jobs[corpus][opt_name]
+
+        self.recog(
+            name + "-optlm",
+            corpus,
+            flow,
+            feature_scorer,
+            pronunciation_scale,
+            opt_job.best_lm_score,
+            parallelize_conversion,
+            lattice_to_ctm_kwargs,
+            prefix,
+            **kwargs
+        )
+
+    def train_nn(
+        self,
+        name,
+        feature_corpus,
+        train_corpus,
+        dev_corpus,
+        feature_flow,
+        alignment,
+        returnn_config,
+        num_classes,
+        **kwargs
+    ):
+        assert isinstance(
+            returnn_config, returnn.ReturnnConfig
+        ), "Passing returnn_config as dict to train_nn is no longer supported, please construct a ReturnnConfig object instead"
+        j = returnn.ReturnnRasrTrainingJob(
+            train_csp=self.csp[train_corpus],
+            dev_csp=self.csp[dev_corpus],
+            feature_flow=self.feature_flows[feature_corpus][feature_flow],
+            alignment=select_element(self.alignments, feature_corpus, alignment),
+            returnn_config=returnn_config,
+            num_classes=self.functor_value(num_classes),
+            **kwargs
+        )
+        self.jobs[feature_corpus]["train_nn_%s" % name] = j
+        self.nn_models[feature_corpus][name] = j.models
+        self.nn_configs[feature_corpus][name] = j.returnn_config_file
+
+    def create_nn_feature_scorer(
+        self,
+        name,
+        corpus,
+        feature_dimension,
+        output_dimension,
+        prior_mixtures,
+        model,
+        prior_scale,
+        prior_file=None,
+        **kwargs
+    ):
+        scorer = rasr.ReturnnScorer(
+            feature_dimension=self.functor_value(feature_dimension),
+            output_dimension=self.functor_value(output_dimension),
+            prior_mixtures=select_element(self.mixtures, corpus, prior_mixtures),
+            model=select_element(self.nn_models, corpus, model),
+            prior_scale=prior_scale,
+            prior_file=prior_file,
+            **kwargs
+        )
+        self.feature_scorers[corpus][name] = scorer
+
+    def functor_value(self, value):
+        if isinstance(value, types.FunctionType):
+            return value(self)
+        else:
+            return value
+
+
+def select_element(collection, default_corpus, selector, default_index=-1):
+    if not isinstance(selector, (list, tuple, str)):
+        return selector
+    else:
+        if isinstance(selector, str):
+            args = [default_corpus, selector, default_index]
+        else:
+            args = {
+                1: lambda: [default_corpus, selector[0], default_index],
+                2: lambda: [selector[0], selector[1], default_index],
+                3: lambda: [selector[0], selector[1], selector[2]],
+            }[len(selector)]()
+
+        if default_corpus is not None:
+            e = collection[args[0]]
+        else:
+            e = collection
+        e = e[args[1]]
+        if isinstance(e, (list, dict)):
+            e = e[args[2]]
+        return e
+
+
+class Corpus(tk.Object):
+    def __init__(self):
+        self.corpus_file = None  # type: Path
+        self.audio_dir = None  # type: Path
+        self.audio_format = None  # type: str
+        self.duration = None  # type: float

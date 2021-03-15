@@ -1,0 +1,117 @@
+from sisyphus.http_server import object_to_html
+
+from .config import RasrConfig
+
+
+class CommonRasrParameters:
+    """
+    This class holds often used parameters for Rasr.
+    """
+
+    def __init__(self, base=None):
+        """
+        :param CommonRasrParameters|None base:
+        """
+        self.base = base
+        if base is None:
+            self.acoustic_model_config = None
+            self.acoustic_model_post_config = None
+            self.corpus_config = None
+            self.corpus_post_config = None
+            self.lexicon_config = None
+            self.lexicon_post_config = None
+            self.language_model_config = None
+            self.language_model_post_config = None
+            self.log_config = None
+            self.log_post_config = None
+            self.compress_log_file = True
+            self.default_log_channel = "stderr"
+
+            self.audio_format = "wav"
+            self.corpus_duration = 1.0
+            self.concurrent = 1
+            self.segment_path = None
+
+            self.acoustic_model_trainer_exe = None
+            self.allophone_tool_exe = None
+            self.costa_exe = None
+            self.feature_extraction_exe = None
+            self.feature_statistics_exe = None
+            self.flf_tool_exe = None
+            self.kws_tool_exe = None
+            self.lattice_processor_exe = None
+            self.lm_util_exe = None
+            self.nn_trainer_exe = None
+            self.speech_recognizer_exe = None
+
+            self.python_home = None
+            self.python_program_name = None
+
+    def __getattr__(self, name):
+        if super().__getattribute__("base") is not None and hasattr(self.base, name):
+            return getattr(self.base, name)
+        raise AttributeError(name)
+
+    def __repr__(self):
+        return str(self.__dict__)
+
+    def html(self):
+        return object_to_html(self.__dict__)
+
+
+def csp_add_default_output(
+    csp, compress=False, append=False, unbuffered=False, compress_after_run=True
+):
+    """
+    :param CommonRasrParameters csp:
+    :param bool compress:
+    :param bool append:
+    :param bool unbuffered:
+    :param bool compress_after_run:
+    """
+    if compress:
+        compress_after_run = False
+
+    config = RasrConfig()
+    config["*"].configuration.channel = "output-channel"
+    config["*"].real_time_factor.channel = "output-channel"
+    config["*"].system_info.channel = "output-channel"
+    config["*"].time.channel = "output-channel"
+    config["*"].version.channel = "output-channel"
+
+    config["*"].log.channel = "output-channel"
+    config["*"].warning.channel = "output-channel, stderr"
+    config["*"].error.channel = "output-channel, stderr"
+
+    config["*"].statistics.channel = "output-channel"
+    config["*"].progress.channel = "output-channel"
+    config["*"].dot.channel = "nil"
+
+    post_config = RasrConfig()
+    post_config["*"].encoding = "UTF-8"
+    post_config["*"].output_channel.file = "$(LOGFILE)" + (".gz" if compress else "")
+    post_config["*"].output_channel.compressed = compress
+    post_config["*"].output_channel.append = append
+    post_config["*"].output_channel.unbuffered = unbuffered
+
+    csp.log_config = config
+    csp.log_post_config = post_config
+    csp.compress_log_file = compress_after_run
+    csp.default_log_channel = "output-channel"
+
+
+def csp_set_corpus(csp, corpus):
+    """
+    :param CommonRasrParameters csp:
+    :param recipe.meta.Corpus corpus: object with corpus_file, audio_dir, audio_format, duration
+    """
+    config = RasrConfig()
+    config.file = corpus.corpus_file
+    config.audio_dir = corpus.audio_dir
+    config.warn_about_unexpected_elements = True
+    config.capitalize_transcriptions = False
+    config.progress_indication = "global"
+
+    csp.corpus_config = config
+    csp.audio_format = corpus.audio_format
+    csp.corpus_duration = corpus.duration
