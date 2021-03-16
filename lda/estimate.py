@@ -270,10 +270,6 @@ class EstimateScatterMatricesJob(rasr.RasrCommand, Job):
 
 
 class EstimateLDAMatrixJob(rasr.RasrCommand, Job):
-    FIX_MATRIX_PATH_BUG = False  # in previous versions the paths for within/between class scatter matrices where stored as
-    # a string in the config containing the absolute path to the file, this is unwanted
-    # behavior that you can fix by setting this to True
-
     def __init__(
         self,
         csp,
@@ -342,20 +338,12 @@ class EstimateLDAMatrixJob(rasr.RasrCommand, Job):
         )
         config.acoustic_model_trainer.lda_estimator.output_precision = 20
 
-        if cls.FIX_MATRIX_PATH_BUG:
-            config.acoustic_model_trainer.lda_estimator.between_class_scatter_matrix_file = rasr.PathWithPrefixFlowAttribute(
-                "xml:", between_class_scatter_matrix
-            )
-            config.acoustic_model_trainer.lda_estimator.within_class_scatter_matrix_file = rasr.PathWithPrefixFlowAttribute(
-                "xml:", within_class_scatter_matrix
-            )
-        else:
-            config.acoustic_model_trainer.lda_estimator.between_class_scatter_matrix_file = "xml:%s" % str(
-                between_class_scatter_matrix
-            )
-            config.acoustic_model_trainer.lda_estimator.within_class_scatter_matrix_file = "xml:%s" % str(
-                within_class_scatter_matrix
-            )
+        config.acoustic_model_trainer.lda_estimator.between_class_scatter_matrix_file = rasr.PathWithPrefixFlowAttribute(
+            "xml:", between_class_scatter_matrix
+        )
+        config.acoustic_model_trainer.lda_estimator.within_class_scatter_matrix_file = rasr.PathWithPrefixFlowAttribute(
+            "xml:", within_class_scatter_matrix
+        )
         config.acoustic_model_trainer.lda_estimator.projector_matrix_file = (
             "xml:`cf -d lda.matrix`"
         )
