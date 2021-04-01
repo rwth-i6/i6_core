@@ -241,6 +241,8 @@ class Corpus(NamedEntity, CorpusSection):
 
         for s in self.speakers.values():
             s.dump(out, indentation + "  ")
+        if self.speaker_name is not None:
+            out.write('%s  <speaker name="%s"/>\n' % (indentation, self.speaker_name))
 
         for r in self.recordings:
             r.dump(out, indentation + "  ")
@@ -280,6 +282,8 @@ class Recording(NamedEntity, CorpusSection):
 
         for s in self.speakers.values():
             s.dump(out, indentation + "  ")
+        if self.speaker_name is not None:
+            out.write('%s  <speaker name="%s"/>\n' % (indentation, self.speaker_name))
 
         for s in self.segments:
             s.dump(out, indentation + "  ")
