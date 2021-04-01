@@ -22,7 +22,7 @@ import recipe.i6_asr.util as util
 class MergeMixturesJob(rasr.RasrCommand, Job):
     def __init__(
         self,
-        csp,
+        crp,
         mixtures_to_combine,
         combine_per_step=20,
         estimator="maximum-likelihood",
@@ -33,11 +33,11 @@ class MergeMixturesJob(rasr.RasrCommand, Job):
             self.config_merge,
             self.post_config_merge,
         ) = MergeMixturesJob.create_merge_config(
-            csp, estimator, extra_config, extra_post_config
+            crp, estimator, extra_config, extra_post_config
         )
         self.merge_exe = (
-            csp.acoustic_model_trainer_exe
-            if csp.acoustic_model_trainer_exe is not None
+            crp.acoustic_model_trainer_exe
+            if crp.acoustic_model_trainer_exe is not None
             else self.default_exe("acoustic-model-trainer")
         )
         if type(mixtures_to_combine) == dict:
@@ -59,7 +59,7 @@ class MergeMixturesJob(rasr.RasrCommand, Job):
             util.partition_into_tree(mixtures_to_combine, combine_per_step),
         )
 
-        self.merge_log_file = self.log_file_output_path("merge", csp, merge_count)
+        self.merge_log_file = self.log_file_output_path("merge", crp, merge_count)
         self.mixtures = self.output_path("am.mix", cached=True)
 
         self.merge_rqmt = {"time": max(merge_count / 25, 0.5), "cpu": 1, "mem": 1}
@@ -117,9 +117,9 @@ class MergeMixturesJob(rasr.RasrCommand, Job):
 
     @classmethod
     def create_merge_config(
-        cls, csp, estimator, extra_config, extra_post_config, **kwargs
+        cls, crp, estimator, extra_config, extra_post_config, **kwargs
     ):
-        config, post_config = rasr.build_config_from_mapping(csp, {})
+        config, post_config = rasr.build_config_from_mapping(crp, {})
         config.acoustic_model_trainer.action = "combine-mixture-sets"
         config.acoustic_model_trainer.mixture_set_trainer.estimator_type = estimator
 
@@ -136,7 +136,7 @@ class MergeMixturesJob(rasr.RasrCommand, Job):
                 "config": config,
                 "mixtures": kwargs["mixtures_to_combine"],
                 "combine_per_step": kwargs["combine_per_step"],
-                "exe": kwargs["csp"].acoustic_model_trainer_exe,
+                "exe": kwargs["crp"].acoustic_model_trainer_exe,
             }
         )
 
@@ -144,7 +144,7 @@ class MergeMixturesJob(rasr.RasrCommand, Job):
 class LinearAlignmentJob(MergeMixturesJob):
     def __init__(
         self,
-        csp,
+        crp,
         feature_energy_flow,
         minimum_segment_length=0,
         maximum_segment_length=6000,
@@ -167,13 +167,13 @@ class LinearAlignmentJob(MergeMixturesJob):
         self.config, self.post_config = LinearAlignmentJob.create_config(**kwargs)
         self.linear_alignment_flow = LinearAlignmentJob.create_flow(**kwargs)
         self.exe = self.select_exe(
-            csp.acoustic_model_trainer_exe, "acoustic-model-trainer"
+            crp.acoustic_model_trainer_exe, "acoustic-model-trainer"
         )
-        self.concurrent = csp.concurrent
+        self.concurrent = crp.concurrent
         self.save_alignment = save_alignment
         self.keep_accumulators = keep_accumulators
 
-        self.log_file = self.log_file_output_path("accumulate", csp, True)
+        self.log_file = self.log_file_output_path("accumulate", crp, True)
         if save_alignment:
             self.single_alignment_caches = dict(
                 (i, self.output_path("alignment.cache.%d" % i, cached=True))
@@ -188,7 +188,7 @@ class LinearAlignmentJob(MergeMixturesJob):
             self.alignment_bundle = self.output_path("alignment.cache.bundle")
 
         self.accumulate_rqmt = {
-            "time": max(csp.corpus_duration / (20.0 * self.concurrent), 0.5),
+            "time": max(crp.corpus_duration / (20.0 * self.concurrent), 0.5),
             "cpu": 1,
             "mem": 1,
         }
@@ -239,7 +239,7 @@ class LinearAlignmentJob(MergeMixturesJob):
     @classmethod
     def create_config(
         cls,
-        csp,
+        crp,
         feature_energy_flow,
         minimum_segment_length,
         maximum_segment_length,
@@ -274,7 +274,7 @@ class LinearAlignmentJob(MergeMixturesJob):
             )
 
         config, post_config = rasr.build_config_from_mapping(
-            csp, mapping, parallelize=True
+            crp, mapping, parallelize=True
         )
 
         # shortcuts
@@ -317,11 +317,11 @@ class LinearAlignmentJob(MergeMixturesJob):
         )
 
     @classmethod
-    def merge_args(cls, csp, extra_merge_args, **kwargs):
+    def merge_args(cls, crp, extra_merge_args, **kwargs):
         merge_args = {
-            "csp": csp,
+            "crp": crp,
             "mixtures_to_combine": [
-                "linear.acc.%d" % i for i in range(1, csp.concurrent + 1)
+                "linear.acc.%d" % i for i in range(1, crp.concurrent + 1)
             ],
             "combine_per_step": 2,
             "estimator": "maximum-likelihood",
@@ -340,7 +340,7 @@ class LinearAlignmentJob(MergeMixturesJob):
             {
                 "config": config,
                 "linear_alignment_flow": linear_alignment_flow,
-                "exe": kwargs["csp"].acoustic_model_trainer_exe,
+                "exe": kwargs["crp"].acoustic_model_trainer_exe,
                 "merge_hash": MergeMixturesJob.hash(cls.merge_args(**kwargs)),
             }
         )
@@ -349,7 +349,7 @@ class LinearAlignmentJob(MergeMixturesJob):
 class EstimateMixturesJob(MergeMixturesJob):
     def __init__(
         self,
-        csp,
+        crp,
         old_mixtures,
         feature_flow,
         alignment,
@@ -368,18 +368,18 @@ class EstimateMixturesJob(MergeMixturesJob):
         self.config, self.post_config = EstimateMixturesJob.create_config(**kwargs)
         self.alignment_flow = EstimateMixturesJob.create_flow(**kwargs)
         self.exe = self.select_exe(
-            csp.acoustic_model_trainer_exe, "acoustic-model-trainer"
+            crp.acoustic_model_trainer_exe, "acoustic-model-trainer"
         )
         self.split_first = split_first
         self.keep_accumulators = keep_accumulators
-        self.concurrent = csp.concurrent
+        self.concurrent = crp.concurrent
 
         self._old_mixtures = old_mixtures
 
-        self.log_file = self.log_file_output_path("accumulate", csp, True)
+        self.log_file = self.log_file_output_path("accumulate", crp, True)
 
         self.accumulate_rqmt = {
-            "time": max(csp.corpus_duration / 20, 0.5),
+            "time": max(crp.corpus_duration / 20, 0.5),
             "cpu": 1,
             "mem": 2,
         }
@@ -429,7 +429,7 @@ class EstimateMixturesJob(MergeMixturesJob):
     @classmethod
     def create_config(
         cls,
-        csp,
+        crp,
         old_mixtures,
         feature_flow,
         alignment,
@@ -440,7 +440,7 @@ class EstimateMixturesJob(MergeMixturesJob):
     ):
         alignment_flow = cls.create_flow(feature_flow, alignment)
         config, post_config = rasr.build_config_from_mapping(
-            csp,
+            crp,
             {
                 "corpus": "acoustic-model-trainer.corpus",
                 "lexicon": "acoustic-model-trainer.mixture-set-trainer.lexicon",
@@ -477,11 +477,11 @@ class EstimateMixturesJob(MergeMixturesJob):
         return cached_alignment_flow(feature_flow, alignment)
 
     @classmethod
-    def merge_args(cls, csp, extra_merge_args, **kwargs):
+    def merge_args(cls, crp, extra_merge_args, **kwargs):
         merge_args = {
-            "csp": csp,
+            "crp": crp,
             "mixtures_to_combine": [
-                "am.acc.%d" % i for i in range(1, csp.concurrent + 1)
+                "am.acc.%d" % i for i in range(1, crp.concurrent + 1)
             ],
             "combine_per_step": 2,
             "estimator": "maximum-likelihood",
@@ -501,7 +501,7 @@ class EstimateMixturesJob(MergeMixturesJob):
             {
                 "config": config,
                 "alignment_flow": alignment_flow,
-                "exe": kwargs["csp"].acoustic_model_trainer_exe,
+                "exe": kwargs["crp"].acoustic_model_trainer_exe,
                 "merge_hash": MergeMixturesJob.hash(cls.merge_args(**kwargs)),
             }
         )

@@ -9,7 +9,7 @@ import recipe.i6_asr.rasr as rasr
 
 
 def PlpJob(
-    csp, sampling_rate, plp_options=None, extra_config=None, extra_post_config=None
+    crp, sampling_rate, plp_options=None, extra_config=None, extra_post_config=None
 ):
     if plp_options is None:
         plp_options = {}
@@ -18,13 +18,13 @@ def PlpJob(
 
     if "samples_options" not in plp_options:
         plp_options["samples_options"] = {}
-    plp_options["samples_options"]["audio_format"] = csp.audio_format
+    plp_options["samples_options"]["audio_format"] = crp.audio_format
     feature_flow = plp_flow(sampling_rate=sampling_rate, **plp_options)
 
     port_name_mapping = {"features": "plp"}
 
     return FeatureExtraction(
-        csp,
+        crp,
         feature_flow,
         port_name_mapping,
         job_name="PLP",

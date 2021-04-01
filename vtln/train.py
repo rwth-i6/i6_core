@@ -19,7 +19,7 @@ from .flow import *
 class ScoreFeaturesWithWarpingFactorsJob(rasr.RasrCommand, Job):
     def __init__(
         self,
-        csp,
+        crp,
         feature_flow,
         feature_scorer,
         alignment,
@@ -32,26 +32,26 @@ class ScoreFeaturesWithWarpingFactorsJob(rasr.RasrCommand, Job):
         kwargs = locals()
         del kwargs["self"]
 
-        self.concurrent = csp.concurrent
+        self.concurrent = crp.concurrent
         (
             self.config,
             self.post_config,
         ) = ScoreFeaturesWithWarpingFactorsJob.create_config(**kwargs)
         self.exe = self.select_exe(
-            csp.acoustic_model_trainer_exe, "acoustic-model-trainer"
+            crp.acoustic_model_trainer_exe, "acoustic-model-trainer"
         )
         self.flow = ScoreFeaturesWithWarpingFactorsJob.create_flow(**kwargs)
         self.alphas = copy.copy(alphas)
 
         self.log_file = {
-            idx: self.log_file_output_path("score_%d" % idx, csp, True)
+            idx: self.log_file_output_path("score_%d" % idx, crp, True)
             for idx in range(len(self.alphas))
         }
         self.alphas_file = self.output_path("alphas.xml")
         self.warping_map = self.output_path("warping_map.xml")
 
         self.rqmt = {
-            "time": max(csp.corpus_duration / (50.0 * csp.concurrent), 0.5),
+            "time": max(crp.corpus_duration / (50.0 * crp.concurrent), 0.5),
             "cpu": 1,
             "mem": 1,
         }
@@ -117,7 +117,7 @@ class ScoreFeaturesWithWarpingFactorsJob(rasr.RasrCommand, Job):
     @classmethod
     def create_config(
         cls,
-        csp,
+        crp,
         feature_flow,
         alignment,
         feature_scorer,
@@ -130,7 +130,7 @@ class ScoreFeaturesWithWarpingFactorsJob(rasr.RasrCommand, Job):
         feature_flow = cls.create_flow(feature_flow, alignment, filterbank_node)
 
         config, post_config = rasr.build_config_from_mapping(
-            csp,
+            crp,
             {
                 "acoustic_model": "acoustic-model-trainer.feature-scorer.acoustic-model",
                 "corpus": "acoustic-model-trainer.corpus",
@@ -193,7 +193,7 @@ class ScoreFeaturesWithWarpingFactorsJob(rasr.RasrCommand, Job):
                 "feature_flow": ScoreFeaturesWithWarpingFactorsJob.create_flow(
                     **kwargs
                 ),
-                "exe": kwargs["csp"].acoustic_model_trainer_exe,
+                "exe": kwargs["crp"].acoustic_model_trainer_exe,
             }
         )
 
@@ -201,7 +201,7 @@ class ScoreFeaturesWithWarpingFactorsJob(rasr.RasrCommand, Job):
 class EstimateWarpingMixturesJob(mm.MergeMixturesJob):
     def __init__(
         self,
-        csp,
+        crp,
         old_mixtures,
         feature_flow,
         warping_map,
@@ -226,18 +226,18 @@ class EstimateWarpingMixturesJob(mm.MergeMixturesJob):
         )
         self.label_flow = EstimateWarpingMixturesJob.create_flow(**kwargs)
         self.exe = self.select_exe(
-            csp.acoustic_model_trainer_exe, "acoustic-model-trainer"
+            crp.acoustic_model_trainer_exe, "acoustic-model-trainer"
         )
         self.split_first = split_first
         self.keep_accumulators = keep_accumulators
-        self.concurrent = csp.concurrent
+        self.concurrent = crp.concurrent
 
         self._old_mixtures = old_mixtures
 
-        self.log_file = self.log_file_output_path("accumulate", csp, True)
+        self.log_file = self.log_file_output_path("accumulate", crp, True)
 
         self.accumulate_rqmt = {
-            "time": max(csp.corpus_duration / 20, 0.5),
+            "time": max(crp.corpus_duration / 20, 0.5),
             "cpu": 1,
             "mem": 2,
         }
@@ -287,7 +287,7 @@ class EstimateWarpingMixturesJob(mm.MergeMixturesJob):
     @classmethod
     def create_config(
         cls,
-        csp,
+        crp,
         old_mixtures,
         feature_flow,
         warping_map,
@@ -301,7 +301,7 @@ class EstimateWarpingMixturesJob(mm.MergeMixturesJob):
         label_flow = cls.create_flow(feature_flow, warping_map, extra_warping_args)
 
         config, post_config = rasr.build_config_from_mapping(
-            csp,
+            crp,
             {
                 "corpus": "acoustic-model-trainer.corpus",
                 "acoustic_model": "acoustic-model-trainer.mixture-set-trainer.acoustic-model",
@@ -335,11 +335,11 @@ class EstimateWarpingMixturesJob(mm.MergeMixturesJob):
         return label_features_with_map_flow(feature_flow, warping_map, **kwargs)
 
     @classmethod
-    def merge_args(cls, csp, extra_merge_args, **kwargs):
+    def merge_args(cls, crp, extra_merge_args, **kwargs):
         merge_args = {
-            "csp": csp,
+            "crp": crp,
             "mixtures_to_combine": [
-                "am.acc.%d" % i for i in range(1, csp.concurrent + 1)
+                "am.acc.%d" % i for i in range(1, crp.concurrent + 1)
             ],
             "combine_per_step": 2,
             "estimator": "maximum-likelihood",
@@ -359,7 +359,7 @@ class EstimateWarpingMixturesJob(mm.MergeMixturesJob):
             {
                 "config": config,
                 "alignment_flow": alignment_flow,
-                "exe": kwargs["csp"].acoustic_model_trainer_exe,
+                "exe": kwargs["crp"].acoustic_model_trainer_exe,
                 "merge_hash": mm.MergeMixturesJob.hash(cls.merge_args(**kwargs)),
             }
         )

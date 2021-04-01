@@ -10,7 +10,7 @@ import recipe.i6_asr.util as util
 class CostaJob(rasr.RasrCommand, Job):
     def __init__(
         self,
-        csp,
+        crp,
         eval_recordings=False,
         eval_lm=True,
         extra_config=None,
@@ -19,18 +19,18 @@ class CostaJob(rasr.RasrCommand, Job):
         self.set_vis_name("Costa")
 
         self.config, self.post_config = CostaJob.create_config(
-            csp, eval_recordings, eval_lm, extra_config, extra_post_config
+            crp, eval_recordings, eval_lm, extra_config, extra_post_config
         )
-        self.audio_flow = raw_audio_flow(csp.audio_format) if eval_recordings else None
+        self.audio_flow = raw_audio_flow(crp.audio_format) if eval_recordings else None
 
         self.log_file = self.output_path(
-            "costa.log" + (".gz" if csp.compress_log_file else "")
+            "costa.log" + (".gz" if crp.compress_log_file else "")
         )
         self.exe = (
-            csp.costa_exe if csp.costa_exe is not None else self.default_exe("costa")
+            crp.costa_exe if crp.costa_exe is not None else self.default_exe("costa")
         )
         self.rqmt = {
-            "time": max(csp.corpus_duration / 20, 0.5),
+            "time": max(crp.corpus_duration / 20, 0.5),
             "cpu": 1,
             "mem": 1 if not self.config.costa.lm_statistics else 4,
         }
@@ -55,32 +55,32 @@ class CostaJob(rasr.RasrCommand, Job):
 
     @classmethod
     def create_config(
-        cls, csp, eval_recordings, eval_lm, extra_config, extra_post_config
+        cls, crp, eval_recordings, eval_lm, extra_config, extra_post_config
     ):
         config = rasr.RasrConfig()
         post_config = rasr.RasrConfig()
 
-        config._update(csp.log_config)
-        post_config._update(csp.log_post_config)
+        config._update(crp.log_config)
+        post_config._update(crp.log_post_config)
 
-        config.costa.statistics.corpus = csp.corpus_config
-        post_config.costa.statistics.corpus = csp.corpus_post_config
+        config.costa.statistics.corpus = crp.corpus_config
+        post_config.costa.statistics.corpus = crp.corpus_post_config
 
         config.costa.statistics.evaluate_recordings = eval_recordings
         if eval_recordings:
             config.costa.statistics.feature_extraction.file = "audio.flow"
 
-        config.costa.lexical_statistics = csp.lexicon_config is not None
-        config.costa.statistics.lexicon = csp.lexicon_config
-        post_config.costa.statistics.lexicon = csp.lexicon_post_config
+        config.costa.lexical_statistics = crp.lexicon_config is not None
+        config.costa.statistics.lexicon = crp.lexicon_config
+        post_config.costa.statistics.lexicon = crp.lexicon_post_config
 
         config.costa.lm_statistics = (
-            csp.language_model_config is not None
-            and csp.lexicon_config is not None
+            crp.language_model_config is not None
+            and crp.lexicon_config is not None
             and eval_lm
         )
-        config.costa.statistics.lm = csp.language_model_config
-        post_config.costa.statistics.lm = csp.language_model_post_config
+        config.costa.statistics.lm = crp.language_model_config
+        post_config.costa.statistics.lm = crp.language_model_post_config
 
         if extra_config is not None:
             config._update(extra_config)
@@ -93,4 +93,4 @@ class CostaJob(rasr.RasrCommand, Job):
     @classmethod
     def hash(cls, kwargs):
         config, post_config = cls.create_config(**kwargs)
-        return super().hash({"config": config, "exe": kwargs["csp"].costa_exe})
+        return super().hash({"config": config, "exe": kwargs["crp"].costa_exe})

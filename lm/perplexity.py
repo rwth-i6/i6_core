@@ -15,7 +15,7 @@ import recipe.i6_asr.util as util
 class ComputePerplexityJob(rasr.RasrCommand, Job):
     def __init__(
         self,
-        csp,
+        crp,
         text_file,
         encoding="utf-8",
         renormalize=False,
@@ -29,9 +29,9 @@ class ComputePerplexityJob(rasr.RasrCommand, Job):
         self.renormalize = renormalize
 
         self.config, self.post_config = ComputePerplexityJob.create_config(**kwargs)
-        self.exe = self.select_exe(csp.lm_util_exe, "lm-util")
+        self.exe = self.select_exe(crp.lm_util_exe, "lm-util")
 
-        self.log_file = self.log_file_output_path("compute_ppl", csp, False)
+        self.log_file = self.log_file_output_path("compute_ppl", crp, False)
         self.score_file = self.output_path("word.scores")
         self.perplexity = self.output_var("perplexity")
 
@@ -66,7 +66,7 @@ class ComputePerplexityJob(rasr.RasrCommand, Job):
     @classmethod
     def create_config(
         cls,
-        csp,
+        crp,
         text_file,
         encoding,
         renormalize,
@@ -75,7 +75,7 @@ class ComputePerplexityJob(rasr.RasrCommand, Job):
         **kwargs,
     ):
         config, post_config = rasr.build_config_from_mapping(
-            csp, {"lexicon": "lm-util.lexicon", "language_model": "lm-util.lm"}
+            crp, {"lexicon": "lm-util.lexicon", "language_model": "lm-util.lm"}
         )
         del (
             config.lm_util.lm.scale

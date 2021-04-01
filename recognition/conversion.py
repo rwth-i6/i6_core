@@ -13,7 +13,7 @@ import recipe.i6_asr.util as util
 class LatticeToCtmJob(rasr.RasrCommand, Job):
     def __init__(
         self,
-        csp,
+        crp,
         lattice_cache,
         *,
         parallelize=False,
@@ -30,17 +30,17 @@ class LatticeToCtmJob(rasr.RasrCommand, Job):
 
         self.best_path_algo = best_path_algo
         self.config, self.post_config = LatticeToCtmJob.create_config(**kwargs)
-        self.concurrent = csp.concurrent if parallelize else 1
-        self.exe = self.select_exe(csp.flf_tool_exe, "flf-tool")
+        self.concurrent = crp.concurrent if parallelize else 1
+        self.exe = self.select_exe(crp.flf_tool_exe, "flf-tool")
         self.lattice_cache = lattice_cache
 
         self.log_file = self.log_file_output_path(
-            "lattice_to_ctm", csp, self.concurrent > 1
+            "lattice_to_ctm", crp, self.concurrent > 1
         )
         self.ctm_file = self.output_path("lattice.ctm")
 
         self.rqmt = {
-            "time": max(csp.corpus_duration / (5.0 * self.concurrent), 0.5),
+            "time": max(crp.corpus_duration / (5.0 * self.concurrent), 0.5),
             "cpu": 1,
             "mem": 4,
         }
@@ -75,7 +75,7 @@ class LatticeToCtmJob(rasr.RasrCommand, Job):
     @classmethod
     def create_config(
         cls,
-        csp,
+        crp,
         lattice_cache,
         parallelize,
         encoding,
@@ -86,7 +86,7 @@ class LatticeToCtmJob(rasr.RasrCommand, Job):
         **kwargs
     ):
         config, post_config = rasr.build_config_from_mapping(
-            csp,
+            crp,
             {
                 "corpus": "flf-lattice-tool.corpus",
                 "lexicon": "flf-lattice-tool.lexicon",
@@ -151,4 +151,4 @@ class LatticeToCtmJob(rasr.RasrCommand, Job):
     @classmethod
     def hash(cls, kwargs):
         config, post_config = cls.create_config(**kwargs)
-        return super().hash({"config": config, "exe": kwargs["csp"].flf_tool_exe})
+        return super().hash({"config": config, "exe": kwargs["crp"].flf_tool_exe})

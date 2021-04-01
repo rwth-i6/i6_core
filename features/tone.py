@@ -20,7 +20,7 @@ import recipe.i6_asr.util as util
 class ToneJob(rasr.RasrCommand, Job):
     def __init__(
         self,
-        csp,
+        crp,
         timestamp_flow,
         *,
         samples_flow=None,
@@ -46,17 +46,17 @@ class ToneJob(rasr.RasrCommand, Job):
         )
         self.convert_flow = self.create_convert_flow(**kwargs)
         self.exe = (
-            csp.feature_extraction_exe
-            if csp.feature_extraction_exe is not None
+            crp.feature_extraction_exe
+            if crp.feature_extraction_exe is not None
             else self.default_exe("feature-extraction")
         )
-        self.concurrent = csp.concurrent
+        self.concurrent = crp.concurrent
 
-        self.dump_log_file = self.log_file_output_path("dump", csp, True)
-        self.convert_log_file = self.log_file_output_path("convert", csp, True)
+        self.dump_log_file = self.log_file_output_path("dump", crp, True)
+        self.convert_log_file = self.log_file_output_path("convert", crp, True)
         self.single_feature_caches = dict(
             (task_id, self.output_path("tone.cache.%d" % task_id, cached=True))
-            for task_id in range(1, csp.concurrent + 1)
+            for task_id in range(1, crp.concurrent + 1)
         )
         self.feature_bundle = self.output_path("tone.cache.bundle", cached=True)
         self.feature_path = util.MultiOutputPath(
@@ -64,17 +64,17 @@ class ToneJob(rasr.RasrCommand, Job):
         )
 
         self.dump_rqmt = {
-            "time": max(csp.corpus_duration * rtf / csp.concurrent, 0.5),
+            "time": max(crp.corpus_duration * rtf / crp.concurrent, 0.5),
             "cpu": 1,
             "mem": mem,
         }
         self.extract_pitch_rqmt = {
-            "time": max(csp.corpus_duration * rtf / self.extract_concurrent, 0.5),
+            "time": max(crp.corpus_duration * rtf / self.extract_concurrent, 0.5),
             "cpu": extract_concurrent,
             "mem": mem,
         }
         self.convert_rqmt = {
-            "time": max(csp.corpus_duration * rtf / csp.concurrent, 0.5),
+            "time": max(crp.corpus_duration * rtf / crp.concurrent, 0.5),
             "cpu": 1,
             "mem": mem,
         }
@@ -185,9 +185,9 @@ class ToneJob(rasr.RasrCommand, Job):
         )
 
     @classmethod
-    def create_dump_flow(cls, csp, samples_flow, **kwargs):
+    def create_dump_flow(cls, crp, samples_flow, **kwargs):
         if samples_flow is None:
-            samples_flow = default_samples_flow(csp.audio_format)
+            samples_flow = default_samples_flow(crp.audio_format)
 
         net = rasr.FlowNetwork()
         net.add_param("id")
@@ -218,12 +218,12 @@ class ToneJob(rasr.RasrCommand, Job):
 
     @classmethod
     def create_dump_config(
-        cls, csp, samples_flow, extra_dump_config, extra_dump_post_config, **kwargs
+        cls, crp, samples_flow, extra_dump_config, extra_dump_post_config, **kwargs
     ):
-        dump_flow = cls.create_dump_flow(csp, samples_flow)
+        dump_flow = cls.create_dump_flow(crp, samples_flow)
 
         config, post_config = rasr.build_config_from_mapping(
-            csp, {"corpus": "extraction.corpus"}, parallelize=True
+            crp, {"corpus": "extraction.corpus"}, parallelize=True
         )
         config.extraction.feature_extraction.file = "dump.flow"
         config.extraction.feature_extraction["*"].allow_overwrite = True
@@ -236,7 +236,7 @@ class ToneJob(rasr.RasrCommand, Job):
         return config, post_config
 
     @classmethod
-    def create_convert_flow(cls, csp, timestamp_flow, timestamp_port, **kwargs):
+    def create_convert_flow(cls, crp, timestamp_flow, timestamp_port, **kwargs):
         net = rasr.FlowNetwork()
         net.add_param("id")
         net.add_param("start-time")
@@ -281,17 +281,17 @@ class ToneJob(rasr.RasrCommand, Job):
     @classmethod
     def create_convert_config(
         cls,
-        csp,
+        crp,
         timestamp_flow,
         timestamp_port,
         extra_convert_config,
         extra_convert_post_config,
         **kwargs
     ):
-        convert_flow = cls.create_convert_flow(csp, timestamp_flow, timestamp_port)
+        convert_flow = cls.create_convert_flow(crp, timestamp_flow, timestamp_port)
 
         config, post_config = rasr.build_config_from_mapping(
-            csp, {"corpus": "extraction.corpus"}, parallelize=True
+            crp, {"corpus": "extraction.corpus"}, parallelize=True
         )
         config.extraction.feature_extraction.file = "convert.flow"
         config.extraction.feature_extraction["*"].allow_overwrite = True
@@ -315,6 +315,6 @@ class ToneJob(rasr.RasrCommand, Job):
                 "dump_flow": dump_flow,
                 "convert_config": convert_config,
                 "convert_flow": convert_flow,
-                "exe": kwargs["csp"].feature_extraction_exe,
+                "exe": kwargs["crp"].feature_extraction_exe,
             }
         )

@@ -15,7 +15,7 @@ import recipe.i6_asr.util as util
 class EstimateScatterMatricesJob(rasr.RasrCommand, Job):
     def __init__(
         self,
-        csp,
+        crp,
         alignment_flow,
         combine_per_step=20,
         keep_accumulators=False,
@@ -33,7 +33,7 @@ class EstimateScatterMatricesJob(rasr.RasrCommand, Job):
 
         self.alignment_flow = alignment_flow
         self.combine_per_step = combine_per_step
-        self.concurrent = csp.concurrent
+        self.concurrent = crp.concurrent
         (
             self.config_accumulate,
             self.post_config_accumulate,
@@ -47,7 +47,7 @@ class EstimateScatterMatricesJob(rasr.RasrCommand, Job):
             self.post_config_estimate,
         ) = EstimateScatterMatricesJob.create_estimate_config(**kwargs)
         self.exe = self.select_exe(
-            csp.acoustic_model_trainer_exe, "acoustic-model-trainer"
+            crp.acoustic_model_trainer_exe, "acoustic-model-trainer"
         )
         self.keep_accumulators = keep_accumulators
 
@@ -63,9 +63,9 @@ class EstimateScatterMatricesJob(rasr.RasrCommand, Job):
             util.partition_into_tree(list(range(self.concurrent)), combine_per_step),
         )
 
-        self.accumulate_log_file = self.log_file_output_path("accumulate", csp, True)
-        self.merge_log_file = self.log_file_output_path("merge", csp, merge_count)
-        self.estimate_log_file = self.log_file_output_path("estimate", csp, False)
+        self.accumulate_log_file = self.log_file_output_path("accumulate", crp, True)
+        self.merge_log_file = self.log_file_output_path("merge", crp, merge_count)
+        self.estimate_log_file = self.log_file_output_path("estimate", crp, False)
         self.between_class_scatter_matrix = self.output_path(
             "between_class_scatter.matrix"
         )
@@ -75,7 +75,7 @@ class EstimateScatterMatricesJob(rasr.RasrCommand, Job):
         self.total_scatter_matrix = self.output_path("total_scatter.matrix")
 
         self.accumulate_rqmt = {
-            "time": max(csp.corpus_duration / (20 * csp.concurrent), 0.5),
+            "time": max(crp.corpus_duration / (20 * crp.concurrent), 0.5),
             "cpu": 1,
             "mem": 4,
         }
@@ -179,14 +179,14 @@ class EstimateScatterMatricesJob(rasr.RasrCommand, Job):
     @classmethod
     def create_accumulate_config(
         cls,
-        csp,
+        crp,
         alignment_flow,
         extra_config_accumulate,
         extra_post_config_accumulate,
         **kwargs
     ):
         config, post_config = rasr.build_config_from_mapping(
-            csp,
+            crp,
             {
                 "corpus": "acoustic-model-trainer.corpus",
                 "lexicon": "acoustic-model-trainer.scatter-matrices-estimator.lexicon",
@@ -218,9 +218,9 @@ class EstimateScatterMatricesJob(rasr.RasrCommand, Job):
 
     @classmethod
     def create_merge_config(
-        cls, csp, extra_config_merge, extra_post_config_merge, **kwargs
+        cls, crp, extra_config_merge, extra_post_config_merge, **kwargs
     ):
-        config, post_config = rasr.build_config_from_mapping(csp, {})
+        config, post_config = rasr.build_config_from_mapping(crp, {})
 
         config.acoustic_model_trainer.action = "combine-scatter-matrix-accumulators"
 
@@ -231,9 +231,9 @@ class EstimateScatterMatricesJob(rasr.RasrCommand, Job):
 
     @classmethod
     def create_estimate_config(
-        cls, csp, extra_config_estimate, extra_post_config_estimate, **kwargs
+        cls, crp, extra_config_estimate, extra_post_config_estimate, **kwargs
     ):
-        config, post_config = rasr.build_config_from_mapping(csp, {})
+        config, post_config = rasr.build_config_from_mapping(crp, {})
 
         config.acoustic_model_trainer.action = (
             "estimate-scatter-matrices-from-accumulator"
@@ -264,7 +264,7 @@ class EstimateScatterMatricesJob(rasr.RasrCommand, Job):
                 "config_accumulate": config_accumulate,
                 "config_merge": config_merge,
                 "alignment_flow": kwargs["alignment_flow"],
-                "exe": kwargs["csp"].acoustic_model_trainer_exe,
+                "exe": kwargs["crp"].acoustic_model_trainer_exe,
             }
         )
 
@@ -272,7 +272,7 @@ class EstimateScatterMatricesJob(rasr.RasrCommand, Job):
 class EstimateLDAMatrixJob(rasr.RasrCommand, Job):
     def __init__(
         self,
-        csp,
+        crp,
         between_class_scatter_matrix,
         within_class_scatter_matrix,
         reduced_dimension,
@@ -291,10 +291,10 @@ class EstimateLDAMatrixJob(rasr.RasrCommand, Job):
 
         self.config, self.post_config = EstimateLDAMatrixJob.create_config(**kwargs)
         self.exe = self.select_exe(
-            csp.acoustic_model_trainer_exe, "acoustic-model-trainer"
+            crp.acoustic_model_trainer_exe, "acoustic-model-trainer"
         )
 
-        self.log_file = self.log_file_output_path("lda", csp, False)
+        self.log_file = self.log_file_output_path("lda", crp, False)
         self.lda_matrix = self.output_path("lda.matrix", cached=True)
 
         self.rqmt = {"time": 0.5, "cpu": 1, "mem": 1}
@@ -321,7 +321,7 @@ class EstimateLDAMatrixJob(rasr.RasrCommand, Job):
     @classmethod
     def create_config(
         cls,
-        csp,
+        crp,
         between_class_scatter_matrix,
         within_class_scatter_matrix,
         reduced_dimension,
@@ -330,7 +330,7 @@ class EstimateLDAMatrixJob(rasr.RasrCommand, Job):
         extra_config,
         extra_post_config,
     ):
-        config, post_config = rasr.build_config_from_mapping(csp, {})
+        config, post_config = rasr.build_config_from_mapping(crp, {})
 
         config.acoustic_model_trainer.action = "estimate-lda"
         config.acoustic_model_trainer.lda_estimator.reduced_dimesion = (
@@ -349,10 +349,10 @@ class EstimateLDAMatrixJob(rasr.RasrCommand, Job):
         )
 
         config.acoustic_model_trainer.lda_estimator.results.channel = (
-            csp.default_log_channel
+            crp.default_log_channel
         )
         config.acoustic_model_trainer.lda_estimator.generalized_eigenvalue_problem.condition_numbers.channel = (
-            csp.default_log_channel
+            crp.default_log_channel
         )
 
         config.acoustic_model_trainer.lda_estimator.eigenvalue_problem = (
@@ -371,5 +371,5 @@ class EstimateLDAMatrixJob(rasr.RasrCommand, Job):
     def hash(cls, kwargs):
         config, post_config = cls.create_config(**kwargs)
         return super().hash(
-            {"config": config, "exe": kwargs["csp"].acoustic_model_trainer_exe}
+            {"config": config, "exe": kwargs["crp"].acoustic_model_trainer_exe}
         )

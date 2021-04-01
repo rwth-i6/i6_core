@@ -15,7 +15,7 @@ import recipe.i6_asr.util as util
 class FeatureExtraction(rasr.RasrCommand, Job):
     def __init__(
         self,
-        csp,
+        crp,
         feature_flow,
         port_name_mapping,
         one_dimensional_outputs=None,
@@ -26,7 +26,7 @@ class FeatureExtraction(rasr.RasrCommand, Job):
         extra_post_config=None,
     ):
         """
-        :param recipe.rasr.csp.CommonRasrParameters csp:
+        :param recipe.rasr.crp.CommonRasrParameters crp:
         :param recipe.rasr.flow.FlowNetwork feature_flow:
         :param dict[str,str] port_name_mapping:
         :param set[str]|None one_dimensional_outputs:
@@ -47,13 +47,13 @@ class FeatureExtraction(rasr.RasrCommand, Job):
             feature_flow, port_name_mapping, one_dimensional_outputs
         )
         self.exe = (
-            csp.feature_extraction_exe
-            if csp.feature_extraction_exe is not None
+            crp.feature_extraction_exe
+            if crp.feature_extraction_exe is not None
             else self.default_exe("feature-extraction")
         )
-        self.concurrent = csp.concurrent
+        self.concurrent = crp.concurrent
 
-        self.log_file = self.log_file_output_path("feature-extraction", csp, True)
+        self.log_file = self.log_file_output_path("feature-extraction", crp, True)
         self.single_feature_caches = {}
         self.feature_bundle = {}
         self.feature_path = {}
@@ -63,7 +63,7 @@ class FeatureExtraction(rasr.RasrCommand, Job):
                     task_id,
                     self.output_path("%s.cache.%d" % (name, task_id), cached=True),
                 )
-                for task_id in range(1, csp.concurrent + 1)
+                for task_id in range(1, crp.concurrent + 1)
             )
             self.feature_bundle[name] = self.output_path(
                 "%s.cache.bundle" % name, cached=True
@@ -76,7 +76,7 @@ class FeatureExtraction(rasr.RasrCommand, Job):
             )
 
         self.rqmt = {
-            "time": max(csp.corpus_duration * rtf / csp.concurrent, 0.5),
+            "time": max(crp.corpus_duration * rtf / crp.concurrent, 0.5),
             "cpu": 1,
             "mem": mem,
         }
@@ -111,10 +111,10 @@ class FeatureExtraction(rasr.RasrCommand, Job):
 
     @classmethod
     def create_config(
-        cls, csp, feature_flow, extra_config, extra_post_config, **kwargs
+        cls, crp, feature_flow, extra_config, extra_post_config, **kwargs
     ):
         """
-        :param recipe.rasr.csp.CommonRasrParameters csp:
+        :param recipe.rasr.crp.CommonRasrParameters crp:
         :param feature_flow:
         :param recipe.rasr.config.RasrConfig|None extra_config:
         :param recipe.rasr.config.RasrConfig|None extra_post_config:
@@ -122,7 +122,7 @@ class FeatureExtraction(rasr.RasrCommand, Job):
         :rtype: (recipe.rasr.config.RasrConfig, recipe.rasr.config.RasrConfig)
         """
         config, post_config = rasr.build_config_from_mapping(
-            csp, {"corpus": "extraction.corpus"}, parallelize=True
+            crp, {"corpus": "extraction.corpus"}, parallelize=True
         )
         config.extraction.feature_extraction.file = "feature-extraction.flow"
         # this was a typo but we cannot remove it now without breaking a lot of hashes
@@ -148,7 +148,7 @@ class FeatureExtraction(rasr.RasrCommand, Job):
                 {
                     "config": config,
                     "flow": kwargs["feature_flow"],
-                    "exe": kwargs["csp"].feature_extraction_exe,
+                    "exe": kwargs["crp"].feature_extraction_exe,
                 }
             )
         )

@@ -18,7 +18,7 @@ import recipe.i6_asr.util as util
 
 
 class AdvancedTreeSearchLmImageAndGlobalCacheJob(rasr.RasrCommand, Job):
-    def __init__(self, csp, feature_scorer, extra_config=None, extra_post_config=None):
+    def __init__(self, crp, feature_scorer, extra_config=None, extra_post_config=None):
         assert isinstance(feature_scorer, rasr.FeatureScorer)
 
         self.set_vis_name("Precomptue LM Image/Global Cache")
@@ -31,9 +31,9 @@ class AdvancedTreeSearchLmImageAndGlobalCacheJob(rasr.RasrCommand, Job):
             self.post_config,
             self.num_images,
         ) = AdvancedTreeSearchLmImageAndGlobalCacheJob.create_config(**kwargs)
-        self.exe = self.select_exe(csp.flf_tool_exe, "flf-tool")
+        self.exe = self.select_exe(crp.flf_tool_exe, "flf-tool")
 
-        self.log_file = self.log_file_output_path("lm_and_state_tree", csp, False)
+        self.log_file = self.log_file_output_path("lm_and_state_tree", crp, False)
         self.lm_images = {
             i: self.output_path("lm-%d.image" % i, cached=True)
             for i in range(1, self.num_images + 1)
@@ -94,10 +94,10 @@ class AdvancedTreeSearchLmImageAndGlobalCacheJob(rasr.RasrCommand, Job):
 
     @classmethod
     def create_config(
-        cls, csp, feature_scorer, extra_config, extra_post_config, **kwargs
+        cls, crp, feature_scorer, extra_config, extra_post_config, **kwargs
     ):
         config, post_config = rasr.build_config_from_mapping(
-            csp,
+            crp,
             {
                 "lexicon": "flf-lattice-tool.lexicon",
                 "acoustic_model": "flf-lattice-tool.network.recognizer.acoustic-model",
@@ -150,13 +150,13 @@ class AdvancedTreeSearchLmImageAndGlobalCacheJob(rasr.RasrCommand, Job):
     @classmethod
     def hash(cls, kwargs):
         config, post_config, num_images = cls.create_config(**kwargs)
-        return super().hash({"config": config, "exe": kwargs["csp"].flf_tool_exe})
+        return super().hash({"config": config, "exe": kwargs["crp"].flf_tool_exe})
 
 
 class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
     def __init__(
         self,
-        csp,
+        crp,
         feature_flow,
         feature_scorer,
         search_parameters=None,
@@ -186,14 +186,14 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
             self.lm_gc_job,
         ) = AdvancedTreeSearchJob.create_config(**kwargs)
         self.feature_flow = feature_flow
-        self.exe = self.select_exe(csp.flf_tool_exe, "flf-tool")
-        self.concurrent = csp.concurrent
+        self.exe = self.select_exe(crp.flf_tool_exe, "flf-tool")
+        self.concurrent = crp.concurrent
         self.use_gpu = use_gpu
 
-        self.log_file = self.log_file_output_path("search", csp, True)
+        self.log_file = self.log_file_output_path("search", crp, True)
         self.single_lattice_caches = dict(
             (task_id, self.output_path("lattice.cache.%d" % task_id, cached=True))
-            for task_id in range(1, csp.concurrent + 1)
+            for task_id in range(1, crp.concurrent + 1)
         )
         self.lattice_bundle = self.output_path("lattice.bundle", cached=True)
         self.lattice_path = util.MultiOutputPath(
@@ -201,7 +201,7 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
         )
 
         self.rqmt = {
-            "time": max(csp.corpus_duration * rtf / csp.concurrent, 0.5),
+            "time": max(crp.corpus_duration * rtf / crp.concurrent, 0.5),
             "cpu": 1,
             "gpu": 1 if self.use_gpu else 0,
             "mem": mem,
@@ -255,7 +255,7 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
     @classmethod
     def create_config(
         cls,
-        csp,
+        crp,
         feature_flow,
         feature_scorer,
         search_parameters,
@@ -272,7 +272,7 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
         **kwargs
     ):
         lm_gc = AdvancedTreeSearchLmImageAndGlobalCacheJob(
-            csp, feature_scorer, extra_config, extra_post_config
+            crp, feature_scorer, extra_config, extra_post_config
         )
         lm_gc.rqmt["mem"] = mem
 
@@ -290,7 +290,7 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
             la_opts.update(lookahead_options)
 
         config, post_config = rasr.build_config_from_mapping(
-            csp,
+            crp,
             {
                 "corpus": "flf-lattice-tool.corpus",
                 "lexicon": "flf-lattice-tool.lexicon",
@@ -448,7 +448,7 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
             {
                 "config": config,
                 "feature_flow": kwargs["feature_flow"],
-                "exe": kwargs["csp"].flf_tool_exe,
+                "exe": kwargs["crp"].flf_tool_exe,
             }
         )
 
@@ -456,7 +456,7 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
 class AdvancedTreeSearchWithRescoringJob(AdvancedTreeSearchJob):
     def __init__(
         self,
-        csp,
+        crp,
         feature_flow,
         feature_scorer,
         search_parameters=None,
@@ -480,7 +480,7 @@ class AdvancedTreeSearchWithRescoringJob(AdvancedTreeSearchJob):
         extra_post_config=None,
     ):
         super().__init__(
-            csp=csp,
+            crp=crp,
             feature_flow=feature_flow,
             feature_scorer=feature_scorer,
             search_parameters=search_parameters,
@@ -542,7 +542,7 @@ class BidirectionalAdvancedTreeSearchJob(rasr.RasrCommand, Job):
 
     def __init__(
         self,
-        csp,
+        crp,
         feature_flow,
         feature_scorer,
         recognizer_parameters=None,
@@ -570,14 +570,14 @@ class BidirectionalAdvancedTreeSearchJob(rasr.RasrCommand, Job):
 
         self.config, self.post_config = self.create_config(**kwargs)
         self.feature_flow = feature_flow
-        self.exe = self.select_exe(csp.flf_tool_exe, "flf-tool")
-        self.concurrent = csp.concurrent
+        self.exe = self.select_exe(crp.flf_tool_exe, "flf-tool")
+        self.concurrent = crp.concurrent
         self.use_gpu = use_gpu
 
-        self.log_file = self.log_file_output_path("search", csp, True)
+        self.log_file = self.log_file_output_path("search", crp, True)
         self.single_lattice_caches = dict(
             (task_id, self.output_path("lattice.cache.%d" % task_id, cached=True))
-            for task_id in range(1, csp.concurrent + 1)
+            for task_id in range(1, crp.concurrent + 1)
         )
         self.lattice_bundle = self.output_path("lattice.bundle", cached=True)
         self.lattice_path = util.MultiOutputPath(
@@ -585,7 +585,7 @@ class BidirectionalAdvancedTreeSearchJob(rasr.RasrCommand, Job):
         )
 
         self.rqmt = {
-            "time": max(csp.corpus_duration * rtf / csp.concurrent, 0.5),
+            "time": max(crp.corpus_duration * rtf / crp.concurrent, 0.5),
             "cpu": 1,
             "gpu": 1 if self.use_gpu else 0,
             "mem": mem,
@@ -639,7 +639,7 @@ class BidirectionalAdvancedTreeSearchJob(rasr.RasrCommand, Job):
     @classmethod
     def create_config(
         cls,
-        csp,
+        crp,
         feature_flow,
         feature_scorer,
         recognizer_parameters,
@@ -658,7 +658,7 @@ class BidirectionalAdvancedTreeSearchJob(rasr.RasrCommand, Job):
         **kwargs
     ):
         lm_gc = AdvancedTreeSearchLmImageAndGlobalCacheJob(
-            csp, feature_scorer, extra_config, extra_post_config
+            crp, feature_scorer, extra_config, extra_post_config
         )
         lm_gc.rqmt["mem"] = mem
 
@@ -676,7 +676,7 @@ class BidirectionalAdvancedTreeSearchJob(rasr.RasrCommand, Job):
             la_opts.update(lookahead_options)
 
         config, post_config = rasr.build_config_from_mapping(
-            csp,
+            crp,
             {
                 "corpus": "flf-lattice-tool.corpus",
                 "lexicon": "flf-lattice-tool.lexicon",
@@ -805,10 +805,10 @@ class BidirectionalAdvancedTreeSearchJob(rasr.RasrCommand, Job):
         post_config.flf_lattice_tool.network.recognizer.lm.image = lm_gc.lm_image
         post_config.flf_lattice_tool.network.recognizer.backward.lm.type = "ARPA"
         post_config.flf_lattice_tool.network.recognizer.backward.lm.file = (
-            lm.ReverseARPALmJob(csp.language_model_config.file).reverse_lm_path
+            lm.ReverseARPALmJob(crp.language_model_config.file).reverse_lm_path
         )
         post_config.flf_lattice_tool.network.recognizer.backward.lm.scale = (
-            csp.language_model_config.scale
+            crp.language_model_config.scale
         )
 
         # Remaining Flf-network
@@ -851,6 +851,6 @@ class BidirectionalAdvancedTreeSearchJob(rasr.RasrCommand, Job):
             {
                 "config": config,
                 "feature_flow": kwargs["feature_flow"],
-                "exe": kwargs["csp"].flf_tool_exe,
+                "exe": kwargs["crp"].flf_tool_exe,
             }
         )

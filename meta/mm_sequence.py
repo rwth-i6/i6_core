@@ -15,7 +15,7 @@ from recipe.i6_asr.rasr import FlagDependentFlowAttribute, DiagonalMaximumScorer
 class AlignSplitAccumulateSequence:
     def __init__(
         self,
-        csp,
+        crp,
         action_sequence,
         feature_flow,
         initial_mixtures=None,
@@ -34,7 +34,7 @@ class AlignSplitAccumulateSequence:
         feature_scorer=DiagonalMaximumScorer,
     ):
         """
-        :param recipe.rasr.csp.CommonRasrParameters csp:
+        :param recipe.rasr.crp.CommonRasrParameters crp:
         :param list[str] action_sequence:
         :param feature_flow:
         :param initial_mixtures:
@@ -100,7 +100,7 @@ class AlignSplitAccumulateSequence:
         for a_idx, action in enumerate(action_sequence):
             if action.startswith("align"):
                 args = {
-                    "csp": csp,
+                    "crp": crp,
                     "feature_flow": feature_flow,
                     "feature_scorer": feature_scorer(current_mixtures),
                 }
@@ -136,7 +136,7 @@ class AlignSplitAccumulateSequence:
             elif action.startswith("split") or action.startswith("accumulate"):
                 split = action.startswith("split")
                 args = {
-                    "csp": csp,
+                    "crp": crp,
                     "old_mixtures": current_mixtures,
                     "feature_flow": feature_flow,
                     "alignment": current_alignment,

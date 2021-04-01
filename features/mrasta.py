@@ -8,17 +8,17 @@ from .extraction import *
 import recipe.i6_asr.rasr as rasr
 
 
-def MrastaJob(csp, mrasta_options={}, extra_config=None, extra_post_config=None):
+def MrastaJob(crp, mrasta_options={}, extra_config=None, extra_post_config=None):
     mrasta_options = copy.deepcopy(mrasta_options)
     if "samples_options" not in mrasta_options:
         mrasta_options["samples_options"] = {}
-    mrasta_options["samples_options"]["audio_format"] = csp.audio_format
+    mrasta_options["samples_options"]["audio_format"] = crp.audio_format
     feature_flow = mrasta_flow(**mrasta_options)
 
     port_name_mapping = {"features-0": "high", "features-1": "low"}
 
     return FeatureExtraction(
-        csp,
+        crp,
         feature_flow,
         port_name_mapping,
         job_name="Mrasta",

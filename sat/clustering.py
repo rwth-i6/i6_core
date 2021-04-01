@@ -20,7 +20,7 @@ class BayesianInformationClusteringJob(rasr.RasrCommand, Job):
 
     def __init__(
         self,
-        csp,
+        crp,
         feature_flow,
         minframes=0,
         mincluster=2,
@@ -47,17 +47,17 @@ class BayesianInformationClusteringJob(rasr.RasrCommand, Job):
         self.config, self.post_config = BayesianInformationClusteringJob.create_config(
             **kwargs
         )
-        self.concurrent = csp.concurrent
+        self.concurrent = crp.concurrent
         self.exe = (
-            csp.feature_extraction_exe
-            if csp.feature_extraction_exe is not None
+            crp.feature_extraction_exe
+            if crp.feature_extraction_exe is not None
             else self.default_exe("feature-extraction")
         )
         self.cluster_flow = segment_clustering_flow(
             file="cluster.map.$(TASK)", **kwargs
         )
 
-        self.log_file = self.log_file_output_path("cluster", csp, True)
+        self.log_file = self.log_file_output_path("cluster", crp, True)
         self.num_speakers = self.output_var("num_speakers", True)
         self.segment_dir = self.output_path("segments", True)
         self.segment_path = MultiOutputPath(
@@ -69,7 +69,7 @@ class BayesianInformationClusteringJob(rasr.RasrCommand, Job):
         self.rqmt = {
             "time": 24,
             "cpu": 1,
-            "mem": min(max(rtf / self.concurrent * csp.corpus_duration, 1), 16),
+            "mem": min(max(rtf / self.concurrent * crp.corpus_duration, 1), 16),
         }
         if mem:
             self.rqmt["mem"] = mem
@@ -121,10 +121,10 @@ class BayesianInformationClusteringJob(rasr.RasrCommand, Job):
 
     @classmethod
     def create_config(
-        cls, csp, feature_flow, extra_config, extra_post_config, **kwargs
+        cls, crp, feature_flow, extra_config, extra_post_config, **kwargs
     ):
         config, post_config = rasr.build_config_from_mapping(
-            csp, {"corpus": "extraction.corpus"}, parallelize=True
+            crp, {"corpus": "extraction.corpus"}, parallelize=True
         )
         config.extraction.feature_extraction.file = "cluster.flow"
 
@@ -149,7 +149,7 @@ class BayesianInformationClusteringJob(rasr.RasrCommand, Job):
                 {
                     "config": config,
                     "flow": cluster_flow,
-                    "exe": kwargs["csp"].feature_extraction_exe,
+                    "exe": kwargs["crp"].feature_extraction_exe,
                 }
             )
         )

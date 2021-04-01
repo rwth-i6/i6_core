@@ -15,7 +15,7 @@ import recipe.i6_asr.util as util
 class OptimizeAMandLMScale(rasr.RasrCommand, Job):
     def __init__(
         self,
-        csp,
+        crp,
         lattice_cache,
         initial_am_scale,
         initial_lm_scale,
@@ -34,7 +34,7 @@ class OptimizeAMandLMScale(rasr.RasrCommand, Job):
         del kwargs["self"]
 
         self.config, self.post_config = OptimizeAMandLMScale.create_config(**kwargs)
-        self.exe = self.select_exe(csp.flf_tool_exe, "flf-tool")
+        self.exe = self.select_exe(crp.flf_tool_exe, "flf-tool")
         self.initial_am_scale = initial_am_scale
         self.initial_lm_scale = initial_lm_scale
         self.lattice_cache = lattice_cache
@@ -156,9 +156,9 @@ class OptimizeAMandLMScale(rasr.RasrCommand, Job):
         util.backup_if_exists("lm_and_state_tree.log")
 
     @classmethod
-    def create_config(cls, csp, extra_config, extra_post_config, **kwargs):
+    def create_config(cls, crp, extra_config, extra_post_config, **kwargs):
         config, post_config = rasr.build_config_from_mapping(
-            csp,
+            crp,
             {
                 "corpus": "flf-lattice-tool.corpus",
                 "lexicon": "flf-lattice-tool.lexicon",
@@ -222,7 +222,7 @@ class OptimizeAMandLMScale(rasr.RasrCommand, Job):
         config, post_config = cls.create_config(**kwargs)
         d = {
             "config": config,
-            "exe": kwargs["csp"].flf_tool_exe,
+            "exe": kwargs["crp"].flf_tool_exe,
             "initial_am_scale": kwargs["initial_am_scale"],
             "initial_lm_scale": kwargs["initial_lm_scale"],
             "lattice_cache": tk.uncached_path(kwargs["lattice_cache"]),

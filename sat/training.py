@@ -16,7 +16,7 @@ import recipe.i6_asr.util as util
 class EstimateCMLLRJob(rasr.RasrCommand, Job):
     def __init__(
         self,
-        csp,
+        crp,
         feature_flow,
         mixtures,
         alignment,
@@ -33,20 +33,20 @@ class EstimateCMLLRJob(rasr.RasrCommand, Job):
         kwargs = locals()
         del kwargs["self"]
 
-        self.concurrent = csp.concurrent
+        self.concurrent = crp.concurrent
         self.config, self.post_config = EstimateCMLLRJob.create_config(**kwargs)
         self.exe = self.select_exe(
-            csp.acoustic_model_trainer_exe, "acoustic-model-trainer"
+            crp.acoustic_model_trainer_exe, "acoustic-model-trainer"
         )
         self.feature_flow = EstimateCMLLRJob.create_flow(**kwargs)
         self.num_clusters = num_clusters
-        self.log_suffix = ".gz" if csp.compress_log_file else ""
+        self.log_suffix = ".gz" if crp.compress_log_file else ""
 
         self.log_dir = self.output_path("logs", True)
         self.transforms = self.output_path("transforms", True)
 
         self.rqmt = {
-            "time": max(csp.corpus_duration / (50 * self.concurrent), 0.5),
+            "time": max(crp.corpus_duration / (50 * self.concurrent), 0.5),
             "cpu": 1,
             "mem": 2,
         }
@@ -97,7 +97,7 @@ class EstimateCMLLRJob(rasr.RasrCommand, Job):
     @classmethod
     def create_config(
         cls,
-        csp,
+        crp,
         feature_flow,
         mixtures,
         alignment,
@@ -112,7 +112,7 @@ class EstimateCMLLRJob(rasr.RasrCommand, Job):
         feature_flow = cls.create_flow(feature_flow, alignment)
 
         config, post_config = rasr.build_config_from_mapping(
-            csp,
+            crp,
             {
                 "acoustic_model": "acoustic-model-trainer.affine-feature-transform-estimator.acoustic-model",
                 "corpus": "acoustic-model-trainer.corpus",
@@ -164,6 +164,6 @@ class EstimateCMLLRJob(rasr.RasrCommand, Job):
             {
                 "config": config,
                 "flow": flow,
-                "exe": kwargs["csp"].acoustic_model_trainer_exe,
+                "exe": kwargs["crp"].acoustic_model_trainer_exe,
             }
         )

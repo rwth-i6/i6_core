@@ -13,7 +13,7 @@ import recipe.i6_asr.util as util
 class LatticePruningJob(rasr.RasrCommand, Job):
     def __init__(
         self,
-        csp,
+        crp,
         lattice_path,
         pruning_threshold=100,
         phone_coverage=0,
@@ -31,16 +31,16 @@ class LatticePruningJob(rasr.RasrCommand, Job):
         del kwargs["self"]
 
         self.config, self.post_config = self.create_config(**kwargs)
-        self.exe = self.select_exe(csp.flf_tool_exe, "flf-tool")
-        self.concurrent = csp.concurrent
+        self.exe = self.select_exe(crp.flf_tool_exe, "flf-tool")
+        self.concurrent = crp.concurrent
 
-        self.log_file = self.log_file_output_path("pruning", csp, True)
+        self.log_file = self.log_file_output_path("pruning", crp, True)
         self.single_lattice_caches = dict(
             (
                 task_id,
                 self.output_path("pruned_lattice.cache.%d" % task_id, cached=True),
             )
-            for task_id in range(1, csp.concurrent + 1)
+            for task_id in range(1, crp.concurrent + 1)
         )
         self.lattice_bundle = self.output_path("pruned_lattice.bundle", cached=True)
         self.lattice_path = util.MultiOutputPath(
@@ -51,7 +51,7 @@ class LatticePruningJob(rasr.RasrCommand, Job):
         )
 
         self.rqmt = {
-            "time": max(csp.corpus_duration * 0.2 / csp.concurrent, 0.5),
+            "time": max(crp.corpus_duration * 0.2 / crp.concurrent, 0.5),
             "cpu": 1,
             "gpu": 0,
             "mem": 2.0,
@@ -84,7 +84,7 @@ class LatticePruningJob(rasr.RasrCommand, Job):
     @classmethod
     def create_config(
         cls,
-        csp,
+        crp,
         lattice_path,
         pruning_threshold,
         phone_coverage,
@@ -97,7 +97,7 @@ class LatticePruningJob(rasr.RasrCommand, Job):
         extra_post_config,
     ):
         config, post_config = rasr.build_config_from_mapping(
-            csp,
+            crp,
             {
                 "corpus": "flf-lattice-tool.corpus",
                 "lexicon": "flf-lattice-tool.lexicon",
@@ -162,4 +162,4 @@ class LatticePruningJob(rasr.RasrCommand, Job):
     @classmethod
     def hash(cls, kwargs):
         config, post_config = cls.create_config(**kwargs)
-        return super().hash({"config": config, "exe": kwargs["csp"].flf_tool_exe})
+        return super().hash({"config": config, "exe": kwargs["crp"].flf_tool_exe})

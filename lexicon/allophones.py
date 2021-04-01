@@ -13,7 +13,7 @@ import recipe.i6_asr.util as util
 class StoreAllophones(rasr.RasrCommand, Job):
     def __init__(
         self,
-        csp,
+        crp,
         num_single_state_monophones=1,
         extra_config=None,
         extra_post_config=None,
@@ -21,14 +21,14 @@ class StoreAllophones(rasr.RasrCommand, Job):
         self.set_vis_name("Store Allophones")
 
         self.config, self.post_config = StoreAllophones.create_config(
-            csp, extra_config, extra_post_config
+            crp, extra_config, extra_post_config
         )
-        self.exe = self.select_exe(csp.allophone_tool_exe, "allophone-tool")
+        self.exe = self.select_exe(crp.allophone_tool_exe, "allophone-tool")
         self.num_single_state_monophones = (
             num_single_state_monophones  # usually only silence and noise
         )
 
-        self.log_file = self.log_file_output_path("store-allophones", csp, False)
+        self.log_file = self.log_file_output_path("store-allophones", crp, False)
         self.allophone_file = self.output_path("allophones")
         self.num_allophones = self.output_var("num_allophones")
         self.num_monophones = self.output_var("num_monophones")
@@ -70,9 +70,9 @@ class StoreAllophones(rasr.RasrCommand, Job):
         util.backup_if_exists("store-allophones.log")
 
     @classmethod
-    def create_config(cls, csp, extra_config, extra_post_config, **kwargs):
+    def create_config(cls, crp, extra_config, extra_post_config, **kwargs):
         config, post_config = rasr.build_config_from_mapping(
-            csp,
+            crp,
             {
                 "acoustic_model": "allophone-tool.acoustic-model",
                 "lexicon": "allophone-tool.lexicon",
@@ -90,19 +90,19 @@ class StoreAllophones(rasr.RasrCommand, Job):
     @classmethod
     def hash(cls, kwargs):
         config, post_config = cls.create_config(**kwargs)
-        return super().hash({"config": config, "exe": kwargs["csp"].allophone_tool_exe})
+        return super().hash({"config": config, "exe": kwargs["crp"].allophone_tool_exe})
 
 
 class DumpStateTying(rasr.RasrCommand, Job):
-    def __init__(self, csp, extra_config=None, extra_post_config=None):
+    def __init__(self, crp, extra_config=None, extra_post_config=None):
         self.set_vis_name("Dump state-tying")
 
         self.config, self.post_config = DumpStateTying.create_config(
-            csp, extra_config, extra_post_config
+            crp, extra_config, extra_post_config
         )
-        self.exe = self.select_exe(csp.allophone_tool_exe, "allophone-tool")
+        self.exe = self.select_exe(crp.allophone_tool_exe, "allophone-tool")
 
-        self.log_file = self.log_file_output_path("dump-state-tying", csp, False)
+        self.log_file = self.log_file_output_path("dump-state-tying", crp, False)
         self.state_tying = self.output_path("state-tying")
 
     def tasks(self):
@@ -121,9 +121,9 @@ class DumpStateTying(rasr.RasrCommand, Job):
         util.backup_if_exists("dump-state-tying.log")
 
     @classmethod
-    def create_config(cls, csp, extra_config, extra_post_config, **kwargs):
+    def create_config(cls, crp, extra_config, extra_post_config, **kwargs):
         config, post_config = rasr.build_config_from_mapping(
-            csp,
+            crp,
             {
                 "acoustic_model": "allophone-tool.acoustic-model",
                 "lexicon": "allophone-tool.lexicon",
@@ -145,4 +145,4 @@ class DumpStateTying(rasr.RasrCommand, Job):
     @classmethod
     def hash(cls, kwargs):
         config, post_config = cls.create_config(**kwargs)
-        return super().hash({"config": config, "exe": kwargs["csp"].allophone_tool_exe})
+        return super().hash({"config": config, "exe": kwargs["crp"].allophone_tool_exe})

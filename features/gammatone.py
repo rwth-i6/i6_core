@@ -7,17 +7,17 @@ from .extraction import *
 import recipe.i6_asr.rasr as rasr
 
 
-def GammatoneJob(csp, gt_options={}, extra_config=None, extra_post_config=None):
+def GammatoneJob(crp, gt_options={}, extra_config=None, extra_post_config=None):
     gt_options = copy.deepcopy(gt_options)
     if "samples_options" not in gt_options:
         gt_options["samples_options"] = {}
-    gt_options["samples_options"]["audio_format"] = csp.audio_format
+    gt_options["samples_options"]["audio_format"] = crp.audio_format
     feature_flow = gammatone_flow(**gt_options)
 
     port_name_mapping = {"features": "gt"}
 
     return FeatureExtraction(
-        csp,
+        crp,
         feature_flow,
         port_name_mapping,
         job_name="Gammatone",

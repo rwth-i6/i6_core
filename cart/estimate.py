@@ -14,7 +14,7 @@ import recipe.i6_asr.util as util
 class AccumulateCartStatisticsJob(rasr.RasrCommand, Job):
     def __init__(
         self,
-        csp,
+        crp,
         alignment_flow,
         keep_accumulators=False,
         extra_config_accumulate=None,
@@ -37,17 +37,17 @@ class AccumulateCartStatisticsJob(rasr.RasrCommand, Job):
         ) = AccumulateCartStatisticsJob.create_merge_config(**kwargs)
         self.alignment_flow = alignment_flow
         self.exe = self.select_exe(
-            csp.acoustic_model_trainer_exe, "acoustic-model-trainer"
+            crp.acoustic_model_trainer_exe, "acoustic-model-trainer"
         )
         self.keep_accumulators = keep_accumulators
-        self.concurrent = csp.concurrent
+        self.concurrent = crp.concurrent
 
-        self.accumulate_log_file = self.log_file_output_path("accumulate", csp, True)
-        self.merge_log_file = self.log_file_output_path("merge", csp, False)
+        self.accumulate_log_file = self.log_file_output_path("accumulate", crp, True)
+        self.merge_log_file = self.log_file_output_path("merge", crp, False)
         self.cart_sum = self.output_path("cart.sum.xml.gz", cached=True)
 
         self.rqmt = {
-            "time": max(csp.corpus_duration / (20 * csp.concurrent), 0.5),
+            "time": max(crp.corpus_duration / (20 * crp.concurrent), 0.5),
             "cpu": 1,
             "mem": 4,
         }
@@ -90,14 +90,14 @@ class AccumulateCartStatisticsJob(rasr.RasrCommand, Job):
     @classmethod
     def create_accumulate_config(
         cls,
-        csp,
+        crp,
         alignment_flow,
         extra_config_accumulate,
         extra_post_config_accumulate,
         **kwargs
     ):
         config, post_config = rasr.build_config_from_mapping(
-            csp,
+            crp,
             {
                 "corpus": "acoustic-model-trainer.corpus",
                 "lexicon": "acoustic-model-trainer.cart-trainer.lexicon",
@@ -127,13 +127,13 @@ class AccumulateCartStatisticsJob(rasr.RasrCommand, Job):
 
     @classmethod
     def create_merge_config(
-        cls, csp, extra_config_merge, extra_post_config_merge, **kwargs
+        cls, crp, extra_config_merge, extra_post_config_merge, **kwargs
     ):
-        config, post_config = rasr.build_config_from_mapping(csp, {})
+        config, post_config = rasr.build_config_from_mapping(crp, {})
 
         config.acoustic_model_trainer.action = "merge-cart-examples"
         config.acoustic_model_trainer.cart_trainer.merge_example_files = " ".join(
-            "cart.acc.xml.%d.gz" % i for i in range(1, csp.concurrent + 1)
+            "cart.acc.xml.%d.gz" % i for i in range(1, crp.concurrent + 1)
         )
         config.acoustic_model_trainer.cart_trainer.example_file = (
             "`cf -d cart.sum.xml.gz`"
@@ -153,7 +153,7 @@ class AccumulateCartStatisticsJob(rasr.RasrCommand, Job):
                 "config_accumulate": config_acc,
                 "config_merge": config_merge,
                 "alignment_flow": kwargs["alignment_flow"],
-                "exe": kwargs["csp"].acoustic_model_trainer_exe,
+                "exe": kwargs["crp"].acoustic_model_trainer_exe,
             }
         )
 
@@ -161,7 +161,7 @@ class AccumulateCartStatisticsJob(rasr.RasrCommand, Job):
 class EstimateCartJob(rasr.RasrCommand, Job):
     def __init__(
         self,
-        csp,
+        crp,
         questions,
         cart_examples,
         variance_clipping=5e-6,
@@ -176,13 +176,13 @@ class EstimateCartJob(rasr.RasrCommand, Job):
 
         self.config, self.post_config = EstimateCartJob.create_config(**kwargs)
         self.exe = self.select_exe(
-            csp.acoustic_model_trainer_exe, "acoustic-model-trainer"
+            crp.acoustic_model_trainer_exe, "acoustic-model-trainer"
         )
         self.questions = questions
         self.generate_cluster_file = generate_cluster_file
-        self.concurrent = csp.concurrent
+        self.concurrent = crp.concurrent
 
-        self.log_file = self.log_file_output_path("cart", csp, False)
+        self.log_file = self.log_file_output_path("cart", crp, False)
         self.cart_tree = self.output_path("cart.tree.xml.gz")
         if generate_cluster_file:
             self.cart_cluster = self.output_path("cart.cluster.xml.gz")
@@ -213,7 +213,7 @@ class EstimateCartJob(rasr.RasrCommand, Job):
     @classmethod
     def create_config(
         cls,
-        csp,
+        crp,
         questions,
         cart_examples,
         variance_clipping,
@@ -227,7 +227,7 @@ class EstimateCartJob(rasr.RasrCommand, Job):
         else:
             questions_path = questions
 
-        config, post_config = rasr.build_config_from_mapping(csp, {}, parallelize=False)
+        config, post_config = rasr.build_config_from_mapping(crp, {}, parallelize=False)
 
         config.acoustic_model_trainer.action = "estimate-cart"
         config.acoustic_model_trainer.cart_trainer.training_file = questions_path
@@ -255,7 +255,7 @@ class EstimateCartJob(rasr.RasrCommand, Job):
         return super().hash(
             {
                 "config": config,
-                "exe": kwargs["csp"].acoustic_model_trainer_exe,
+                "exe": kwargs["crp"].acoustic_model_trainer_exe,
                 "questions": questions,
             }
         )

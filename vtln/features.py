@@ -5,7 +5,7 @@ from .flow import warp_filterbank_with_map_flow
 
 
 def VTLNFeaturesJob(
-    csp,
+    crp,
     feature_flow,
     map_file,
     extra_warp_args=None,
@@ -20,7 +20,7 @@ def VTLNFeaturesJob(
     )
 
     return features.FeatureExtraction(
-        csp=csp,
+        crp=crp,
         feature_flow=feature_flow,
         port_name_mapping={"features": "vtln"},
         job_name="VTLN",

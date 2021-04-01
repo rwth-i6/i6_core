@@ -59,11 +59,11 @@ class CommonRasrParameters:
         return object_to_html(self.__dict__)
 
 
-def csp_add_default_output(
-    csp, compress=False, append=False, unbuffered=False, compress_after_run=True
+def crp_add_default_output(
+    crp, compress=False, append=False, unbuffered=False, compress_after_run=True
 ):
     """
-    :param CommonRasrParameters csp:
+    :param CommonRasrParameters crp:
     :param bool compress:
     :param bool append:
     :param bool unbuffered:
@@ -94,15 +94,15 @@ def csp_add_default_output(
     post_config["*"].output_channel.append = append
     post_config["*"].output_channel.unbuffered = unbuffered
 
-    csp.log_config = config
-    csp.log_post_config = post_config
-    csp.compress_log_file = compress_after_run
-    csp.default_log_channel = "output-channel"
+    crp.log_config = config
+    crp.log_post_config = post_config
+    crp.compress_log_file = compress_after_run
+    crp.default_log_channel = "output-channel"
 
 
-def csp_set_corpus(csp, corpus):
+def crp_set_corpus(crp, corpus):
     """
-    :param CommonRasrParameters csp:
+    :param CommonRasrParameters crp:
     :param recipe.meta.Corpus corpus: object with corpus_file, audio_dir, audio_format, duration
     """
     config = RasrConfig()
@@ -112,6 +112,6 @@ def csp_set_corpus(csp, corpus):
     config.capitalize_transcriptions = False
     config.progress_indication = "global"
 
-    csp.corpus_config = config
-    csp.audio_format = corpus.audio_format
-    csp.corpus_duration = corpus.duration
+    crp.corpus_config = config
+    crp.audio_format = corpus.audio_format
+    crp.corpus_duration = corpus.duration

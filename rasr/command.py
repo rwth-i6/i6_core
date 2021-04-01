@@ -18,16 +18,16 @@ class RasrCommand:
     RETRY_WAIT_TIME = 5.0
     NO_RETRY_AFTER_TIME = 10.0 * 60.0  # do not retry job after it ran for 10 minutes
 
-    def log_file_output_path(self, name, csp, parallel):
+    def log_file_output_path(self, name, crp, parallel):
         """
         :param str name:
-        :param recipe.rasr.csp.CommonRasrParameters csp:
+        :param recipe.rasr.crp.CommonRasrParameters crp:
         :param int|bool parallel:
         :rtype: Path
         """
-        suffix = ".gz" if csp.compress_log_file else ""
+        suffix = ".gz" if crp.compress_log_file else ""
         if parallel:
-            num_logs = parallel if type(parallel) == int else csp.concurrent
+            num_logs = parallel if type(parallel) == int else crp.concurrent
             return dict(
                 (task_id, self.output_path("%s.log.%d%s" % (name, task_id, suffix)))
                 for task_id in range(1, num_logs + 1)

@@ -23,8 +23,8 @@ from .mm_sequence import AlignSplitAccumulateSequence
 
 class System:
     def __init__(self):
-        self.csp = {"base": rasr.CommonRasrParameters()}
-        rasr.csp_add_default_output(self.csp["base"])
+        self.crp = {"base": rasr.CommonRasrParameters()}
+        rasr.crp_add_default_output(self.crp["base"])
 
         self.default_mixture_scorer = rasr.DiagonalMaximumScorer
 
@@ -60,10 +60,10 @@ class System:
         :param int concurrent:
         :param recipe.util.MultiOutputPath segment_path:
         """
-        self.csp[name] = rasr.CommonRasrParameters(base=self.csp["base"])
-        rasr.csp_set_corpus(self.csp[name], corpus)
-        self.csp[name].concurrent = concurrent
-        self.csp[name].segment_path = segment_path
+        self.crp[name] = rasr.CommonRasrParameters(base=self.crp["base"])
+        rasr.crp_set_corpus(self.crp[name], corpus)
+        self.crp[name].concurrent = concurrent
+        self.crp[name].segment_path = segment_path
 
         self.alignments[name] = {}
         self.ctm_files[name] = {}
@@ -82,7 +82,7 @@ class System:
         self.jobs[name] = {}
 
     def add_overlay(self, origin, name):
-        self.csp[name] = rasr.CommonRasrParameters(base=self.csp[origin])
+        self.crp[name] = rasr.CommonRasrParameters(base=self.crp[origin])
 
         self.alignments[name] = {}
         self.ctm_files[name] = {}
@@ -110,8 +110,8 @@ class System:
         if not target_name:
             target_name = origin_name
 
-        self.csp[target_name] = rasr.CommonRasrParameters(
-            base=origin_system.csp[origin_name]
+        self.crp[target_name] = rasr.CommonRasrParameters(
+            base=origin_system.crp[origin_name]
         )
 
         self.alignments[target_name] = copy.deepcopy(
@@ -161,21 +161,21 @@ class System:
     def set_kaldi_scorer(self, corpus, mapping):
         self.scorers[corpus] = recog.KaldiScorer
         self.scorer_args[corpus] = {
-            "corpus_path": self.csp[corpus].corpus_config.file,
+            "corpus_path": self.crp[corpus].corpus_config.file,
             "map": mapping,
         }
         self.scorer_hyp_arg[corpus] = "ctm"
 
     def store_allophones(self, source_corpus, target_corpus="base", **kwargs):
         self.jobs[target_corpus]["allophones"] = allophones.StoreAllophones(
-            self.csp[source_corpus], **kwargs
+            self.crp[source_corpus], **kwargs
         )
         self.allophone_files[target_corpus] = self.jobs[target_corpus][
             "allophones"
         ].allophone_file
-        if self.csp[target_corpus].acoustic_model_post_config is None:
-            self.csp[target_corpus].acoustic_model_post_config = rasr.RasrConfig()
-        self.csp[
+        if self.crp[target_corpus].acoustic_model_post_config is None:
+            self.crp[target_corpus].acoustic_model_post_config = rasr.RasrConfig()
+        self.crp[
             target_corpus
         ].acoustic_model_post_config.allophones.add_from_file = self.allophone_files[
             target_corpus
@@ -189,7 +189,7 @@ class System:
 
     def energy_features(self, corpus, prefix="", **kwargs):
         self.jobs[corpus]["energy_features"] = f = features.EnergyJob(
-            self.csp[corpus], **kwargs
+            self.crp[corpus], **kwargs
         )
         f.add_alias("%s%s_energy_features" % (prefix, corpus))
         self.feature_caches[corpus]["energy"] = f.feature_path["energy"]
@@ -213,7 +213,7 @@ class System:
         :param str prefix:
         """
         self.jobs[corpus]["mfcc_features"] = f = features.MfccJob(
-            self.csp[corpus], **kwargs
+            self.crp[corpus], **kwargs
         )
         f.add_alias("%s%s_mfcc_features" % (prefix, corpus))
         self.feature_caches[corpus]["mfcc"] = f.feature_path["mfcc"]
@@ -238,7 +238,7 @@ class System:
 
     def fb_features(self, corpus, **kwargs):
         self.jobs[corpus]["fb_features"] = f = features.FilterbankJob(
-            self.csp[corpus], **kwargs
+            self.crp[corpus], **kwargs
         )
         f.add_alias("%s_fb_features" % corpus)
         self.feature_caches[corpus]["filterbank"] = f.feature_path["filterbank"]
@@ -256,7 +256,7 @@ class System:
 
     def gt_features(self, corpus, prefix="", **kwargs):
         self.jobs[corpus]["gt_features"] = f = features.GammatoneJob(
-            self.csp[corpus], **kwargs
+            self.crp[corpus], **kwargs
         )
         if "gt_options" in kwargs and "channels" in kwargs.get("gt_options"):
             f.add_alias(
@@ -280,7 +280,7 @@ class System:
 
     def plp_features(self, corpus, num_deriv=2, num_features=23, **kwargs):
         self.jobs[corpus]["plp_features"] = f = features.PlpJob(
-            self.csp[corpus], **kwargs
+            self.crp[corpus], **kwargs
         )
         f.add_alias("%s_plp_features" % corpus)
         self.feature_caches[corpus]["plp"] = f.feature_path["plp"]
@@ -306,7 +306,7 @@ class System:
     def vtln_features(self, name, corpus, raw_feature_flow, warping_map, **kwargs):
         name = "%s+vtln" % name
         self.jobs[corpus]["%s_features" % name] = f = vtln.VTLNFeaturesJob(
-            self.csp[corpus], raw_feature_flow, warping_map, **kwargs
+            self.crp[corpus], raw_feature_flow, warping_map, **kwargs
         )
         self.feature_caches[corpus][name] = f.feature_path["vtln"]
         self.feature_bundles[corpus][name] = f.feature_bundle["vtln"]
@@ -333,7 +333,7 @@ class System:
         self.jobs[corpus][
             "normalize_%s" % flow
         ] = j = features.CovarianceNormalizationJob(
-            self.csp[corpus], feature_flow, **kwargs
+            self.crp[corpus], feature_flow, **kwargs
         )
         self.normalization_matrices[corpus][new_flow_name] = j.normalization_matrix
 
@@ -343,7 +343,7 @@ class System:
             )
 
     def costa(self, corpus, prefix="", **kwargs):
-        self.jobs[corpus]["costa"] = j = costa.CostaJob(self.csp[corpus], **kwargs)
+        self.jobs[corpus]["costa"] = j = costa.CostaJob(self.crp[corpus], **kwargs)
         j.add_alias("%scosta_%s" % (prefix, corpus))
         tk.register_output("%s%s.costa.log.gz" % (prefix, corpus), j.log_file)
 
@@ -356,7 +356,7 @@ class System:
         """
         name = "linear_alignment_%s" % name
         self.jobs[corpus][name] = j = mm.LinearAlignmentJob(
-            self.csp[corpus], self.feature_flows[corpus][flow], **kwargs
+            self.crp[corpus], self.feature_flows[corpus][flow], **kwargs
         )
         j.add_alias(prefix + name)
         self.mixtures[corpus][name] = j.mixtures
@@ -368,7 +368,7 @@ class System:
 
     def align(self, name, corpus, flow, feature_scorer, **kwargs):
         j = mm.AlignmentJob(
-            csp=self.csp[corpus],
+            crp=self.crp[corpus],
             feature_flow=select_element(self.feature_flows, corpus, flow),
             feature_scorer=select_element(self.feature_scorers, corpus, feature_scorer),
             **kwargs
@@ -385,7 +385,7 @@ class System:
     ):
         name = "estimate_mixtures_%s" % name
         j = mm.EstimateMixturesJob(
-            csp=self.csp[corpus],
+            crp=self.crp[corpus],
             old_mixtures=select_element(self.mixtures, corpus, old_mixtures),
             feature_flow=self.feature_flows[corpus][flow],
             alignment=select_element(self.alignments, corpus, alignment),
@@ -409,7 +409,7 @@ class System:
         if "feature_scorer" not in kwargs:
             kwargs["feature_scorer"] = self.default_mixture_scorer
         self.jobs[corpus][name] = j = AlignSplitAccumulateSequence(
-            self.csp[corpus],
+            self.crp[corpus],
             sequence,
             select_element(self.feature_flows, corpus, flow),
             **kwargs
@@ -436,10 +436,10 @@ class System:
         pruning_config = recog.pruning_config(**pruning_params)
         pron_scale_config = rasr.RasrConfig()
         pron_scale_config.pronunciation_scale = pronunciation_scale
-        self.csp[corpus].language_model_config.scale = lm_scale
+        self.crp[corpus].language_model_config.scale = lm_scale
 
         rec = recog.WordConditionedTreeSearchJob(
-            csp=self.csp[corpus],
+            crp=self.crp[corpus],
             feature_flow=self.feature_flows[corpus][flow],
             feature_scorer=select_element(self.feature_scorers, corpus, feature_scorer),
             recognizer_config=pron_scale_config,
@@ -452,7 +452,7 @@ class System:
         self.jobs[corpus][name] = rec
 
         self.jobs[corpus]["lat2ctm_%s" % name] = lat2ctm = recog.LatticeToCtmJob(
-            csp=self.csp[corpus],
+            crp=self.crp[corpus],
             lattice_cache=rec.lattice_path
             if parallelize_conversion
             else rec.lattice_bundle,
@@ -484,12 +484,12 @@ class System:
         if lattice_to_ctm_kwargs is None:
             lattice_to_ctm_kwargs = {}
 
-        self.csp[corpus].language_model_config.scale = lm_scale
+        self.crp[corpus].language_model_config.scale = lm_scale
         model_combination_config = rasr.RasrConfig()
         model_combination_config.pronunciation_scale = pronunciation_scale
 
         rec = recog.AdvancedTreeSearchJob(
-            csp=self.csp[corpus],
+            crp=self.crp[corpus],
             feature_flow=select_element(self.feature_flows, corpus, flow),
             feature_scorer=select_element(self.feature_scorers, corpus, feature_scorer),
             model_combination_config=model_combination_config,
@@ -500,7 +500,7 @@ class System:
         self.jobs[corpus]["recog_%s" % name] = rec
 
         self.jobs[corpus]["lat2ctm_%s" % name] = lat2ctm = recog.LatticeToCtmJob(
-            csp=self.csp[corpus],
+            crp=self.crp[corpus],
             lattice_cache=rec.lattice_bundle,
             parallelize=parallelize_conversion,
             **lattice_to_ctm_kwargs
@@ -518,7 +518,7 @@ class System:
         self, name, corpus, initial_am_scale, initial_lm_scale, prefix="", **kwargs
     ):
         j = recog.OptimizeAMandLMScale(
-            csp=self.csp[corpus],
+            crp=self.crp[corpus],
             lattice_cache=self.jobs[corpus][name].lattice_bundle,
             initial_am_scale=initial_am_scale,
             initial_lm_scale=initial_lm_scale,
@@ -599,8 +599,8 @@ class System:
             returnn_config, returnn.ReturnnConfig
         ), "Passing returnn_config as dict to train_nn is no longer supported, please construct a ReturnnConfig object instead"
         j = returnn.ReturnnRasrTrainingJob(
-            train_csp=self.csp[train_corpus],
-            dev_csp=self.csp[dev_corpus],
+            train_crp=self.crp[train_corpus],
+            dev_crp=self.crp[dev_corpus],
             feature_flow=self.feature_flows[feature_corpus][feature_flow],
             alignment=select_element(self.alignments, feature_corpus, alignment),
             returnn_config=returnn_config,

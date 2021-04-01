@@ -16,7 +16,7 @@ import recipe.i6_asr.util as util
 class ConfidenceBasedAlignmentJob(rasr.RasrCommand, Job):
     def __init__(
         self,
-        csp,
+        crp,
         feature_flow,
         feature_scorer,
         lattice_cache,
@@ -41,14 +41,14 @@ class ConfidenceBasedAlignmentJob(rasr.RasrCommand, Job):
             **kwargs
         )
         self.alignment_flow = ConfidenceBasedAlignmentJob.create_flow(**kwargs)
-        self.concurrent = csp.concurrent
+        self.concurrent = crp.concurrent
         self.exe = self.select_exe(
-            csp.acoustic_model_trainer_exe, "acoustic-model-trainer"
+            crp.acoustic_model_trainer_exe, "acoustic-model-trainer"
         )
         self.feature_scorer = feature_scorer
         self.use_gpu = use_gpu
 
-        self.log_file = self.log_file_output_path("alignment", csp, True)
+        self.log_file = self.log_file_output_path("alignment", crp, True)
         self.single_alignment_caches = dict(
             (i, self.output_path("alignment.cache.%d" % i, cached=True))
             for i in range(1, self.concurrent + 1)
@@ -59,7 +59,7 @@ class ConfidenceBasedAlignmentJob(rasr.RasrCommand, Job):
         self.alignment_bundle = self.output_path("alignment.cache.bundle", cached=True)
 
         self.rqmt = {
-            "time": max(rtf * csp.corpus_duration / csp.concurrent, 0.5),
+            "time": max(rtf * crp.corpus_duration / crp.concurrent, 0.5),
             "cpu": 1,
             "gpu": 1 if self.use_gpu else 0,
             "mem": 2,
@@ -104,7 +104,7 @@ class ConfidenceBasedAlignmentJob(rasr.RasrCommand, Job):
     @classmethod
     def create_config(
         cls,
-        csp,
+        crp,
         feature_flow,
         feature_scorer,
         lattice_cache,
@@ -146,7 +146,7 @@ class ConfidenceBasedAlignmentJob(rasr.RasrCommand, Job):
                 )
 
         config, post_config = rasr.build_config_from_mapping(
-            csp, mapping, parallelize=True
+            crp, mapping, parallelize=True
         )
 
         for node_type in [
@@ -212,6 +212,6 @@ class ConfidenceBasedAlignmentJob(rasr.RasrCommand, Job):
             {
                 "config": config,
                 "alignment_flow": alignment_flow,
-                "exe": kwargs["csp"].acoustic_model_trainer_exe,
+                "exe": kwargs["crp"].acoustic_model_trainer_exe,
             }
         )

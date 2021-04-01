@@ -61,7 +61,7 @@ class UbmLabelMapJob(Job):
     def __init__(self, segment_list, alphas=None):
         """
         Example:
-        segment_job = corpus_recipes.SegmentCorpus(self.csp[corpus].corpus_config.file, 1)
+        segment_job = corpus_recipes.SegmentCorpus(self.crp[corpus].corpus_config.file, 1)
         map_job = ubm.UbmWarpingMapJob(segment_list=segment_job.single_segment_files[1])
         """
         if not alphas:
@@ -101,7 +101,7 @@ class TrainUniversalBackgroundModelSequence:
 
     def __init__(
         self,
-        csp,
+        crp,
         initial_mixtures,
         feature_flow,
         warping_map,
@@ -129,7 +129,7 @@ class TrainUniversalBackgroundModelSequence:
         for idx, action in enumerate(action_sequence):
             split = action.startswith("split")
             args = {
-                "csp": csp,
+                "crp": crp,
                 "old_mixtures": current_mixtures,
                 "feature_flow": feature_flow,
                 "warping_map": warping_map,
@@ -163,7 +163,7 @@ class EstimateUniversalBackgroundMixturesJob(mm.MergeMixturesJob):
 
     def __init__(
         self,
-        csp,
+        crp,
         old_mixtures,
         feature_flow,
         warping_map,
@@ -190,18 +190,18 @@ class EstimateUniversalBackgroundMixturesJob(mm.MergeMixturesJob):
         ) = EstimateUniversalBackgroundMixturesJob.create_config(**kwargs)
         self.label_flow = EstimateUniversalBackgroundMixturesJob.create_flow(**kwargs)
         self.exe = self.select_exe(
-            csp.acoustic_model_trainer_exe, "acoustic-model-trainer"
+            crp.acoustic_model_trainer_exe, "acoustic-model-trainer"
         )
         self.split_first = split_first
         self.keep_accumulators = keep_accumulators
-        self.concurrent = csp.concurrent
+        self.concurrent = crp.concurrent
 
         self._old_mixtures = old_mixtures
 
-        self.log_file = self.log_file_output_path("accumulate", csp, True)
+        self.log_file = self.log_file_output_path("accumulate", crp, True)
 
         self.accumulate_rqmt = {
-            "time": max(csp.corpus_duration / 20, 0.5),
+            "time": max(crp.corpus_duration / 20, 0.5),
             "cpu": 1,
             "mem": 2,
         }
@@ -251,7 +251,7 @@ class EstimateUniversalBackgroundMixturesJob(mm.MergeMixturesJob):
     @classmethod
     def create_config(
         cls,
-        csp,
+        crp,
         old_mixtures,
         feature_flow,
         warping_map,
@@ -266,7 +266,7 @@ class EstimateUniversalBackgroundMixturesJob(mm.MergeMixturesJob):
         label_flow = cls.create_flow(feature_flow, warping_map, extra_warping_args)
 
         config, post_config = rasr.build_config_from_mapping(
-            csp,
+            crp,
             {
                 "corpus": "acoustic-model-trainer.corpus",
                 "acoustic_model": "acoustic-model-trainer.mixture-set-trainer.acoustic-model",
@@ -312,11 +312,11 @@ class EstimateUniversalBackgroundMixturesJob(mm.MergeMixturesJob):
         return label_features_with_map_flow(feature_flow, warping_map, **kwargs)
 
     @classmethod
-    def merge_args(cls, csp, extra_merge_args, **kwargs):
+    def merge_args(cls, crp, extra_merge_args, **kwargs):
         merge_args = {
-            "csp": csp,
+            "crp": crp,
             "mixtures_to_combine": [
-                "am.acc.%d" % i for i in range(1, csp.concurrent + 1)
+                "am.acc.%d" % i for i in range(1, crp.concurrent + 1)
             ],
             "combine_per_step": 2,
             "estimator": "maximum-likelihood",
@@ -336,7 +336,7 @@ class EstimateUniversalBackgroundMixturesJob(mm.MergeMixturesJob):
             {
                 "config": config,
                 "alignment_flow": alignment_flow,
-                "exe": kwargs["csp"].acoustic_model_trainer_exe,
+                "exe": kwargs["crp"].acoustic_model_trainer_exe,
                 "merge_hash": mm.MergeMixturesJob.hash(cls.merge_args(**kwargs)),
             }
         )

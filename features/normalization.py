@@ -13,7 +13,7 @@ import recipe.i6_asr.util as util
 class CovarianceNormalizationJob(rasr.RasrCommand, Job):
     def __init__(
         self,
-        csp,
+        crp,
         feature_flow,
         extra_config_estimate=None,
         extra_post_config_estimate=None,
@@ -32,22 +32,22 @@ class CovarianceNormalizationJob(rasr.RasrCommand, Job):
             self.post_config_normalization,
         ) = CovarianceNormalizationJob.create_config(**args)
         self.feature_flow = feature_flow
-        self.concurrent = csp.concurrent
+        self.concurrent = crp.concurrent
 
         self.estimate_rqmt = {
-            "time": max(csp.corpus_duration / 30.0, 0.5),
+            "time": max(crp.corpus_duration / 30.0, 0.5),
             "cpu": 1,
             "mem": 1,
         }
         self.exe = (
-            csp.feature_statistics_exe
-            if csp.feature_statistics_exe is not None
+            crp.feature_statistics_exe
+            if crp.feature_statistics_exe is not None
             else self.default_exe("feature-statistics")
         )
 
-        self.estimate_log_file = self.log_file_output_path("estimate", csp, False)
+        self.estimate_log_file = self.log_file_output_path("estimate", crp, False)
         self.normalization_log_file = self.log_file_output_path(
-            "normalization", csp, False
+            "normalization", crp, False
         )
         self.normalization_matrix = self.output_path(
             "normalization.matrix", cached=True
@@ -84,7 +84,7 @@ class CovarianceNormalizationJob(rasr.RasrCommand, Job):
     @classmethod
     def create_config(
         cls,
-        csp,
+        crp,
         feature_flow,
         extra_config_estimate=None,
         extra_post_config_estimate=None,
@@ -93,7 +93,7 @@ class CovarianceNormalizationJob(rasr.RasrCommand, Job):
     ):
         # estimate
         config_estimate, post_config_estimate = rasr.build_config_from_mapping(
-            csp, {"corpus": "feature-statistics.corpus"}
+            crp, {"corpus": "feature-statistics.corpus"}
         )
         config_estimate.feature_statistics.action = "estimate-covariance"
         config_estimate.feature_statistics.covariance_estimator.file = (
@@ -118,7 +118,7 @@ class CovarianceNormalizationJob(rasr.RasrCommand, Job):
         (
             config_normalization,
             post_config_normalization,
-        ) = rasr.build_config_from_mapping(csp, {})
+        ) = rasr.build_config_from_mapping(crp, {})
         config_normalization.feature_statistics.action = (
             "calculate-covariance-diagonal-normalization"
         )
@@ -150,6 +150,6 @@ class CovarianceNormalizationJob(rasr.RasrCommand, Job):
                 "config_estimate": ce,
                 "config_normalization": cn,
                 "flow": kwargs["feature_flow"],
-                "exe": kwargs["csp"].feature_statistics_exe,
+                "exe": kwargs["crp"].feature_statistics_exe,
             }
         )

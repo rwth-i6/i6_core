@@ -218,9 +218,9 @@ class RasrConfig:
             return str(val)
 
 
-def build_config_from_mapping(csp, mapping, include_log_config=True, parallelize=False):
+def build_config_from_mapping(crp, mapping, include_log_config=True, parallelize=False):
     """
-    :param recipe.rasr.csp.CommonRasrParameters csp:
+    :param recipe.rasr.crp.CommonRasrParameters crp:
     :param dict[str,str|list[str]] mapping:
     :param bool include_log_config:
     :param bool parallelize:
@@ -231,8 +231,8 @@ def build_config_from_mapping(csp, mapping, include_log_config=True, parallelize
     post_config = RasrConfig()
 
     if include_log_config:
-        config._update(csp.log_config)
-        post_config._update(csp.log_post_config)
+        config._update(crp.log_config)
+        post_config._update(crp.log_post_config)
 
     for mkey in ["corpus", "lexicon", "acoustic_model", "language_model"]:
         if mkey not in mapping:
@@ -241,25 +241,25 @@ def build_config_from_mapping(csp, mapping, include_log_config=True, parallelize
         if type(keys) == str:
             keys = (keys,)
         for key in keys:
-            c = getattr(csp, "%s_config" % mkey)
+            c = getattr(crp, "%s_config" % mkey)
             if c is not None:
                 config[key] = c
 
-            c = getattr(csp, "%s_post_config" % mkey)
+            c = getattr(crp, "%s_post_config" % mkey)
             if c is not None:
                 post_config[key] = c
 
             if mkey == "corpus" and parallelize:
-                if csp.segment_path is not None:
-                    config[key].segments.file = csp.segment_path
-                elif csp.concurrent > 1:
-                    config[key].partition = csp.concurrent
+                if crp.segment_path is not None:
+                    config[key].segments.file = crp.segment_path
+                elif crp.concurrent > 1:
+                    config[key].partition = crp.concurrent
                     config[key].select_partition = "$(TASK)"
 
-    if csp.python_home is not None:
-        post_config["*"].python_home = csp.python_home
-    if csp.python_program_name is not None:
-        post_config["*"].python_program_name = csp.python_program_name
+    if crp.python_home is not None:
+        post_config["*"].python_home = crp.python_home
+    if crp.python_program_name is not None:
+        post_config["*"].python_program_name = crp.python_program_name
 
     return config, post_config
 

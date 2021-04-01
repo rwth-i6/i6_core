@@ -15,7 +15,7 @@ import recipe.i6_asr.util as util
 
 class ViterbiTdpTuning(Job):
     def __init__(
-        self, csp, feature_flow, feature_scorer, allophone_files, am_args, max_iter=5
+        self, crp, feature_flow, feature_scorer, allophone_files, am_args, max_iter=5
     ):
         self.flow = feature_flow
         self.scorer = feature_scorer
@@ -23,7 +23,7 @@ class ViterbiTdpTuning(Job):
         self.max_iter = max_iter
         self.cur_iter = 0
         self.am_args = am_args
-        self.csp = csp
+        self.crp = crp
         self.last_tdp = None
 
         self.am_args_opt = self.output_var("am_args_opt")
@@ -54,20 +54,20 @@ class ViterbiTdpTuning(Job):
                 self.am_args = util.get_val(self.last_tdp.am_args)
                 self.tdp_list.append(self.am_args)
 
-            self.csp.acoustic_model_config.tdp["*"].loop = self.am_args[
+            self.crp.acoustic_model_config.tdp["*"].loop = self.am_args[
                 "tdp_transition"
             ][0]
-            self.csp.acoustic_model_config.tdp["*"].forward = self.am_args[
+            self.crp.acoustic_model_config.tdp["*"].forward = self.am_args[
                 "tdp_transition"
             ][1]
-            self.csp.acoustic_model_config.tdp["*"].skip = self.am_args[
+            self.crp.acoustic_model_config.tdp["*"].skip = self.am_args[
                 "tdp_transition"
             ][2]
 
-            self.csp.acoustic_model_config.tdp.silence.loop = self.am_args[
+            self.crp.acoustic_model_config.tdp.silence.loop = self.am_args[
                 "tdp_silence"
             ][0]
-            self.csp.acoustic_model_config.tdp.silence.forward = self.am_args[
+            self.crp.acoustic_model_config.tdp.silence.forward = self.am_args[
                 "tdp_silence"
             ][1]
 
@@ -75,10 +75,10 @@ class ViterbiTdpTuning(Job):
 
     def tune_tdp(self):
         align = AlignmentJob(
-            csp=self.csp, feature_flow=self.flow, feature_scorer=self.scorer
+            crp=self.crp, feature_flow=self.flow, feature_scorer=self.scorer
         )
         self.add_input(align.alignment_bundle)
-        tdp = TdpFromAlignment(csp=self.csp, alignment=align, allophones=self.allophone)
+        tdp = TdpFromAlignment(crp=self.crp, alignment=align, allophones=self.allophone)
         self.add_input(tdp.transition_prob)
         self.last_tdp = tdp
         self.cur_iter += 1
@@ -95,11 +95,11 @@ class TdpFromAlignment(Job):
     state are extracted and loops, forward and skip transitions are counted
     """
 
-    def __init__(self, csp, alignment, allophones):
-        self.csp = csp
+    def __init__(self, crp, alignment, allophones):
+        self.crp = crp
         self.alignment = alignment
         self.allophones = allophones
-        self.concurrent = csp.concurrent
+        self.concurrent = crp.concurrent
         self.rqmt = {"time": 1, "cpu": 1, "gpu": 0, "mem": 1}
 
         self.transition_count = self.output_path("trans.count")
@@ -115,7 +115,7 @@ class TdpFromAlignment(Job):
 
     def run(self, task_id):
         alignment_path = self.alignment.single_alignment_caches[task_id].get_path()
-        segment_path = self.csp.segment_path.hidden_paths[task_id].get_path()
+        segment_path = self.crp.segment_path.hidden_paths[task_id].get_path()
         exe = os.path.join(
             gs.RASR_ROOT,
             "arch",

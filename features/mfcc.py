@@ -7,9 +7,9 @@ from .extraction import *
 import recipe.i6_asr.rasr as rasr
 
 
-def MfccJob(csp, mfcc_options=None, extra_config=None, extra_post_config=None):
+def MfccJob(crp, mfcc_options=None, extra_config=None, extra_post_config=None):
     """
-    :param recipe.rasr.csp.CommonRasrParameters csp:
+    :param recipe.rasr.crp.CommonRasrParameters crp:
     :param dict[str] mfcc_options:
     :param recipe.rasr.config.RasrConfig|None extra_config:
     :param recipe.rasr.config.RasrConfig|None extra_post_config:
@@ -22,13 +22,13 @@ def MfccJob(csp, mfcc_options=None, extra_config=None, extra_post_config=None):
 
     if "samples_options" not in mfcc_options:
         mfcc_options["samples_options"] = {}
-    mfcc_options["samples_options"]["audio_format"] = csp.audio_format
+    mfcc_options["samples_options"]["audio_format"] = crp.audio_format
     feature_flow = mfcc_flow(**mfcc_options)
 
     port_name_mapping = {"features": "mfcc"}
 
     return FeatureExtraction(
-        csp,
+        crp,
         feature_flow,
         port_name_mapping,
         job_name="MFCC",

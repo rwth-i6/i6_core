@@ -7,17 +7,17 @@ from .extraction import *
 import recipe.i6_asr.rasr as rasr
 
 
-def EnergyJob(csp, energy_options={}, extra_config=None, extra_post_config=None):
+def EnergyJob(crp, energy_options={}, extra_config=None, extra_post_config=None):
     energy_options = copy.deepcopy(energy_options)
     if "samples_options" not in energy_options:
         energy_options["samples_options"] = {}
-    energy_options["samples_options"]["audio_format"] = csp.audio_format
+    energy_options["samples_options"]["audio_format"] = crp.audio_format
     feature_flow = energy_flow(**energy_options)
 
     port_name_mapping = {"energy": "energy"}
 
     return FeatureExtraction(
-        csp,
+        crp,
         feature_flow,
         port_name_mapping,
         job_name="Energy",

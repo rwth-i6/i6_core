@@ -262,14 +262,14 @@ class SplitSegmentFile(Job):
 
 
 class SortSegmentsByLengthAndShuffle(Job):
-    def __init__(self, csp, shuffle_strength=1.0, shuffle_seed=0x3C5EA3E47D4E0077):
+    def __init__(self, crp, shuffle_strength=1.0, shuffle_seed=0x3C5EA3E47D4E0077):
         """
-        :param csp: recipe.rasr.csp.CommonRasrParameters
+        :param crp: recipe.rasr.crp.CommonRasrParameters
         :param shuffle_strength: float in [0,inf) determines how much the length should affect sorting
                                  0 -> completely random; inf -> strictly sorted
         :param shuffle_seed: random number seed
         """
-        self.csp = csp
+        self.crp = crp
         self.shuffle_strength = shuffle_strength
         self.shuffle_seed = shuffle_seed
 
@@ -279,10 +279,10 @@ class SortSegmentsByLengthAndShuffle(Job):
         yield Task("run", mini_task=True)
 
     def run(self):
-        with open(tk.uncached_path(self.csp.segment_path)) as f:
+        with open(tk.uncached_path(self.crp.segment_path)) as f:
             segments = f.read().splitlines()
 
-        corpus_path = tk.uncached_path(self.csp.corpus_config.file)
+        corpus_path = tk.uncached_path(self.crp.corpus_config.file)
         c = corpus.Corpus()
         c.load(corpus_path)
         print(corpus_path)

@@ -226,8 +226,8 @@ class MetaLinearAdaptation(Job):
             dev_corpus.concurrent = 1
 
             j = returnn.ReturnnRasrTrainingJob(
-                train_csp=train_corpus,
-                dev_csp=dev_corpus,
+                train_crp=train_corpus,
+                dev_crp=dev_corpus,
                 returnn_config=returnn.ReturnnConfig(self.adapt_config),
                 **self.returnn_training_args
             )
@@ -323,7 +323,7 @@ class MetaLinearAdaptation(Job):
                 ]
 
                 rec = recog.AdvancedTreeSearchJob(
-                    csp=eval_corpus,
+                    crp=eval_corpus,
                     feature_flow=bundled_flow,
                     feature_scorer=returnn_scorer,
                     model_combination_config=model_combination_config,
@@ -335,7 +335,7 @@ class MetaLinearAdaptation(Job):
             m = MergeFiles(lattice_bundles)
 
             self.jobs["lat2ctm_%s" % epoch_name] = lat2ctm = recog.LatticeToCtmJob(
-                csp=self.corpus, lattice_cache=m.out_file, parallelize=False
+                crp=self.corpus, lattice_cache=m.out_file, parallelize=False
             )
             self.ctm_files["recog_%s" % epoch_name] = lat2ctm.ctm_file
 

@@ -6,7 +6,7 @@ import recipe.i6_asr.vtln as vtln
 class TrainWarpingFactorsSequence:
     def __init__(
         self,
-        csp,
+        crp,
         initial_mixtures,
         feature_flow,
         warping_map,
@@ -34,7 +34,7 @@ class TrainWarpingFactorsSequence:
         for idx, action in enumerate(action_sequence):
             split = action.startswith("split")
             args = {
-                "csp": csp,
+                "crp": crp,
                 "old_mixtures": current_mixtures,
                 "feature_flow": feature_flow,
                 "warping_map": warping_map,

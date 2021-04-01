@@ -16,7 +16,7 @@ class CartAndLDA:
 
     def __init__(
         self,
-        original_csp,
+        original_crp,
         initial_flow,
         context_flow,
         alignment,
@@ -48,33 +48,33 @@ class CartAndLDA:
         self.last_cart_tree = None
         self.last_num_cart_labels = None
 
-        csp = rasr.CommonRasrParameters(base=original_csp)
-        csp.acoustic_model_config = original_csp.acoustic_model_config._copy()
+        crp = rasr.CommonRasrParameters(base=original_crp)
+        crp.acoustic_model_config = original_crp.acoustic_model_config._copy()
 
         for iteration in range(num_iter):
-            csp.acoustic_model_config.state_tying.type = "monophone"
-            del csp.acoustic_model_config.state_tying.file
+            crp.acoustic_model_config.state_tying.type = "monophone"
+            del crp.acoustic_model_config.state_tying.file
 
             temp_alignment_flow = mm.cached_alignment_flow(initial_flow, alignment)
 
-            args = {"csp": csp, "alignment_flow": temp_alignment_flow}
+            args = {"crp": crp, "alignment_flow": temp_alignment_flow}
             args.update(select_args(cart_sum_args, iteration))
             cart_sum = cart.AccumulateCartStatisticsJob(**args)
 
             args = {
-                "csp": csp,
+                "crp": crp,
                 "questions": questions,
                 "cart_examples": cart_sum.cart_sum,
             }
             args.update(select_args(cart_estimate_args, iteration))
             cart_estimate = cart.EstimateCartJob(**args)
 
-            csp.acoustic_model_config.state_tying.type = "cart"
-            csp.acoustic_model_config.state_tying.file = cart_estimate.cart_tree
+            crp.acoustic_model_config.state_tying.type = "cart"
+            crp.acoustic_model_config.state_tying.file = cart_estimate.cart_tree
 
             temp_alignment_flow = mm.cached_alignment_flow(context_flow, alignment)
 
-            args = {"csp": csp, "alignment_flow": temp_alignment_flow}
+            args = {"crp": crp, "alignment_flow": temp_alignment_flow}
             args.update(select_args(lda_scatter_args, iteration))
             lda_scatter = lda.EstimateScatterMatricesJob(**args)
 
@@ -89,7 +89,7 @@ class CartAndLDA:
             )
 
             args = {
-                "csp": csp,
+                "crp": crp,
                 "between_class_scatter_matrix": lda_scatter.between_class_scatter_matrix,
                 "within_class_scatter_matrix": lda_scatter.within_class_scatter_matrix,
                 "reduced_dimension": num_dim,

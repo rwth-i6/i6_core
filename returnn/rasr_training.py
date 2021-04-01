@@ -23,8 +23,8 @@ from .training import ReturnnTrainingJob
 class ReturnnRasrTrainingJob(ReturnnTrainingJob):
     def __init__(
         self,
-        train_csp,
-        dev_csp,
+        train_crp,
+        dev_crp,
         feature_flow,
         alignment,
         returnn_config,
@@ -52,7 +52,7 @@ class ReturnnRasrTrainingJob(ReturnnTrainingJob):
         additional_rasr_post_config_files=None,
         use_python_control=True
     ):
-        datasets = self.create_dataset_config(train_csp, partition_epochs)
+        datasets = self.create_dataset_config(train_crp, partition_epochs)
         super().__init__(
             train_data=datasets["train"],
             dev_data=datasets["dev"],
@@ -74,7 +74,7 @@ class ReturnnRasrTrainingJob(ReturnnTrainingJob):
 
         self.alignment = alignment  # allowed to be None
         self.rasr_exe = rasr.RasrCommand.select_exe(
-            train_csp.nn_trainer_exe, "nn-trainer"
+            train_crp.nn_trainer_exe, "nn-trainer"
         )
         self.additional_rasr_config_files = (
             {} if additional_rasr_config_files is None else additional_rasr_config_files
@@ -85,15 +85,15 @@ class ReturnnRasrTrainingJob(ReturnnTrainingJob):
             else additional_rasr_post_config_files
         )
 
-        del kwargs["train_csp"]
-        del kwargs["dev_csp"]
-        kwargs["csp"] = train_csp
+        del kwargs["train_crp"]
+        del kwargs["dev_crp"]
+        kwargs["crp"] = train_crp
         self.feature_flow = ReturnnRasrTrainingJob.create_flow(**kwargs)
         (
             self.rasr_train_config,
             self.rasr_train_post_config,
         ) = ReturnnRasrTrainingJob.create_config(**kwargs)
-        kwargs["csp"] = dev_csp
+        kwargs["crp"] = dev_crp
         (
             self.rasr_dev_config,
             self.rasr_dev_post_config,
@@ -137,7 +137,7 @@ class ReturnnRasrTrainingJob(ReturnnTrainingJob):
     @classmethod
     def create_config(
         cls,
-        csp,
+        crp,
         alignment,
         num_classes,
         buffer_size,
@@ -149,13 +149,13 @@ class ReturnnRasrTrainingJob(ReturnnTrainingJob):
         **kwargs
     ):
         config, post_config = rasr.build_config_from_mapping(
-            csp,
+            crp,
             {
                 "acoustic_model": "neural-network-trainer.model-combination.acoustic-model",
                 "corpus": "neural-network-trainer.corpus",
                 "lexicon": "neural-network-trainer.model-combination.lexicon",
             },
-            parallelize=(csp.concurrent == 1),
+            parallelize=(crp.concurrent == 1),
         )
 
         if use_python_control:
@@ -197,7 +197,7 @@ class ReturnnRasrTrainingJob(ReturnnTrainingJob):
         return config, post_config
 
     @classmethod
-    def create_dataset_config(cls, train_csp, partition_epochs):
+    def create_dataset_config(cls, train_crp, partition_epochs):
         datasets = {}
 
         if partition_epochs is None:
@@ -208,7 +208,7 @@ class ReturnnRasrTrainingJob(ReturnnTrainingJob):
             datasets[ds] = {
                 "class": "ExternSprintDataset",
                 "sprintTrainerExecPath": rasr.RasrCommand.select_exe(
-                    train_csp.nn_trainer_exe, "nn-trainer"
+                    train_crp.nn_trainer_exe, "nn-trainer"
                 ),
                 "sprintConfigStr": "--config=rasr.%s.config --*.LOGFILE=nn-trainer.%s.log --*.TASK=1"
                 % (ds, ds),
@@ -230,13 +230,13 @@ class ReturnnRasrTrainingJob(ReturnnTrainingJob):
     def hash(cls, kwargs):
         flow = cls.create_flow(**kwargs)
         kwargs = copy.copy(kwargs)
-        train_csp = kwargs["train_csp"]
-        dev_csp = kwargs["dev_csp"]
-        del kwargs["train_csp"]
-        del kwargs["dev_csp"]
-        kwargs["csp"] = train_csp
+        train_crp = kwargs["train_crp"]
+        dev_crp = kwargs["dev_crp"]
+        del kwargs["train_crp"]
+        del kwargs["dev_crp"]
+        kwargs["crp"] = train_crp
         train_config, train_post_config = cls.create_config(**kwargs)
-        kwargs["csp"] = dev_csp
+        kwargs["crp"] = dev_crp
         dev_config, dev_post_config = cls.create_config(**kwargs)
         returnn_config = kwargs["returnn_config"]
         extra_python_hash = (
@@ -251,7 +251,7 @@ class ReturnnRasrTrainingJob(ReturnnTrainingJob):
             "alignment_flow": flow,
             "returnn_config": returnn_config.config,
             "extra_python": extra_python_hash,
-            "rasr_exe": train_csp.nn_trainer_exe,
+            "rasr_exe": train_crp.nn_trainer_exe,
             "returnn_python_exe": kwargs["returnn_python_exe"],
             "returnn_root": kwargs["returnn_root"],
         }

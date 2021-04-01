@@ -14,7 +14,7 @@ import recipe.i6_asr.util as util
 class ScoreFeaturesJob(rasr.RasrCommand, Job):
     def __init__(
         self,
-        csp,
+        crp,
         feature_flow,
         feature_scorer,
         normalize=True,
@@ -32,22 +32,22 @@ class ScoreFeaturesJob(rasr.RasrCommand, Job):
 
         self.config, self.post_config = ScoreFeaturesJob.create_config(**kwargs)
         self.feature_flow = feature_flow
-        self.concurrent = csp.concurrent
+        self.concurrent = crp.concurrent
         self.exe = self.select_exe(
-            csp.acoustic_model_trainer_exe, "acoustic-model-trainer"
+            crp.acoustic_model_trainer_exe, "acoustic-model-trainer"
         )
         self.feature_scorer = feature_scorer
         self.normalize = normalize
         self.plot_prior = plot_prior
         self.use_gpu = use_gpu
 
-        self.log_file = self.log_file_output_path("score_features", csp, True)
+        self.log_file = self.log_file_output_path("score_features", crp, True)
         self.prior = self.output_path("prior.xml", cached=True)
         if self.plot_prior:
             self.prior_plot = self.output_path("prior.png")
 
         self.rqmt = {
-            "time": max(rtf * csp.corpus_duration / csp.concurrent, 0.5),
+            "time": max(rtf * crp.corpus_duration / crp.concurrent, 0.5),
             "cpu": 1,
             "gpu": 1 if self.use_gpu else 0,
             "mem": 2,
@@ -137,7 +137,7 @@ class ScoreFeaturesJob(rasr.RasrCommand, Job):
     @classmethod
     def create_config(
         cls,
-        csp,
+        crp,
         feature_flow,
         feature_scorer,
         extra_config,
@@ -145,7 +145,7 @@ class ScoreFeaturesJob(rasr.RasrCommand, Job):
         **kwargs
     ):
         config, post_config = rasr.build_config_from_mapping(
-            csp, {"corpus": "acoustic-model-trainer.corpus"}, parallelize=True
+            crp, {"corpus": "acoustic-model-trainer.corpus"}, parallelize=True
         )
 
         feature_scorer.apply_config(
@@ -164,7 +164,7 @@ class ScoreFeaturesJob(rasr.RasrCommand, Job):
             "feature.flow"
         )
         config.acoustic_model_trainer.average_feature_scorer_activation.output.channel = (
-            csp.default_log_channel
+            crp.default_log_channel
         )
 
         config._update(extra_config)
@@ -179,7 +179,7 @@ class ScoreFeaturesJob(rasr.RasrCommand, Job):
             {
                 "config": config,
                 "feature_flow": kwargs["feature_flow"],
-                "exe": kwargs["csp"].acoustic_model_trainer_exe,
+                "exe": kwargs["crp"].acoustic_model_trainer_exe,
                 "normalize": kwargs["normalize"],
             }
         )

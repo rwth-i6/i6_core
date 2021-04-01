@@ -79,19 +79,19 @@ class FilterSegmentsByList(Job):
 
 class FilterSegmentsByAlignmentConfidence(Job):
     def __init__(
-        self, alignment_logs, percentile, csp, plot=True, absolute_threshold=None
+        self, alignment_logs, percentile, crp, plot=True, absolute_threshold=None
     ):
         """
         :param dict[int,str] alignment_logs: alignment_job.log_file; task_id -> log_file
         :param float|int percentile: in range [0,100]. for :func:`np.percentile`
         :param float absolute_threshold:
-        :param recipe.rasr.csp.CommonRasrParameters csp:
+        :param recipe.rasr.crp.CommonRasrParameters crp:
         :param bool plot:
         """
         self.alignment_logs = alignment_logs  # alignment_job.log_file
         self.percentile = percentile
         self.absolute_threshold = absolute_threshold
-        self.num_segments = csp.concurrent
+        self.num_segments = crp.concurrent
         self.plot = plot
 
         self.single_segment_files = dict(

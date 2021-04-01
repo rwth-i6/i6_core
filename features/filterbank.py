@@ -8,7 +8,7 @@ import recipe.i6_asr.rasr as rasr
 
 
 def FilterbankJob(
-    csp, filterbank_options=None, extra_config=None, extra_post_config=None
+    crp, filterbank_options=None, extra_config=None, extra_post_config=None
 ):
     if filterbank_options is None:
         filterbank_options = {}
@@ -17,13 +17,13 @@ def FilterbankJob(
 
     if "samples_options" not in filterbank_options:
         filterbank_options["samples_options"] = {}
-    filterbank_options["samples_options"]["audio_format"] = csp.audio_format
+    filterbank_options["samples_options"]["audio_format"] = crp.audio_format
     feature_flow = filterbank_flow(**filterbank_options)
 
     port_name_mapping = {"features": "filterbank"}
 
     return FeatureExtraction(
-        csp,
+        crp,
         feature_flow,
         port_name_mapping,
         job_name="filterbank",

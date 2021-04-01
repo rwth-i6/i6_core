@@ -17,7 +17,7 @@ import recipe.i6_asr.util as util
 class AlignmentJob(rasr.RasrCommand, Job):
     def __init__(
         self,
-        csp,
+        crp,
         feature_flow,
         feature_scorer,
         alignment_options=None,
@@ -28,7 +28,7 @@ class AlignmentJob(rasr.RasrCommand, Job):
         extra_post_config=None,
     ):
         """
-        :param recipe.rasr.csp.CommonRasrParameters csp:
+        :param recipe.rasr.crp.CommonRasrParameters crp:
         :param feature_flow:
         :param rasr.FeatureScorer feature_scorer:
         :param dict[str] alignment_options:
@@ -47,15 +47,15 @@ class AlignmentJob(rasr.RasrCommand, Job):
 
         self.config, self.post_config = AlignmentJob.create_config(**kwargs)
         self.alignment_flow = AlignmentJob.create_flow(**kwargs)
-        self.concurrent = csp.concurrent
+        self.concurrent = crp.concurrent
         self.exe = self.select_exe(
-            csp.acoustic_model_trainer_exe, "acoustic-model-trainer"
+            crp.acoustic_model_trainer_exe, "acoustic-model-trainer"
         )
         self.feature_scorer = feature_scorer
         self.use_gpu = use_gpu
         self.word_boundaries = word_boundaries
 
-        self.log_file = self.log_file_output_path("alignment", csp, True)
+        self.log_file = self.log_file_output_path("alignment", crp, True)
         self.single_alignment_caches = dict(
             (i, self.output_path("alignment.cache.%d" % i, cached=True))
             for i in range(1, self.concurrent + 1)
@@ -80,7 +80,7 @@ class AlignmentJob(rasr.RasrCommand, Job):
             )
 
         self.rqmt = {
-            "time": max(rtf * csp.corpus_duration / csp.concurrent, 0.5),
+            "time": max(rtf * crp.corpus_duration / crp.concurrent, 0.5),
             "cpu": 1,
             "gpu": 1 if self.use_gpu else 0,
             "mem": 2,
@@ -136,7 +136,7 @@ class AlignmentJob(rasr.RasrCommand, Job):
     @classmethod
     def create_config(
         cls,
-        csp,
+        crp,
         feature_flow,
         feature_scorer,
         alignment_options,
@@ -146,7 +146,7 @@ class AlignmentJob(rasr.RasrCommand, Job):
         **kwargs
     ):
         """
-        :param recipe.rasr.csp.CommonRasrParameters csp:
+        :param recipe.rasr.crp.CommonRasrParameters crp:
         :param feature_flow:
         :param rasr.FeatureScorer feature_scorer:
         :param dict[str] alignment_options:
@@ -186,7 +186,7 @@ class AlignmentJob(rasr.RasrCommand, Job):
             )
 
         config, post_config = rasr.build_config_from_mapping(
-            csp, mapping, parallelize=True
+            crp, mapping, parallelize=True
         )
 
         # alignment options for the flow nodes
@@ -235,7 +235,7 @@ class AlignmentJob(rasr.RasrCommand, Job):
             {
                 "config": config,
                 "alignment_flow": alignment_flow,
-                "exe": kwargs["csp"].acoustic_model_trainer_exe,
+                "exe": kwargs["crp"].acoustic_model_trainer_exe,
             }
         )
 
@@ -243,7 +243,7 @@ class AlignmentJob(rasr.RasrCommand, Job):
 class DumpAlignmentJob(rasr.RasrCommand, Job):
     def __init__(
         self,
-        csp,
+        crp,
         feature_flow,
         original_alignment,
         extra_config=None,
@@ -257,11 +257,11 @@ class DumpAlignmentJob(rasr.RasrCommand, Job):
         self.config, self.post_config = DumpAlignmentJob.create_config(**kwargs)
         self.dump_flow = DumpAlignmentJob.create_flow(**kwargs)
         self.exe = self.select_exe(
-            csp.acoustic_model_trainer_exe, "acoustic-model-trainer"
+            crp.acoustic_model_trainer_exe, "acoustic-model-trainer"
         )
-        self.concurrent = csp.concurrent
+        self.concurrent = crp.concurrent
 
-        self.log_file = self.log_file_output_path("dump", csp, True)
+        self.log_file = self.log_file_output_path("dump", crp, True)
         self.single_alignment_caches = dict(
             (i, self.output_path("alignment.cache.%d" % i, cached=True))
             for i in range(1, self.concurrent + 1)
@@ -272,7 +272,7 @@ class DumpAlignmentJob(rasr.RasrCommand, Job):
         self.alignment_bundle = self.output_path("alignment.cache.bundle", cached=True)
 
         self.rqmt = {
-            "time": max(csp.corpus_duration / (50.0 * csp.concurrent), 0.5),
+            "time": max(crp.corpus_duration / (50.0 * crp.concurrent), 0.5),
             "cpu": 1,
             "mem": 1,
         }
@@ -301,7 +301,7 @@ class DumpAlignmentJob(rasr.RasrCommand, Job):
         util.delete_if_zero("alignment.cache.%d" % task_id)
 
     @classmethod
-    def create_config(cls, csp, extra_config, extra_post_config, **kwargs):
+    def create_config(cls, crp, extra_config, extra_post_config, **kwargs):
         dump_flow = cls.create_flow(**kwargs)
 
         mapping = {
@@ -322,7 +322,7 @@ class DumpAlignmentJob(rasr.RasrCommand, Job):
             )
 
         config, post_config = rasr.build_config_from_mapping(
-            csp, mapping, parallelize=True
+            crp, mapping, parallelize=True
         )
 
         config.acoustic_model_trainer.action = "dry"
@@ -356,7 +356,7 @@ class DumpAlignmentJob(rasr.RasrCommand, Job):
             {
                 "config": config,
                 "dump_flow": dump_flow,
-                "exe": kwargs["csp"].acoustic_model_trainer_exe,
+                "exe": kwargs["crp"].acoustic_model_trainer_exe,
             }
         )
 

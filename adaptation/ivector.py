@@ -35,16 +35,16 @@ tested with:
 1. train ubm mixtures with starting at sdm:
     
     feature_flow = self.feature_flows[corpus][feature_flow]   
-    segment_job = corpus_recipes.SegmentCorpus(self.csp[corpus].corpus_config.file, 1)
+    segment_job = corpus_recipes.SegmentCorpus(self.crp[corpus].corpus_config.file, 1)
     map_job = ubm.UbmWarpingMapJob(segment_list=segment_job.single_segment_files[1])
-    mono_job = ubm.EstimateWarpingMixturesJob(csp=self.csp[corpus],
+    mono_job = ubm.EstimateWarpingMixturesJob(crp=self.crp[corpus],
                                               old_mixtures=None,
                                               feature_flow=feature_flow,
                                               warping_map=map_job.warping_map,
                                               warping_factors=map_job.alphas_file,
                                               split_first=False, )
     
-    seq = ubm.TrainWarpingFactorsSequence(csp=self.csp[corpus],
+    seq = ubm.TrainWarpingFactorsSequence(crp=self.crp[corpus],
                                           initial_mixtures=mono_job.mixtures,
                                           feature_flow=feature_flow,
                                           warping_map=map_job.warping_map,
@@ -57,7 +57,7 @@ tested with:
 3. Train I-Vector Model
 
     ivec_train_args = {
-      'csp'                 : system.csp['train_per_speaker'],
+      'crp'                 : system.crp['train_per_speaker'],
       'ubm'                 : system.mixtures['train']['ubm'][-1],
       'features'            : system.feature_caches['train_per_speaker']['mfcc'].hidden_paths,
       'alignment'           : system.alignments['train_per_speaker']['tri_1'].alternatives['task_dependent'].hidden_paths,
@@ -71,7 +71,7 @@ tested with:
 4. Extract I-Vectors
 
     ivec_extract_args = {
-      'csp'                 : system.csp['train_per_speaker'],
+      'crp'                 : system.crp['train_per_speaker'],
       'ubm'                 : system.mixtures['train']['ubm'][5],
       'features'            : system.feature_caches['train_per_speaker']['mfcc'].hidden_paths,
       'alignment'           : system.alignments['train_per_speaker']['tri_1'].alternatives['task_dependent'].hidden_paths,
@@ -149,7 +149,7 @@ class IVectorTrainingJob(Job):
 
     def __init__(
         self,
-        csp,
+        crp,
         ubm,
         features,
         alignment,
@@ -160,7 +160,7 @@ class IVectorTrainingJob(Job):
         rqmt=None,
     ):
         """
-        :param csp: (CommonRasrParameters) need for concurrency
+        :param crp: (CommonRasrParameters) need for concurrency
         :param ubm: (Path) to UBM trained with ubm.TrainWarpingFactorsSequence
         :param features: system.feature_caches['corpus']['mfcc'].hidden_paths; gone feature.cache file per i-vector, good features are mfcc, plp
         :param alignment: system.alignments['corpus'][''].alternatives['task_dependent'].hidden_paths; one alignment.cache file per i-vector
@@ -170,7 +170,7 @@ class IVectorTrainingJob(Job):
         :param iter: (int) number of em iterations during ivector training
         :param rqmt:
         """
-        self.csp = csp
+        self.crp = crp
         self.ubm = ubm
         self.features = features
         self.alignment = alignment
@@ -179,7 +179,7 @@ class IVectorTrainingJob(Job):
         self.allophones_to_ignore = allophones_to_ignore
         self.iter = iter
 
-        self.concurrent = csp.concurrent
+        self.concurrent = crp.concurrent
         self.rqmt = rqmt if rqmt else {"time": 1, "cpu": 1, "gpu": 0, "mem": 1}
 
         self.single_accu_caches = dict(
@@ -290,7 +290,7 @@ class IVectorExtractionJob(Job):
 
     def __init__(
         self,
-        csp,
+        crp,
         t_matrix,
         ubm,
         features,
@@ -302,7 +302,7 @@ class IVectorExtractionJob(Job):
         rqmt=None,
     ):
         """
-        :param csp: (CommonRasrParameters) need for concurrency
+        :param crp: (CommonRasrParameters) need for concurrency
         :param t_matrix: (HDF5File) IVectorTrainingJob.t_matrix, contains learned ubm and JFA
         :param ubm: (Path) to UBM trained with ubm.TrainWarpingFactorsSequence
         :param features: system.feature_caches['corpus']['mfcc'].hidden_paths; gone feature.cache file per i-vector, good features are mfcc, plp
@@ -313,7 +313,7 @@ class IVectorExtractionJob(Job):
         :param length_norm: (bool) normalize i-vector to unit length
         :param rqmt:
         """
-        self.csp = csp
+        self.crp = crp
         self.ubm = ubm
         self.t_matrix = t_matrix
         self.features = features
@@ -323,7 +323,7 @@ class IVectorExtractionJob(Job):
         self.allophones_to_ignore = allophones_to_ignore
         self.length_norm = length_norm
 
-        self.concurrent = csp.concurrent
+        self.concurrent = crp.concurrent
         self.rqmt = rqmt if rqmt else {"time": 1, "cpu": 1, "gpu": 0, "mem": 1}
 
         self.single_ivec_caches = dict(
