@@ -9,6 +9,7 @@ __all__ = [
 ]
 
 import collections
+import itertools as it
 import os
 import random
 import re
