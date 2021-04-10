@@ -9,8 +9,8 @@ from sisyphus import *
 
 Path = setup_path(__package__)
 
-import recipe.i6_asr.allophones as allophones
-import recipe.i6_asr.costa as costa
+import recipe.i6_asr.corpus as corpus_recipes
+import recipe.i6_asr.lexicon as lexicon
 import recipe.i6_asr.returnn as returnn
 import recipe.i6_asr.features as features
 import recipe.i6_asr.mm as mm
@@ -167,7 +167,7 @@ class System:
         self.scorer_hyp_arg[corpus] = "ctm"
 
     def store_allophones(self, source_corpus, target_corpus="base", **kwargs):
-        self.jobs[target_corpus]["allophones"] = allophones.StoreAllophones(
+        self.jobs[target_corpus]["allophones"] = lexicon.StoreAllophones(
             self.crp[source_corpus], **kwargs
         )
         self.allophone_files[target_corpus] = self.jobs[target_corpus][
@@ -343,7 +343,7 @@ class System:
             )
 
     def costa(self, corpus, prefix="", **kwargs):
-        self.jobs[corpus]["costa"] = j = costa.CostaJob(self.crp[corpus], **kwargs)
+        self.jobs[corpus]["costa"] = j = corpus_recipes.CostaJob(self.crp[corpus], **kwargs)
         j.add_alias("%scosta_%s" % (prefix, corpus))
         tk.register_output("%s%s.costa.log.gz" % (prefix, corpus), j.log_file)
 
