@@ -4,7 +4,7 @@ import copy
 import numpy as np
 from .common import *
 from .extraction import *
-import recipe.i6_asr.rasr as rasr
+import recipe.i6_core.rasr as rasr
 
 
 def FilterbankJob(

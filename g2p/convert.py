@@ -8,7 +8,7 @@ from sisyphus import *
 
 Path = setup_path(__package__)
 
-import recipe.i6_asr.util as util
+import recipe.i6_core.util as util
 
 
 class BlissLexiconToG2PLexiconJob(Job):

@@ -8,8 +8,8 @@ from sisyphus import *
 
 Path = setup_path(__package__)
 
-import recipe.i6_asr.rasr as rasr
-from recipe.i6_asr.util import MultiOutputPath
+import recipe.i6_core.rasr as rasr
+from recipe.i6_core.util import MultiOutputPath
 from .flow import segment_clustering_flow
 
 

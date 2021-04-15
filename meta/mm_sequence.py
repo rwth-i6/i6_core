@@ -7,9 +7,9 @@ __all__ = [
     "first_split_acc_then_align_split_acc",
 ]
 
-from recipe.i6_asr.mm.alignment import AlignmentJob
-from recipe.i6_asr.mm.mixtures import EstimateMixturesJob
-from recipe.i6_asr.rasr import FlagDependentFlowAttribute, DiagonalMaximumScorer
+from recipe.i6_core.mm.alignment import AlignmentJob
+from recipe.i6_core.mm.mixtures import EstimateMixturesJob
+from recipe.i6_core.rasr import FlagDependentFlowAttribute, DiagonalMaximumScorer
 
 
 class AlignSplitAccumulateSequence:

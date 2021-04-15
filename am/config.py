@@ -1,6 +1,6 @@
 __all__ = ["acoustic_model_config"]
 
-import recipe.i6_asr.rasr as rasr
+import recipe.i6_core.rasr as rasr
 
 
 def acoustic_model_config(

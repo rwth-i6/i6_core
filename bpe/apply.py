@@ -10,8 +10,8 @@ from sisyphus import *
 
 Path = setup_path(__package__)
 
-from recipe.i6_asr.git import *
-from recipe.i6_asr.lib.lexicon import Lexicon
+from recipe.i6_core.git import *
+from recipe.i6_core.lib.lexicon import Lexicon
 
 
 class ApplyBPEModelToLexiconJob(Job):

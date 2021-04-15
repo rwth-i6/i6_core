@@ -9,14 +9,14 @@ from sisyphus import *
 
 Path = setup_path(__package__)
 
-import recipe.i6_asr.corpus as corpus_recipes
-import recipe.i6_asr.lexicon as lexicon
-import recipe.i6_asr.returnn as returnn
-import recipe.i6_asr.features as features
-import recipe.i6_asr.mm as mm
-import recipe.i6_asr.recognition as recog
-import recipe.i6_asr.rasr as rasr
-import recipe.i6_asr.vtln as vtln
+import recipe.i6_core.corpus as corpus_recipes
+import recipe.i6_core.lexicon as lexicon
+import recipe.i6_core.returnn as returnn
+import recipe.i6_core.features as features
+import recipe.i6_core.mm as mm
+import recipe.i6_core.recognition as recog
+import recipe.i6_core.rasr as rasr
+import recipe.i6_core.vtln as vtln
 
 from .mm_sequence import AlignSplitAccumulateSequence
 
@@ -343,7 +343,9 @@ class System:
             )
 
     def costa(self, corpus, prefix="", **kwargs):
-        self.jobs[corpus]["costa"] = j = corpus_recipes.CostaJob(self.crp[corpus], **kwargs)
+        self.jobs[corpus]["costa"] = j = corpus_recipes.CostaJob(
+            self.crp[corpus], **kwargs
+        )
         j.add_alias("%scosta_%s" % (prefix, corpus))
         tk.register_output("%s%s.costa.log.gz" % (prefix, corpus), j.log_file)
 

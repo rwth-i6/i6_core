@@ -7,8 +7,8 @@ Path = setup_path(__package__)
 import math
 import xml.etree.ElementTree as ET
 
-import recipe.i6_asr.rasr as rasr
-import recipe.i6_asr.util as util
+import recipe.i6_core.rasr as rasr
+import recipe.i6_core.util as util
 
 
 class ScoreFeaturesJob(rasr.RasrCommand, Job):

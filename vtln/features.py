@@ -1,6 +1,6 @@
 __all__ = ["VTLNFeaturesJob"]
 
-import recipe.i6_asr.features as features
+import recipe.i6_core.features as features
 from .flow import warp_filterbank_with_map_flow
 
 

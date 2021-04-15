@@ -5,7 +5,7 @@ import copy
 from .common import *
 from .extraction import *
 from math import log, sqrt, floor
-import recipe.i6_asr.rasr as rasr
+import recipe.i6_core.rasr as rasr
 
 
 def PlpJob(

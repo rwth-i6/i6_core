@@ -6,8 +6,8 @@ Path = setup_path(__package__)
 
 import shutil
 
-import recipe.i6_asr.rasr as rasr
-import recipe.i6_asr.util as util
+import recipe.i6_core.rasr as rasr
+import recipe.i6_core.util as util
 
 
 class CNDecodingJob(rasr.RasrCommand, Job):

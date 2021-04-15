@@ -1,6 +1,6 @@
 __all__ = ["CorpusToStm", "CorpusToTxt"]
 
-from recipe.i6_asr.lib import corpus
+from recipe.i6_core.lib import corpus
 
 from sisyphus import *
 

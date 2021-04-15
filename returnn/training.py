@@ -10,7 +10,7 @@ import shutil
 import stat
 import subprocess as sp
 
-import recipe.i6_asr.util as util
+import recipe.i6_core.util as util
 
 from .config import ReturnnConfig
 

@@ -12,12 +12,12 @@ from sisyphus import *
 
 Path = setup_path(__package__)
 
-import recipe.i6_asr.rasr as rasr
-import recipe.i6_asr.returnn as returnn
-import recipe.i6_asr.corpus as corpus_recipes
-import recipe.i6_asr.util as util
-import recipe.i6_asr.recognition as recog
-from recipe.i6_asr.util import MultiOutputPath
+import recipe.i6_core.rasr as rasr
+import recipe.i6_core.returnn as returnn
+import recipe.i6_core.corpus as corpus_recipes
+import recipe.i6_core.util as util
+import recipe.i6_core.recognition as recog
+from recipe.i6_core.util import MultiOutputPath
 
 # we do not put features in caches or calc alignment here, that is part of the setup
 # nothing should be hard coded here, only modules

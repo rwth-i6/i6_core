@@ -1,6 +1,6 @@
 __all__ = ["TrainWarpingFactorsSequence"]
 
-import recipe.i6_asr.vtln as vtln
+import recipe.i6_core.vtln as vtln
 
 
 class TrainWarpingFactorsSequence:

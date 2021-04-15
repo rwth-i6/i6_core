@@ -9,7 +9,7 @@ from sisyphus import *
 
 Path = setup_path(__package__)
 
-from recipe.i6_asr.git import *
+from recipe.i6_core.git import *
 
 
 class TrainBPEModelJob(Job):

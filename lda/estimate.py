@@ -8,8 +8,8 @@ from sisyphus import *
 
 Path = setup_path(__package__)
 
-import recipe.i6_asr.rasr as rasr
-import recipe.i6_asr.util as util
+import recipe.i6_core.rasr as rasr
+import recipe.i6_core.util as util
 
 
 class EstimateScatterMatricesJob(rasr.RasrCommand, Job):
@@ -341,8 +341,8 @@ class EstimateLDAMatrixJob(rasr.RasrCommand, Job):
         config.acoustic_model_trainer.lda_estimator.between_class_scatter_matrix_file = rasr.PathWithPrefixFlowAttribute(
             "xml:", between_class_scatter_matrix
         )
-        config.acoustic_model_trainer.lda_estimator.within_class_scatter_matrix_file = rasr.PathWithPrefixFlowAttribute(
-            "xml:", within_class_scatter_matrix
+        config.acoustic_model_trainer.lda_estimator.within_class_scatter_matrix_file = (
+            rasr.PathWithPrefixFlowAttribute("xml:", within_class_scatter_matrix)
         )
         config.acoustic_model_trainer.lda_estimator.projector_matrix_file = (
             "xml:`cf -d lda.matrix`"

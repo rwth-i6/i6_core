@@ -5,7 +5,7 @@ import shutil
 
 from .common import *
 from .extraction import *
-import recipe.i6_asr.rasr as rasr
+import recipe.i6_core.rasr as rasr
 
 
 def MrastaJob(crp, mrasta_options={}, extra_config=None, extra_post_config=None):

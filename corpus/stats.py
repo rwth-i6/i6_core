@@ -2,7 +2,7 @@ __all__ = ["ExtractOovWordsFromCorpus"]
 
 import xml.etree.cElementTree as ET
 
-from recipe.i6_asr.util import uopen
+from recipe.i6_core.util import uopen
 
 from sisyphus import *
 

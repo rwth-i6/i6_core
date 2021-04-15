@@ -8,8 +8,8 @@ from sisyphus import *
 
 Path = setup_path(__package__)
 
-import recipe.i6_asr.lib.lexicon as lexicon
-from recipe.i6_asr.util import uopen
+import recipe.i6_core.lib.lexicon as lexicon
+from recipe.i6_core.util import uopen
 
 
 class LexiconToWordList(Job):

@@ -10,7 +10,7 @@ from sisyphus import *
 Path = setup_path(__package__)
 
 from .alignment import AlignmentJob
-import recipe.i6_asr.util as util
+import recipe.i6_core.util as util
 
 
 class ViterbiTdpTuning(Job):

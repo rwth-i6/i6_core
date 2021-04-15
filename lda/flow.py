@@ -1,6 +1,6 @@
 __all__ = ["add_context_flow"]
 
-import recipe.i6_asr.rasr as rasr
+import recipe.i6_core.rasr as rasr
 
 
 def add_context_flow(

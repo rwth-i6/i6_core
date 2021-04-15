@@ -18,9 +18,9 @@ except ImportError:
         'No module named "bob".\nInstallation guide: https://www.idiap.ch/software/bob/docs/bob/docs/stable/bob/doc/install.html\nAlternatively use this python: /work/asr3/kitza/software/miniconda3/envs/bob_py3/bin/python'
     )
 
-import recipe.i6_asr.rasr as rasr
-import recipe.i6_asr.util as util
-import recipe.i6_asr.lib.rasr_cache as sc
+import recipe.i6_core.rasr as rasr
+import recipe.i6_core.util as util
+import recipe.i6_core.lib.rasr_cache as sc
 
 """
 If filesystem locking problems occur set:

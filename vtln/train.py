@@ -9,9 +9,9 @@ from sisyphus import *
 
 Path = setup_path(__package__)
 
-import recipe.i6_asr.mm as mm
-import recipe.i6_asr.rasr as rasr
-import recipe.i6_asr.util as util
+import recipe.i6_core.mm as mm
+import recipe.i6_core.rasr as rasr
+import recipe.i6_core.util as util
 
 from .flow import *
 

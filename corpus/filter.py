@@ -11,10 +11,10 @@ import xml.etree.cElementTree as ET
 
 import numpy as np
 
-from recipe.i6_asr.util import MultiOutputPath
+from recipe.i6_core.util import MultiOutputPath
 
-from recipe.i6_asr.lib import corpus
-from recipe.i6_asr.util import chunks, uopen
+from recipe.i6_core.lib import corpus
+from recipe.i6_core.util import chunks, uopen
 
 from sisyphus import *
 

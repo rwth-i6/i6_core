@@ -9,8 +9,8 @@ from sisyphus import *
 Path = setup_path(__package__)
 
 from .flow import confidence_based_alignment_flow
-import recipe.i6_asr.rasr as rasr
-import recipe.i6_asr.util as util
+import recipe.i6_core.rasr as rasr
+import recipe.i6_core.util as util
 
 
 class ConfidenceBasedAlignmentJob(rasr.RasrCommand, Job):

@@ -3,7 +3,7 @@ __all__ = ["BlissToOggZipJob"]
 import os
 import subprocess as sp
 
-from recipe.i6_asr.util import relink
+from recipe.i6_core.util import relink
 
 from sisyphus import *
 
