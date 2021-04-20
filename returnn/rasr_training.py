@@ -5,22 +5,20 @@ from sisyphus import *
 Path = setup_path(__package__)
 
 import copy
-import json
-import os
-import pprint
-import stat
-import string
-import subprocess as sp
-import textwrap
 
 import recipe.i6_core.rasr as rasr
 import recipe.i6_core.mm as mm
 import recipe.i6_core.util as util
 
 from .training import ReturnnTrainingJob
+from .config import ReturnnConfig
 
 
 class ReturnnRasrTrainingJob(ReturnnTrainingJob):
+    """
+    Train a RETURNN model using rnn.py that uses ExternSpringDataset, and needs
+    to write RASR config and flow files.
+    """
     def __init__(
         self,
         train_crp,
@@ -52,12 +50,39 @@ class ReturnnRasrTrainingJob(ReturnnTrainingJob):
         additional_rasr_post_config_files=None,
         use_python_control=True
     ):
+        """
+
+        :param rasr.CommonRasrParameters train_crp:
+        :param rasr.CommonRasrParameters dev_crp:
+        :param rasr.FlowNetwork feature_flow: RASR flow file for feature extraction or feature cache
+        :param Path alignment: path to an alignment cache or cache bundle
+        :param ReturnnConfig returnn_config:
+        :param int num_classes:
+        :param int log_verbosity: RETURNN log verbosity from 1 (least verbose) to 5 (most verbose)
+        :param str device: "cpu" or "gpu"
+        :param int num_epochs: number of epochs to run, will also set `num_epochs` in the config file
+        :param int save_interval: save a checkpoint each n-th epoch
+        :param list[int]|set[int]|None keep_epochs: specify which checkpoints are kept, use None for the RETURNN default
+        :param int|float time_rqmt:
+        :param int|float mem_rqmt:
+        :param int cpu_rqmt:
+        :param Path|str returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
+        :param Path|str returnn_root: file path to the RETURNN repository root folder
+        :param disregarded_classes:
+        :param class_label_file:
+        :param buffer_size:
+        :param partition_epochs:
+        :param extra_rasr_config:
+        :param extra_rasr_post_config:
+        :param additional_rasr_config_files:
+        :param additional_rasr_post_config_files:
+        :param use_python_control:
+        """
         datasets = self.create_dataset_config(train_crp, partition_epochs)
+        returnn_config.config["train"] = datasets["train"]
+        returnn_config.config["dev"] = datasets["dev"]
         super().__init__(
-            train_data=datasets["train"],
-            dev_data=datasets["dev"],
             returnn_config=returnn_config,
-            num_classes=num_classes,
             log_verbosity=log_verbosity,
             device=device,
             num_epochs=num_epochs,
@@ -72,6 +97,7 @@ class ReturnnRasrTrainingJob(ReturnnTrainingJob):
         kwargs = locals()
         del kwargs["self"]
 
+        self.num_classes = num_classes
         self.alignment = alignment  # allowed to be None
         self.rasr_exe = rasr.RasrCommand.select_exe(
             train_crp.nn_trainer_exe, "nn-trainer"
@@ -100,9 +126,17 @@ class ReturnnRasrTrainingJob(ReturnnTrainingJob):
         ) = ReturnnRasrTrainingJob.create_config(**kwargs)
 
         if self.alignment is not None:
-            self.class_labels = self.output_path("class.labels")
+            self.out_class_labels = self.output_path("class.labels")
 
     def create_files(self):
+        if self.num_classes is not None:
+            if "num_outputs" not in self.returnn_config.config:
+                self.returnn_config.config["num_outputs"] = {}
+            self.returnn_config.config["num_outputs"]["classes"] = [
+                util.get_val(self.num_classes),
+                1,
+            ]
+
         super().create_files()
 
         rasr.RasrCommand.write_config(
@@ -132,7 +166,7 @@ class ReturnnRasrTrainingJob(ReturnnTrainingJob):
     def run(self):
         super().run()
         if self.alignment is not None:
-            self._relink("class.labels", self.class_labels.get_path())
+            self._relink("class.labels", self.out_class_labels.get_path())
 
     @classmethod
     def create_config(

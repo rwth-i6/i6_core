@@ -11,6 +11,8 @@ import stat
 import shutil
 import subprocess as sp
 
+import recipe.i6_core.util as util
+
 
 class ReturnnSearchFromFileJob(Job):
     """
@@ -132,28 +134,13 @@ class ReturnnSearchFromFileJob(Job):
 
         parameter_list = self.get_parameter_list()
 
-        with open("rnn.sh", "wt") as f:
-            f.write(
-                "#!/usr/bin/env bash\n%s"
-                % " ".join(
-                    [
-                        tk.uncached_path(self.returnn_python_exe),
-                        os.path.join(tk.uncached_path(self.returnn_root), "rnn.py"),
-                        self.returnn_config_file.get_path(),
-                    ]
-                    + parameter_list
-                )
-            )
-        os.chmod(
-            "rnn.sh",
-            stat.S_IRUSR
-            | stat.S_IRGRP
-            | stat.S_IROTH
-            | stat.S_IWUSR
-            | stat.S_IXUSR
-            | stat.S_IXGRP
-            | stat.S_IXOTH,
-        )
+        cmd = [
+            tk.uncached_path(self.returnn_python_exe),
+            os.path.join(tk.uncached_path(self.returnn_root), "rnn.py"),
+            self.returnn_config_file.get_path(),
+        ] + parameter_list
+
+        util.create_executable("rnn.sh", cmd)
 
     def run(self):
         sp.check_call(["./rnn.sh"])
@@ -178,7 +165,7 @@ class SearchBPEtoWordsJob(Job):
         :param Path search_py_output: a search output file from RETURNN in python format
         """
         self.search_py_output = search_py_output
-        self.word_search_results = self.output_path("word_search_results.py")
+        self.out_word_search_results = self.output_path("word_search_results.py")
 
     def tasks(self):
         yield Task("run", mini_task=True)
@@ -186,8 +173,8 @@ class SearchBPEtoWordsJob(Job):
     def run(self):
         d = eval(open(tk.uncached_path(self.search_py_output), "r").read())
         assert isinstance(d, dict)  # seq_tag -> bpe string
-        assert not os.path.exists(tk.uncached_path(self.word_search_results))
-        with open(tk.uncached_path(self.word_search_results), "w") as out:
+        assert not os.path.exists(tk.uncached_path(self.out_word_search_results))
+        with open(tk.uncached_path(self.out_word_search_results), "w") as out:
             out.write("{\n")
             for seq_tag, txt in sorted(d.items()):
                 if "#" in seq_tag:
@@ -221,7 +208,7 @@ class ReturnnComputeWERJob(Job):
         )
         self.returnn_root = returnn_root if returnn_root else gs.RETURNN_ROOT
 
-        self.wer = self.output_path("wer")
+        self.out_wer = self.output_path("wer")
 
     def run(self):
         call = [
@@ -233,7 +220,7 @@ class ReturnnComputeWERJob(Job):
             "--refs",
             tk.uncached_path(self.reference),
             "--out",
-            tk.uncached_path(self.wer),
+            tk.uncached_path(self.out_wer),
         ]
         logging.info("run %s" % " ".join(call))
         sp.check_call(call)

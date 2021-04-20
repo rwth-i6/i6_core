@@ -7,7 +7,6 @@ Path = setup_path(__package__)
 import copy
 import os
 import shutil
-import stat
 import subprocess as sp
 
 import recipe.i6_core.util as util
@@ -16,14 +15,33 @@ from .config import ReturnnConfig
 
 
 class ReturnnModel:
+    """
+    Defines a RETURNN model as config, checkpoint meta file and epoch
+    """
+
     def __init__(self, returnn_config_file, model, epoch):
+        """
+
+        :param Path returnn_config_file: Path to a returnn config file
+        :param Path model: Path to a RETURNN checkpoint (only the .meta for Tensorflow)
+        :param int epoch:
+        """
         self.returnn_config_file = returnn_config_file
         self.model = model
         self.epoch = epoch
 
 
 class Checkpoint:
+    """
+    Checkpoint object which holds the checkpoint path prefix as string,
+    and the index file path as tk.Path
+    """
+
     def __init__(self, ckpt_path, index_path):
+        """
+        :param str ckpt_path:
+        :param Path index_path:
+        """
         self.ckpt_path = ckpt_path
         self.index_path = index_path
 
@@ -38,12 +56,14 @@ class Checkpoint:
 
 
 class ReturnnTrainingJob(Job):
+    """
+    Train a RETURNN model using rnn.py
+
+    """
+
     def __init__(
         self,
-        train_data,
-        dev_data,
         returnn_config,
-        num_classes=None,
         *,  # args below are keyword only
         log_verbosity=3,
         device="gpu",
@@ -57,6 +77,21 @@ class ReturnnTrainingJob(Job):
         returnn_python_exe=None,
         returnn_root=None
     ):
+        """
+
+        :param ReturnnConfig returnn_config:
+        :param int log_verbosity: RETURNN log verbosity from 1 (least verbose) to 5 (most verbose)
+        :param str device: "cpu" or "gpu"
+        :param int num_epochs: number of epochs to run, will also set `num_epochs` in the config file
+        :param int save_interval: save a checkpoint each n-th epoch
+        :param list[int]|set[int]|None keep_epochs: specify which checkpoints are kept, use None for the RETURNN default
+        :param int|float time_rqmt:
+        :param int|float mem_rqmt:
+        :param int cpu_rqmt:
+        :param int horovod_num_processes:
+        :param Path|str returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
+        :param Path|str returnn_root: file path to the RETURNN repository root folder
+        """
         assert isinstance(returnn_config, ReturnnConfig)
         kwargs = locals()
         del kwargs["self"]
@@ -69,7 +104,6 @@ class ReturnnTrainingJob(Job):
         self.returnn_root = (
             returnn_root if returnn_root is not None else gs.RETURNN_ROOT
         )
-        self.num_classes = num_classes
 
         self.returnn_config = ReturnnTrainingJob.create_returnn_config(**kwargs)
 
@@ -83,12 +117,12 @@ class ReturnnTrainingJob(Job):
 
         suffix = ".meta" if self.returnn_config.get("use_tensorflow", False) else ""
 
-        self.returnn_config_file = self.output_path("returnn.config")
-        self.learning_rates = self.output_path("learning_rates")
-        self.model_dir = self.output_path("models", directory=True)
-        self.models = {
+        self.out_returnn_config_file = self.output_path("returnn.config")
+        self.out_learning_rates = self.output_path("learning_rates")
+        self.out_model_dir = self.output_path("models", directory=True)
+        self.out_models = {
             k: ReturnnModel(
-                self.returnn_config_file,
+                self.out_returnn_config_file,
                 self.output_path("models/epoch.%.3d%s" % (k, suffix)),
                 k,
             )
@@ -96,17 +130,17 @@ class ReturnnTrainingJob(Job):
             if k in self.keep_epochs
         }
         if self.returnn_config.get("use_tensorflow", False):
-            self.checkpoints = {
+            self.out_checkpoints = {
                 k: Checkpoint(index_path.get_path()[: -len(".index")], index_path)
                 for k in stored_epochs
                 if k in self.keep_epochs
                 for index_path in [self.output_path("models/epoch.%.3d.index" % k)]
             }
-        self.plot_se = self.output_path("score_and_error.png")
-        self.plot_lr = self.output_path("learning_rate.png")
+        self.out_plot_se = self.output_path("score_and_error.png")
+        self.out_plot_lr = self.output_path("learning_rate.png")
 
         self.returnn_config.post_config["model"] = os.path.join(
-            self.model_dir.get_path(), "epoch"
+            self.out_model_dir.get_path(), "epoch"
         )
 
         self.use_horovod = True if (horovod_num_processes is not None) else False
@@ -128,7 +162,7 @@ class ReturnnTrainingJob(Job):
         run_cmd = [
             tk.uncached_path(self.returnn_python_exe),
             os.path.join(tk.uncached_path(self.returnn_root), "rnn.py"),
-            self.returnn_config_file.get_path(),
+            self.out_returnn_config_file.get_path(),
         ]
 
         if self.use_horovod:
@@ -152,13 +186,13 @@ class ReturnnTrainingJob(Job):
         return run_cmd
 
     def path_available(self, path):
-        # if job is finised the path is available
+        # if job is finished the path is available
         res = super().path_available(path)
         if res:
             return res
 
         # learning rate files are only available at the end
-        if path == self.learning_rates:
+        if path == self.out_learning_rates:
             return super().path_available(path)
 
         # maybe the file already exists
@@ -183,29 +217,9 @@ class ReturnnTrainingJob(Job):
         yield Task("plot", resume="plot", mini_task=True)
 
     def create_files(self):
-        # returnn
-        config = self.returnn_config
-        if self.num_classes is not None:
-            if "num_outputs" not in config.config:
-                config.config["num_outputs"] = {}
-            config.config["num_outputs"]["classes"] = [
-                util.get_val(self.num_classes),
-                1,
-            ]
-        config.write(self.returnn_config_file.get_path())
+        self.returnn_config.write(self.out_returnn_config_file.get_path())
 
-        with open("rnn.sh", "wt") as f:
-            f.write("#!/usr/bin/env bash\n%s" % " ".join(self._get_run_cmd()))
-        os.chmod(
-            "rnn.sh",
-            stat.S_IRUSR
-            | stat.S_IRGRP
-            | stat.S_IROTH
-            | stat.S_IWUSR
-            | stat.S_IXUSR
-            | stat.S_IXGRP
-            | stat.S_IXOTH,
-        )
+        util.create_executable("rnn.sh", self._get_run_cmd())
 
     @staticmethod
     def _relink(src, dst):
@@ -217,11 +231,11 @@ class ReturnnTrainingJob(Job):
         sp.check_call(self._get_run_cmd())
 
         lrf = self.returnn_config.get("learning_rate_file", "learning_rates")
-        self._relink(lrf, self.learning_rates.get_path())
+        self._relink(lrf, self.out_learning_rates.get_path())
 
         # cleanup
         if hasattr(self, "keep_epochs"):
-            for e in os.scandir(self.model_dir.get_path()):
+            for e in os.scandir(self.out_model_dir.get_path()):
                 if e.is_file() and e.name.startswith("epoch."):
                     s = e.name.split(".")
                     idx = 2 if s[1] == "pretrain" else 1
@@ -233,7 +247,7 @@ class ReturnnTrainingJob(Job):
         def EpochData(learningRate, error):
             return {"learning_rate": learningRate, "error": error}
 
-        with open(self.learning_rates.get_path(), "rt") as f:
+        with open(self.out_learning_rates.get_path(), "rt") as f:
             text = f.read()
 
         data = eval(text)
@@ -300,20 +314,18 @@ class ReturnnTrainingJob(Job):
             for tl in ax2.get_yticklabels():
                 tl.set_color(colors[2])
 
-        fig.savefig(fname=self.plot_se.get_path())
+        fig.savefig(fname=self.out_plot_se.get_path())
 
         fig, ax1 = plt.subplots()
         ax1.semilogy(epochs, learing_rates, "ro-")
         ax1.set_xlabel("epoch")
         ax1.set_ylabel("learning_rate")
 
-        fig.savefig(fname=self.plot_lr.get_path())
+        fig.savefig(fname=self.out_plot_lr.get_path())
 
     @classmethod
     def create_returnn_config(
         cls,
-        train_data,
-        dev_data,
         returnn_config,
         log_verbosity,
         device,
@@ -349,16 +361,6 @@ class ReturnnTrainingJob(Job):
         if returnn_config.post_config is not None:
             post_config.update(copy.deepcopy(returnn_config.post_config))
 
-        # update train and dev data settings with rasr dataset
-        if "train" in config:
-            config["train"] = {**config["train"].copy(), **train_data}
-        else:
-            config["train"] = train_data
-        if "dev" in config:
-            config["dev"] = {**config["dev"].copy(), **dev_data}
-        else:
-            config["dev"] = dev_data
-
         res.config = config
         res.post_config = post_config
 
@@ -378,8 +380,6 @@ class ReturnnTrainingJob(Job):
             "extra_python": extra_python_hash,
             "returnn_python_exe": kwargs["returnn_python_exe"],
             "returnn_root": kwargs["returnn_root"],
-            "train_data": kwargs["train_data"],
-            "dev_data": kwargs["dev_data"],
         }
 
         if kwargs["horovod_num_processes"] is not None:
@@ -419,8 +419,8 @@ class ReturnnTrainingFromFileJob(Job):
         :param dict parameter_dict: provide external parameters to the rnn.py call
         :param int|str time_rqmt:
         :param int|str mem_rqmt:
-        :param tk.Path|str returnn_python_exe: the executable for running returnn
-        :param tk.Path |str returnn_root: the path to the returnn source folder
+        :param Path|str returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
+        :param Path|str returnn_root: file path to the RETURNN repository root folder
         """
 
         self.returnn_python_exe = (
@@ -507,24 +507,13 @@ class ReturnnTrainingFromFileJob(Job):
         )
 
         parameter_list = self.get_parameter_list()
+        cmd = [
+            tk.uncached_path(self.returnn_python_exe),
+            os.path.join(tk.uncached_path(self.returnn_root), "rnn.py"),
+            self.returnn_config_file.get_path(),
+        ] + parameter_list
 
-        with open("rnn.sh", "wt") as f:
-            cmd = [
-                tk.uncached_path(self.returnn_python_exe),
-                os.path.join(tk.uncached_path(self.returnn_root), "rnn.py"),
-                self.returnn_config_file.get_path(),
-            ]
-            f.write("#!/usr/bin/env bash\n%s" % " ".join(cmd + parameter_list))
-        os.chmod(
-            "rnn.sh",
-            stat.S_IRUSR
-            | stat.S_IRGRP
-            | stat.S_IROTH
-            | stat.S_IWUSR
-            | stat.S_IXUSR
-            | stat.S_IXGRP
-            | stat.S_IXOTH,
-        )
+        util.create_executable("rnn.sh", cmd)
 
     def run(self):
         sp.check_call(["./rnn.sh"])

@@ -84,7 +84,7 @@ class ReturnnConfig:
             that should be pasted as code at the beginning of the config file
         :param str python_prolog_hash: sets a specific hash for the python_prolog
         :param None|str|Callable|Class|tuple|list|dict python_epilog: str or structure containing
-            str/callables/classes that should be pasted as code at the beginning of the config file
+            str/callables/classes that should be pasted as code at the end of the config file
         :param str python_epilog_hash: sets a specific hash for the python_epilog
         """
         self.config = config
@@ -186,7 +186,10 @@ class ReturnnConfig:
         raise RuntimeError("Could not serialize %s" % code)
 
     def hash(self):
-        h = {"returnn_config": self.config, "python_epilog_hash": self.python_epilog_hash}
+        h = {
+            "returnn_config": self.config,
+            "python_epilog_hash": self.python_epilog_hash,
+        }
         if self.python_prolog_hash is not None:
             h["python_prolog_hash"] = self.python_prolog_hash
         return h

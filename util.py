@@ -1,6 +1,7 @@
 import gzip
 import os
 import shutil
+import stat
 import subprocess as sp
 import xml.dom.minidom
 import xml.etree.ElementTree as ET
@@ -229,3 +230,26 @@ def write_xml(filename, element_tree, prettify=True):
 
     with uopen(filename, "w") as f:
         f.write(xml_string)
+
+
+def create_executable(filename, command):
+    """
+    create an executable .sh file calling a single command
+    :param str filename: executable name ending with .sh
+    :param list[str] command: list representing the command and parameters
+    :return:
+    """
+    assert filename.endswith(".sh")
+    with open(filename, "wt") as f:
+        f.write("#!/usr/bin/env bash\n%s" % " ".join(command))
+    os.chmod(
+        filename,
+        stat.S_IRUSR
+        | stat.S_IRGRP
+        | stat.S_IROTH
+        | stat.S_IWUSR
+        | stat.S_IXUSR
+        | stat.S_IXGRP
+        | stat.S_IXOTH,
+    )
+
