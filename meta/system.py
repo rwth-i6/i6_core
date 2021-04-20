@@ -1,4 +1,4 @@
-__all__ = ["System", "select_element", "Corpus"]
+__all__ = ["System", "select_element", "CorpusObject"]
 
 import copy
 import logging
@@ -666,7 +666,7 @@ def select_element(collection, default_corpus, selector, default_index=-1):
         return e
 
 
-class Corpus(tk.Object):
+class CorpusObject(tk.Object):
     def __init__(self):
         self.corpus_file = None  # type: Path
         self.audio_dir = None  # type: Path
