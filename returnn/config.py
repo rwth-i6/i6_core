@@ -15,6 +15,13 @@ import textwrap
 
 
 def instanciate_vars(o):
+    """
+    Recursively traverses a structure and calls .get() on all
+    existing Variables in the structure
+
+    :param Any o: nested structure that may contain Variable objects
+    :return:
+    """
     if isinstance(o, Variable):
         o = o.get()
     elif isinstance(o, list):
@@ -37,6 +44,14 @@ class CodeWrapper:
 
 
 class ReturnnConfig:
+    """
+    An object that manages a RETURNN config.
+
+    It can be used to serialize python functions and class definitions directly from
+    Sisyphus code and paste them into the RETURNN config file.
+
+    """
+
     PYTHON_CODE = textwrap.dedent(
         """\
         #!rnn.py
@@ -58,18 +73,29 @@ class ReturnnConfig:
         *,
         python_prolog=None,
         python_prolog_hash=None,
-        extra_python_code="",
-        extra_python_hash=None
+        python_epilog="",
+        python_epilog_hash=None
     ):
+        """
+
+        :param dict config: dictionary of the RETURNN config variables that are hashed
+        :param dict post_config: dictionary of the RETURNN config variables that are not hashed
+        :param None|str|Callable|Class|tuple|list|dict python_prolog: str or structure containing str/callables/classes
+            that should be pasted as code at the beginning of the config file
+        :param str python_prolog_hash: sets a specific hash for the python_prolog
+        :param None|str|Callable|Class|tuple|list|dict python_epilog: str or structure containing
+            str/callables/classes that should be pasted as code at the beginning of the config file
+        :param str python_epilog_hash: sets a specific hash for the python_epilog
+        """
         self.config = config
         self.post_config = post_config if post_config is not None else {}
         self.python_prolog = python_prolog
         self.python_prolog_hash = (
             python_prolog_hash if python_prolog_hash is not None else python_prolog
         )
-        self.extra_python_code = extra_python_code
-        self.extra_python_hash = (
-            extra_python_hash if extra_python_hash is not None else extra_python_code
+        self.python_epilog = python_epilog
+        self.python_epilog_hash = (
+            python_epilog_hash if python_epilog_hash is not None else python_epilog
         )
 
     def get(self, key, default=None):
@@ -104,14 +130,14 @@ class ReturnnConfig:
         else:
             config_lines.append("config = {}")
 
-        prolog = self.__parse_python(self.python_prolog)
-        extra_python_code = self.__parse_python(self.extra_python_code)
+        python_prolog_code = self.__parse_python(self.python_prolog)
+        python_epilog_code = self.__parse_python(self.python_epilog)
 
         python_code = string.Template(self.PYTHON_CODE).substitute(
             {
-                "PROLOG": prolog,
+                "PROLOG": python_prolog_code,
                 "REGULAR_CONFIG": "\n".join(config_lines),
-                "EPILOG": extra_python_code,
+                "EPILOG": python_epilog_code,
             }
         )
         return python_code
@@ -160,25 +186,33 @@ class ReturnnConfig:
         raise RuntimeError("Could not serialize %s" % code)
 
     def hash(self):
-        h = {"returnn_config": self.config, "extra_python_hash": self.extra_python_hash}
+        h = {"returnn_config": self.config, "python_epilog_hash": self.python_epilog_hash}
         if self.python_prolog_hash is not None:
             h["python_prolog_hash"] = self.python_prolog_hash
         return h
 
 
 class WriteReturnnConfigJob(Job):
+    """
+    Writes a ReturnnConfig into a .config file
+    """
+
     def __init__(self, returnn_config):
+        """
+
+        :param ReturnnConfig returnn_config:
+        """
         assert isinstance(returnn_config, ReturnnConfig)
 
         self.returnn_config = returnn_config
 
-        self.returnn_config_file = self.output_path("returnn.config")
+        self.out_returnn_config_file = self.output_path("returnn.config")
 
     def tasks(self):
         yield Task("run", resume="run", mini_task=True)
 
     def run(self):
-        self.returnn_config.write(self.returnn_config_file.get_path())
+        self.returnn_config.write(self.out_returnn_config_file.get_path())
 
     @classmethod
     def hash(self, kwargs):

@@ -11,6 +11,11 @@ Path = setup_path(__package__)
 
 
 class BlissToOggZipJob(Job):
+    """
+    This Job is a wrapper around the RETURNN tool bliss-to-ogg-zip.py.
+
+    """
+
     __sis_hash_exclude__ = {"no_conversion": False}
 
     def __init__(
@@ -33,8 +38,8 @@ class BlissToOggZipJob(Job):
         :param int raw_sample_rate: raw audio sampling rate
         :param int feat_sample_rate: feature sampling rate
         :param bool no_conversion: do not call the actual conversion, assume the audio files are already correct
-        :param str|Path returnn_python_exe: path to python binary
-        :param str|Path returnn_root: path to root dir of RETURNN
+        :param Path|str returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
+        :param Path|str returnn_root: file path to the RETURNN repository root folder
         """
         self.bliss_corpus = bliss_corpus
         self.segments = segments
@@ -52,7 +57,7 @@ class BlissToOggZipJob(Job):
             returnn_root if returnn_root is not None else gs.RETURNN_ROOT
         )
 
-        self.out = self.output_path("out.ogg.zip")
+        self.out_ogg_zip = self.output_path("out.ogg.zip")
 
     def tasks(self):
         yield Task("run", mini_task=True)
@@ -81,7 +86,7 @@ class BlissToOggZipJob(Job):
                 args.extend(["--feat_sample_rate", str(self.feat_sample_rate)])
 
         sp.check_call(args)
-        relink("out.ogg.zip", self.out.get_path())
+        relink("out.ogg.zip", self.out_ogg_zip.get_path())
 
     @classmethod
     def hash(cls, parsed_args):
