@@ -610,8 +610,8 @@ class System:
             **kwargs
         )
         self.jobs[feature_corpus]["train_nn_%s" % name] = j
-        self.nn_models[feature_corpus][name] = j.models
-        self.nn_configs[feature_corpus][name] = j.returnn_config_file
+        self.nn_models[feature_corpus][name] = j.out_models
+        self.nn_configs[feature_corpus][name] = j.out_returnn_config_file
 
     def create_nn_feature_scorer(
         self,

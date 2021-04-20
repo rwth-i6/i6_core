@@ -232,10 +232,10 @@ class MetaLinearAdaptationJob(Job):
                 **self.returnn_training_args
             )
             self.jobs["train_{}".format(key)] = j
-            self.models[key] = j.models
-            self.add_input(j.plot_lr)
+            self.models[key] = j.out_models
+            self.add_input(j.out_plot_lr)
 
-            for key, value in j.models.items():
+            for key, value in j.out_models.items():
                 self.add_input(value.model)
             # self.add_input(j.models)
             # for m in j.models:
