@@ -1,4 +1,4 @@
-__all__ = ["CloneGitRepository"]
+__all__ = ["CloneGitRepositoryJob"]
 
 import subprocess as sp
 
@@ -7,7 +7,7 @@ from sisyphus import *
 Path = setup_path(__package__)
 
 
-class CloneGitRepository(Job):
+class CloneGitRepositoryJob(Job):
     __sis_hash_exclude__ = {"commit": None, "checkout_folder_name": "repository"}
 
     def __init__(

@@ -1,10 +1,10 @@
-__all__ = ["Pipeline", "Concatenate", "Head", "Tail"]
+__all__ = ["PipelineJob", "ConcatenateJob", "HeadJob", "TailJob"]
 
 import os
 from sisyphus import Job, Task, Path, global_settings as gs
 
 
-class Pipeline(Job):
+class PipelineJob(Job):
     """
     Reads a text file and applies a list of piped shell commands
 
@@ -84,10 +84,10 @@ class Pipeline(Job):
         args = parsed_args.copy()
         del args["check_equal_length"]
         del args["mini_task"]
-        return super(Pipeline, cls).hash(args)
+        return super(PipelineJob, cls).hash(args)
 
 
-class Concatenate(Job):
+class ConcatenateJob(Job):
     """
     Concatenate all given input files (gz or raw)
     :param list[Path] inputs: input text files
@@ -124,7 +124,7 @@ class Concatenate(Job):
         self.sh("zcat -f {f_list} | gzip > {out}")
 
 
-class Head(Job):
+class HeadJob(Job):
     """
     Return the head of a text file, either absolute or as ratio (provide one)
     :param Path data: text file (gz or raw)
@@ -165,7 +165,7 @@ class Head(Job):
         self.length.set(self.lines)
 
 
-class Tail(Head):
+class TailJob(HeadJob):
     def run(self):
         if self.ratio:
             assert not self.lines

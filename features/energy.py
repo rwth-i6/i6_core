@@ -16,7 +16,7 @@ def EnergyJob(crp, energy_options={}, extra_config=None, extra_post_config=None)
 
     port_name_mapping = {"energy": "energy"}
 
-    return FeatureExtraction(
+    return FeatureExtractionJob(
         crp,
         feature_flow,
         port_name_mapping,

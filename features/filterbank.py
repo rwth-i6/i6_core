@@ -22,7 +22,7 @@ def FilterbankJob(
 
     port_name_mapping = {"features": "filterbank"}
 
-    return FeatureExtraction(
+    return FeatureExtractionJob(
         crp,
         feature_flow,
         port_name_mapping,

@@ -1,4 +1,4 @@
-__all__ = ["ApplyG2PModel"]
+__all__ = ["ApplyG2PModelJob"]
 
 import subprocess as sp
 
@@ -7,7 +7,7 @@ from sisyphus import *
 Path = setup_path(__package__)
 
 
-class ApplyG2PModel(Job):
+class ApplyG2PModelJob(Job):
     def __init__(
         self,
         g2p_model,

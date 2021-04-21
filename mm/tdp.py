@@ -1,4 +1,4 @@
-__all__ = ["ViterbiTdpTuning", "TdpFromAlignment"]
+__all__ = ["ViterbiTdpTuningJob", "TdpFromAlignmentJob"]
 
 import numpy as np
 import json
@@ -13,7 +13,7 @@ from .alignment import AlignmentJob
 import recipe.i6_core.util as util
 
 
-class ViterbiTdpTuning(Job):
+class ViterbiTdpTuningJob(Job):
     def __init__(
         self, crp, feature_flow, feature_scorer, allophone_files, am_args, max_iter=5
     ):
@@ -78,13 +78,13 @@ class ViterbiTdpTuning(Job):
             crp=self.crp, feature_flow=self.flow, feature_scorer=self.scorer
         )
         self.add_input(align.alignment_bundle)
-        tdp = TdpFromAlignment(crp=self.crp, alignment=align, allophones=self.allophone)
+        tdp = TdpFromAlignmentJob(crp=self.crp, alignment=align, allophones=self.allophone)
         self.add_input(tdp.transition_prob)
         self.last_tdp = tdp
         self.cur_iter += 1
 
 
-class TdpFromAlignment(Job):
+class TdpFromAlignmentJob(Job):
     """
     Alignments look like when views in archiver:
     time=  7  emission=  17420  allophone=  w{#+iy}@i  index=  17420  state=  0

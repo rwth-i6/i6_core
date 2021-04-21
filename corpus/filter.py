@@ -1,8 +1,8 @@
 __all__ = [
-    "FilterSegmentsByAlignmentConfidence",
-    "FilterCorpusBySegments",
-    "FilterSegmentsByList",
-    "FilterCorpusRemoveUnknownWordSegments",
+    "FilterSegmentsByAlignmentConfidenceJob",
+    "FilterCorpusBySegmentsJob",
+    "FilterSegmentsByListJob",
+    "FilterCorpusRemoveUnknownWordSegmentsJob",
 ]
 
 import gzip
@@ -21,7 +21,7 @@ from sisyphus import *
 Path = setup_path(__package__)
 
 
-class FilterSegmentsByList(Job):
+class FilterSegmentsByListJob(Job):
     def __init__(self, segment_files, filter_list, invert_match=False):
         """
         Filters segment list file using a given list of segments, which is either used as black or as white list
@@ -77,7 +77,7 @@ class FilterSegmentsByList(Job):
                 )
 
 
-class FilterSegmentsByAlignmentConfidence(Job):
+class FilterSegmentsByAlignmentConfidenceJob(Job):
     def __init__(
         self, alignment_logs, percentile, crp, plot=True, absolute_threshold=None
     ):
@@ -171,7 +171,7 @@ class FilterSegmentsByAlignmentConfidence(Job):
                 segment_file.write(segment + "\n")
 
 
-class FilterCorpusBySegments(Job):
+class FilterCorpusBySegmentsJob(Job):
     def __init__(self, corpus_file, segment_list, compressed=False, invert_match=False):
         """
         :param Path corpus_file:
@@ -221,7 +221,7 @@ class FilterCorpusBySegments(Job):
         c.dump(tk.uncached_path(self.out_corpus))
 
 
-class FilterCorpusRemoveUnknownWordSegments(Job):
+class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
     def __init__(self, corpus, lexicon, case_sensitive=False):
         """
         :param Path corpus:

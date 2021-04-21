@@ -1,8 +1,8 @@
 __all__ = [
     "LinearAdaptationTrainingJob",
-    "MetaLinearAdaptation",
-    "WriteFile",
-    "MergeFiles",
+    "MetaLinearAdaptationJob",
+    "WriteFileJob",
+    "MergeFilesJob",
 ]
 
 import copy
@@ -56,7 +56,7 @@ class LinearAdaptationTrainingJob(Job):
         yield NotImplemented
 
 
-class MetaLinearAdaptation(Job):
+class MetaLinearAdaptationJob(Job):
     def __init__(
         self,
         name,
@@ -213,7 +213,7 @@ class MetaLinearAdaptation(Job):
     def setup_training(self):
         for key, seg in self.single_segments.items():
             print("{}: Adding training {}".format(self.name, key))
-            new_segments = corpus_recipes.ShuffleAndSplitSegments(seg)
+            new_segments = corpus_recipes.ShuffleAndSplitSegmentsJob(seg)
             seg_train = new_segments.new_segments["train"]
             seg_dev = new_segments.new_segments["dev"]
 
@@ -332,7 +332,7 @@ class MetaLinearAdaptation(Job):
                 rec.set_vis_name("Recog %s" % scorer_name)
                 self.jobs["recog_%s" % scorer_name] = rec
                 lattice_bundles.append(rec.lattice_bundle)
-            m = MergeFiles(lattice_bundles)
+            m = MergeFilesJob(lattice_bundles)
 
             self.jobs["lat2ctm_%s" % epoch_name] = lat2ctm = recog.LatticeToCtmJob(
                 crp=self.corpus, lattice_cache=m.out_file, parallelize=False
@@ -349,7 +349,7 @@ class MetaLinearAdaptation(Job):
             self.add_input(scorer.report_dir)
 
 
-class WriteFile(Job):
+class WriteFileJob(Job):
     def __init__(self, input):
         self.input = input
         self.file = self.output_path("file")
@@ -362,7 +362,7 @@ class WriteFile(Job):
             out_file.writelines(self.input)
 
 
-class MergeFiles(Job):
+class MergeFilesJob(Job):
     def __init__(self, input):
         self.input = input
         self.out_file = self.output_path("files.bundle", cached=True)

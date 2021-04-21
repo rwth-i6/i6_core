@@ -12,7 +12,7 @@ import recipe.i6_core.lib.lexicon as lexicon
 from recipe.i6_core.util import uopen
 
 
-class LexiconToWordList(Job):
+class LexiconToWordListJob(Job):
     def __init__(self, lexicon, apply_filter=True):
         self.set_vis_name("Lexicon to Word List")
 
@@ -40,7 +40,7 @@ class LexiconToWordList(Job):
                 word_file.write("%s\n" % w)
 
 
-class FilterLexiconByWordList(Job):
+class FilterLexiconByWordListJob(Job):
     def __init__(self, old_lexicon, word_list, case_sensitive=False):
         self.set_vis_name("Filter Lexicon by Word List")
 
@@ -78,7 +78,7 @@ class FilterLexiconByWordList(Job):
             lexicon_file.write(ET.tostring(root, "unicode"))
 
 
-class LexiconUniqueOrth(Job):
+class LexiconUniqueOrthJob(Job):
     def __init__(self, old_lexicon):
         self.set_vis_name("Make Lexicon Orths Unique")
 
@@ -137,7 +137,7 @@ class LexiconUniqueOrth(Job):
             lexicon_file.write(ET.tostring(root, "unicode"))
 
 
-class GraphemicLexiconFromWordList(Job):
+class GraphemicLexiconFromWordListJob(Job):
     default_transforms = {".": "DOT", "+": "PLUS", "{": "LBR", "}": "RBR"}
 
     def __init__(self, word_list, add_unknown=False, add_noise=False, transforms=None):

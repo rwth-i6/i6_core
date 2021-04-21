@@ -1,4 +1,4 @@
-__all__ = ["CorpusToStm", "CorpusToTxt"]
+__all__ = ["CorpusToStmJob", "CorpusToTxtJob"]
 
 from recipe.i6_core.lib import corpus
 
@@ -7,7 +7,7 @@ from sisyphus import *
 Path = setup_path(__package__)
 
 
-class CorpusToStm(Job):
+class CorpusToStmJob(Job):
     def __init__(
         self,
         corpus_path,
@@ -78,7 +78,7 @@ class CorpusToStm(Job):
                 out.write(';; LABEL "%s" "%s" "%s"\n' % tag)
 
 
-class CorpusToTxt(Job):
+class CorpusToTxtJob(Job):
     def __init__(self, corpus_path):
         self.set_vis_name("Extract TXT from Corpus")
 

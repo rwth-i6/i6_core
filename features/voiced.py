@@ -14,7 +14,7 @@ def VoicedJob(crp, voiced_options={}, extra_config=None, extra_post_config=None)
 
     port_name_mapping = {"voiced": "voiced"}
 
-    return FeatureExtraction(
+    return FeatureExtractionJob(
         crp,
         feature_flow,
         port_name_mapping,

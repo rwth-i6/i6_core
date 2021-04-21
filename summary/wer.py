@@ -1,9 +1,9 @@
 __all__ = [
-    "PrintTable",
+    "PrintTableJob",
     "TableReport",
-    "ScliteSummary",
-    "ScliteLurSummary",
-    "KaldiSummary",
+    "ScliteSummaryJob",
+    "ScliteLurSummaryJob",
+    "KaldiSummaryJob",
 ]
 
 import os
@@ -61,7 +61,7 @@ def natural_keys(text):
     return [atoi(c) for c in re.split(r"(\d+)", text)]
 
 
-class PrintTable(Job):
+class PrintTableJob(Job):
     def __init__(
         self,
         data,
@@ -169,7 +169,7 @@ class TableReport:
         return f.getvalue()
 
 
-class ScliteSummary(PrintTable):
+class ScliteSummaryJob(PrintTableJob):
     def __init__(
         self,
         data,
@@ -206,7 +206,7 @@ class ScliteSummary(PrintTable):
         return None
 
 
-class ScliteLurSummary(Job):
+class ScliteLurSummaryJob(Job):
     def __init__(self, data, file_name="sclite.lur"):
         """
         Prints a table containing all sclite lur results
@@ -300,7 +300,7 @@ class ScliteLurSummary(Job):
                 f.write(row_string + "\n")
 
 
-class KaldiSummary(PrintTable):
+class KaldiSummaryJob(PrintTableJob):
     def __init__(
         self,
         data,

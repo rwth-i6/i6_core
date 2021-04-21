@@ -1,4 +1,4 @@
-__all__ = ["AlignmentJob", "DumpAlignmentJob", "AMScoresFromAlignmentLog"]
+__all__ = ["AlignmentJob", "DumpAlignmentJob", "AMScoresFromAlignmentLogJob"]
 
 import xml.etree.ElementTree as ET
 import math
@@ -361,7 +361,7 @@ class DumpAlignmentJob(rasr.RasrCommand, Job):
         )
 
 
-class AMScoresFromAlignmentLog(Job):
+class AMScoresFromAlignmentLogJob(Job):
     def __init__(self, logs):
         self.logs = logs
         self.report = self.output_path("report.txt")

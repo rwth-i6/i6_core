@@ -1,10 +1,10 @@
 __all__ = [
-    "ReplaceTranscriptionFromCtm",
-    "AddCacheToCorpus",
-    "CompressCorpus",
-    "MergeCorpora",
-    "MergeCorpusSegmentsAndAudio",
-    "ShiftCorpusSegmentStart",
+    "ReplaceTranscriptionFromCtmJob",
+    "AddCacheToCorpusJob",
+    "CompressCorpusJob",
+    "MergeCorporaJob",
+    "MergeCorpusSegmentsAndAudioJob",
+    "ShiftCorpusSegmentStartJob",
 ]
 
 import bisect
@@ -23,7 +23,7 @@ from sisyphus import *
 Path = setup_path(__package__)
 
 
-class ReplaceTranscriptionFromCtm(Job):
+class ReplaceTranscriptionFromCtmJob(Job):
     def __init__(self, corpus_path, ctm_path, remove_empty_segments=True):
         self.set_vis_name("Replace Transcription from CTM file")
 
@@ -87,7 +87,7 @@ class ReplaceTranscriptionFromCtm(Job):
         c.dump(self.output_corpus_path.get_path())
 
 
-class AddCacheToCorpus(Job):
+class AddCacheToCorpusJob(Job):
     """
     Adds cache manager call to all audio paths in a corpus file
     :param Path corpus_file: bliss corpora file path
@@ -108,7 +108,7 @@ class AddCacheToCorpus(Job):
         c.dump(tk.uncached_path(self.cached_corpus))
 
 
-class CompressCorpus(Job):
+class CompressCorpusJob(Job):
     """
     Compresses a corpus by concatenating audio files and using a compression codec.
     Does currently not support corpora with subcorpora, files need to be .wav
@@ -306,7 +306,7 @@ class CompressCorpus(Job):
         return None
 
 
-class MergeCorpora(Job):
+class MergeCorporaJob(Job):
     """
     Merges Bliss Corpora into a single file as subcorpora
     This is preferably done after using corpus compression
@@ -334,7 +334,7 @@ class MergeCorpora(Job):
         merged_corpus.dump(tk.uncached_path(self.merged_corpus))
 
 
-class MergeCorpusSegmentsAndAudio(Job):
+class MergeCorpusSegmentsAndAudioJob(Job):
     """
     This job merges segments and audio files based on a rasr cluster map and a list of cluster_names.
     The cluster map should map segments to something like cluster.XXX where XXX is a natural number (starting with 1).
@@ -418,7 +418,7 @@ class MergeCorpusSegmentsAndAudio(Job):
         new_c.dump(self.output_corpus.get_path())
 
 
-class ShiftCorpusSegmentStart(Job):
+class ShiftCorpusSegmentStartJob(Job):
     """
     Shifts the start time of a corpus to change the fft window offset
 

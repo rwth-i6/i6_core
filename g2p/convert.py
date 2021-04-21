@@ -1,4 +1,4 @@
-__all__ = ["BlissLexiconToG2PLexiconJob", "G2POutputToBlissLexicon"]
+__all__ = ["BlissLexiconToG2PLexiconJob", "G2POutputToBlissLexiconJob"]
 
 import itertools as it
 import logging
@@ -35,7 +35,7 @@ class BlissLexiconToG2PLexiconJob(Job):
                 out.write("%s %s\n" % (orth, phon))
 
 
-class G2POutputToBlissLexicon(Job):
+class G2POutputToBlissLexiconJob(Job):
     def __init__(self, iv_lexicon, g2p_output, merge=True):
         self.iv_lexicon = iv_lexicon
         self.g2p_output = g2p_output

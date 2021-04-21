@@ -23,7 +23,7 @@ def PlpJob(
 
     port_name_mapping = {"features": "plp"}
 
-    return FeatureExtraction(
+    return FeatureExtractionJob(
         crp,
         feature_flow,
         port_name_mapping,

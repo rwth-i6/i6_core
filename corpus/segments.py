@@ -1,11 +1,11 @@
 __all__ = [
-    "SegmentCorpus",
-    "SegmentCorpusBySpeaker",
-    "SegmentCorpusByRegex",
-    "ShuffleAndSplitSegments",
-    "SplitSegmentFile",
-    "SortSegmentsByLengthAndShuffle",
-    "UpdateSegmentsWithSegmentMap",
+    "SegmentCorpusJob",
+    "SegmentCorpusBySpeakerJob",
+    "SegmentCorpusByRegexJob",
+    "ShuffleAndSplitSegmentsJob",
+    "SplitSegmentFileJob",
+    "SortSegmentsByLengthAndShuffleJob",
+    "UpdateSegmentsWithSegmentMapJob",
 ]
 
 import collections
@@ -25,7 +25,7 @@ from sisyphus import *
 Path = setup_path(__package__)
 
 
-class SegmentCorpus(Job):
+class SegmentCorpusJob(Job):
     def __init__(self, corpus_path, num_segments):
         self.set_vis_name("Segment Corpus")
 
@@ -55,7 +55,7 @@ class SegmentCorpus(Job):
                     segment_file.write(segment.fullname() + "\n")
 
 
-class SegmentCorpusBySpeaker(Job):
+class SegmentCorpusBySpeakerJob(Job):
     def __init__(self, corpus_path, num_speakers=None):
         self.set_vis_name("Segment By Speaker")
 
@@ -103,7 +103,7 @@ class SegmentCorpusBySpeaker(Job):
                 cmf.write("</coprus-key-map>")  # misspelled on purpose
 
 
-class SegmentCorpusByRegex(Job):
+class SegmentCorpusByRegexJob(Job):
     def __init__(
         self, corpus_path, regex, regex_flags=0, use_fullpath=False, groups=None
     ):
@@ -171,7 +171,7 @@ class SegmentCorpusByRegex(Job):
                 cmf.write("</coprus-key-map>")  # misspelled on purpose
 
 
-class ShuffleAndSplitSegments(Job):
+class ShuffleAndSplitSegmentsJob(Job):
     default_split = {"train": 0.9, "dev": 0.1}
 
     def __init__(
@@ -231,7 +231,7 @@ class ShuffleAndSplitSegments(Job):
         return super().hash(kwargs_copy)
 
 
-class SplitSegmentFile(Job):
+class SplitSegmentFileJob(Job):
     def __init__(self, segment_file, concurrent=1):
         self.segment_file = segment_file
         self.concurrent = concurrent
@@ -261,7 +261,7 @@ class SplitSegmentFile(Job):
                 f.writelines(lines[start:end])
 
 
-class SortSegmentsByLengthAndShuffle(Job):
+class SortSegmentsByLengthAndShuffleJob(Job):
     def __init__(self, crp, shuffle_strength=1.0, shuffle_seed=0x3C5EA3E47D4E0077):
         """
         :param crp: recipe.rasr.crp.CommonRasrParameters
@@ -317,7 +317,7 @@ class SortSegmentsByLengthAndShuffle(Job):
             f.writelines(seglist)
 
 
-class UpdateSegmentsWithSegmentMap(Job):
+class UpdateSegmentsWithSegmentMapJob(Job):
     """
     Update a segment file with a segment mapping file (e.g. from corpus compression)
 

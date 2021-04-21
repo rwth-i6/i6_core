@@ -1,8 +1,8 @@
 __all__ = [
-    "MapSegmentsWithBundles",
-    "RemapSegmentsWithBundles",
-    "ClusterMapToSegmentList",
-    "RemapSegments",
+    "MapSegmentsWithBundlesJob",
+    "RemapSegmentsWithBundlesJob",
+    "ClusterMapToSegmentListJob",
+    "RemapSegmentsJob",
 ]
 
 import collections
@@ -16,7 +16,7 @@ Path = setup_path(__package__)
 from recipe.i6_core.util import *
 
 
-class MapSegmentsWithBundles(Job):
+class MapSegmentsWithBundlesJob(Job):
     def __init__(self, old_segments, cluster_map, files, filename="cluster.$(TASK)"):
         self.old_segments = old_segments
         self.cluster_map = cluster_map
@@ -63,7 +63,7 @@ class MapSegmentsWithBundles(Job):
                     f.write("%s\n" % seg_file)
 
 
-class RemapSegmentsWithBundles(Job):
+class RemapSegmentsWithBundlesJob(Job):
     def __init__(self, old_segments, new_segments, files):
         self.old_segments = old_segments
         self.new_segments = new_segments
@@ -112,7 +112,7 @@ class RemapSegmentsWithBundles(Job):
                     out.write("\n")
 
 
-class ClusterMapToSegmentList(Job):
+class ClusterMapToSegmentListJob(Job):
     def __init__(self, cluster_map, filename="cluster.$(TASK)"):
         self.cluster_map = cluster_map
 
@@ -139,7 +139,7 @@ class ClusterMapToSegmentList(Job):
                     f.write("%s\n" % seg)
 
 
-class RemapSegments(Job):
+class RemapSegmentsJob(Job):
     def __init__(self, old_segments, new_segments, cache_paths):
         assert len(old_segments) == len(cache_paths)
         self.old_segments = old_segments
