@@ -10,7 +10,7 @@ from sisyphus import *
 Path = setup_path(__package__)
 
 
-class DownloadBeep(Job):
+class DownloadBeepJob(Job):
     def __init__(
         self, url="ftp://svr-ftp.eng.cam.ac.uk/pub/comp.speech/dictionaries/beep.tar.gz"
     ):
@@ -41,7 +41,7 @@ class DownloadBeep(Job):
             )
 
 
-class BeepToBlissLexicon(Job):
+class BeepToBlissLexiconJob(Job):
     __sis_hash_exclude__ = {"add_unknown": False}
 
     def __init__(

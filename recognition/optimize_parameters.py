@@ -1,4 +1,4 @@
-__all__ = ["OptimizeAMandLMScale"]
+__all__ = ["OptimizeAMandLMScaleJob"]
 
 import collections
 import os
@@ -12,7 +12,7 @@ import recipe.i6_core.rasr as rasr
 import recipe.i6_core.util as util
 
 
-class OptimizeAMandLMScale(rasr.RasrCommand, Job):
+class OptimizeAMandLMScaleJob(rasr.RasrCommand, Job):
     def __init__(
         self,
         crp,
@@ -33,7 +33,7 @@ class OptimizeAMandLMScale(rasr.RasrCommand, Job):
         kwargs = locals()
         del kwargs["self"]
 
-        self.config, self.post_config = OptimizeAMandLMScale.create_config(**kwargs)
+        self.config, self.post_config = OptimizeAMandLMScaleJob.create_config(**kwargs)
         self.exe = self.select_exe(crp.flf_tool_exe, "flf-tool")
         self.initial_am_scale = initial_am_scale
         self.initial_lm_scale = initial_lm_scale

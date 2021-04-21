@@ -16,7 +16,7 @@ def GammatoneJob(crp, gt_options={}, extra_config=None, extra_post_config=None):
 
     port_name_mapping = {"features": "gt"}
 
-    return FeatureExtraction(
+    return FeatureExtractionJob(
         crp,
         feature_flow,
         port_name_mapping,

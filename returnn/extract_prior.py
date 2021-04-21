@@ -1,4 +1,4 @@
-__all__ = ["ExtractPriorFromHDF5"]
+__all__ = ["ExtractPriorFromHDF5Job"]
 
 import math
 
@@ -10,7 +10,7 @@ from sisyphus import *
 Path = setup_path(__package__)
 
 
-class ExtractPriorFromHDF5(Job):
+class ExtractPriorFromHDF5Job(Job):
     def __init__(self, returnn_model, layer="output", plot_prior=False):
         self.returnn_model = returnn_model
         self.layer = layer

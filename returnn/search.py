@@ -1,4 +1,4 @@
-__all__ = ["ReturnnSearchFromFile", "ReturnnComputeWER"]
+__all__ = ["ReturnnSearchFromFileJob", "ReturnnComputeWERJob"]
 
 from sisyphus import *
 
@@ -12,7 +12,7 @@ import shutil
 import subprocess as sp
 
 
-class ReturnnSearchFromFile(Job):
+class ReturnnSearchFromFileJob(Job):
     """
     Run search mode with a given RETURNN config.
 
@@ -167,7 +167,7 @@ class ReturnnSearchFromFile(Job):
         return super().hash(kwargs)
 
 
-class SearchBPEtoWords(Job):
+class SearchBPEtoWordsJob(Job):
     """
     converts BPE tokens to words in the python format dict from the returnn search
     """
@@ -198,7 +198,7 @@ class SearchBPEtoWords(Job):
             out.write("}\n")
 
 
-class ReturnnComputeWER(Job):
+class ReturnnComputeWERJob(Job):
     """
     Computes WER using the calculate-word-error-rate.py tool from RETURNN
     """

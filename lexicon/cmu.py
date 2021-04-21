@@ -9,7 +9,7 @@ from sisyphus import *
 Path = setup_path(__package__)
 
 
-class DownloadCMUDict(Job):
+class DownloadCMUDictJob(Job):
     def __init__(
         self,
         url="https://raw.githubusercontent.com/cmusphinx/cmudict/master/",
@@ -36,7 +36,7 @@ class DownloadCMUDict(Job):
                     shutil.copyfileobj(src, dst)
 
 
-class CMUDictToBliss(Job):
+class CMUDictToBlissJob(Job):
     __sis_hash_exclude__ = {"noise_lemmas": None}
 
     def __init__(

@@ -1,4 +1,4 @@
-__all__ = ["ReturnnModel", "ReturnnTrainingJob"]
+__all__ = ["ReturnnModel", "ReturnnTrainingJob", "ReturnnTrainingFromFileJob"]
 
 from sisyphus import *
 
@@ -388,7 +388,7 @@ class ReturnnTrainingJob(Job):
         return super().hash(d)
 
 
-class ReturnnTrainingFromFile(Job):
+class ReturnnTrainingFromFileJob(Job):
     """
     The Job allows to directly execute returnn config files. The config files have to have the line
     `ext_model = config.value("ext_model", None)` and `model = ext_model` to correctly set the model path

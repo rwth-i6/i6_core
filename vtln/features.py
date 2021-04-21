@@ -19,7 +19,7 @@ def VTLNFeaturesJob(
         feature_flow, map_file, **extra_warp_args
     )
 
-    return features.FeatureExtraction(
+    return features.FeatureExtractionJob(
         crp=crp,
         feature_flow=feature_flow,
         port_name_mapping={"features": "vtln"},

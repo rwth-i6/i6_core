@@ -1,8 +1,8 @@
 __all__ = [
     "samples_with_silence_normalization_flow",
-    "ExtractSilenceNormalizationMap",
-    "ExtractSegmentSilenceNormalizationMap",
-    "UnwarpTimesInCTM",
+    "ExtractSilenceNormalizationMapJob",
+    "ExtractSegmentSilenceNormalizationMapJob",
+    "UnwarpTimesInCTMJob",
 ]
 
 from sisyphus import *
@@ -78,7 +78,7 @@ def samples_with_silence_normalization_flow(
     return net
 
 
-class ExtractSilenceNormalizationMap(Job):
+class ExtractSilenceNormalizationMapJob(Job):
     def __init__(self, log_files):
         self.log_files = log_files
 
@@ -131,7 +131,7 @@ class ExtractSilenceNormalizationMap(Job):
                 f.write(" ".join(l) + "\n")
 
 
-class ExtractSegmentSilenceNormalizationMap(Job):
+class ExtractSegmentSilenceNormalizationMapJob(Job):
     def __init__(self, log_files):
         self.log_files = log_files
 
@@ -189,7 +189,7 @@ class ExtractSegmentSilenceNormalizationMap(Job):
                 f.write(" ".join(l) + "\n")
 
 
-class UnwarpTimesInCTM(Job):
+class UnwarpTimesInCTMJob(Job):
     def __init__(self, ctm_file, sil_norm_map):
         self.ctm_file = ctm_file
         self.sil_norm_map = sil_norm_map

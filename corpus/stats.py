@@ -1,4 +1,4 @@
-__all__ = ["ExtractOovWordsFromCorpus"]
+__all__ = ["ExtractOovWordsFromCorpusJob"]
 
 import xml.etree.cElementTree as ET
 
@@ -9,7 +9,7 @@ from sisyphus import *
 Path = setup_path(__package__)
 
 
-class ExtractOovWordsFromCorpus(Job):
+class ExtractOovWordsFromCorpusJob(Job):
     """
     Extracts the out of vocabulary words based on a given corpus and lexicon
     """

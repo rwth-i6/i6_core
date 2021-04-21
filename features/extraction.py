@@ -1,4 +1,4 @@
-__all__ = ["FeatureExtraction"]
+__all__ = ["FeatureExtractionJob"]
 
 import copy
 import shutil
@@ -12,7 +12,7 @@ import recipe.i6_core.rasr as rasr
 import recipe.i6_core.util as util
 
 
-class FeatureExtraction(rasr.RasrCommand, Job):
+class FeatureExtractionJob(rasr.RasrCommand, Job):
     def __init__(
         self,
         crp,
@@ -41,7 +41,7 @@ class FeatureExtraction(rasr.RasrCommand, Job):
         kwargs = locals()
         del kwargs["self"]
 
-        self.config, self.post_config = FeatureExtraction.create_config(**kwargs)
+        self.config, self.post_config = FeatureExtractionJob.create_config(**kwargs)
         self.feature_flow = feature_flow
         self.cached_feature_flow = feature_extraction_cache_flow(
             feature_flow, port_name_mapping, one_dimensional_outputs

@@ -1,4 +1,4 @@
-__all__ = ["Analog", "Sclite", "Hub5Score", "QuaeroScorer", "KaldiScorer"]
+__all__ = ["AnalogJob", "ScliteJob", "Hub5ScoreJob", "QuaeroScorerJob", "KaldiScorerJob"]
 
 import os
 import shutil
@@ -13,7 +13,7 @@ from recipe.i6_core.lib.corpus import *
 Path = setup_path(__package__)
 
 
-class Analog(Job):
+class AnalogJob(Job):
     def __init__(self, configs, merge=True):
         self.set_vis_name("Analog")
 
@@ -37,7 +37,7 @@ class Analog(Job):
             )
 
 
-class Sclite(Job):
+class ScliteJob(Job):
     __sis_hash_exclude__ = {"cer": False, "sort_files": False, "additional_args": None}
 
     def __init__(self, ref, hyp, cer=False, sort_files=False, additional_args=None):
@@ -166,7 +166,7 @@ class Sclite(Job):
         return wer
 
 
-class Hub5Score(Job):
+class Hub5ScoreJob(Job):
     def __init__(self, ref, glm, hyp):
         self.set_vis_name("HubScore")
 
@@ -297,7 +297,7 @@ class Hub5Score(Job):
         return wer
 
 
-class QuaeroScorer(Job):
+class QuaeroScorerJob(Job):
     def __init__(self, hyp, uem, trs, glm, normalization_script, eval_script):
         self.hyp = hyp
         self.uem = uem
@@ -357,7 +357,7 @@ class QuaeroScorer(Job):
         return wer
 
 
-class KaldiScorer(Job):
+class KaldiScorerJob(Job):
     """
     Applies the Kaldi compute-wer binary. Required gs.KALDI_PATH to be the path to the Kaldi bin folder.
     """

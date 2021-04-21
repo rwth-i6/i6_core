@@ -1,4 +1,4 @@
-__all__ = ["StoreAllophones", "DumpStateTying"]
+__all__ = ["StoreAllophonesJob", "DumpStateTyingJob"]
 
 import shutil
 
@@ -10,7 +10,7 @@ import recipe.i6_core.rasr as rasr
 import recipe.i6_core.util as util
 
 
-class StoreAllophones(rasr.RasrCommand, Job):
+class StoreAllophonesJob(rasr.RasrCommand, Job):
     def __init__(
         self,
         crp,
@@ -20,7 +20,7 @@ class StoreAllophones(rasr.RasrCommand, Job):
     ):
         self.set_vis_name("Store Allophones")
 
-        self.config, self.post_config = StoreAllophones.create_config(
+        self.config, self.post_config = StoreAllophonesJob.create_config(
             crp, extra_config, extra_post_config
         )
         self.exe = self.select_exe(crp.allophone_tool_exe, "allophone-tool")
@@ -93,11 +93,11 @@ class StoreAllophones(rasr.RasrCommand, Job):
         return super().hash({"config": config, "exe": kwargs["crp"].allophone_tool_exe})
 
 
-class DumpStateTying(rasr.RasrCommand, Job):
+class DumpStateTyingJob(rasr.RasrCommand, Job):
     def __init__(self, crp, extra_config=None, extra_post_config=None):
         self.set_vis_name("Dump state-tying")
 
-        self.config, self.post_config = DumpStateTying.create_config(
+        self.config, self.post_config = DumpStateTyingJob.create_config(
             crp, extra_config, extra_post_config
         )
         self.exe = self.select_exe(crp.allophone_tool_exe, "allophone-tool")

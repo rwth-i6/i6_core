@@ -154,12 +154,12 @@ class System:
         self.jobs[target_name] = {}
 
     def set_sclite_scorer(self, corpus, **kwargs):
-        self.scorers[corpus] = recog.Sclite
+        self.scorers[corpus] = recog.ScliteJob
         self.scorer_args[corpus] = {"ref": self.stm_files[corpus], **kwargs}
         self.scorer_hyp_arg[corpus] = "hyp"
 
     def set_kaldi_scorer(self, corpus, mapping):
-        self.scorers[corpus] = recog.KaldiScorer
+        self.scorers[corpus] = recog.KaldiScorerJob
         self.scorer_args[corpus] = {
             "corpus_path": self.crp[corpus].corpus_config.file,
             "map": mapping,
@@ -167,7 +167,7 @@ class System:
         self.scorer_hyp_arg[corpus] = "ctm"
 
     def store_allophones(self, source_corpus, target_corpus="base", **kwargs):
-        self.jobs[target_corpus]["allophones"] = lexicon.StoreAllophones(
+        self.jobs[target_corpus]["allophones"] = lexicon.StoreAllophonesJob(
             self.crp[source_corpus], **kwargs
         )
         self.allophone_files[target_corpus] = self.jobs[target_corpus][
@@ -519,7 +519,7 @@ class System:
     def optimize_am_lm(
         self, name, corpus, initial_am_scale, initial_lm_scale, prefix="", **kwargs
     ):
-        j = recog.OptimizeAMandLMScale(
+        j = recog.OptimizeAMandLMScaleJob(
             crp=self.crp[corpus],
             lattice_cache=self.jobs[corpus][name].lattice_bundle,
             initial_am_scale=initial_am_scale,

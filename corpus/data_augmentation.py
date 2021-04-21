@@ -1,4 +1,4 @@
-__all__ = ["SelfNoiseCorpus", "ChangeCorpusSpeed"]
+__all__ = ["SelfNoiseCorpusJob", "ChangeCorpusSpeedJob"]
 
 import glob
 import logging
@@ -13,7 +13,7 @@ from sisyphus import *
 Path = setup_path(__package__)
 
 
-class SelfNoiseCorpus(Job):
+class SelfNoiseCorpusJob(Job):
     """
     Add noise to each recording in the corpus.
     The noise consists of audio data from other recordings in the corpus and is reduced by the given SNR.
@@ -160,7 +160,7 @@ class SelfNoiseCorpus(Job):
         shutil.rmtree(f"/dev/shm/{self.id}")
 
 
-class ChangeCorpusSpeed(Job):
+class ChangeCorpusSpeedJob(Job):
     """
     Changes the speed of all audio files in the corpus (shifting time AND frequency)
 

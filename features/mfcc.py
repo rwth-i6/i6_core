@@ -8,13 +8,13 @@ import recipe.i6_core.rasr as rasr
 
 
 def MfccJob(crp, mfcc_options=None, extra_config=None, extra_post_config=None):
-    """
-    :param recipe.rasr.crp.CommonRasrParameters crp:
-    :param dict[str] mfcc_options:
-    :param recipe.rasr.config.RasrConfig|None extra_config:
-    :param recipe.rasr.config.RasrConfig|None extra_post_config:
-    :rtype: FeatureExtraction
-    """
+  """
+  :param recipe.rasr.crp.CommonRasrParameters crp:
+  :param dict[str] mfcc_options:
+  :param recipe.rasr.config.RasrConfig|None extra_config:
+  :param recipe.rasr.config.RasrConfig|None extra_post_config:
+  :rtype: FeatureExtractionJob
+  """
     if mfcc_options is None:
         mfcc_options = {}
     else:
@@ -27,7 +27,7 @@ def MfccJob(crp, mfcc_options=None, extra_config=None, extra_post_config=None):
 
     port_name_mapping = {"features": "mfcc"}
 
-    return FeatureExtraction(
+    return FeatureExtractionJob(
         crp,
         feature_flow,
         port_name_mapping,

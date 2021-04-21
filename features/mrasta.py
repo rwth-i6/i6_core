@@ -17,7 +17,7 @@ def MrastaJob(crp, mrasta_options={}, extra_config=None, extra_post_config=None)
 
     port_name_mapping = {"features-0": "high", "features-1": "low"}
 
-    return FeatureExtraction(
+    return FeatureExtractionJob(
         crp,
         feature_flow,
         port_name_mapping,
