@@ -13,6 +13,11 @@ Path = setup_path(__package__)
 
 
 class ReturnnDumpHDFJob(Job):
+    """
+    This Job is a wrapper around the RETURNN tool hdf_dump.py.
+    It can be used to dump a dataset into an HDF directly from a string containing a RETURNN Dataset definition
+    """
+
     def __init__(
         self,
         data,
@@ -27,9 +32,8 @@ class ReturnnDumpHDFJob(Job):
         returnn_root=None,
     ):
         """
-        use RETURNN to dump dataset into a hdf file
 
-        :param data: data string
+        :param str data: a string defining a RETURNN dataset
         :param start_seq: first sequence to dump in the dataset
         :param end_seq: last sequence to dump in the dataset
         :param int epoch: epoch to dump
@@ -37,8 +41,8 @@ class ReturnnDumpHDFJob(Job):
         :param int mem: RAM required
         :param int file_size: request file space on compute node
         :param int time: compute time
-        :param str returnn_python_exe: path to python binary
-        :param str returnn_root: path to root dir of RETURNN
+        :param Path|str returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
+        :param Path|str returnn_root: file path to the RETURNN repository root folder
         """
         self.data = data  # typing: dict|Path|str
         self.start_seq = start_seq
@@ -60,7 +64,7 @@ class ReturnnDumpHDFJob(Job):
             returnn_root if returnn_root is not None else gs.RETURNN_ROOT
         )
 
-        self.hdf_out = self.output_path("data.hdf")
+        self.out_hdf = self.output_path("data.hdf")
 
     def tasks(self):
         yield Task("run", resume="run", rqmt=self.rqmt)
@@ -86,7 +90,7 @@ class ReturnnDumpHDFJob(Job):
             args.append(f"--epoch {self.epoch}")
 
         sp.check_call(args)
-        relink("data.hdf", self.hdf_out.get_path())
+        relink("data.hdf", self.out_hdf.get_path())
 
     @classmethod
     def hash(cls, parsed_args):
@@ -99,6 +103,11 @@ class ReturnnDumpHDFJob(Job):
 
 
 class ReturnnRasrDumpHDFJob(ReturnnDumpHDFJob):
+    """
+    This Job extends the ReturnnDumpHDFJob to allow the use of ExternSprintDataset.
+
+    """
+
     def __init__(
         self,
         crp,
@@ -108,13 +117,21 @@ class ReturnnRasrDumpHDFJob(ReturnnDumpHDFJob):
         buffer_size=200 * 1024,
         **kwargs,
     ):
+        """
+
+        :param rasr.CommonRasrParameters crp: common RASR parameters
+        :param rasr.FlowNetwork feature_flow:
+        :param Path alignment:
+        :param int num_classes:
+        :param int buffer_size:
+        :param kwargs: parameters for ReturnnDumpHDFJob
+        """
         super(ReturnnRasrDumpHDFJob, self).__init__(**kwargs)
 
         self.data["sprintConfigStr"] = "--config=rasr.config"
 
         self.crp = crp
         self.alignment = alignment
-
         self.rasr_exe = rasr.RasrCommand.select_exe(crp.nn_trainer_exe, "nn-trainer")
         self.feature_flow = ReturnnRasrTrainingJob.create_flow(feature_flow, alignment)
         (

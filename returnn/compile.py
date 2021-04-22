@@ -12,6 +12,11 @@ from .config import ReturnnConfig
 
 
 class CompileTFGraphJob(Job):
+    """
+    This Job is a wrapper around the RETURNN tool comptile_tf_graph.py
+
+    """
+
     def __init__(
         self,
         returnn_config,
@@ -24,6 +29,18 @@ class CompileTFGraphJob(Job):
         returnn_python_exe=None,
         returnn_root=None,
     ):
+        """
+
+        :param ReturnnConfig|Path|str returnn_config: Path to a RETURNN config file
+        :param int train:
+        :param int eval:
+        :param int search:
+        :param int log_verbosity: RETURNN log verbosity from 1 (least verbose) to 5 (most verbose)
+        :param summaries_tensor_name:
+        :param str output_format: graph output format, one of ["pb", "pbtxt", "meta", "metatxt"]
+        :param Path|str returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
+        :param Path|str returnn_root: file path to the RETURNN repository root folder
+        """
         self.returnn_config = returnn_config
         self.train = train
         self.eval = eval
@@ -39,9 +56,9 @@ class CompileTFGraphJob(Job):
             returnn_root if returnn_root is not None else gs.RETURNN_ROOT
         )
 
-        self.graph = self.output_path("graph.%s" % output_format)
-        self.model_params = self.output_var("model_params.pickle", pickle=True)
-        self.state_vars = self.output_var("state_vars.pickle", pickle=True)
+        self.out_graph = self.output_path("graph.%s" % output_format)
+        self.out_model_params = self.output_var("model_params.pickle", pickle=True)
+        self.out_state_vars = self.output_var("state_vars.pickle", pickle=True)
 
     def tasks(self):
         yield Task("run", resume="run", mini_task=True)
@@ -62,7 +79,7 @@ class CompileTFGraphJob(Job):
             "--eval=%d" % self.eval,
             "--search=%d" % self.search,
             "--verbosity=%d" % self.verbosity,
-            "--output_file=%s" % self.graph.get_path(),
+            "--output_file=%s" % self.out_graph.get_path(),
             "--output_file_model_params_list=model_params",
             "--output_file_state_vars_list=state_vars",
         ]
@@ -73,10 +90,10 @@ class CompileTFGraphJob(Job):
 
         with open("model_params", "rt") as input:
             lines = [l.strip() for l in input if len(l.strip()) > 0]
-            self.model_params.set(lines)
+            self.out_model_params.set(lines)
         with open("state_vars", "rt") as input:
             lines = [l.strip() for l in input if len(l.strip()) > 0]
-            self.state_vars.set(lines)
+            self.out_state_vars.set(lines)
 
     @classmethod
     def hash(cls, kwargs):
