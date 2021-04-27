@@ -7,8 +7,11 @@ from .extraction import *
 import recipe.i6_core.rasr as rasr
 
 
-def GammatoneJob(crp, gt_options={}, extra_config=None, extra_post_config=None):
-    gt_options = copy.deepcopy(gt_options)
+def GammatoneJob(crp, gt_options=None, extra_config=None, extra_post_config=None):
+    if gt_options is None:
+        gt_options = {}
+    else:
+        gt_options = copy.deepcopy(gt_options)
     if "samples_options" not in gt_options:
         gt_options["samples_options"] = {}
     gt_options["samples_options"]["audio_format"] = crp.audio_format

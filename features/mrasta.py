@@ -8,8 +8,11 @@ from .extraction import *
 import recipe.i6_core.rasr as rasr
 
 
-def MrastaJob(crp, mrasta_options={}, extra_config=None, extra_post_config=None):
-    mrasta_options = copy.deepcopy(mrasta_options)
+def MrastaJob(crp, mrasta_options=None, extra_config=None, extra_post_config=None):
+    if mrasta_options is None:
+        mrasta_options = {}
+    else:
+        mrasta_options = copy.deepcopy(mrasta_options)
     if "samples_options" not in mrasta_options:
         mrasta_options["samples_options"] = {}
     mrasta_options["samples_options"]["audio_format"] = crp.audio_format

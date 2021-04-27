@@ -7,8 +7,11 @@ from .extraction import *
 import recipe.i6_core.rasr as rasr
 
 
-def EnergyJob(crp, energy_options={}, extra_config=None, extra_post_config=None):
-    energy_options = copy.deepcopy(energy_options)
+def EnergyJob(crp, energy_options=None, extra_config=None, extra_post_config=None):
+    if energy_options is None:
+        energy_options = {}
+    else:
+        energy_options = copy.deepcopy(energy_options)
     if "samples_options" not in energy_options:
         energy_options["samples_options"] = {}
     energy_options["samples_options"]["audio_format"] = crp.audio_format
