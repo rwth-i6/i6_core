@@ -1,5 +1,6 @@
 __all__ = ["CloneGitRepositoryJob"]
 
+import logging
 import subprocess as sp
 
 from sisyphus import *
@@ -8,11 +9,20 @@ Path = setup_path(__package__)
 
 
 class CloneGitRepositoryJob(Job):
-    __sis_hash_exclude__ = {"commit": None, "checkout_folder_name": "repository"}
+    """
+    Clone a git repository given optional branch name and commit hash
+    """
 
     def __init__(
         self, url, branch=None, commit=None, checkout_folder_name="repository"
     ):
+        """
+
+        :param str url: git repository url
+        :param str branch: git branch name
+        :param str commit: git commit hash
+        :param str checkout_folder_name: name of the output path repository folder
+        """
         self.url = url
         self.branch = branch
         self.commit = commit
@@ -28,7 +38,9 @@ class CloneGitRepositoryJob(Job):
             args.extend(["-b", self.branch])
         repository_dir = self.repository.get_path()
         args += [repository_dir]
-        print(args)
+        logging.info("running command: %s" % " ".join(args))
         sp.run(args)
         if self.commit is not None:
-            sp.run(["git", "checkout", self.commit], cwd=repository_dir)
+            args = ["git", "checkout", self.commit]
+            print(args)
+            sp.run(args, cwd=repository_dir)

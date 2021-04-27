@@ -9,7 +9,7 @@ from sisyphus import *
 
 Path = setup_path(__package__)
 
-from recipe.i6_core.git import *
+from recipe.i6_core.tools.git import *
 
 
 class TrainBPEModelJob(Job):
@@ -27,7 +27,7 @@ class TrainBPEModelJob(Job):
         self.dict_input = dict_input
         self.total_symbols = total_symbols
 
-        self.subword_nmt_repo = CloneGitRepository(
+        self.subword_nmt_repo = CloneGitRepositoryJob(
             "https://github.com/rsennrich/subword-nmt.git"
         ).repository
 
@@ -90,7 +90,7 @@ class ReturnnTrainBpeJob(Job):
         self.bpe_vocab = self.output_path("bpe.vocab")
         self.vocab_size = self.output_var("vocab_size")
 
-        self.subword_nmt_repo = CloneGitRepository(
+        self.subword_nmt_repo = CloneGitRepositoryJob(
             "https://github.com/albertz/subword-nmt.git"
         ).repository
 
