@@ -5,11 +5,14 @@ from .extraction import *
 import recipe.i6_core.rasr as rasr
 
 
-def VoicedJob(crp, voiced_options={}, extra_config=None, extra_post_config=None):
-    energy_options = copy.deepcopy(energy_options)
+def VoicedJob(crp, voiced_options=None, extra_config=None, extra_post_config=None):
+    if voiced_options is None:
+        voiced_options = {}
+    else:
+        voiced_options = copy.deepcopy(voiced_options)
     if "samples_options" not in voiced_options:
         voiced_options["samples_options"] = {}
-    energy_options["samples_options"]["audio_format"] = crp.audio_format
+    voiced_options["samples_options"]["audio_format"] = crp.audio_format
     feature_flow = voiced_flow(**voiced_options)
 
     port_name_mapping = {"voiced": "voiced"}
