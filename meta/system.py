@@ -241,8 +241,8 @@ class System:
             self.crp[corpus], **kwargs
         )
         f.add_alias("%s_fb_features" % corpus)
-        self.feature_caches[corpus]["filterbank"] = f.feature_path["filterbank"]
-        self.feature_bundles[corpus]["filterbank"] = f.feature_bundle["filterbank"]
+        self.feature_caches[corpus]["fb"] = f.feature_path["fb"]
+        self.feature_bundles[corpus]["fb"] = f.feature_bundle["fb"]
 
         feature_path = rasr.FlagDependentFlowAttribute(
             "cache_mode",

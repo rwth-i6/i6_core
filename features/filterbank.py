@@ -20,7 +20,7 @@ def FilterbankJob(
     filterbank_options["samples_options"]["audio_format"] = crp.audio_format
     feature_flow = filterbank_flow(**filterbank_options)
 
-    port_name_mapping = {"features": "filterbank"}
+    port_name_mapping = {"features": "fb"}
 
     return FeatureExtractionJob(
         crp,
