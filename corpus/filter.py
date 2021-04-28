@@ -181,7 +181,7 @@ class FilterCorpusBySegmentsJob(Job):
         """
         self.in_corpus = corpus_file
         self.segment_list = (
-            [segment_list] if isinstance(segment_list, str) else segment_list
+            [segment_list] if isinstance(segment_list, (tk.Path, str)) else segment_list
         )
         self.invert_match = invert_match
 
