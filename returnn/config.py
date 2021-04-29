@@ -13,6 +13,8 @@ import pprint
 import string
 import textwrap
 
+from recipe.i6_core.util import VariableString
+
 
 def instanciate_vars(o):
     """
@@ -22,7 +24,7 @@ def instanciate_vars(o):
     :param Any o: nested structure that may contain Variable objects
     :return:
     """
-    if isinstance(o, Variable):
+    if isinstance(o, Variable) or isinstance(o, VariableString):
         o = o.get()
     elif isinstance(o, list):
         for k in range(len(o)):

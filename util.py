@@ -7,6 +7,7 @@ import xml.dom.minidom
 import xml.etree.ElementTree as ET
 
 from sisyphus import *
+from sisyphus.tools import sis_hash_helper
 
 Path = setup_path(__package__)
 Variable = tk.Variable
@@ -54,6 +55,40 @@ class MultiOutputPath(MultiPath):
             cached,
             gs.BASE_DIR,
         )
+
+
+class VariableString:
+    """
+    Enables to define strings containing Paths or Variables for e.g. ReturnnConfig or PipelineJob:
+    config[...] = VariableString("--some-parameter %s --another-parameter %i",
+                                 [sisyphus_path, sisyphus_variable])
+    """
+
+    def __init__(self, string, variables, allow_caching=False):
+        """
+
+        :param str string: any string with formatter symbols
+        :param tuple|list variables: Sisyphus Paths or Variables, or other object with ".get()" method
+        :param bool allow_caching: allows caching for tk.Path variables
+        """
+        self._string = string
+        self._variables = variables
+        self.allow_caching = allow_caching
+
+        assert isinstance(string, str)
+        assert isinstance(variables, list) or isinstance(variables, tuple)
+
+    def _sis_hash(self):
+        return sis_hash_helper((self._string, self._variables))
+
+    def get(self):
+        # use str for Path to get caching
+        return self._string % [
+            v.get_cached_path()
+            if isinstance(v, tk.Path) and self.allow_caching
+            else v.get()
+            for v in self._variables
+        ]
 
 
 def write_paths_to_file(file, paths):
@@ -252,4 +287,3 @@ def create_executable(filename, command):
         | stat.S_IXGRP
         | stat.S_IXOTH,
     )
-

@@ -1,7 +1,10 @@
 __all__ = ["PipelineJob", "ConcatenateJob", "HeadJob", "TailJob"]
 
 import os
+
 from sisyphus import Job, Task, Path, global_settings as gs
+
+from recipe.i6_core.util import VariableString
 
 
 class PipelineJob(Job):
@@ -9,7 +12,7 @@ class PipelineJob(Job):
     Reads a text file and applies a list of piped shell commands
 
     :param Path text: text file (raw or gz) to be processed
-    :param list[str] pipeline: list of shell commands to form the pipeline
+    :param list[str|VariableString] pipeline: list of shell commands to form the pipeline
     :param bool zip_out: apply gzip to the output
     :param bool check_equal_length: the line count of the input and output should match
     :param bool mini_task: the pipeline should be run as mini_task
@@ -60,7 +63,12 @@ class PipelineJob(Job):
         pipeline = self.pipeline.copy()
         if self.zip_out:
             pipeline.append("gzip")
-        self.pipe = " | ".join([str(i) for i in pipeline])
+        self.pipe = " | ".join(
+            [
+                command.get() if isinstance(command, VariableString) else str(command)
+                for command in pipeline
+            ]
+        )
         if isinstance(self.text, (list, tuple)):
             self.input_text = " ".join(gs.file_caching(str(i)) for i in self.text)
         else:
