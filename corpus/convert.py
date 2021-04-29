@@ -125,21 +125,15 @@ class CorpusToTxtJob(Job):
         c.load(corpus_path)
 
         if self.segment_file:
-            with open(tk.uncached_path(self.segment_file), "rt") as f:
-                segments_whitelist = set([l.strip() for l in f.readlines() if len(l.strip()) > 0])
+            with uopen(tk.uncached_path(self.segment_file), "rt") as f:
+                segments_whitelist = set(l.strip() for l in f.readlines() if len(l.strip()) > 0)
         else:
             segments_whitelist = None
 
-        if self.gzip:
-            out = gzip.open(self.out_txt.get_path(), "wt")
-        else:
-            out = open(self.out_txt.get_path(), "wt")
-
-        for segment in c.segments():
-            if not segments_whitelist or segment.fullname in segments_whitelist:
-                out.write(segment.orth + "\n")
-
-        out.close()
+        with uopen(self.out_txt.get_path(), "wt") as f:
+            for segment in c.segments():
+                if not segments_whitelist or segment.fullname in segments_whitelist:
+                    f.write(segment.orth + "\n")
 
 
 class CorpusReplaceOrthFromTxtJob(Job):
@@ -168,8 +162,8 @@ class CorpusReplaceOrthFromTxtJob(Job):
         c.load(tk.uncached_path(self.corpus_path))
 
         if self.segment_file:
-            with open(tk.uncached_path(self.segment_file), "rt") as f:
-                segments_whitelist = set([l.strip() for l in f.readlines() if len(l.strip()) > 0])
+            with uopen(tk.uncached_path(self.segment_file), "rt") as f:
+                segments_whitelist = set(l.strip() for l in f.readlines() if len(l.strip()) > 0)
             segment_iterator = filter(lambda s: s in segments_whitelist, c.segments())
         else:
             segment_iterator = c.segments()
