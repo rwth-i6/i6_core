@@ -1,17 +1,16 @@
 __all__ = ["ReturnnModel", "ReturnnTrainingJob", "ReturnnTrainingFromFileJob"]
 
-from sisyphus import *
-
-Path = setup_path(__package__)
-
 import copy
 import os
 import shutil
 import subprocess as sp
 
-import recipe.i6_core.util as util
+from sisyphus import *
 
+import recipe.i6_core.util as util
 from .config import ReturnnConfig
+
+Path = setup_path(__package__)
 
 
 class ReturnnModel:

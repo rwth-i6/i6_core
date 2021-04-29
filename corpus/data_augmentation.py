@@ -113,8 +113,7 @@ class SelfNoiseCorpusJob(Job):
                 self.sh(
                     "ffmpeg -hide_banner  -i '%s' -i '/dev/shm/{id}/tmp_concat_0.wav' "
                     "-filter_complex '[1]volume=-{snr}dB[a];[0][a]amix=duration=first[out]' "
-                    "-map '[out]' '{audio_out}/%s'"
-                    % (audio_name, reverbed_audio_name)
+                    "-map '[out]' '{audio_out}/%s'" % (audio_name, reverbed_audio_name)
                 )
             else:
                 ffmpeg_head = "ffmpeg -hide_banner  -i '%s' " % audio_name

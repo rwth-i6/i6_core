@@ -54,6 +54,8 @@ class FilterSegmentsByListJob(Job):
             ]
         elif isinstance(self.filter_list, list):
             filter_list = self.filter_list
+        else:
+            assert False
 
         for idx, segment_file in self.segment_files.items():
             segment_list = [

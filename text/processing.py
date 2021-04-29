@@ -180,6 +180,7 @@ class TailJob(HeadJob):
     """
     Return the tail of a text file, either absolute or as ratio (provide one)
     """
+
     def run(self):
         if self.ratio:
             assert not self.lines
