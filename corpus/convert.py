@@ -1,13 +1,21 @@
-__all__ = ["CorpusToStmJob", "CorpusToTxtJob"]
+__all__ = ["CorpusToStmJob", "CorpusToTxtJob", "CorpusReplaceOrthFromTxtJob"]
 
-from recipe.i6_core.lib import corpus
+import gzip
+import itertools
 
 from sisyphus import *
+
+from recipe.i6_core.lib import corpus
+from recipe.i6_core.util import uopen
 
 Path = setup_path(__package__)
 
 
 class CorpusToStmJob(Job):
+    """
+    Convert a Bliss corpus into a .stm file
+    """
+
     def __init__(
         self,
         corpus_path,
@@ -17,6 +25,15 @@ class CorpusToStmJob(Job):
         name="",
         tag_mapping=(),
     ):
+        """
+
+        :param Path corpus_path: Bliss corpus
+        :param bool exclude_non_speech:
+        :param bool remove_punctuation:
+        :param bool fix_whitespace:
+        :param str name:
+        :param tuple[str, dict[str, str]] tag_mapping:
+        """
         self.set_vis_name("Extract STM from Corpus")
 
         self.corpus_path = corpus_path
@@ -25,7 +42,8 @@ class CorpusToStmJob(Job):
         self.fix_whitespace = fix_whitespace
         self.tag_mapping = tag_mapping
         self.name = name
-        self.stm_path = self.output_path("%scorpus.stm" % name)
+
+        self.out_stm_path = self.output_path("%scorpus.stm" % name)
 
     def tasks(self):
         yield Task("run", mini_task=True)
@@ -54,7 +72,7 @@ class CorpusToStmJob(Job):
                     if segment.rstrip() in tag_map:
                         tag_map[segment.rstrip()][i] = tag[0]
 
-        with open(self.stm_path.get_path(), "wt") as out:
+        with open(self.out_stm_path.get_path(), "wt") as out:
             for segment in c.segments():
                 speaker_name = (
                     segment.speaker().name
@@ -79,11 +97,24 @@ class CorpusToStmJob(Job):
 
 
 class CorpusToTxtJob(Job):
-    def __init__(self, corpus_path):
+    """
+    Extract orth from a Bliss corpus and store as raw txt or gzipped txt
+    """
+
+    def __init__(self, corpus_path, segment_file=None, gzip=False):
+        """
+
+        :param Path corpus_path: Bliss corpus
+        :param Path segment_file: segment file
+        :param bool gzip: gzip the output text file
+        """
         self.set_vis_name("Extract TXT from Corpus")
 
         self.corpus_path = corpus_path
-        self.txt_path = self.output_path("corpus.txt")
+        self.gzip = gzip
+        self.segment_file = segment_file
+
+        self.out_txt = self.output_path("corpus.txt" + ".gz" if gzip else "")
 
     def tasks(self):
         yield Task("run", mini_task=True)
@@ -93,6 +124,61 @@ class CorpusToTxtJob(Job):
         c = corpus.Corpus()
         c.load(corpus_path)
 
-        with open(self.txt_path.get_path(), "wt") as out:
-            for segment in c.segments():
+        if self.segment_file:
+            with open(tk.uncached_path(self.segment_file), "rt") as f:
+                segments_whitelist = set([l.strip() for l in f.readlines() if len(l.strip()) > 0])
+        else:
+            segments_whitelist = None
+
+        if self.gzip:
+            out = gzip.open(self.out_txt.get_path(), "wt")
+        else:
+            out = open(self.out_txt.get_path(), "wt")
+
+        for segment in c.segments():
+            if not segments_whitelist or segment.fullname in segments_whitelist:
                 out.write(segment.orth + "\n")
+
+        out.close()
+
+
+class CorpusReplaceOrthFromTxtJob(Job):
+    """
+    Merge raw text back into a bliss corpus
+    """
+
+    def __init__(self, corpus, text_file, segment_file=None):
+        """
+
+        :param Path corpus: Bliss corpus
+        :param Path text_file: a raw or gzipped text file
+        :param Path|None: only replace the segments as specified in the segment file
+        """
+        self.corpus_path = corpus
+        self.text_file = text_file
+        self.segment_file = segment_file
+
+        self.out_corpus = self.output_path("corpus.xml.gz")
+
+    def tasks(self):
+        yield Task("run", mini_task=True)
+
+    def run(self):
+        c = corpus.Corpus()
+        c.load(tk.uncached_path(self.corpus_path))
+
+        if self.segment_file:
+            with open(tk.uncached_path(self.segment_file), "rt") as f:
+                segments_whitelist = set([l.strip() for l in f.readlines() if len(l.strip()) > 0])
+            segment_iterator = filter(lambda s: s in segments_whitelist, c.segments())
+        else:
+            segment_iterator = c.segments()
+
+        with uopen(tk.uncached_path(self.text_file), "rt") as f:
+            for segment, line in itertools.zip_longest(segment_iterator, f):
+                assert segment is not None, "there were more text file lines than segments"
+                assert line is not None, "there were less text file lines than segments"
+                assert len(line) > 0
+                segment.orth = line.strip()
+
+        c.dump(tk.uncached_path(self.out_corpus))
