@@ -6,9 +6,9 @@ import os
 import random
 import shutil
 
-from recipe.i6_core.lib import corpus
-
 from sisyphus import *
+
+from recipe.i6_core.lib import corpus
 
 Path = setup_path(__package__)
 
@@ -18,26 +18,33 @@ class SelfNoiseCorpusJob(Job):
     Add noise to each recording in the corpus.
     The noise consists of audio data from other recordings in the corpus and is reduced by the given SNR.
     Only supports .wav files
-    :param Path corpus_file: path to a bliss corpus file
-    :param float snr: signal to noise ratio in db, positive values only
-    :param int seed: seed for noise selection
+
+    WARNING: This Job uses /dev/shm for performance reasons, please be cautious
     """
 
-    def __init__(self, corpus_file, snr, corpus_name, n_noise_tracks=1, seed=None):
+    def __init__(self, corpus_file, snr, corpus_name, n_noise_tracks=1, seed=0):
+        """
+
+        :param Path corpus_file: Bliss corpus with wav files
+        :param float snr: signal to noise ratio in db, positive values only
+        :param str corpus_name: name of the new corpus
+        :param int n_noise_tracks: number of random (parallel) utterances to add
+        :param int seed: seed for random utterance selection
+        """
         self.corpus_file = corpus_file
         self.snr = snr
         self.corpus_name = corpus_name
         self.n_noise_tracks = n_noise_tracks
-        self.seed = seed if seed is not None else random.randint()
-
-        self.audio_out = self.output_path("audio/", directory=True)
-        self.out = self.output_path("noised.xml.gz")
-        self.segments = self.output_path("noised.segments")
+        self.seed = seed
 
         assert (
             isinstance(self.n_noise_tracks, int) and self.n_noise_tracks >= 1
         ), "number of noise tracks must be a positive integer"
         assert self.snr >= 0, "please provide a positive SNR"
+
+        self.out_audio_folder = self.output_path("audio/", directory=True)
+        self.out_corpus = self.output_path("noised.xml.gz")
+        self.out_segment_file = self.output_path("noised.segments")
 
         self.rqmt = {"time": 12, "cpu": 2}
 
@@ -104,7 +111,8 @@ class SelfNoiseCorpusJob(Job):
 
             if self.n_noise_tracks == 1:
                 self.sh(
-                    "ffmpeg -hide_banner  -i '%s' -i '/dev/shm/{id}/tmp_concat_0.wav' -filter_complex '[1]volume=-{snr}dB[a];[0][a]amix=duration=first[out]' -map '[out]' '{audio_out}/%s'"
+                    "ffmpeg -hide_banner  -i '%s' -i '/dev/shm/{id}/tmp_concat_0.wav' -filter_complex "
+                    "'[1]volume=-{snr}dB[a];[0][a]amix=duration=first[out]' -map '[out]' '{audio_out}/%s'"
                     % (audio_name, reverbed_audio_name)
                 )
             else:
@@ -147,14 +155,14 @@ class SelfNoiseCorpusJob(Job):
             nr.speaker_name = r.speaker_name
             nr.default_speaker = r.default_speaker
             nr.speakers = r.speakers
-            nr.audio = str(self.audio_out) + "/" + reverbed_audio_name
+            nr.audio = str(self.out_audio_folder) + "/" + reverbed_audio_name
             nc.add_recording(nr)
             for s in nr.segments:
                 segment_file_names.append(nc.name + "/" + nr.name + "/" + s.name + "\n")
 
-        nc.dump(self.out.get_path())
+        nc.dump(self.out_corpus.get_path())
 
-        with open(tk.uncached_path(self.segments), "w") as segments_outfile:
+        with open(tk.uncached_path(self.out_segment_file), "w") as segments_outfile:
             segments_outfile.writelines(segment_file_names)
 
         shutil.rmtree(f"/dev/shm/{self.id}")
@@ -163,23 +171,26 @@ class SelfNoiseCorpusJob(Job):
 class ChangeCorpusSpeedJob(Job):
     """
     Changes the speed of all audio files in the corpus (shifting time AND frequency)
-
-    :param Path corpus_file: path to a bliss corpus file
-    :param str corpus_name: name of the new corpus
-    :param float speed_factor: relative speed factor
-    :param int base_frequency: sampling rate of the audio files
     """
 
     def __init__(self, corpus_file, corpus_name, speed_factor, base_frequency):
+        """
+
+        :param Path corpus_file: Bliss corpus
+        :param str corpus_name: name of the new corpus
+        :param float speed_factor: relative speed factor
+        :param int base_frequency: sampling rate of the audio files
+        """
         self.corpus_file = corpus_file
         self.speed_factor = speed_factor
         self.corpus_name = corpus_name
         self.base_frequency = base_frequency
-        self.perturbed_corpus = self.output_path("speed_perturbed.xml.gz")
-        self.audio_folder = self.output_path("audio/")
-        self.segments = self.output_path("speed_perturbed.segments")
 
         assert self.speed_factor > 0, "speed factor needs to be greater than zero"
+
+        self.out_corpus = self.output_path("speed_perturbed.xml.gz")
+        self.out_audio_folder = self.output_path("audio/")
+        self.out_segment_file = self.output_path("speed_perturbed.segments")
 
         self.rqmt = {"time": 8}
 
@@ -187,7 +198,7 @@ class ChangeCorpusSpeedJob(Job):
         yield Task("run", rqmt=self.rqmt)
 
     def run(self):
-        if not os.path.isdir(str(self.audio_folder)):
+        if not os.path.isdir(str(self.out_audio_folder)):
             self.sh("mkdir '{audio_out}'")
         c = corpus.Corpus()
         nc = corpus.Corpus()
@@ -203,7 +214,8 @@ class ChangeCorpusSpeedJob(Job):
             perturbed_audio_name = "perturbed_" + r.audio.split("/")[-1]
 
             self.sh(
-                "ffmpeg -hide_banner -i '%s' -filter:a \"asetrate={base_frequency}*{speed_factor}\" -ar {base_frequency} '{audio_out}/%s'"
+                "ffmpeg -hide_banner -i '%s' -filter:a \"asetrate={base_frequency}*{speed_factor}\" "
+                "-ar {base_frequency} '{audio_out}/%s'"
                 % (r.audio, perturbed_audio_name)
             )
 
@@ -213,14 +225,14 @@ class ChangeCorpusSpeedJob(Job):
             pr.speaker_name = r.speaker_name
             pr.speakers = r.speakers
             pr.default_speaker = r.default_speaker
-            pr.audio = str(self.audio_folder) + "/" + perturbed_audio_name
+            pr.audio = str(self.out_audio_folder) + "/" + perturbed_audio_name
             nc.add_recording(pr)
             for s in pr.segments:
                 segment_file_names.append(nc.name + "/" + pr.name + "/" + s.name)
                 s.start /= self.speed_factor
                 s.end /= self.speed_factor
 
-        nc.dump(str(self.perturbed_corpus))
+        nc.dump(str(self.out_corpus))
 
-        with open(str(self.segments), "w") as segments_outfile:
+        with open(str(self.out_segment_file), "w") as segments_outfile:
             segments_outfile.writelines(segment_file_names)
