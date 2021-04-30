@@ -35,7 +35,7 @@ class SelfNoiseCorpusJob(Job):
         self.snr = snr
         self.corpus_name = corpus_name
         self.n_noise_tracks = n_noise_tracks
-        self.seed = seed if seed is not None else random.randint()
+        self.seed = seed
 
         assert (
             isinstance(self.n_noise_tracks, int) and self.n_noise_tracks >= 1
