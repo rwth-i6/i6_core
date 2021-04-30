@@ -38,7 +38,7 @@ class SelfNoiseCorpusJob(Job):
         self.seed = seed if seed is not None else random.randint()
 
         assert (
-                isinstance(self.n_noise_tracks, int) and self.n_noise_tracks >= 1
+            isinstance(self.n_noise_tracks, int) and self.n_noise_tracks >= 1
         ), "number of noise tracks must be a positive integer"
         assert self.snr >= 0, "please provide a positive SNR"
 
@@ -111,7 +111,8 @@ class SelfNoiseCorpusJob(Job):
 
             if self.n_noise_tracks == 1:
                 self.sh(
-                    "ffmpeg -hide_banner  -i '%s' -i '/dev/shm/{id}/tmp_concat_0.wav' -filter_complex '[1]volume=-{snr}dB[a];[0][a]amix=duration=first[out]' -map '[out]' '{audio_out}/%s'"
+                    "ffmpeg -hide_banner  -i '%s' -i '/dev/shm/{id}/tmp_concat_0.wav' -filter_complex "
+                    "'[1]volume=-{snr}dB[a];[0][a]amix=duration=first[out]' -map '[out]' '{audio_out}/%s'"
                     % (audio_name, reverbed_audio_name)
                 )
             else:
@@ -213,7 +214,8 @@ class ChangeCorpusSpeedJob(Job):
             perturbed_audio_name = "perturbed_" + r.audio.split("/")[-1]
 
             self.sh(
-                "ffmpeg -hide_banner -i '%s' -filter:a \"asetrate={base_frequency}*{speed_factor}\" -ar {base_frequency} '{audio_out}/%s'"
+                "ffmpeg -hide_banner -i '%s' -filter:a \"asetrate={base_frequency}*{speed_factor}\" "
+                "-ar {base_frequency} '{audio_out}/%s'"
                 % (r.audio, perturbed_audio_name)
             )
 
