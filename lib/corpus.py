@@ -194,6 +194,10 @@ class Corpus(NamedEntity, CorpusSection):
         corpus.parent_corpus = self
         self.subcorpora.append(corpus)
 
+    def add_speaker(self, speaker):
+        assert isinstance(speaker, Speaker)
+        self.speakers[speaker.name] = speaker
+
     def fullname(self):
         if self.parent_corpus is not None:
             return self.parent_corpus.fullname() + "/" + self.name
@@ -317,9 +321,11 @@ class Segment(NamedEntity):
         has_child_element = self.orth is not None or self.speaker_name is not None
         t = ' track="%d"' % self.track if self.track is not None else ""
         new_line = "\n" if has_child_element else ""
+        assert isinstance(self.end, float) or self.end == "inf"  # end can also be "inf"
+        end = "%.4f" if isinstance(self.end, float) else "inf"
         out.write(
-            '%s<segment name="%s" start="%.4f" end="%.4f"%s>%s'
-            % (indentation, self.name, self.start, self.end, t, new_line)
+            '%s<segment name="%s" start="%.4f" end="%s"%s>%s'
+            % (indentation, self.name, self.start, end, t, new_line)
         )
         if self.speaker_name is not None:
             out.write('%s  <speaker name="%s"/>\n' % (indentation, self.speaker_name))
