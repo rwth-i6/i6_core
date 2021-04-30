@@ -1,0 +1,180 @@
+__all__ = ["DownloadLibriSpeechCorpusJob", "DownloadLibriSpeechMetadataJob"]
+
+import os
+import subprocess
+
+from sisyphus import *
+
+from recipe.i6_core.lib import corpus
+
+
+class DownloadLibriSpeechCorpusJob(Job):
+    """
+    Download a part of the LibriSpeech corpus from
+    https://www.openslr.org/resources/12
+    and checks for file integrity via md5sum
+
+    (see also: https://www.openslr.org/12/)
+
+    To get the corpus metadata, use
+    DownloadLibriSpeechMetadataJob
+
+    self.out_corpus_folder links to the root of the speaker_id/chapter/*
+    folder structure
+    """
+
+    def __init__(self, corpus_key):
+        """
+
+        :param str corpus_key: corpus identifier, e.g. "train-clean-100"
+        """
+        self.corpus_key = corpus_key
+
+        assert corpus_key in [
+            'dev-clean',
+            'dev-other',
+            'test-clean',
+            'test-other',
+            'train-clean-100',
+            'train-clean-360',
+            'train-other-500'
+        ]
+
+        # this is just needed to have the extraction target available
+        self._out_parent_folder = self.output_path(".", directory=True)
+
+        self.out_corpus_folder = self.output_path("LibriSpeech/%s" % self.corpus_key)
+
+    def tasks(self):
+        yield Task('run', mini_task=True)
+
+    def run(self):
+        subprocess.check_call(["wget", "https://www.openslr.org/resources/12/md5sum.txt"])
+        subprocess.check_call(["wget", "https://www.openslr.org/resources/12/%s.tar.gz" % self.corpus_key])
+
+        with open("md5sum.txt", "rt") as md5_in:
+            with open("md5sum-%s.txt" % self.corpus_key, "wt") as md5_out:
+                for line in md5_in:
+                    split = line.strip().split(" ")
+                    if split[-1].split(".")[0] == self.corpus_key:
+                        md5_out.write(line)
+                        break
+
+        checksum_result = subprocess.check_output(["md5sum", "-c", "md5sum-%s.txt" % self.corpus_key]) #  type: bytes
+        assert b"OK" in checksum_result
+
+        subprocess.check_call(["tar", "-xf", "%s.tar.gz" % self.corpus_key, "-C", tk.uncached_path(self._out_parent_folder)])
+
+
+class DownloadLibriSpeechMetadataJob(DownloadLibriSpeechCorpusJob):
+    """
+    Downloads the metadata file and checks for md5sum integrity
+
+    Defines outputs for "SPEAKERS.TXT, CHAPTERS.TXT and BOOKS.TXT"
+    """
+
+    # noinspection PyMissingConstructor
+    def __init__(self):
+        self.corpus_key = "raw-metadata"
+
+        # this is just needed to have the extraction target available
+        self._out_parent_folder = self.output_path(".", directory=True)
+
+        self.out_speakers = self.output_path("LibriSpeech/SPEAKERS.TXT")
+        self.out_chapters = self.output_path("LibriSpeech/CHAPTERS.TXT")
+        self.out_books = self.output_path("LibriSpeech/BOOKS.TXT")
+
+
+class LibriSpeechCreateBlissJob(Job):
+    """
+    Creates a Bliss corpus from a LibriSpeech corpus folder using the speaker information in addition
+
+    Outputs a single bliss .xml.gz file
+    """
+
+    def __init__(self, corpus_folder, speaker_metadata):
+        """
+        Generate a bliss xml from  the LibriSpeech corpus.
+
+        :param Path corpus_folder: Path to a LibriSpeech corpus folder
+        :param Path speaker_metadata: Path to SPEAKER.TXT file from the MetdataJob (out_speakers)
+        """
+        self.corpus_folder = corpus_folder
+        self.speaker_metadata = speaker_metadata
+
+        self.out_corpus = self.output_path("corpus.xml.gz")
+
+        self._speakers = {}  # dict(key: id, value: [sex, subset, min, name]
+        self._transcripts = []  # [dict(name, chapter, segment, orth, path)]
+
+    def tasks(self):
+        yield Task('run', mini_task=True)
+
+    def run(self):
+        self.get_speakers()
+        self.get_transcript()
+
+        c = corpus.Corpus()
+        c.name = os.path.basename(self.corpus_folder)
+
+        for speaker_id, speaker_info in sorted(self._speakers.items()):
+            speaker = corpus.Speaker()
+            speaker.name = speaker_id
+            speaker.attribs['gender'] = speaker_info[0].lower()
+            c.add_speaker(speaker)
+
+        for transcript in self._transcripts:
+            name = "{0}-{1}-{2:04d}".format(
+                transcript['speaker_id'],
+                transcript['chapter'],
+                transcript['segment']
+            )
+            recording = corpus.Recording()
+            recording.name = name
+            recording.speaker_name = transcript['speaker_id']
+            recording.audio = "{}/{}.flac".format(transcript['path'], name)
+
+            segment = corpus.Segment()
+            segment.name = name
+            segment.start = 0
+            segment.end = "inf"
+            segment.orth = transcript['orth'].strip()
+
+            recording.segments.append(segment)
+            c.recordings.append(recording)
+
+        c.dump(tk.uncached_path(self.out_corpus))
+
+    def get_speakers(self):
+        """
+        Extract the speakers from the SPEAKERS.TXT file
+        """
+        with open(tk.uncached_path(self.speaker_metadata), 'r') as speakersfile:
+            for line in speakersfile:
+                if line[0] != ';':
+                    procline = list(map(str.strip, line.split('|')))
+                    self._speakers[int(procline[0])] = [
+                        procline[1],
+                        procline[2],
+                        float(procline[3]),
+                        procline[4]
+                    ]
+
+    def get_transcript(self):
+        """
+        Traverse the folder structure and search for the *.trans.txt files and read the content
+        """
+        for dirpath, dirs, files in os.walk(tk.uncached_path(self.corpus_folder), followlinks=True):
+            for file in files:
+                if file.endswith('.trans.txt'):
+                    with open(os.path.join(dirpath, file), 'r') as transcription:
+                        for line in transcription:
+                            line_t = list(map(str.strip, line.split(' ', 1)))
+                            orth = line_t[1]
+                            procline = line_t[0].split('-')
+                            transcript = {'speaker_id': int(procline[0]),
+                                          'chapter': int(procline[1]),
+                                          'segment': int(procline[2]),
+                                          'orth': orth,
+                                          'path': dirpath}
+                            self._transcripts.append(transcript)
