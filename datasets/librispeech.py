@@ -1,4 +1,8 @@
-__all__ = ["DownloadLibriSpeechCorpusJob", "DownloadLibriSpeechMetadataJob"]
+__all__ = [
+    "DownloadLibriSpeechCorpusJob",
+    "DownloadLibriSpeechMetadataJob",
+    "LibriSpeechCreateBlissJob",
+]
 
 import os
 import subprocess
@@ -25,19 +29,18 @@ class DownloadLibriSpeechCorpusJob(Job):
 
     def __init__(self, corpus_key):
         """
-
         :param str corpus_key: corpus identifier, e.g. "train-clean-100"
         """
         self.corpus_key = corpus_key
 
         assert corpus_key in [
-            'dev-clean',
-            'dev-other',
-            'test-clean',
-            'test-other',
-            'train-clean-100',
-            'train-clean-360',
-            'train-other-500'
+            "dev-clean",
+            "dev-other",
+            "test-clean",
+            "test-other",
+            "train-clean-100",
+            "train-clean-360",
+            "train-other-500",
         ]
 
         # this is just needed to have the extraction target available
@@ -46,24 +49,39 @@ class DownloadLibriSpeechCorpusJob(Job):
         self.out_corpus_folder = self.output_path("LibriSpeech/%s" % self.corpus_key)
 
     def tasks(self):
-        yield Task('run', mini_task=True)
+        yield Task("run", mini_task=True)
 
     def run(self):
-        subprocess.check_call(["wget", "https://www.openslr.org/resources/12/md5sum.txt"])
-        subprocess.check_call(["wget", "https://www.openslr.org/resources/12/%s.tar.gz" % self.corpus_key])
+        subprocess.check_call(
+            ["wget", "https://www.openslr.org/resources/12/md5sum.txt"]
+        )
+        subprocess.check_call(
+            ["wget", "https://www.openslr.org/resources/12/%s.tar.gz" % self.corpus_key]
+        )
 
-        with open("md5sum.txt", "rt") as md5_in:
-            with open("md5sum-%s.txt" % self.corpus_key, "wt") as md5_out:
-                for line in md5_in:
-                    split = line.strip().split(" ")
-                    if split[-1].split(".")[0] == self.corpus_key:
-                        md5_out.write(line)
-                        break
+        with open("md5sum.txt", "rt") as md5_in, open(
+            "md5sum-%s.txt" % self.corpus_key, "wt"
+        ) as md5_out:
+            for line in md5_in:
+                split = line.strip().split(" ")
+                if split[-1].split(".")[0] == self.corpus_key:
+                    md5_out.write(line)
+                    break
 
-        checksum_result = subprocess.check_output(["md5sum", "-c", "md5sum-%s.txt" % self.corpus_key]) #  type: bytes
+        checksum_result = subprocess.check_output(
+            ["md5sum", "-c", "md5sum-%s.txt" % self.corpus_key]
+        )  #  type: bytes
         assert b"OK" in checksum_result
 
-        subprocess.check_call(["tar", "-xf", "%s.tar.gz" % self.corpus_key, "-C", tk.uncached_path(self._out_parent_folder)])
+        subprocess.check_call(
+            [
+                "tar",
+                "-xf",
+                "%s.tar.gz" % self.corpus_key,
+                "-C",
+                self._out_parent_folder.get_path(),
+            ]
+        )
 
 
 class DownloadLibriSpeechMetadataJob(DownloadLibriSpeechCorpusJob):
@@ -108,7 +126,7 @@ class LibriSpeechCreateBlissJob(Job):
         self._transcripts = []  # [dict(name, chapter, segment, orth, path)]
 
     def tasks(self):
-        yield Task('run', mini_task=True)
+        yield Task("run", mini_task=True)
 
     def run(self):
         self.get_speakers()
@@ -120,61 +138,63 @@ class LibriSpeechCreateBlissJob(Job):
         for speaker_id, speaker_info in sorted(self._speakers.items()):
             speaker = corpus.Speaker()
             speaker.name = speaker_id
-            speaker.attribs['gender'] = speaker_info[0].lower()
+            speaker.attribs["gender"] = speaker_info[0].lower()
             c.add_speaker(speaker)
 
         for transcript in self._transcripts:
             name = "{0}-{1}-{2:04d}".format(
-                transcript['speaker_id'],
-                transcript['chapter'],
-                transcript['segment']
+                transcript["speaker_id"], transcript["chapter"], transcript["segment"]
             )
             recording = corpus.Recording()
             recording.name = name
-            recording.speaker_name = transcript['speaker_id']
-            recording.audio = "{}/{}.flac".format(transcript['path'], name)
+            recording.speaker_name = transcript["speaker_id"]
+            recording.audio = "{}/{}.flac".format(transcript["path"], name)
 
             segment = corpus.Segment()
             segment.name = name
             segment.start = 0
             segment.end = "inf"
-            segment.orth = transcript['orth'].strip()
+            segment.orth = transcript["orth"].strip()
 
             recording.segments.append(segment)
             c.recordings.append(recording)
 
-        c.dump(tk.uncached_path(self.out_corpus))
+        c.dump(self.out_corpus.get_path())
 
     def get_speakers(self):
         """
         Extract the speakers from the SPEAKERS.TXT file
         """
-        with open(tk.uncached_path(self.speaker_metadata), 'r') as speakersfile:
+        with open(tk.uncached_path(self.speaker_metadata), "r") as speakersfile:
             for line in speakersfile:
-                if line[0] != ';':
-                    procline = list(map(str.strip, line.split('|')))
+                if line[0] != ";":
+                    procline = list(map(str.strip, line.split("|")))
                     self._speakers[int(procline[0])] = [
                         procline[1],
                         procline[2],
                         float(procline[3]),
-                        procline[4]
+                        procline[4],
                     ]
 
     def get_transcript(self):
         """
         Traverse the folder structure and search for the *.trans.txt files and read the content
         """
-        for dirpath, dirs, files in os.walk(tk.uncached_path(self.corpus_folder), followlinks=True):
+        for dirpath, dirs, files in os.walk(
+            tk.uncached_path(self.corpus_folder), followlinks=True
+        ):
             for file in files:
-                if file.endswith('.trans.txt'):
-                    with open(os.path.join(dirpath, file), 'r') as transcription:
+                if file.endswith(".trans.txt"):
+                    with open(os.path.join(dirpath, file), "r") as transcription:
                         for line in transcription:
-                            line_t = list(map(str.strip, line.split(' ', 1)))
+                            line_t = list(map(str.strip, line.split(" ", 1)))
                             orth = line_t[1]
-                            procline = line_t[0].split('-')
-                            transcript = {'speaker_id': int(procline[0]),
-                                          'chapter': int(procline[1]),
-                                          'segment': int(procline[2]),
-                                          'orth': orth,
-                                          'path': dirpath}
+                            procline = line_t[0].split("-")
+                            transcript = {
+                                "speaker_id": int(procline[0]),
+                                "chapter": int(procline[1]),
+                                "segment": int(procline[2]),
+                                "orth": orth,
+                                "path": dirpath,
+                            }
                             self._transcripts.append(transcript)
