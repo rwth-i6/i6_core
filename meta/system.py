@@ -373,7 +373,7 @@ class System:
             crp=self.crp[corpus],
             feature_flow=select_element(self.feature_flows, corpus, flow),
             feature_scorer=select_element(self.feature_scorers, corpus, feature_scorer),
-            **kwargs
+            **kwargs,
         )
 
         self.jobs[corpus]["alignment_%s" % name] = j
@@ -391,7 +391,7 @@ class System:
             old_mixtures=select_element(self.mixtures, corpus, old_mixtures),
             feature_flow=self.feature_flows[corpus][flow],
             alignment=select_element(self.alignments, corpus, alignment),
-            **kwargs
+            **kwargs,
         )
         j.add_alias("{}{}".format(prefix, name))
 
@@ -414,7 +414,7 @@ class System:
             self.crp[corpus],
             sequence,
             select_element(self.feature_flows, corpus, flow),
-            **kwargs
+            **kwargs,
         )
 
         self.mixtures[corpus][name] = j.selected_mixtures
@@ -433,7 +433,7 @@ class System:
         lm_scale,
         pruning_params,
         parallelize_conversion=False,
-        **kwargs
+        **kwargs,
     ):
         pruning_config = recog.pruning_config(**pruning_params)
         pron_scale_config = rasr.RasrConfig()
@@ -446,7 +446,7 @@ class System:
             feature_scorer=select_element(self.feature_scorers, corpus, feature_scorer),
             recognizer_config=pron_scale_config,
             recognizer_config2=pruning_config,
-            **kwargs
+            **kwargs,
         )
         rec.set_vis_name("WCTS %s" % name)
         name = "wcts_%s" % name
@@ -481,7 +481,7 @@ class System:
         parallelize_conversion=False,
         lattice_to_ctm_kwargs=None,
         prefix="",
-        **kwargs
+        **kwargs,
     ):
         if lattice_to_ctm_kwargs is None:
             lattice_to_ctm_kwargs = {}
@@ -495,7 +495,7 @@ class System:
             feature_flow=select_element(self.feature_flows, corpus, flow),
             feature_scorer=select_element(self.feature_scorers, corpus, feature_scorer),
             model_combination_config=model_combination_config,
-            **kwargs
+            **kwargs,
         )
         rec.set_vis_name("Recog %s%s" % (prefix, name))
         rec.add_alias("%srecog_%s" % (prefix, name))
@@ -505,7 +505,7 @@ class System:
             crp=self.crp[corpus],
             lattice_cache=rec.lattice_bundle,
             parallelize=parallelize_conversion,
-            **lattice_to_ctm_kwargs
+            **lattice_to_ctm_kwargs,
         )
         self.ctm_files[corpus]["recog_%s" % name] = lat2ctm.ctm_file
 
@@ -527,7 +527,7 @@ class System:
             scorer_cls=self.scorers[corpus],
             scorer_kwargs=self.scorer_args[corpus],
             scorer_hyp_param_name=self.scorer_hyp_arg[corpus],
-            **kwargs
+            **kwargs,
         )
         self.jobs[corpus]["optimize_%s" % name] = j
         tk.register_output("%soptimize_%s.log" % (prefix, name), j.log_file)
@@ -543,7 +543,7 @@ class System:
         parallelize_conversion=False,
         lattice_to_ctm_kwargs=None,
         prefix="",
-        **kwargs
+        **kwargs,
     ):
         self.recog(
             name,
@@ -555,7 +555,7 @@ class System:
             parallelize_conversion,
             lattice_to_ctm_kwargs,
             prefix,
-            **kwargs
+            **kwargs,
         )
 
         recog_name = "recog_%s" % name
@@ -582,7 +582,7 @@ class System:
             parallelize_conversion,
             lattice_to_ctm_kwargs,
             prefix,
-            **kwargs
+            **kwargs,
         )
 
     def train_nn(
@@ -595,7 +595,7 @@ class System:
         alignment,
         returnn_config,
         num_classes,
-        **kwargs
+        **kwargs,
     ):
         assert isinstance(
             returnn_config, returnn.ReturnnConfig
@@ -607,7 +607,7 @@ class System:
             alignment=select_element(self.alignments, feature_corpus, alignment),
             returnn_config=returnn_config,
             num_classes=self.functor_value(num_classes),
-            **kwargs
+            **kwargs,
         )
         self.jobs[feature_corpus]["train_nn_%s" % name] = j
         self.nn_models[feature_corpus][name] = j.out_models
@@ -623,7 +623,7 @@ class System:
         model,
         prior_scale,
         prior_file=None,
-        **kwargs
+        **kwargs,
     ):
         scorer = rasr.ReturnnScorer(
             feature_dimension=self.functor_value(feature_dimension),
@@ -632,7 +632,7 @@ class System:
             model=select_element(self.nn_models, corpus, model),
             prior_scale=prior_scale,
             prior_file=prior_file,
-            **kwargs
+            **kwargs,
         )
         self.feature_scorers[corpus][name] = scorer
 

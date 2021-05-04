@@ -252,4 +252,3 @@ def create_executable(filename, command):
         | stat.S_IXGRP
         | stat.S_IXOTH,
     )
-

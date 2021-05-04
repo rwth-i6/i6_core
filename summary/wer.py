@@ -177,7 +177,7 @@ class ScliteSummaryJob(PrintTableJob):
         col_names=None,
         row_names=None,
         file_name="sclite.dtl",
-        **kwargs
+        **kwargs,
     ):
         super().__init__(data, header, col_names, row_names, **kwargs)
         self.file_name = file_name
@@ -308,7 +308,7 @@ class KaldiSummaryJob(PrintTableJob):
         col_names=None,
         row_names=None,
         file_name="wer.txt",
-        **kwargs
+        **kwargs,
     ):
         super().__init__(data, header, col_names, row_names, **kwargs)
         self.file_name = file_name

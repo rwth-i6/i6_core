@@ -111,7 +111,7 @@ class NumeratorLatticeJob(rasr.RasrCommand, Job):
         alignment_options,
         extra_config,
         extra_post_config,
-        **kwargs
+        **kwargs,
     ):
         alignment_flow = cls.create_flow(feature_flow)
 
@@ -292,7 +292,7 @@ class RawDenominatorLatticeJob(rasr.RasrCommand, Job):
         model_combination_post_config,
         extra_config,
         extra_post_config,
-        **kwargs
+        **kwargs,
     ):
 
         lm_gc = recognition.AdvancedTreeSearchLmImageAndGlobalCacheJob(
@@ -504,7 +504,7 @@ class DenominatorLatticeJob(rasr.RasrCommand, Job):
         search_options,
         extra_config,
         extra_post_config,
-        **kwargs
+        **kwargs,
     ):
 
         search_opts = {"pruning-threshold": 15, "pruning-threshold-relative": True}
@@ -689,7 +689,7 @@ class AccuracyJob(rasr.RasrCommand, Job):
         short_pauses,
         extra_config,
         extra_post_config,
-        **kwargs
+        **kwargs,
     ):
 
         alignment_flow = cls.create_flow(feature_flow)
@@ -841,7 +841,7 @@ class PhoneAccuracyJob(AccuracyJob, Job):
         short_pauses,
         extra_config,
         extra_post_config,
-        **kwargs
+        **kwargs,
     ):
 
         config, post_config = super().create_config(
@@ -854,7 +854,7 @@ class PhoneAccuracyJob(AccuracyJob, Job):
             short_pauses,
             extra_config,
             extra_post_config,
-            **kwargs
+            **kwargs,
         )
 
         config.lattice_processor.rescoring.accuracy.distance_type = (
@@ -919,7 +919,7 @@ class StateAccuracyJob(AccuracyJob, Job):
         short_pauses,
         extra_config,
         extra_post_config,
-        **kwargs
+        **kwargs,
     ):
 
         config, post_config = super().create_config(
@@ -932,7 +932,7 @@ class StateAccuracyJob(AccuracyJob, Job):
             short_pauses,
             extra_config,
             extra_post_config,
-            **kwargs
+            **kwargs,
         )
 
         config.lattice_processor.rescoring.accuracy.distance_type = (

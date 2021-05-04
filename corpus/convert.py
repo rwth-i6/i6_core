@@ -126,7 +126,9 @@ class CorpusToTxtJob(Job):
 
         if self.segment_file:
             with uopen(tk.uncached_path(self.segment_file), "rt") as f:
-                segments_whitelist = set(l.strip() for l in f.readlines() if len(l.strip()) > 0)
+                segments_whitelist = set(
+                    l.strip() for l in f.readlines() if len(l.strip()) > 0
+                )
         else:
             segments_whitelist = None
 
@@ -163,14 +165,18 @@ class CorpusReplaceOrthFromTxtJob(Job):
 
         if self.segment_file:
             with uopen(tk.uncached_path(self.segment_file), "rt") as f:
-                segments_whitelist = set(l.strip() for l in f.readlines() if len(l.strip()) > 0)
+                segments_whitelist = set(
+                    l.strip() for l in f.readlines() if len(l.strip()) > 0
+                )
             segment_iterator = filter(lambda s: s in segments_whitelist, c.segments())
         else:
             segment_iterator = c.segments()
 
         with uopen(tk.uncached_path(self.text_file), "rt") as f:
             for segment, line in itertools.zip_longest(segment_iterator, f):
-                assert segment is not None, "there were more text file lines than segments"
+                assert (
+                    segment is not None
+                ), "there were more text file lines than segments"
                 assert line is not None, "there were less text file lines than segments"
                 assert len(line) > 0
                 segment.orth = line.strip()

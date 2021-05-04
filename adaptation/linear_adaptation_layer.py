@@ -229,7 +229,7 @@ class MetaLinearAdaptationJob(Job):
                 train_crp=train_corpus,
                 dev_crp=dev_corpus,
                 returnn_config=returnn.ReturnnConfig(self.adapt_config),
-                **self.returnn_training_args
+                **self.returnn_training_args,
             )
             self.jobs["train_{}".format(key)] = j
             self.models[key] = j.out_models

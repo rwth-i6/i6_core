@@ -74,7 +74,7 @@ class ReturnnConfig:
         python_prolog=None,
         python_prolog_hash=None,
         python_epilog="",
-        python_epilog_hash=None
+        python_epilog_hash=None,
     ):
         """
 

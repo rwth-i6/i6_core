@@ -125,7 +125,7 @@ class ScoreFeaturesWithWarpingFactorsJob(rasr.RasrCommand, Job):
         filterbank_node,
         extra_config,
         extra_post_config,
-        **kwargs
+        **kwargs,
     ):
         feature_flow = cls.create_flow(feature_flow, alignment, filterbank_node)
 
@@ -296,7 +296,7 @@ class EstimateWarpingMixturesJob(mm.MergeMixturesJob):
         extra_warping_args,
         extra_config,
         extra_post_config,
-        **kwargs
+        **kwargs,
     ):
         label_flow = cls.create_flow(feature_flow, warping_map, extra_warping_args)
 

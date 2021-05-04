@@ -183,7 +183,7 @@ class EstimateScatterMatricesJob(rasr.RasrCommand, Job):
         alignment_flow,
         extra_config_accumulate,
         extra_post_config_accumulate,
-        **kwargs
+        **kwargs,
     ):
         config, post_config = rasr.build_config_from_mapping(
             crp,

@@ -269,7 +269,7 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
         model_combination_post_config,
         extra_config,
         extra_post_config,
-        **kwargs
+        **kwargs,
     ):
         lm_gc = AdvancedTreeSearchLmImageAndGlobalCacheJob(
             crp, feature_scorer, extra_config, extra_post_config
@@ -517,7 +517,7 @@ class AdvancedTreeSearchWithRescoringJob(AdvancedTreeSearchJob):
         pruning_threshold,
         history_limit,
         rescoring_lookahead_scale,
-        **kwargs
+        **kwargs,
     ):
         config, post_config, lm_gc_job = super().create_config(**kwargs)
 
@@ -655,7 +655,7 @@ class BidirectionalAdvancedTreeSearchJob(rasr.RasrCommand, Job):
         model_combination_post_config,
         extra_config,
         extra_post_config,
-        **kwargs
+        **kwargs,
     ):
         lm_gc = AdvancedTreeSearchLmImageAndGlobalCacheJob(
             crp, feature_scorer, extra_config, extra_post_config

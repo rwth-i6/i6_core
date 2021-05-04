@@ -1,4 +1,10 @@
-__all__ = ["AnalogJob", "ScliteJob", "Hub5ScoreJob", "QuaeroScorerJob", "KaldiScorerJob"]
+__all__ = [
+    "AnalogJob",
+    "ScliteJob",
+    "Hub5ScoreJob",
+    "QuaeroScorerJob",
+    "KaldiScorerJob",
+]
 
 import os
 import shutil

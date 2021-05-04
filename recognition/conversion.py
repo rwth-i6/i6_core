@@ -21,7 +21,7 @@ class LatticeToCtmJob(rasr.RasrCommand, Job):
         fill_empty_segments=False,
         best_path_algo=None,  # defaults to dijkstra, which does not work on graphs with negative edge-weights
         extra_config=None,
-        extra_post_config=None
+        extra_post_config=None,
     ):
         self.set_vis_name("Convert Lattice to CTM file")
 
@@ -83,7 +83,7 @@ class LatticeToCtmJob(rasr.RasrCommand, Job):
         best_path_algo,
         extra_config,
         extra_post_config,
-        **kwargs
+        **kwargs,
     ):
         config, post_config = rasr.build_config_from_mapping(
             crp,
