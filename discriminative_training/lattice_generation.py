@@ -580,7 +580,7 @@ class DenominatorLatticeJob(rasr.RasrCommand, Job):
 
 
 class AccuracyJob(rasr.RasrCommand, Job):
-    """ This class is just a base class. Use StateAccuracyJob or PhoneAccuracyJob instead. """
+    """This class is just a base class. Use StateAccuracyJob or PhoneAccuracyJob instead."""
 
     def __init__(
         self,
@@ -813,7 +813,7 @@ class PhoneAccuracyJob(AccuracyJob, Job):
         extra_config=None,
         extra_post_config=None,
     ):
-        """ see AccuracyJob for list of kwargs"""
+        """see AccuracyJob for list of kwargs"""
         super().__init__(
             crp,
             feature_flow,
@@ -891,7 +891,7 @@ class StateAccuracyJob(AccuracyJob, Job):
         extra_config=None,
         extra_post_config=None,
     ):
-        """ see AccuracyJob for list of kwargs"""
+        """see AccuracyJob for list of kwargs"""
         super().__init__(
             crp,
             feature_flow,

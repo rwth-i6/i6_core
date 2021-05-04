@@ -111,7 +111,7 @@ def add_suffix(string, suffix):
 
 
 def partition_into_tree(l, m):
-    """ Transforms the list l into a nested list where each sub-list has at most length m + 1"""
+    """Transforms the list l into a nested list where each sub-list has at most length m + 1"""
     nextPartition = partition = l
     while len(nextPartition) > 1:
         partition = nextPartition
