@@ -1,0 +1,6 @@
+black==21.4b2
+h5py
+matplotlib
+numpy
+soundfile
+
