@@ -75,7 +75,7 @@ class ReturnnTrainingJob(Job):
         cpu_rqmt=2,
         horovod_num_processes=None,
         returnn_python_exe=None,
-        returnn_root=None
+        returnn_root=None,
     ):
         """
 
@@ -332,7 +332,7 @@ class ReturnnTrainingJob(Job):
         num_epochs,
         save_interval,
         horovod_num_processes,
-        **kwargs
+        **kwargs,
     ):
         assert device in ["gpu", "cpu"]
         assert "network" in returnn_config.config

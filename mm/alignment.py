@@ -143,7 +143,7 @@ class AlignmentJob(rasr.RasrCommand, Job):
         word_boundaries,
         extra_config,
         extra_post_config,
-        **kwargs
+        **kwargs,
     ):
         """
         :param recipe.rasr.crp.CommonRasrParameters crp:

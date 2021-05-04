@@ -94,7 +94,7 @@ class AccumulateCartStatisticsJob(rasr.RasrCommand, Job):
         alignment_flow,
         extra_config_accumulate,
         extra_post_config_accumulate,
-        **kwargs
+        **kwargs,
     ):
         config, post_config = rasr.build_config_from_mapping(
             crp,
@@ -220,7 +220,7 @@ class EstimateCartJob(rasr.RasrCommand, Job):
         generate_cluster_file,
         extra_config,
         extra_post_config,
-        **kwargs
+        **kwargs,
     ):
         if not type(questions) == str and not tk.is_path(questions):
             questions_path = "questions.xml"

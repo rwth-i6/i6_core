@@ -28,7 +28,7 @@ class ConfidenceBasedAlignmentJob(rasr.RasrCommand, Job):
         use_gpu=False,
         rtf=0.5,
         extra_config=None,
-        extra_post_config=None
+        extra_post_config=None,
     ):
         assert isinstance(feature_scorer, rasr.FeatureScorer)
 
@@ -114,7 +114,7 @@ class ConfidenceBasedAlignmentJob(rasr.RasrCommand, Job):
         ref_alignment_path,
         extra_config,
         extra_post_config,
-        **kwargs
+        **kwargs,
     ):
         alignment_flow = cls.create_flow(
             feature_flow,
@@ -192,7 +192,7 @@ class ConfidenceBasedAlignmentJob(rasr.RasrCommand, Job):
         confidence_threshold,
         weight_scale,
         ref_alignment_path,
-        **kwargs
+        **kwargs,
     ):
         return confidence_based_alignment_flow(
             feature_flow,

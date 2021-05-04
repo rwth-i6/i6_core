@@ -32,7 +32,7 @@ class ToneJob(rasr.RasrCommand, Job):
         extra_dump_config=None,
         extra_dump_post_config=None,
         extra_convert_config=None,
-        extra_convert_post_config=None
+        extra_convert_post_config=None,
     ):
         kwargs = locals()
         del kwargs["self"]
@@ -286,7 +286,7 @@ class ToneJob(rasr.RasrCommand, Job):
         timestamp_port,
         extra_convert_config,
         extra_convert_post_config,
-        **kwargs
+        **kwargs,
     ):
         convert_flow = cls.create_convert_flow(crp, timestamp_flow, timestamp_port)
 

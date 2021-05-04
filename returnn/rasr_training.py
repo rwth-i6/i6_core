@@ -19,6 +19,7 @@ class ReturnnRasrTrainingJob(ReturnnTrainingJob):
     Train a RETURNN model using rnn.py that uses ExternSpringDataset, and needs
     to write RASR config and flow files.
     """
+
     def __init__(
         self,
         train_crp,
@@ -48,7 +49,7 @@ class ReturnnRasrTrainingJob(ReturnnTrainingJob):
         extra_rasr_post_config=None,
         additional_rasr_config_files=None,
         additional_rasr_post_config_files=None,
-        use_python_control=True
+        use_python_control=True,
     ):
         """
 
@@ -180,7 +181,7 @@ class ReturnnRasrTrainingJob(ReturnnTrainingJob):
         extra_rasr_config,
         extra_rasr_post_config,
         use_python_control,
-        **kwargs
+        **kwargs,
     ):
         config, post_config = rasr.build_config_from_mapping(
             crp,

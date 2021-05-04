@@ -65,7 +65,7 @@ def segment_clustering_flow(
     alpha=-1,
     amalgamation=0,
     infile=None,
-    **kwargs
+    **kwargs,
 ):
     """
     :param feature_flow: Flownetwork of features used for clustering

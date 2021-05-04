@@ -37,7 +37,7 @@ class BayesianInformationClusteringJob(rasr.RasrCommand, Job):
         mem=None,
         extra_config=None,
         extra_post_config=None,
-        **kwargs
+        **kwargs,
     ):
         self.set_vis_name("Extract %s" % job_name)
 

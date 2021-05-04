@@ -249,7 +249,7 @@ class LinearAlignmentJob(MergeMixturesJob):
         save_alignment,
         extra_config,
         extra_post_config,
-        **kwargs
+        **kwargs,
     ):
         segmentation_flow = cls.create_flow(feature_energy_flow, save_alignment)
         mapping = {
@@ -436,7 +436,7 @@ class EstimateMixturesJob(MergeMixturesJob):
         split_first,
         extra_config,
         extra_post_config,
-        **kwargs
+        **kwargs,
     ):
         alignment_flow = cls.create_flow(feature_flow, alignment)
         config, post_config = rasr.build_config_from_mapping(

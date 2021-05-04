@@ -78,7 +78,9 @@ class ViterbiTdpTuningJob(Job):
             crp=self.crp, feature_flow=self.flow, feature_scorer=self.scorer
         )
         self.add_input(align.alignment_bundle)
-        tdp = TdpFromAlignmentJob(crp=self.crp, alignment=align, allophones=self.allophone)
+        tdp = TdpFromAlignmentJob(
+            crp=self.crp, alignment=align, allophones=self.allophone
+        )
         self.add_input(tdp.transition_prob)
         self.last_tdp = tdp
         self.cur_iter += 1

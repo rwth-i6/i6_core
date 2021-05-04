@@ -261,7 +261,7 @@ class EstimateUniversalBackgroundMixturesJob(mm.MergeMixturesJob):
         extra_warping_args,
         extra_config,
         extra_post_config,
-        **kwargs
+        **kwargs,
     ):
         label_flow = cls.create_flow(feature_flow, warping_map, extra_warping_args)
 

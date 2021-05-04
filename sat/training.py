@@ -107,7 +107,7 @@ class EstimateCMLLRJob(rasr.RasrCommand, Job):
         optimization_criterion,
         extra_config,
         extra_post_config,
-        **kwargs
+        **kwargs,
     ):
         feature_flow = cls.create_flow(feature_flow, alignment)
 

@@ -142,7 +142,7 @@ class ScoreFeaturesJob(rasr.RasrCommand, Job):
         feature_scorer,
         extra_config,
         extra_post_config,
-        **kwargs
+        **kwargs,
     ):
         config, post_config = rasr.build_config_from_mapping(
             crp, {"corpus": "acoustic-model-trainer.corpus"}, parallelize=True
