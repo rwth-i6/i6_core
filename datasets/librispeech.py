@@ -1,10 +1,11 @@
 __all__ = [
     "DownloadLibriSpeechCorpusJob",
     "DownloadLibriSpeechMetadataJob",
-    "LibriSpeechCreateBlissJob",
+    "LibriSpeechCreateBlissCorpusJob",
 ]
 
 import os
+import shutil
 import subprocess
 
 from sisyphus import *
@@ -43,9 +44,7 @@ class DownloadLibriSpeechCorpusJob(Job):
             "train-other-500",
         ]
 
-        # this is just needed to have the extraction target available
-        self._out_parent_folder = self.output_path(".", directory=True)
-
+        self._out_archive_folder = self.output_path("LibriSpeech")
         self.out_corpus_folder = self.output_path("LibriSpeech/%s" % self.corpus_key)
 
     def tasks(self):
@@ -68,20 +67,20 @@ class DownloadLibriSpeechCorpusJob(Job):
                     md5_out.write(line)
                     break
 
-        checksum_result = subprocess.check_output(
-            ["md5sum", "-c", "md5sum-%s.txt" % self.corpus_key]
-        )  #  type: bytes
-        assert b"OK" in checksum_result
-
+        subprocess.check_call(
+            ["md5sum", "--status", "-c", "md5sum-%s.txt" % self.corpus_key]
+        )
         subprocess.check_call(
             [
                 "tar",
                 "-xf",
                 "%s.tar.gz" % self.corpus_key,
                 "-C",
-                self._out_parent_folder.get_path(),
+                ".",
             ]
         )
+        shutil.move("LibriSpeech", self._out_archive_folder.get_path())
+        os.unlink("%s.tar.gz" % self.corpus_key)
 
 
 class DownloadLibriSpeechMetadataJob(DownloadLibriSpeechCorpusJob):
@@ -95,15 +94,14 @@ class DownloadLibriSpeechMetadataJob(DownloadLibriSpeechCorpusJob):
     def __init__(self):
         self.corpus_key = "raw-metadata"
 
-        # this is just needed to have the extraction target available
-        self._out_parent_folder = self.output_path(".", directory=True)
+        self._out_archive_folder = self.output_path("LibriSpeech")
 
         self.out_speakers = self.output_path("LibriSpeech/SPEAKERS.TXT")
         self.out_chapters = self.output_path("LibriSpeech/CHAPTERS.TXT")
         self.out_books = self.output_path("LibriSpeech/BOOKS.TXT")
 
 
-class LibriSpeechCreateBlissJob(Job):
+class LibriSpeechCreateBlissCorpusJob(Job):
     """
     Creates a Bliss corpus from a LibriSpeech corpus folder using the speaker information in addition
 
@@ -112,8 +110,6 @@ class LibriSpeechCreateBlissJob(Job):
 
     def __init__(self, corpus_folder, speaker_metadata):
         """
-        Generate a bliss xml from  the LibriSpeech corpus.
-
         :param Path corpus_folder: Path to a LibriSpeech corpus folder
         :param Path speaker_metadata: Path to SPEAKER.TXT file from the MetdataJob (out_speakers)
         """
@@ -129,11 +125,11 @@ class LibriSpeechCreateBlissJob(Job):
         yield Task("run", mini_task=True)
 
     def run(self):
-        self.get_speakers()
-        self.get_transcript()
+        self._get_speakers()
+        self._get_transcripts()
 
         c = corpus.Corpus()
-        c.name = os.path.basename(self.corpus_folder)
+        c.name = os.path.basename(tk.uncached_path(self.corpus_folder))
 
         for speaker_id, speaker_info in sorted(self._speakers.items()):
             speaker = corpus.Speaker()
@@ -153,7 +149,7 @@ class LibriSpeechCreateBlissJob(Job):
             segment = corpus.Segment()
             segment.name = name
             segment.start = 0
-            segment.end = "inf"
+            segment.end = float("inf")
             segment.orth = transcript["orth"].strip()
 
             recording.segments.append(segment)
@@ -161,22 +157,23 @@ class LibriSpeechCreateBlissJob(Job):
 
         c.dump(self.out_corpus.get_path())
 
-    def get_speakers(self):
+    def _get_speakers(self):
         """
         Extract the speakers from the SPEAKERS.TXT file
         """
         with open(tk.uncached_path(self.speaker_metadata), "r") as speakersfile:
             for line in speakersfile:
-                if line[0] != ";":
-                    procline = list(map(str.strip, line.split("|")))
-                    self._speakers[int(procline[0])] = [
-                        procline[1],
-                        procline[2],
-                        float(procline[3]),
-                        procline[4],
-                    ]
+                if line[0] == ";":
+                    continue
+                procline = list(map(str.strip, line.split("|")))
+                self._speakers[int(procline[0])] = [
+                    procline[1],
+                    procline[2],
+                    float(procline[3]),
+                    procline[4],
+                ]
 
-    def get_transcript(self):
+    def _get_transcripts(self):
         """
         Traverse the folder structure and search for the *.trans.txt files and read the content
         """
@@ -184,17 +181,18 @@ class LibriSpeechCreateBlissJob(Job):
             tk.uncached_path(self.corpus_folder), followlinks=True
         ):
             for file in files:
-                if file.endswith(".trans.txt"):
-                    with open(os.path.join(dirpath, file), "r") as transcription:
-                        for line in transcription:
-                            line_t = list(map(str.strip, line.split(" ", 1)))
-                            orth = line_t[1]
-                            procline = line_t[0].split("-")
-                            transcript = {
-                                "speaker_id": int(procline[0]),
-                                "chapter": int(procline[1]),
-                                "segment": int(procline[2]),
-                                "orth": orth,
-                                "path": dirpath,
-                            }
-                            self._transcripts.append(transcript)
+                if not file.endswith(".trans.txt"):
+                    continue
+                with open(os.path.join(dirpath, file), "r") as transcription:
+                    for line in transcription:
+                        line_t = list(map(str.strip, line.split(" ", 1)))
+                        orth = line_t[1]
+                        procline = line_t[0].split("-")
+                        transcript = {
+                            "speaker_id": int(procline[0]),
+                            "chapter": int(procline[1]),
+                            "segment": int(procline[2]),
+                            "orth": orth,
+                            "path": dirpath,
+                        }
+                        self._transcripts.append(transcript)
