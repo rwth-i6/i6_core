@@ -11,12 +11,13 @@ from recipe.i6_core.lib import corpus
 
 class BlissFfmpegJob(Job):
     """
-    Applies an FFMPEG audio filter to all recordings of a bliss corpus.
-    This Job is only intended as a super-class for specific
-    Job implementations that need to make use of FFMPEG.
+    Applies an FFMPEG audio filter to all recordigns of a bliss corpus.
+    This Job is extremely generic, as any valid audio option/filter string will work.
+    Please consider using more specific jobs that use this Job as super class,
+    see e.g. BlissChangeEncodingJob
 
     WARNING:
-        - This Job requires unique file names for the audio files
+        - This job assumes that file names of individual recordings are unique across the whole corpus.
         - Do not change the duration of the audio files when you have multiple segments per audio,
           as the segment information will be incorrect afterwards.
 
@@ -44,7 +45,7 @@ class BlissFfmpegJob(Job):
         - convert to mono `-ac 1`
 
         - selecting a specific audio channel:
-          `-filter_complex \"[0:a]channelsplit=channel_layout=stereo:channels=FR[right]\" -map \"[right]\"`
+          `-filter_complex [0:a]channelsplit=channel_layout=stereo:channels=FR[right] -map [right]`
           For a list of channels/layouts use `ffmpeg -layouts`
 
 
@@ -52,16 +53,16 @@ class BlissFfmpegJob(Job):
 
     For a list of available filters see: https://ffmpeg.org/ffmpeg-filters.html
 
-    `-af \"<filter_name>=<first_param>=<first_param_value>:<second_param>=<second_param_value>\"`
+    `-af <filter_name>=<first_param>=<first_param_value>:<second_param>=<second_param_value>`
 
 
     **Complex Filter Syntax**
 
-    `-filter_complex \"[<input>]<simple_syntax>[<output>];[<input>]<simple_syntax>[<output>];...\"`
+    `-filter_complex [<input>]<simple_syntax>[<output>];[<input>]<simple_syntax>[<output>];...`
 
     Inputs and outputs can be namend arbitrarily, but the default stream 0 audio can be accessed with [0:a]
 
-    The output stream that should be written into the audio is defined with `-map "[<output_stream>]"`
+    The output stream that should be written into the audio is defined with `-map [<output_stream>]`
 
     IMPORTANT! Do not forget to add and escape additional quotation marks correctly
     for parameters to`-af` or `-filter_complex`
@@ -88,12 +89,6 @@ class BlissFfmpegJob(Job):
                                  in which case the binary needs to be hashed
 
         """
-        if type(self) is BlissFfmpegJob:
-            raise Exception(
-                "Do not use the BlissFfmpegJob as is, "
-                "it is only intended to be a general class for specific applications"
-            )
-
         self.corpus_file = corpus_file
         self.ffmpeg_options = ffmpeg_options
         self.recover_duration = recover_duration
@@ -115,42 +110,22 @@ class BlissFfmpegJob(Job):
             yield Task("run_recover_duration", rqmt=recover_rqmt)
 
     def run(self):
-        in_corpus = corpus.Corpus()
-        out_corpus = corpus.Corpus()
-
-        in_corpus.load(tk.uncached_path(self.corpus_file))
-        out_corpus.name = in_corpus.name
-        out_corpus.speakers = in_corpus.speakers
-        out_corpus.default_speaker = in_corpus.default_speaker
-        out_corpus.speaker_name = in_corpus.speaker_name
+        c = corpus.Corpus()
+        c.load(tk.uncached_path(self.corpus_file))
 
         # store index of last segment
-        for r in in_corpus.recordings:
-            nr = corpus.Recording()
-            nr.name = r.name
-            nr.segments = r.segments
-            nr.speaker_name = r.speaker_name
-            nr.speakers = r.speakers
-            nr.default_speaker = r.default_speaker
-
-            audio_name = r.audio.split("/")[-1]
-
-            if self.output_format is not None:
-                name, ext = os.path.splitext(audio_name)
-                audio_name = name + "." + self.output_format
-
-            nr.audio = os.path.join(tk.uncached_path(self.out_audio_folder), audio_name)
-            out_corpus.add_recording(nr)
+        for r in c.recordings:
+            audio_filename = self._get_output_filename(r)
+            r.audio = os.path.join(self.out_audio_folder.get_path(), audio_filename)
 
         from multiprocessing import pool
-
         p = pool.Pool(self.rqmt["cpu"])
-        p.map(self._perform_ffmpeg, in_corpus.recordings)
+        p.map(self._perform_ffmpeg, c.recordings)
 
         if self.recover_duration:
-            out_corpus.dump(tk.uncached_path("temp_corpus.xml.gz"))
+            c.dump("temp_corpus.xml.gz")
         else:
-            out_corpus.dump(tk.uncached_path(self.out_corpus))
+            c.dump(tk.uncached_path(self.out_corpus))
 
     def run_recover_duration(self):
         """
@@ -176,6 +151,21 @@ class BlissFfmpegJob(Job):
 
         c.dump(self.out_corpus.get_path())
 
+    def _get_output_filename(self, recording):
+        """
+        returns a new audio filename with a potentially
+        changed file ending based on "output_format"
+
+        :param recording:
+        :return:
+        :rtype str
+        """
+        audio_filename = os.path.basename(recording.audio)
+        if self.output_format is not None:
+            name, ext = os.path.splitext(audio_filename)
+            audio_filename = name + "." + self.output_format
+        return audio_filename
+
     def _perform_ffmpeg(self, recording):
         """
         Build and call an FFMPEG command to apply on a recording
@@ -183,13 +173,9 @@ class BlissFfmpegJob(Job):
         :param corpus.Recording recording:
         :return:
         """
-        audio_name = recording.audio.split("/")[-1]
+        audio_filename = self._get_output_filename(recording)
 
-        if self.output_format is not None:
-            name, ext = os.path.splitext(audio_name)
-            audio_name = name + "." + self.output_format
-
-        target = os.path.join(self.out_audio_folder.get_path(), audio_name)
+        target = os.path.join(self.out_audio_folder.get_path(), audio_filename)
         if not os.path.exists(target):
             print("try converting %s" % target)
             command_head = [
@@ -199,7 +185,7 @@ class BlissFfmpegJob(Job):
                 "-i",
                 recording.audio,
             ]
-            command_tail = ["%s/%s" % (self.out_audio_folder, audio_name)]
+            command_tail = [os.path.join(self.out_audio_folder.get_path(), audio_filename)]
             if self.ffmpeg_options is None or len(self.ffmpeg_options) == 0:
                 command = command_head + command_tail
             else:
