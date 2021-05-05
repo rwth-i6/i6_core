@@ -248,18 +248,6 @@ class MetaLinearAdaptationJob(Job):
         import string
         import textwrap
 
-        PYTHON_CODE = textwrap.dedent(
-            """\
-                      #!rnn.py
-
-                      ${REGULAR_CONFIG}
-
-                      locals().update(**config)
-
-                      ${EXTRA_PYTHON_CODE}
-                      """
-        )
-
         config = job.returnn_config
         config.update(job.returnn_post_config)
         config.update(import_models)
@@ -285,8 +273,9 @@ class MetaLinearAdaptationJob(Job):
 
         python_code = string.Template(job.PYTHON_CODE).substitute(
             {
+                "PROLOG": job.returnn_config.python_prolog,
                 "REGULAR_CONFIG": "\n".join(config_lines),
-                "EXTRA_PYTHON_CODE": job.returnn_config.extra_python_code,
+                "EPILOG": job.returnn_config.python_epilog,
             }
         )
         # with open(file_path, 'wt', encoding='utf-8') as f:

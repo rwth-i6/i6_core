@@ -369,15 +369,15 @@ class ReturnnTrainingJob(Job):
     @classmethod
     def hash(cls, kwargs):
         returnn_config = kwargs["returnn_config"]
-        extra_python_hash = (
-            returnn_config.extra_python
-            if returnn_config.extra_python_hash is None
-            else returnn_config.extra_python_hash
+        python_epilog_hash = (
+            returnn_config.python_epilog
+            if returnn_config.python_epilog_hash is None
+            else returnn_config.python_epilog_hash
         )
 
         d = {
             "returnn_config": returnn_config.config,
-            "extra_python": extra_python_hash,
+            "python_epilog": python_epilog_hash,
             "returnn_python_exe": kwargs["returnn_python_exe"],
             "returnn_root": kwargs["returnn_root"],
         }
