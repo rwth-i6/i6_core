@@ -194,6 +194,10 @@ class Corpus(NamedEntity, CorpusSection):
         corpus.parent_corpus = self
         self.subcorpora.append(corpus)
 
+    def add_speaker(self, speaker):
+        assert isinstance(speaker, Speaker)
+        self.speakers[speaker.name] = speaker
+
     def fullname(self):
         if self.parent_corpus is not None:
             return self.parent_corpus.fullname() + "/" + self.name
