@@ -1,6 +1,7 @@
 __all__ = ["BlissFfmpegJob"]
 
 import copy
+import logging
 import os
 import subprocess
 
@@ -73,7 +74,7 @@ class BlissFfmpegJob(Job):
         self,
         corpus_file,
         ffmpeg_options=None,
-        recover_duration=False,
+        recover_duration=True,
         output_format=None,
         ffmpeg_binary=None,
         hash_binary=False,
@@ -119,6 +120,7 @@ class BlissFfmpegJob(Job):
             r.audio = os.path.join(self.out_audio_folder.get_path(), audio_filename)
 
         from multiprocessing import pool
+
         p = pool.Pool(self.rqmt["cpu"])
         p.map(self._perform_ffmpeg, c.recordings)
 
@@ -143,7 +145,7 @@ class BlissFfmpegJob(Job):
             old_duration = r.segments[0].end
             data, sample_rate = soundfile.read(open(r.audio, "rb"))
             new_duration = len(data) / sample_rate
-            print(
+            logging.info(
                 "%s: adjusted from %f to %f seconds"
                 % (r.segments[0].name, old_duration, new_duration)
             )
@@ -177,7 +179,7 @@ class BlissFfmpegJob(Job):
 
         target = os.path.join(self.out_audio_folder.get_path(), audio_filename)
         if not os.path.exists(target):
-            print("try converting %s" % target)
+            logging.info("try converting %s" % target)
             command_head = [
                 self.ffmpeg_binary,
                 "-hide_banner",
@@ -185,14 +187,16 @@ class BlissFfmpegJob(Job):
                 "-i",
                 recording.audio,
             ]
-            command_tail = [os.path.join(self.out_audio_folder.get_path(), audio_filename)]
+            command_tail = [
+                os.path.join(self.out_audio_folder.get_path(), audio_filename)
+            ]
             if self.ffmpeg_options is None or len(self.ffmpeg_options) == 0:
                 command = command_head + command_tail
             else:
                 command = command_head + self.ffmpeg_options + command_tail
             subprocess.check_call(command)
         else:
-            print("skipped existing %s" % target)
+            logging.info("skipped existing %s" % target)
 
     @classmethod
     def hash(cls, kwargs):
