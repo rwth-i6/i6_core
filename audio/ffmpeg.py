@@ -114,15 +114,14 @@ class BlissFfmpegJob(Job):
         c = corpus.Corpus()
         c.load(tk.uncached_path(self.corpus_file))
 
-        # store index of last segment
-        for r in c.recordings:
-            audio_filename = self._get_output_filename(r)
-            r.audio = os.path.join(self.out_audio_folder.get_path(), audio_filename)
-
         from multiprocessing import pool
 
         p = pool.Pool(self.rqmt["cpu"])
         p.map(self._perform_ffmpeg, c.recordings)
+
+        for r in c.recordings:
+            audio_filename = self._get_output_filename(r)
+            r.audio = os.path.join(self.out_audio_folder.get_path(), audio_filename)
 
         if self.recover_duration:
             c.dump("temp_corpus.xml.gz")
