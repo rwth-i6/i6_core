@@ -12,7 +12,7 @@ from recipe.i6_core.lib import corpus
 
 class BlissFfmpegJob(Job):
     """
-    Applies an FFMPEG audio filter to all recordigns of a bliss corpus.
+    Applies an FFMPEG audio filter to all recordings of a bliss corpus.
     This Job is extremely generic, as any valid audio option/filter string will work.
     Please consider using more specific jobs that use this Job as super class,
     see e.g. BlissChangeEncodingJob
