@@ -83,7 +83,9 @@ class DownloadLibriSpeechCorpusJob(Job):
         shutil.rmtree("LibriSpeech")
 
     def _move_files(self):
-        shutil.move("LibriSpeech/%s" % self.corpus_key, self.out_corpus_folder.get_path())
+        shutil.move(
+            "LibriSpeech/%s" % self.corpus_key, self.out_corpus_folder.get_path()
+        )
 
 
 class DownloadLibriSpeechMetadataJob(DownloadLibriSpeechCorpusJob):
