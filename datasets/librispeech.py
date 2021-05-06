@@ -44,8 +44,7 @@ class DownloadLibriSpeechCorpusJob(Job):
             "train-other-500",
         ]
 
-        self._out_archive_folder = self.output_path("LibriSpeech")
-        self.out_corpus_folder = self.output_path("LibriSpeech/%s" % self.corpus_key)
+        self.out_corpus_folder = self.output_path("%s" % self.corpus_key)
 
     def tasks(self):
         yield Task("run", mini_task=True)
@@ -79,8 +78,12 @@ class DownloadLibriSpeechCorpusJob(Job):
                 ".",
             ]
         )
-        shutil.move("LibriSpeech", self._out_archive_folder.get_path())
+        self._move_files()
         os.unlink("%s.tar.gz" % self.corpus_key)
+        shutil.rmtree("LibriSpeech")
+
+    def _move_files(self):
+        shutil.move("LibriSpeech/%s" % self.corpus_key, self.out_corpus_folder.get_path())
 
 
 class DownloadLibriSpeechMetadataJob(DownloadLibriSpeechCorpusJob):
@@ -96,9 +99,14 @@ class DownloadLibriSpeechMetadataJob(DownloadLibriSpeechCorpusJob):
 
         self._out_archive_folder = self.output_path("LibriSpeech")
 
-        self.out_speakers = self.output_path("LibriSpeech/SPEAKERS.TXT")
-        self.out_chapters = self.output_path("LibriSpeech/CHAPTERS.TXT")
-        self.out_books = self.output_path("LibriSpeech/BOOKS.TXT")
+        self.out_speakers = self.output_path("SPEAKERS.TXT")
+        self.out_chapters = self.output_path("CHAPTERS.TXT")
+        self.out_books = self.output_path("BOOKS.TXT")
+
+    def _move_files(self):
+        shutil.move("LibriSpeech/SPEAKERS.TXT", self.out_speakers.get_path())
+        shutil.move("LibriSpeech/CHAPTERS.TXT", self.out_chapters.get_path())
+        shutil.move("LibriSpeech/BOOKS.TXT", self.out_books.get_path())
 
 
 class LibriSpeechCreateBlissCorpusJob(Job):
