@@ -1,7 +1,9 @@
 __all__ = ["FilterbankJob", "filterbank_flow", "filter_width_from_channels"]
 
 import copy
+
 import numpy as np
+
 from .common import *
 from .extraction import *
 import recipe.i6_core.rasr as rasr
@@ -10,6 +12,14 @@ import recipe.i6_core.rasr as rasr
 def FilterbankJob(
     crp, filterbank_options=None, extra_config=None, extra_post_config=None
 ):
+    """
+    :param rasr.crp.CommonRasrParameters crp:
+    :param dict[str, Any]|None filterbank_options:
+    :param rasr.config.RasrConfig|None extra_config:
+    :param rasr.config.RasrConfig|None extra_post_config:
+    :return: Feature extraction job with filterbank flow
+    :rtype: FeatureExtractionJob
+    """
     if filterbank_options is None:
         filterbank_options = {}
     else:
@@ -45,6 +55,20 @@ def filterbank_flow(
     apply_log=False,
     add_epsilon=False,
 ):
+    """
+
+    :param str warping_function: "mel" or "bark"
+    :param int filter_width: filter width in Hz. Please use :func:`filter_width_from_channels` to get N filters.
+    :param bool normalize: add a final signal-normalization node
+    :param dict[str, Any]|None normalization_options: option dict for `signal-normalization` flow node
+    :param bool without_samples: creates the flow network without a sample flow, but expects "samples" as input
+    :param dict[str, Any]|None samples_options: parameter dict for :func:`samples_flow`
+    :param dict[str, Any]|None fft_options: parameter dict for :func:`fft_flow`
+    :param bool apply_log: adds a logarithm before normalization
+    :param bool add_epsilon: if a logarithm should be applied, add a small epsilon to prohibit zeros
+    :return: filterbank flow network
+    :rtype: rasr.FlowNetwork
+    """
     if normalization_options is None:
         normalization_options = {}
     if samples_options is None:
@@ -111,11 +135,12 @@ def filter_width_from_channels(channels, warping_function="mel", f_max=8000, f_m
     """
     Per default we use FilterBank::stretchToCover, it computes it number of filters:
       number_of_filters = (maximumFrequency_ - minimumFrequency_ - filterWidth_) / spacing_ + 1));
-    :param channels: (int) Number of channels of the filterbank
-    :param warping_function: (str) warping function used by the filterbank. ['mel', 'bark']
-    :param f_max: (float) Filters are placed only below this frequency in Hz
-    :param f_min: (float) Filters are placed only over this frequency in Hz
-    :return: (float) filter-width
+    :param int channels: Number of channels of the filterbank
+    :param str warping_function: Warping function used by the filterbank. ['mel', 'bark']
+    :param float f_max: Filters are placed only below this frequency in Hz
+    :param float f_min: Filters are placed only over this frequency in Hz
+    :return: filter-width
+    :rtype float
     """
 
     if warping_function == "mel":
@@ -139,6 +164,3 @@ def _mel_warping_function(f):
 
 def _bark_warping_function(f):
     return 6 * np.ln(f / 600 + np.sqrt((f / 600) ** 2 + 1))
-
-
-# TODO: findout why we have f_max = 8000 for 16000 Hz wavfiles, because fft?

@@ -7,17 +7,19 @@ from sisyphus import Job, Task, Path, global_settings as gs
 class PipelineJob(Job):
     """
     Reads a text file and applies a list of piped shell commands
-
-    :param Path text: text file (raw or gz) to be processed
-    :param list[str] pipeline: list of shell commands to form the pipeline
-    :param bool zip_out: apply gzip to the output
-    :param bool check_equal_length: the line count of the input and output should match
-    :param bool mini_task: the pipeline should be run as mini_task
     """
 
     def __init__(
         self, text, pipeline, zip_out=False, check_equal_length=False, mini_task=False
     ):
+        """
+
+        :param Path text: text file (raw or gz) to be processed
+        :param list[str] pipeline: list of shell commands to form the pipeline
+        :param bool zip_out: apply gzip to the output
+        :param bool check_equal_length: the line count of the input and output should match
+        :param bool mini_task: the pipeline should be run as mini_task
+        """
         assert text is not None
         self.set_attrs(locals())
         if zip_out:
@@ -28,33 +30,38 @@ class PipelineJob(Job):
         self.check_equal_length = check_equal_length
         self.pipeline = pipeline
 
+        self.rqmt = None
+
     def tasks(self):
-        if isinstance(self.text, (list, tuple)):
-            size = sum(text.estimate_text_size() / 1024 for text in self.text)
-        else:
-            size = self.text.estimate_text_size() / 1024
+        if not self.rqmt:
+            # estimate rqmt if not set explicitly
+            if isinstance(self.text, (list, tuple)):
+                size = sum(text.estimate_text_size() / 1024 for text in self.text)
+            else:
+                size = self.text.estimate_text_size() / 1024
 
-        if size <= 128:
-            time = 2
-            mem = 2
-        elif size <= 512:
-            time = 3
-            mem = 3
-        elif size <= 1024:
-            time = 4
-            mem = 3
-        elif size <= 2048:
-            time = 6
-            mem = 4
-        else:
-            time = 8
-            mem = 4
+            if size <= 128:
+                time = 2
+                mem = 2
+            elif size <= 512:
+                time = 3
+                mem = 3
+            elif size <= 1024:
+                time = 4
+                mem = 3
+            elif size <= 2048:
+                time = 6
+                mem = 4
+            else:
+                time = 8
+                mem = 4
+            cpu = 1
+            self.rqmt = {"time": time, "mem": mem, "cpu": cpu}
 
-        cpu = 1
         if self.mini_task:
             yield Task("run", mini_task=True)
         else:
-            yield Task("run", rqmt={"time": time, "mem": mem, "cpu": cpu})
+            yield Task("run", rqmt=self.rqmt)
 
     def run(self):
         pipeline = self.pipeline.copy()
@@ -90,10 +97,12 @@ class PipelineJob(Job):
 class ConcatenateJob(Job):
     """
     Concatenate all given input files (gz or raw)
-    :param list[Path] inputs: input text files
     """
 
     def __init__(self, inputs):
+        """
+        :param list[Path] inputs: input text files
+        """
         assert inputs
 
         # ensure sets are always merged in the same order
@@ -127,12 +136,14 @@ class ConcatenateJob(Job):
 class HeadJob(Job):
     """
     Return the head of a text file, either absolute or as ratio (provide one)
-    :param Path data: text file (gz or raw)
-    :param int lines: number of lines to extract
-    :param float ratio: ratio of lines to extract
     """
 
     def __init__(self, data, lines=None, ratio=None):
+        """
+        :param Path data: text file (gz or raw)
+        :param int lines: number of lines to extract
+        :param float ratio: ratio of lines to extract
+        """
 
         assert lines or ratio, "please specify either lines or ratio"
         assert not (lines and ratio), "please specify only lines or ratio, not both"
@@ -166,6 +177,10 @@ class HeadJob(Job):
 
 
 class TailJob(HeadJob):
+    """
+    Return the tail of a text file, either absolute or as ratio (provide one)
+    """
+
     def run(self):
         if self.ratio:
             assert not self.lines

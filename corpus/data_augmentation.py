@@ -52,9 +52,9 @@ class SelfNoiseCorpusJob(Job):
         yield Task("run", rqmt=self.rqmt)
 
     def run(self):
-        self.id = os.path.basename(self.job_id())
-        if not os.path.isdir(f"/dev/shm/{self.id}"):
-            os.mkdir(f"/dev/shm/{self.id}")
+        id = os.path.basename(self.job_id())
+        if not os.path.isdir(f"/dev/shm/{id}"):
+            os.mkdir(f"/dev/shm/{id}")
         c = corpus.Corpus()
         nc = corpus.Corpus()
         segment_file_names = []
@@ -80,9 +80,10 @@ class SelfNoiseCorpusJob(Job):
         for i, r in enumerate(c.recordings):
             audio_name = r.audio
             target_length = r.max_seg_end
+            reverbed_audio_name = "noised_" + audio_name.split("/")[-1]
 
             # remove any possibly existing temporary recordings (otherwise ffmpeg will ask for override)
-            for p in glob.iglob(f"/dev/shm/{self.id}/tmp_concat_*.wav"):
+            for p in glob.iglob(f"/dev/shm/{id}/tmp_concat_*.wav"):
                 os.unlink(p)
 
             for n in range(self.n_noise_tracks):
@@ -97,7 +98,6 @@ class SelfNoiseCorpusJob(Job):
                     noise_length += c.recordings[random_index].max_seg_end
 
                 # create temp noise file
-                reverbed_audio_name = "noised_" + audio_name.split("/")[-1]
                 temp_noise_track_file = "/dev/shm/{id}/tmp_concat_%i.wav" % n
 
                 self.sh(
@@ -111,15 +111,15 @@ class SelfNoiseCorpusJob(Job):
 
             if self.n_noise_tracks == 1:
                 self.sh(
-                    "ffmpeg -hide_banner  -i '%s' -i '/dev/shm/{id}/tmp_concat_0.wav' -filter_complex "
-                    "'[1]volume=-{snr}dB[a];[0][a]amix=duration=first[out]' -map '[out]' '{audio_out}/%s'"
-                    % (audio_name, reverbed_audio_name)
+                    "ffmpeg -hide_banner  -i '%s' -i '/dev/shm/{id}/tmp_concat_0.wav' "
+                    "-filter_complex '[1]volume=-{snr}dB[a];[0][a]amix=duration=first[out]' "
+                    "-map '[out]' '{audio_out}/%s'" % (audio_name, reverbed_audio_name)
                 )
             else:
                 ffmpeg_head = "ffmpeg -hide_banner  -i '%s' " % audio_name
                 noise_inputs = " ".join(
                     [
-                        "-i '/dev/shm/%s/tmp_concat_%i.wav'" % (self.id, i)
+                        "-i '/dev/shm/%s/tmp_concat_%i.wav'" % (id, i)
                         for i in range(self.n_noise_tracks)
                     ]
                 )
@@ -165,7 +165,7 @@ class SelfNoiseCorpusJob(Job):
         with open(tk.uncached_path(self.out_segment_file), "w") as segments_outfile:
             segments_outfile.writelines(segment_file_names)
 
-        shutil.rmtree(f"/dev/shm/{self.id}")
+        shutil.rmtree(f"/dev/shm/{id}")
 
 
 class ChangeCorpusSpeedJob(Job):

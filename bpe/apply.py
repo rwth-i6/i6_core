@@ -10,7 +10,7 @@ from sisyphus import *
 
 Path = setup_path(__package__)
 
-from recipe.i6_core.git import *
+from recipe.i6_core.tools.git import *
 from recipe.i6_core.lib.lexicon import Lexicon
 
 
@@ -20,7 +20,7 @@ class ApplyBPEModelToLexiconJob(Job):
         self.lexicon_path = lexicon_path
         self.vocabulary_path = vocabulary_path
 
-        self.subword_nmt_repo = CloneGitRepository(
+        self.subword_nmt_repo = CloneGitRepositoryJob(
             "https://github.com/rsennrich/subword-nmt.git"
         ).repository
 

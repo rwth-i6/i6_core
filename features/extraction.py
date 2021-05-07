@@ -1,6 +1,5 @@
 __all__ = ["FeatureExtractionJob"]
 
-import copy
 import shutil
 
 from sisyphus import *
@@ -13,6 +12,13 @@ import recipe.i6_core.util as util
 
 
 class FeatureExtractionJob(rasr.RasrCommand, Job):
+    """
+    Runs feature extraction of a given corpus into cache files
+
+    The cache files can be accessed as bundle Path (`out_feature_bundle`)
+    or as MultiOutputPath (`out_feature_path`)
+    """
+
     def __init__(
         self,
         crp,
@@ -26,15 +32,15 @@ class FeatureExtractionJob(rasr.RasrCommand, Job):
         extra_post_config=None,
     ):
         """
-        :param recipe.rasr.crp.CommonRasrParameters crp:
-        :param recipe.rasr.flow.FlowNetwork feature_flow:
+        :param rasr.crp.CommonRasrParameters crp:
+        :param rasr.flow.FlowNetwork feature_flow:
         :param dict[str,str] port_name_mapping:
         :param set[str]|None one_dimensional_outputs:
         :param str job_name:
         :param float rtf:
         :param int mem:
-        :param recipe.rasr.config.RasrConfig|None extra_config:
-        :param recipe.rasr.config.RasrConfig|None extra_post_config:
+        :param rasr.config.RasrConfig|None extra_config:
+        :param rasr.config.RasrConfig|None extra_post_config:
         """
         self.set_vis_name("Extract %s" % job_name)
 
@@ -53,25 +59,25 @@ class FeatureExtractionJob(rasr.RasrCommand, Job):
         )
         self.concurrent = crp.concurrent
 
-        self.log_file = self.log_file_output_path("feature-extraction", crp, True)
-        self.single_feature_caches = {}
-        self.feature_bundle = {}
-        self.feature_path = {}
+        self.out_log_file = self.log_file_output_path("feature-extraction", crp, True)
+        self.out_single_feature_caches = {}
+        self.out_feature_bundle = {}
+        self.out_feature_path = {}
         for name in set(port_name_mapping.values()):
-            self.single_feature_caches[name] = dict(
+            self.out_single_feature_caches[name] = dict(
                 (
                     task_id,
                     self.output_path("%s.cache.%d" % (name, task_id), cached=True),
                 )
                 for task_id in range(1, crp.concurrent + 1)
             )
-            self.feature_bundle[name] = self.output_path(
+            self.out_feature_bundle[name] = self.output_path(
                 "%s.cache.bundle" % name, cached=True
             )
-            self.feature_path[name] = util.MultiOutputPath(
+            self.out_feature_path[name] = util.MultiOutputPath(
                 self,
                 "%s.cache.$(TASK)" % name,
-                self.single_feature_caches[name],
+                self.out_single_feature_caches[name],
                 cached=True,
             )
 
@@ -88,24 +94,25 @@ class FeatureExtractionJob(rasr.RasrCommand, Job):
         )
 
     def run(self, task_id):
-        self.run_script(task_id, self.log_file[task_id])
-        for name in self.single_feature_caches:
+        self.run_script(task_id, self.out_log_file[task_id])
+        for name in self.out_single_feature_caches:
             shutil.move(
                 "%s.cache.%d" % (name, task_id),
-                self.single_feature_caches[name][task_id].get_path(),
+                self.out_single_feature_caches[name][task_id].get_path(),
             )
 
     def cleanup_before_run(self, cmd, retry, task_id, *args):
         util.backup_if_exists("feature-extraction.log.%d" % task_id)
-        for name in self.feature_bundle:
+        for name in self.out_feature_bundle:
             util.delete_if_zero("%s.cache.%d" % (name, task_id))
 
     def create_files(self):
         self.write_config(self.config, self.post_config, "feature-extraction.config")
         self.cached_feature_flow.write_to_file("feature-extraction.flow")
-        for name in self.feature_bundle:
+        for name in self.out_feature_bundle:
             util.write_paths_to_file(
-                self.feature_bundle[name], self.single_feature_caches[name].values()
+                self.out_feature_bundle[name],
+                self.out_single_feature_caches[name].values(),
             )
         self.write_run_script(self.exe, "feature-extraction.config")
 
@@ -114,12 +121,12 @@ class FeatureExtractionJob(rasr.RasrCommand, Job):
         cls, crp, feature_flow, extra_config, extra_post_config, **kwargs
     ):
         """
-        :param recipe.rasr.crp.CommonRasrParameters crp:
+        :param rasr.crp.CommonRasrParameters crp:
         :param feature_flow:
-        :param recipe.rasr.config.RasrConfig|None extra_config:
-        :param recipe.rasr.config.RasrConfig|None extra_post_config:
+        :param rasr.config.RasrConfig|None extra_config:
+        :param rasr.config.RasrConfig|None extra_post_config:
         :return: config, post_config
-        :rtype: (recipe.rasr.config.RasrConfig, recipe.rasr.config.RasrConfig)
+        :rtype: (rasr.config.RasrConfig, recipe.rasr.config.RasrConfig)
         """
         config, post_config = rasr.build_config_from_mapping(
             crp, {"corpus": "extraction.corpus"}, parallelize=True
