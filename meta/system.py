@@ -192,8 +192,8 @@ class System:
             self.crp[corpus], **kwargs
         )
         f.add_alias("%s%s_energy_features" % (prefix, corpus))
-        self.feature_caches[corpus]["energy"] = f.feature_path["energy"]
-        self.feature_bundles[corpus]["energy"] = f.feature_bundle["energy"]
+        self.feature_caches[corpus]["energy"] = f.out_feature_path["energy"]
+        self.feature_bundles[corpus]["energy"] = f.out_feature_bundle["energy"]
 
         feature_path = rasr.FlagDependentFlowAttribute(
             "cache_mode",
@@ -216,8 +216,8 @@ class System:
             self.crp[corpus], **kwargs
         )
         f.add_alias("%s%s_mfcc_features" % (prefix, corpus))
-        self.feature_caches[corpus]["mfcc"] = f.feature_path["mfcc"]
-        self.feature_bundles[corpus]["mfcc"] = f.feature_bundle["mfcc"]
+        self.feature_caches[corpus]["mfcc"] = f.out_feature_path["mfcc"]
+        self.feature_bundles[corpus]["mfcc"] = f.out_feature_bundle["mfcc"]
 
         feature_path = rasr.FlagDependentFlowAttribute(
             "cache_mode",
@@ -241,8 +241,8 @@ class System:
             self.crp[corpus], **kwargs
         )
         f.add_alias("%s_fb_features" % corpus)
-        self.feature_caches[corpus]["fb"] = f.feature_path["fb"]
-        self.feature_bundles[corpus]["fb"] = f.feature_bundle["fb"]
+        self.feature_caches[corpus]["fb"] = f.out_feature_path["fb"]
+        self.feature_bundles[corpus]["fb"] = f.out_feature_bundle["fb"]
 
         feature_path = rasr.FlagDependentFlowAttribute(
             "cache_mode",
@@ -265,8 +265,8 @@ class System:
             )
         else:
             f.add_alias("%s%s_gt_features" % (prefix, corpus))
-        self.feature_caches[corpus]["gt"] = f.feature_path["gt"]
-        self.feature_bundles[corpus]["gt"] = f.feature_bundle["gt"]
+        self.feature_caches[corpus]["gt"] = f.out_feature_path["gt"]
+        self.feature_bundles[corpus]["gt"] = f.out_feature_bundle["gt"]
 
         feature_path = rasr.FlagDependentFlowAttribute(
             "cache_mode",
@@ -283,8 +283,8 @@ class System:
             self.crp[corpus], **kwargs
         )
         f.add_alias("%s_plp_features" % corpus)
-        self.feature_caches[corpus]["plp"] = f.feature_path["plp"]
-        self.feature_bundles[corpus]["plp"] = f.feature_bundle["plp"]
+        self.feature_caches[corpus]["plp"] = f.out_feature_path["plp"]
+        self.feature_bundles[corpus]["plp"] = f.out_feature_bundle["plp"]
 
         feature_path = rasr.FlagDependentFlowAttribute(
             "cache_mode",
@@ -308,8 +308,8 @@ class System:
         self.jobs[corpus]["%s_features" % name] = f = vtln.VTLNFeaturesJob(
             self.crp[corpus], raw_feature_flow, warping_map, **kwargs
         )
-        self.feature_caches[corpus][name] = f.feature_path["vtln"]
-        self.feature_bundles[corpus][name] = f.feature_bundle["vtln"]
+        self.feature_caches[corpus][name] = f.out_feature_path["vtln"]
+        self.feature_bundles[corpus][name] = f.out_feature_bundle["vtln"]
         feature_path = rasr.FlagDependentFlowAttribute(
             "cache_mode",
             {
