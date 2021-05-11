@@ -308,17 +308,20 @@ class CompressCorpusJob(Job):
 
 class MergeCorporaJob(Job):
     """
-    Merges Bliss Corpora into a single file as subcorpora
-    This is preferably done after using corpus compression
-
-    :param Iterable[Path] corpora: any iterable of bliss corpora file paths to merge
-    :param name: name of the new corpus (subcorpora will keep the original names)
+    Merges Bliss Corpora files into a single file as subcorpora or flat
     """
 
-    def __init__(self, corpora, name):
+    def __init__(self, corpora, name, use_subcorpora=True):
+        """
+        :param Iterable[Path] corpora: any iterable of bliss corpora file paths to merge
+        :param str name: name of the new corpus (subcorpora will keep the original names)
+        :param bool use_subcorpora: if the corpora are merged as subcorpora, flat otherwise
+        """
         self.corpora = corpora
         self.name = name
-        self.merged_corpus = self.output_path("merged.xml.gz")
+        self.use_subcorpora = use_subcorpora
+
+        self.out_merged_corpus = self.output_path("merged.xml.gz")
 
     def tasks(self):
         yield Task("run", mini_task=True)
@@ -329,9 +332,14 @@ class MergeCorporaJob(Job):
         for corpus_path in self.corpora:
             c = corpus.Corpus()
             c.load(str(corpus_path))
-            merged_corpus.add_subcorpus(c)
+            if self.use_subcorpora:
+                merged_corpus.add_subcorpus(c)
+            else:
+                for rec in c.all_recordings():
+                    merged_corpus.add_recording(rec)
+                merged_corpus.speakers.update(c.speakers)
 
-        merged_corpus.dump(tk.uncached_path(self.merged_corpus))
+        merged_corpus.dump(tk.uncached_path(self.out_merged_corpus))
 
 
 class MergeCorpusSegmentsAndAudioJob(Job):
