@@ -9,6 +9,7 @@ __all__ = [
 
 import bisect
 import collections
+import enum
 import logging
 import math
 import os
@@ -306,19 +307,27 @@ class CompressCorpusJob(Job):
         return None
 
 
+class MergeStrategy(enum.Enum):
+    SUBCORPORA = 0
+    FLAT = 1
+
+
 class MergeCorporaJob(Job):
     """
-    Merges Bliss Corpora into a single file as subcorpora
-    This is preferably done after using corpus compression
-
-    :param Iterable[Path] corpora: any iterable of bliss corpora file paths to merge
-    :param name: name of the new corpus (subcorpora will keep the original names)
+    Merges Bliss Corpora files into a single file as subcorpora or flat
     """
 
-    def __init__(self, corpora, name):
+    def __init__(self, corpora, name, merge_strategy=MergeStrategy.SUBCORPORA):
+        """
+        :param Iterable[Path] corpora: any iterable of bliss corpora file paths to merge
+        :param str name: name of the new corpus (subcorpora will keep the original names)
+        :param MergeStrategy merge_strategy: how the corpora should be merged, e.g. as subcorpora or flat
+        """
         self.corpora = corpora
         self.name = name
-        self.merged_corpus = self.output_path("merged.xml.gz")
+        self.merge_strategy = merge_strategy
+
+        self.out_merged_corpus = self.output_path("merged.xml.gz")
 
     def tasks(self):
         yield Task("run", mini_task=True)
@@ -328,10 +337,17 @@ class MergeCorporaJob(Job):
         merged_corpus.name = self.name
         for corpus_path in self.corpora:
             c = corpus.Corpus()
-            c.load(str(corpus_path))
-            merged_corpus.add_subcorpus(c)
+            c.load(tk.uncached_path(corpus_path))
+            if self.merge_strategy == MergeStrategy.SUBCORPORA:
+                merged_corpus.add_subcorpus(c)
+            elif self.merge_strategy == MergeStrategy.FLAT:
+                for rec in c.all_recordings():
+                    merged_corpus.add_recording(rec)
+                merged_corpus.speakers.update(c.speakers)
+            else:
+                assert False, "invalid merge strategy"
 
-        merged_corpus.dump(tk.uncached_path(self.merged_corpus))
+        merged_corpus.dump(self.out_merged_corpus.get_path())
 
 
 class MergeCorpusSegmentsAndAudioJob(Job):
