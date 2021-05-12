@@ -1,4 +1,4 @@
-__all__ = ["ReturnnSearchFromFileJob", "ReturnnComputeWERJob"]
+__all__ = ["ReturnnSearchJob", "ReturnnSearchFromFileJob", "ReturnnComputeWERJob"]
 
 from sisyphus import *
 
@@ -12,6 +12,178 @@ import shutil
 import subprocess as sp
 
 import recipe.i6_core.util as util
+
+
+class ReturnnSearchJob(Job):
+    """
+    Given a model checkpoint, run search task with RETURNN
+    """
+
+    def __init__(
+        self,
+        search_data,
+        model_checkpoints,
+        epoch,
+        returnn_config,
+        *,
+        log_verbosity=3,
+        device="gpu",
+        time_rqmt=4,
+        mem_rqmt=4,
+        cpu_rqmt=2,
+        returnn_python_exe=None,
+        returnn_root=None,
+    ):
+        """
+        :param dict[str] search_data: dataset used for search
+        :param dict[int, Checkpoint] model_checkpoints: Contains checkpoints pointing to TF models.
+            see `ReturnnTrainingJob`.
+        :param tk.Variable|int epoch: checkpoint's epoch to load for search
+        :param ReturnnConfig returnn_config: object representing RETURNN config
+        :param int log_verbosity: RETURNN log verbosity
+        :param str device: RETURNN device, cpu or gpu
+        :param float|int time_rqmt: job time requirement in hours
+        :param float|int mem_rqmt: job memory requirement in GB
+        :param float|int cpu_rqmt: job cpu requirement in GB
+        :param tk.Path|str|None returnn_python_exe: path to the RETURNN executable (python binary or launch script)
+        :param tk.Path|str|None returnn_root: path to the RETURNN src folder
+        """
+        self.search_data = search_data
+
+        self.model_checkpoint = model_checkpoints[
+            epoch.get() if isinstance(epoch, tk.Variable) else epoch
+        ]
+
+        self.returnn_python_exe = (
+            returnn_python_exe
+            if returnn_python_exe is not None
+            else gs.RETURNN_PYTHON_EXE
+        )
+
+        self.returnn_root = (
+            returnn_root if returnn_root is not None else gs.RETURNN_ROOT
+        )
+
+        self.out_search_file = self.output_path("search_out")
+
+        self.returnn_config = self.create_returnn_config(
+            returnn_config, log_verbosity, device
+        )
+
+        self.out_returnn_config_file = self.output_path("returnn.config")
+
+        self.rqmt = {
+            "gpu": 1 if device == "gpu" else 0,
+            "cpu": cpu_rqmt,
+            "mem": mem_rqmt,
+            "time": time_rqmt,
+        }
+
+    def tasks(self):
+        yield Task("create_files", mini_task=True)
+        yield Task("run", resume="run", rqmt=self.rqmt)
+
+    def create_files(self):
+        config = self.returnn_config
+
+        config.config["load"] = self.model_checkpoint.ckpt_path
+        config.write(self.out_returnn_config_file.get_path())
+
+        with open("rnn.sh", "wt") as f:
+            f.write(
+                "#!/usr/bin/env bash\n%s"
+                % " ".join(
+                    [
+                        tk.uncached_path(self.returnn_python_exe),
+                        os.path.join(tk.uncached_path(self.returnn_root), "rnn.py"),
+                        self.out_returnn_config_file.get_path(),
+                    ]
+                )
+            )
+
+        os.chmod(
+            "rnn.sh",
+            stat.S_IRUSR
+            | stat.S_IRGRP
+            | stat.S_IROTH
+            | stat.S_IWUSR
+            | stat.S_IXUSR
+            | stat.S_IXGRP
+            | stat.S_IXOTH,
+        )
+
+        # check here if model actually exists
+        assert os.path.exists(
+            tk.uncached_path(self.model_checkpoint.index_path)
+        ), "Provided model does not exists: %s" % str(self.model_checkpoint)
+
+    def run(self):
+        call = [
+            tk.uncached_path(self.returnn_python_exe),
+            os.path.join(tk.uncached_path(self.returnn_root), "rnn.py"),
+            self.out_returnn_config_file.get_path(),
+        ]
+        sp.check_call(call)
+
+    def create_returnn_config(self, returnn_config, log_verbosity, device):
+        """
+        Creates search RETURNN config
+        :param ReturnnConfig returnn_config: object representing RETURNN config
+        :param int log_verbosity: RETURNN log verbosity
+        :param str device: RETURNN device, cpu or gpu
+        :return: search ReturnnConfig
+        """
+        assert device in ["gpu", "cpu"]
+        original_config = returnn_config.config
+        assert "network" in original_config
+
+        config = {
+            "search_output_file_format": "py",
+            "search_output_file": self.out_search_file,
+            "need_data": False,
+            "search_do_eval": 0,
+        }
+
+        config.update(copy.deepcopy(original_config))  # update with the original config
+
+        # override always
+        config["task"] = "search"
+        config["max_seq_length"] = 0
+
+        if "search_data" in original_config:
+            config["search_data"] = {
+                **original_config["search_data"].copy(),
+                **self.search_data,
+            }
+        else:
+            config["search_data"] = self.search_data
+
+        post_config = {
+            "device": device,
+            "log": ["./returnn.log"],
+            "log_verbosity": log_verbosity,
+            "multiprocessing": True,
+        }
+
+        post_config.update(copy.deepcopy(returnn_config.post_config))
+
+        res = copy.deepcopy(returnn_config)
+        res.config = config
+        res.post_config = post_config
+
+        return res
+
+    @classmethod
+    def hash(cls, kwargs):
+        d = {
+            "returnn_config": kwargs["returnn_config"].hash(),
+            "returnn_python_exe": kwargs["returnn_python_exe"],
+            "returnn_root": kwargs["returnn_root"],
+            "model_checkpoints": kwargs["model_checkpoints"],
+            "epoch": kwargs["epoch"],
+            "search_data": kwargs["search_data"],
+        }
+        return super().hash(d)
 
 
 class ReturnnSearchFromFileJob(Job):
