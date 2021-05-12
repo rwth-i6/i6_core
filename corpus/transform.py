@@ -9,6 +9,7 @@ __all__ = [
 
 import bisect
 import collections
+import enum
 import logging
 import math
 import os
@@ -306,20 +307,25 @@ class CompressCorpusJob(Job):
         return None
 
 
+class MergeStrategy(enum.Enum):
+    SUBCORPORA = 0
+    FLAT = 1
+
+
 class MergeCorporaJob(Job):
     """
     Merges Bliss Corpora files into a single file as subcorpora or flat
     """
 
-    def __init__(self, corpora, name, use_subcorpora=True):
+    def __init__(self, corpora, name, merge_strategy=MergeStrategy.SUBCORPORA):
         """
         :param Iterable[Path] corpora: any iterable of bliss corpora file paths to merge
         :param str name: name of the new corpus (subcorpora will keep the original names)
-        :param bool use_subcorpora: if the corpora are merged as subcorpora, flat otherwise
+        :param MergeStrategy merge_strategy: how the corpora should be merged, e.g. as subcorpora or flat
         """
         self.corpora = corpora
         self.name = name
-        self.use_subcorpora = use_subcorpora
+        self.merge_strategy = merge_strategy
 
         self.out_merged_corpus = self.output_path("merged.xml.gz")
 
@@ -332,12 +338,14 @@ class MergeCorporaJob(Job):
         for corpus_path in self.corpora:
             c = corpus.Corpus()
             c.load(tk.uncached_path(corpus_path))
-            if self.use_subcorpora:
+            if self.merge_strategy == MergeStrategy.SUBCORPORA:
                 merged_corpus.add_subcorpus(c)
-            else:
+            elif self.merge_strategy == MergeStrategy.FLAT:
                 for rec in c.all_recordings():
                     merged_corpus.add_recording(rec)
                 merged_corpus.speakers.update(c.speakers)
+            else:
+                assert False, "invalid merge strategy"
 
         merged_corpus.dump(self.out_merged_corpus.get_path())
 
