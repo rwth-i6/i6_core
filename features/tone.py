@@ -52,15 +52,15 @@ class ToneJob(rasr.RasrCommand, Job):
         )
         self.concurrent = crp.concurrent
 
-        self.dump_log_file = self.log_file_output_path("dump", crp, True)
-        self.convert_log_file = self.log_file_output_path("convert", crp, True)
-        self.single_feature_caches = dict(
+        self.out_dump_log_file = self.log_file_output_path("dump", crp, True)
+        self.out_convert_log_file = self.log_file_output_path("convert", crp, True)
+        self.out_single_feature_caches = dict(
             (task_id, self.output_path("tone.cache.%d" % task_id, cached=True))
             for task_id in range(1, crp.concurrent + 1)
         )
-        self.feature_bundle = self.output_path("tone.cache.bundle", cached=True)
-        self.feature_path = util.MultiOutputPath(
-            self, "tone.cache.$(TASK)", self.single_feature_caches, cached=True
+        self.out_feature_bundle = self.output_path("tone.cache.bundle", cached=True)
+        self.out_feature_path = util.MultiOutputPath(
+            self, "tone.cache.$(TASK)", self.out_single_feature_caches, cached=True
         )
 
         self.dump_rqmt = {
@@ -109,7 +109,7 @@ class ToneJob(rasr.RasrCommand, Job):
         self.convert_flow.write_to_file("convert.flow")
         self.write_run_script(self.exe, "convert.config", filename="convert.sh")
         util.write_paths_to_file(
-            self.feature_bundle, self.single_feature_caches.values()
+            self.out_feature_bundle, self.out_single_feature_caches.values()
         )
 
     def cleanup_before_run(self, cmd, retry, task_id, *args):
@@ -120,7 +120,7 @@ class ToneJob(rasr.RasrCommand, Job):
             util.delete_if_zero("tone.cache.%d" % task_id)
 
     def dump(self, task_id):
-        self.run_script(task_id, self.dump_log_file[task_id], cmd="./dump.sh")
+        self.run_script(task_id, self.out_dump_log_file[task_id], cmd="./dump.sh")
 
     def extract_pitch(self):
         lib = os.path.abspath(
@@ -179,9 +179,10 @@ class ToneJob(rasr.RasrCommand, Job):
             e.map(process_file, wav_files)
 
     def convert(self, task_id):
-        self.run_script(task_id, self.convert_log_file[task_id], cmd="./convert.sh")
+        self.run_script(task_id, self.out_convert_log_file[task_id], cmd="./convert.sh")
         shutil.move(
-            "tone.cache.%d" % task_id, self.single_feature_caches[task_id].get_path()
+            "tone.cache.%d" % task_id,
+            self.out_single_feature_caches[task_id].get_path(),
         )
 
     @classmethod
