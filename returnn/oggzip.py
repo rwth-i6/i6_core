@@ -28,6 +28,7 @@ class BlissToOggZipJob(Job):
         no_conversion=False,
         returnn_python_exe=None,
         returnn_root=None,
+        rqmt=None,
     ):
         """
         use RETURNN to dump data into an ogg zip file
@@ -40,6 +41,7 @@ class BlissToOggZipJob(Job):
         :param bool no_conversion: do not call the actual conversion, assume the audio files are already correct
         :param Path|str returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
         :param Path|str returnn_root: file path to the RETURNN repository root folder
+        :param dict[str] rqmt: job's resources requirements dict
         """
         self.bliss_corpus = bliss_corpus
         self.segments = segments
@@ -57,9 +59,13 @@ class BlissToOggZipJob(Job):
             returnn_root if returnn_root is not None else gs.RETURNN_ROOT
         )
 
+        self.rqmt = rqmt
+
         self.out_ogg_zip = self.output_path("out.ogg.zip")
 
     def tasks(self):
+        if self.rqmt:
+            yield Task("run", rqmt=self.rqmt)
         yield Task("run", mini_task=True)
 
     def run(self):
