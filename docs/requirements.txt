@@ -1,5 +1,5 @@
 h5py
 matplotlib
 numpy
-sisyphus
+git+git://github.com/rwth-i6/sisyphus.git
 soundfile
