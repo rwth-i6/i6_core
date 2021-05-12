@@ -303,10 +303,8 @@ class System:
             )
         self.feature_flows[corpus]["uncached_plp"] = f.feature_flow
 
-    def tone_features(self, corpus, prefix="", **kwargs):
-        timestamp_flow = self.feature_flows[corpus][
-            kwargs.pop("timestamp_flow", "energy")
-        ]
+    def tone_features(self, corpus, timestamp_flow, prefix="", **kwargs):
+        timestamp_flow = self.feature_flows[corpus][timestamp_flow]
         self.jobs[corpus]["tone_features"] = f = features.ToneJob(
             self.crp[corpus], timestamp_flow=timestamp_flow, **kwargs
         )
