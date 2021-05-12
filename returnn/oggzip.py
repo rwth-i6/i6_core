@@ -28,7 +28,6 @@ class BlissToOggZipJob(Job):
         no_conversion=False,
         returnn_python_exe=None,
         returnn_root=None,
-        rqmt=None,
     ):
         """
         use RETURNN to dump data into an ogg zip file
@@ -59,14 +58,15 @@ class BlissToOggZipJob(Job):
             returnn_root if returnn_root is not None else gs.RETURNN_ROOT
         )
 
-        self.rqmt = rqmt
-
         self.out_ogg_zip = self.output_path("out.ogg.zip")
+
+        self.rqmt = None
 
     def tasks(self):
         if self.rqmt:
             yield Task("run", rqmt=self.rqmt)
-        yield Task("run", mini_task=True)
+        else:
+            yield Task("run", mini_task=True)
 
     def run(self):
         args = [
