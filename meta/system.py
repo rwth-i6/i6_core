@@ -303,6 +303,26 @@ class System:
             )
         self.feature_flows[corpus]["uncached_plp"] = f.feature_flow
 
+    def tone_features(self, corpus, prefix="", **kwargs):
+        timestamp_flow = self.feature_flows[corpus][
+            kwargs.pop("timestamp_flow", "energy")
+        ]
+        self.jobs[corpus]["tone_features"] = f = features.ToneJob(
+            self.crp[corpus], timestamp_flow=timestamp_flow, **kwargs
+        )
+        f.add_alias("%s%s_tone_features" % (prefix, corpus))
+        self.feature_caches[corpus]["tone"] = f.out_feature_path
+        self.feature_bundles[corpus]["tone"] = f.out_feature_bundle
+
+        feature_path = rasr.FlagDependentFlowAttribute(
+            "cache_mode",
+            {
+                "task_dependent": self.feature_caches[corpus]["tone"],
+                "bundle": self.feature_bundles[corpus]["tone"],
+            },
+        )
+        self.feature_flows[corpus]["tone"] = features.basic_cache_flow(feature_path)
+
     def vtln_features(self, name, corpus, raw_feature_flow, warping_map, **kwargs):
         name = "%s+vtln" % name
         self.jobs[corpus]["%s_features" % name] = f = vtln.VTLNFeaturesJob(
