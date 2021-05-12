@@ -141,11 +141,7 @@ class LibriSpeechCreateBlissCorpusJob(Job):
         c = corpus.Corpus()
         c.name = os.path.basename(tk.uncached_path(self.corpus_folder))
 
-        for speaker_id, speaker_info in sorted(self._speakers.items()):
-            speaker = corpus.Speaker()
-            speaker.name = speaker_id
-            speaker.attribs["gender"] = speaker_info[0].lower()
-            c.add_speaker(speaker)
+        used_speaker_ids = set()  # store which speakers are used
 
         for transcript in self._transcripts:
             name = "{0}-{1}-{2:04d}".format(
@@ -156,6 +152,8 @@ class LibriSpeechCreateBlissCorpusJob(Job):
             recording.speaker_name = transcript["speaker_id"]
             recording.audio = "{}/{}.flac".format(transcript["path"], name)
 
+            used_speaker_ids.add(transcript["speaker_id"])
+
             segment = corpus.Segment()
             segment.name = name
             segment.start = 0
@@ -164,6 +162,14 @@ class LibriSpeechCreateBlissCorpusJob(Job):
 
             recording.segments.append(segment)
             c.recordings.append(recording)
+
+        for speaker_id, speaker_info in sorted(self._speakers.items()):
+            if speaker_id not in used_speaker_ids:
+                continue
+            speaker = corpus.Speaker()
+            speaker.name = speaker_id
+            speaker.attribs["gender"] = speaker_info[0].lower()
+            c.add_speaker(speaker)
 
         c.dump(self.out_corpus.get_path())
 
