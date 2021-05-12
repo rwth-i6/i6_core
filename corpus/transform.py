@@ -331,7 +331,7 @@ class MergeCorporaJob(Job):
         merged_corpus.name = self.name
         for corpus_path in self.corpora:
             c = corpus.Corpus()
-            c.load(str(corpus_path))
+            c.load(tk.uncached_path(corpus_path))
             if self.use_subcorpora:
                 merged_corpus.add_subcorpus(c)
             else:
@@ -339,7 +339,7 @@ class MergeCorporaJob(Job):
                     merged_corpus.add_recording(rec)
                 merged_corpus.speakers.update(c.speakers)
 
-        merged_corpus.dump(tk.uncached_path(self.out_merged_corpus))
+        merged_corpus.dump(self.out_merged_corpus.get_path())
 
 
 class MergeCorpusSegmentsAndAudioJob(Job):
