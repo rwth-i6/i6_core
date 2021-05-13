@@ -40,7 +40,6 @@ class BlissToOggZipJob(Job):
         :param bool no_conversion: do not call the actual conversion, assume the audio files are already correct
         :param Path|str returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
         :param Path|str returnn_root: file path to the RETURNN repository root folder
-        :param dict[str] rqmt: job's resources requirements dict
         """
         self.bliss_corpus = bliss_corpus
         self.segments = segments
