@@ -22,8 +22,7 @@ class ReturnnSearchJob(Job):
     def __init__(
         self,
         search_data,
-        model_checkpoints,
-        epoch,
+        model_checkpoint,
         returnn_config,
         *,
         log_verbosity=3,
@@ -36,9 +35,7 @@ class ReturnnSearchJob(Job):
     ):
         """
         :param dict[str] search_data: dataset used for search
-        :param dict[int, Checkpoint] model_checkpoints: Contains checkpoints pointing to TF models.
-            see `ReturnnTrainingJob`.
-        :param tk.Variable|int epoch: checkpoint's epoch to load for search
+        :param Checkpoint model_checkpoint:  TF model checkpoint. see `ReturnnTrainingJob`.
         :param ReturnnConfig returnn_config: object representing RETURNN config
         :param int log_verbosity: RETURNN log verbosity
         :param str device: RETURNN device, cpu or gpu
@@ -50,9 +47,7 @@ class ReturnnSearchJob(Job):
         """
         self.search_data = search_data
 
-        self.model_checkpoint = model_checkpoints[
-            epoch.get() if isinstance(epoch, tk.Variable) else epoch
-        ]
+        self.model_checkpoint = model_checkpoint
 
         self.returnn_python_exe = (
             returnn_python_exe
@@ -131,7 +126,7 @@ class ReturnnSearchJob(Job):
         :param ReturnnConfig returnn_config: object representing RETURNN config
         :param int log_verbosity: RETURNN log verbosity
         :param str device: RETURNN device, cpu or gpu
-        :return: search ReturnnConfig
+        :rtype: ReturnnConfig
         """
         assert device in ["gpu", "cpu"]
         original_config = returnn_config.config
@@ -162,7 +157,6 @@ class ReturnnSearchJob(Job):
             "device": device,
             "log": ["./returnn.log"],
             "log_verbosity": log_verbosity,
-            "multiprocessing": True,
         }
 
         post_config.update(copy.deepcopy(returnn_config.post_config))
@@ -179,8 +173,7 @@ class ReturnnSearchJob(Job):
             "returnn_config": kwargs["returnn_config"].hash(),
             "returnn_python_exe": kwargs["returnn_python_exe"],
             "returnn_root": kwargs["returnn_root"],
-            "model_checkpoints": kwargs["model_checkpoints"],
-            "epoch": kwargs["epoch"],
+            "model_checkpoint": kwargs["model_checkpoint"],
             "search_data": kwargs["search_data"],
         }
         return super().hash(d)
