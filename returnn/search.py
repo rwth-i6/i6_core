@@ -84,17 +84,13 @@ class ReturnnSearchJob(Job):
         config.config["load"] = self.model_checkpoint.ckpt_path
         config.write(self.out_returnn_config_file.get_path())
 
-        with open("rnn.sh", "wt") as f:
-            f.write(
-                "#!/usr/bin/env bash\n%s"
-                % " ".join(
-                    [
-                        tk.uncached_path(self.returnn_python_exe),
-                        os.path.join(tk.uncached_path(self.returnn_root), "rnn.py"),
-                        self.out_returnn_config_file.get_path(),
-                    ]
-                )
-            )
+        cmd = [
+            tk.uncached_path(self.returnn_python_exe),
+            os.path.join(tk.uncached_path(self.returnn_root), "rnn.py"),
+            self.out_returnn_config_file.get_path(),
+        ]
+
+        util.create_executable("rnn.sh", cmd)
 
         os.chmod(
             "rnn.sh",
