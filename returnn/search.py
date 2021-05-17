@@ -59,13 +59,13 @@ class ReturnnSearchJob(Job):
             returnn_root if returnn_root is not None else gs.RETURNN_ROOT
         )
 
+        self.out_returnn_config_file = self.output_path("returnn.config")
+
         self.out_search_file = self.output_path("search_out")
 
         self.returnn_config = self.create_returnn_config(
             returnn_config, log_verbosity, device
         )
-
-        self.out_returnn_config_file = self.output_path("returnn.config")
 
         self.rqmt = {
             "gpu": 1 if device == "gpu" else 0,
