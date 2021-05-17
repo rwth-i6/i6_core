@@ -76,7 +76,7 @@ class ReturnnSearchJob(Job):
 
     def tasks(self):
         yield Task("create_files", mini_task=True)
-        yield Task("run", resume="run", rqmt=self.rqmt)
+        yield Task("run", rqmt=self.rqmt)
 
     def create_files(self):
         config = self.returnn_config
