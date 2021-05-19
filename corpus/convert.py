@@ -185,16 +185,15 @@ class CorpusReplaceOrthFromTxtJob(Job):
         c.dump(tk.uncached_path(self.out_corpus))
 
 
-class CorpusToReturnnTextDictJob(Job):
+class CorpusToTextDictJob(Job):
     """
-    Extract the Text from a Bliss corpus to fit the "{key: text}" structure of RETURNN
+    Extract the Text from a Bliss corpus to fit a "{key: text}" structure (e.g. for RETURNN)
     """
 
     def __init__(self, corpus, segments=None):
         """
-
-        :param corpus: bliss corpus file
-        :param segments: a segment file as optional whitelist
+        :param Path: bliss corpus file
+        :param Path|None: a segment file as optional whitelist
         """
         self.corpus_path = corpus
         self.segments_file_path = segments
@@ -218,7 +217,7 @@ class CorpusToReturnnTextDictJob(Job):
                 )
             else:
                 segment_file = open(tk.uncached_path(self.segments_file_path), "rt")
-            segments = [line.decode().strip() for line in segment_file]
+            segments = set(line.decode().strip() for line in segment_file)
 
         for segment in c.segments():
             orth = segment.orth.strip()
