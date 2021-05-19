@@ -211,13 +211,8 @@ class CorpusToTextDictJob(Job):
 
         segments = None
         if self.segments_file_path:
-            if tk.uncached_path(self.segments_file_path).endswith("gz"):
-                segment_file = gzip.open(
-                    tk.uncached_path(self.segments_file_path), "rb"
-                )
-            else:
-                segment_file = open(tk.uncached_path(self.segments_file_path), "rt")
-            segments = set(line.decode().strip() for line in segment_file)
+            with uopen(tk.uncached_path(self.segments_file_path)) as f:
+                segments = set(line.decode().strip() for line in f.readlines())
 
         for segment in c.segments():
             orth = segment.orth.strip()
