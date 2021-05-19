@@ -2,6 +2,7 @@ __all__ = ["CorpusToStmJob", "CorpusToTxtJob", "CorpusReplaceOrthFromTxtJob"]
 
 import gzip
 import itertools
+import pprint
 
 from sisyphus import *
 
@@ -182,3 +183,51 @@ class CorpusReplaceOrthFromTxtJob(Job):
                 segment.orth = line.strip()
 
         c.dump(tk.uncached_path(self.out_corpus))
+
+
+class CorpusToReturnnTextDictJob(Job):
+    """
+    Extract the Text from a Bliss corpus to fit the "{key: text}" structure of RETURNN
+    """
+
+    def __init__(self, corpus, segments=None):
+        """
+
+        :param corpus: bliss corpus file
+        :param segments: a segment file as optional whitelist
+        """
+        self.corpus_path = corpus
+        self.segments_file_path = segments
+
+        self.out_dictionary = self.output_path("text_dictionary.py")
+
+    def tasks(self):
+        yield Task("run", mini_task=True)
+
+    def run(self):
+        c = corpus.Corpus()
+        c.load(tk.uncached_path(self.corpus_path))
+
+        dictionary = {}
+
+        segments = None
+        if self.segments_file_path:
+            if tk.uncached_path(self.segments_file_path).endswith("gz"):
+                segment_file = gzip.open(
+                    tk.uncached_path(self.segments_file_path), "rb"
+                )
+            else:
+                segment_file = open(tk.uncached_path(self.segments_file_path), "rt")
+            segments = [line.decode().strip() for line in segment_file]
+
+        for segment in c.segments():
+            orth = segment.orth.strip()
+            key = segments.fullname()
+            if segments:
+                if key not in segments:
+                    continue
+            dictionary[key] = orth
+
+        dictionary_string = pprint.pformat(dictionary, width=1000)
+        with open(self.out_dictionary.get_path(), "wt") as f:
+            f.write(dictionary_string)

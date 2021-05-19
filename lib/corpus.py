@@ -162,7 +162,8 @@ class Corpus(NamedEntity, CorpusSection):
 
     def segments(self):
         """
-        @return : an iterator over all segments within the corpus
+        :return: an iterator over all segments within the corpus
+        :rtype: Iterable[Segment]
         """
         for r in self.recordings:
             yield from r.segments
