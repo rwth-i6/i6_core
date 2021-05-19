@@ -192,8 +192,8 @@ class CorpusToTextDictJob(Job):
 
     def __init__(self, corpus, segments=None):
         """
-        :param Path: bliss corpus file
-        :param Path|None: a segment file as optional whitelist
+        :param Path corpus: bliss corpus file
+        :param Path|None segments: a segment file as optional whitelist
         """
         self.corpus_path = corpus
         self.segments_file_path = segments
@@ -211,7 +211,7 @@ class CorpusToTextDictJob(Job):
 
         segments = None
         if self.segments_file_path:
-            with uopen(tk.uncached_path(self.segments_file_path)) as f:
+            with uopen(self.segments_file_path) as f:
                 segments = set(line.decode().strip() for line in f.readlines())
 
         for segment in c.segments():
