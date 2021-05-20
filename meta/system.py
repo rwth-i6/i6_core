@@ -169,7 +169,7 @@ class System:
     def set_stm_files(self, corpus, **kwargs):
         """
         create and set the stm files
-        :param Path|str corpus: Bliss corpus file path
+        :param str corpus: corpus name
         """
         self.stm_files[corpus] = corpus_recipes.CorpusToStmJob(
             self.crp[corpus].corpus_config.file, **kwargs
