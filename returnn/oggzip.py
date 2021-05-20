@@ -59,8 +59,13 @@ class BlissToOggZipJob(Job):
 
         self.out_ogg_zip = self.output_path("out.ogg.zip")
 
+        self.rqmt = None
+
     def tasks(self):
-        yield Task("run", mini_task=True)
+        if self.rqmt:
+            yield Task("run", rqmt=self.rqmt)
+        else:
+            yield Task("run", mini_task=True)
 
     def run(self):
         args = [
