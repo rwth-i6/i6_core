@@ -167,6 +167,10 @@ class System:
         self.scorer_hyp_arg[corpus] = "ctm"
 
     def set_stm_files(self, corpus, **kwargs):
+        """
+        create and set the stm files
+        :param Path|str corpus: Bliss corpus file path
+        """
         self.stm_files[corpus] = corpus_recipes.CorpusToStmJob(
             self.crp[corpus].corpus_config.file, **kwargs
         ).out_stm_path
