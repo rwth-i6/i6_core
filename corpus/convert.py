@@ -212,16 +212,15 @@ class CorpusToTextDictJob(Job):
         segments = None
         if self.segments_file_path:
             with uopen(self.segments_file_path) as f:
-                segments = set(line.decode().strip() for line in f.readlines())
+                segments = set(line.decode().strip() for line in f)
 
         for segment in c.segments():
             orth = segment.orth.strip()
-            key = segments.fullname()
-            if segments:
-                if key not in segments:
-                    continue
+            key = segment.fullname()
+            if segments and key not in segments:
+                continue
             dictionary[key] = orth
 
         dictionary_string = pprint.pformat(dictionary, width=1000)
-        with open(self.out_dictionary.get_path(), "wt") as f:
+        with uopen(self.out_dictionary.get_path(), "wt") as f:
             f.write(dictionary_string)
