@@ -166,7 +166,7 @@ class System:
         }
         self.scorer_hyp_arg[corpus] = "ctm"
 
-    def set_stm_files(self, corpus, **kwargs):
+    def create_stm_from_corpus(self, corpus, **kwargs):
         """
         create and set the stm files
         :param str corpus: corpus name
