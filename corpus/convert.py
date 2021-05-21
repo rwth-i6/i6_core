@@ -190,13 +190,15 @@ class CorpusToTextDictJob(Job):
     Extract the Text from a Bliss corpus to fit a "{key: text}" structure (e.g. for RETURNN)
     """
 
-    def __init__(self, corpus, segments=None):
+    def __init__(self, bliss_corpus, segments=None, invert_match=False):
         """
-        :param Path corpus: bliss corpus file
+        :param Path bliss_corpus: bliss corpus file
         :param Path|None segments: a segment file as optional whitelist
+        :param bool invert_match: use segment file as blacklist (needs to contain full segment names then)
         """
-        self.corpus_path = corpus
+        self.corpus_path = bliss_corpus
         self.segments_file_path = segments
+        self.invert_match = invert_match
 
         self.out_dictionary = self.output_path("text_dictionary.py")
 
@@ -217,10 +219,17 @@ class CorpusToTextDictJob(Job):
         for segment in c.segments():
             orth = segment.orth.strip()
             key = segment.fullname()
-            if segments and key not in segments:
-                continue
+            if segments:
+                if (
+                    not self.invert_match
+                    and key not in segments
+                    and segment.name not in segments
+                ):
+                    continue
+                if self.invert_match and key in segments:
+                    continue
             dictionary[key] = orth
 
         dictionary_string = pprint.pformat(dictionary, width=1000)
-        with uopen(self.out_dictionary.get_path(), "wt") as f:
+        with uopen(self.out_dictionary, "wt") as f:
             f.write(dictionary_string)
