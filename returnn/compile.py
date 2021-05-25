@@ -60,8 +60,13 @@ class CompileTFGraphJob(Job):
         self.out_model_params = self.output_var("model_params.pickle", pickle=True)
         self.out_state_vars = self.output_var("state_vars.pickle", pickle=True)
 
+        self.rqmt = None
+
     def tasks(self):
-        yield Task("run", resume="run", mini_task=True)
+        if self.rqmt:
+            yield Task("run", resume="run", rqmt=self.rqmt)
+        else:
+            yield Task("run", resume="run", mini_task=True)
 
     def run(self):
         returnn_config_path = self.returnn_config
