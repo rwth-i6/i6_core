@@ -92,17 +92,6 @@ class ReturnnSearchJob(Job):
 
         util.create_executable("rnn.sh", cmd)
 
-        os.chmod(
-            "rnn.sh",
-            stat.S_IRUSR
-            | stat.S_IRGRP
-            | stat.S_IROTH
-            | stat.S_IWUSR
-            | stat.S_IXUSR
-            | stat.S_IXGRP
-            | stat.S_IXOTH,
-        )
-
         # check here if model actually exists
         assert os.path.exists(
             tk.uncached_path(self.model_checkpoint.index_path)
