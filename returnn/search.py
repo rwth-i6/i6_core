@@ -191,7 +191,7 @@ class SearchBPEtoWordsJob(Job):
             out.write("}\n")
 
 
-class SearchWordsToCTM(Job):
+class SearchWordsToCTMJop(Job):
     """
     Convert RETURNN search output file into CTM format file
     """
