@@ -214,11 +214,11 @@ class SearchWordsToCTM(Job):
     def run(self):
         corpus = Corpus()
         corpus.load(self.corpus.get_path())
-        d = eval(open(self.recog_words_file.get_path(), "r").read())
+        d = eval(util.uopen(self.recog_words_file.get_path(), "r").read())
         assert isinstance(
             d, dict
         ), "only search output file with dict format is supported"
-        with open(self.out_ctm_file.get_path(), "w") as out:
+        with util.uopen(self.out_ctm_file.get_path(), "w") as out:
             out.write(
                 ";; <name> <track> <start> <duration> <word> <confidence> [<n-best>]\n"
             )
