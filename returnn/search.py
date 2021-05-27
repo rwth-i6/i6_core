@@ -5,19 +5,19 @@ __all__ = [
     "ReturnnComputeWERJob",
 ]
 
-from sisyphus import *
-
-Path = setup_path(__package__)
-
 import copy
 import logging
 import os
-from recipe.i6_core.lib.corpus import Corpus
 import stat
 import shutil
 import subprocess as sp
 
+from sisyphus import *
+
+from recipe.i6_core.lib.corpus import Corpus
 import recipe.i6_core.util as util
+
+Path = setup_path(__package__)
 
 
 class ReturnnSearchFromFileJob(Job):
@@ -191,7 +191,7 @@ class SearchBPEtoWordsJob(Job):
             out.write("}\n")
 
 
-class SearchWordsToCTMJop(Job):
+class SearchWordsToCTMJob(Job):
     """
     Convert RETURNN search output file into CTM format file
     """
