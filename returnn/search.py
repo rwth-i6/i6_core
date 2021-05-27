@@ -196,14 +196,14 @@ class SearchWordsToCTMJob(Job):
     Convert RETURNN search output file into CTM format file
     """
 
-    def __init__(self, recog_words_file, corpus, filter_tags=True):
+    def __init__(self, recog_words_file, bliss_corpus, filter_tags=True):
         """
         :param Path recog_words_file: search output file from RETURNN
-        :param Path corpus: bliss xml corpus
+        :param Path bliss_corpus: bliss xml corpus
         :param bool filter_tags: if set to True, tags such as [noise] will be filtered out
         """
         self.recog_words_file = recog_words_file
-        self.corpus = corpus
+        self.bliss_corpus = bliss_corpus
         self.filter_tags = filter_tags
 
         self.out_ctm_file = self.output_path("search.ctm")
@@ -213,7 +213,7 @@ class SearchWordsToCTMJob(Job):
 
     def run(self):
         corpus = Corpus()
-        corpus.load(self.corpus.get_path())
+        corpus.load(self.bliss_corpus.get_path())
         d = eval(util.uopen(self.recog_words_file.get_path(), "r").read())
         assert isinstance(
             d, dict
