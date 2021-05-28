@@ -1,4 +1,5 @@
 __all__ = [
+    "ReturnnSearchJob",
     "ReturnnSearchFromFileJob",
     "SearchBPEtoWordsJob",
     "SearchWordsToCTMJob",
