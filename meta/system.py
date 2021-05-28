@@ -166,6 +166,15 @@ class System:
         }
         self.scorer_hyp_arg[corpus] = "ctm"
 
+    def create_stm_from_corpus(self, corpus, **kwargs):
+        """
+        create and set the stm files
+        :param str corpus: corpus name
+        """
+        self.stm_files[corpus] = corpus_recipes.CorpusToStmJob(
+            self.crp[corpus].corpus_config.file, **kwargs
+        ).out_stm_path
+
     def store_allophones(self, source_corpus, target_corpus="base", **kwargs):
         self.jobs[target_corpus]["allophones"] = lexicon.StoreAllophonesJob(
             self.crp[source_corpus], **kwargs
