@@ -1,8 +1,9 @@
-__all__ = ["ReturnnSearchJob", "ReturnnSearchFromFileJob", "ReturnnComputeWERJob"]
-
-from sisyphus import *
-
-Path = setup_path(__package__)
+__all__ = [
+    "ReturnnSearchFromFileJob",
+    "SearchBPEtoWordsJob",
+    "SearchWordsToCTMJob",
+    "ReturnnComputeWERJob",
+]
 
 import copy
 import logging
@@ -11,7 +12,12 @@ import stat
 import shutil
 import subprocess as sp
 
+from sisyphus import *
+
+from recipe.i6_core.lib.corpus import Corpus
 import recipe.i6_core.util as util
+
+Path = setup_path(__package__)
 
 
 class ReturnnSearchJob(Job):
@@ -333,6 +339,66 @@ class SearchBPEtoWordsJob(Job):
                     seq_tag = tag_split[0] + "/" + recording_name + "/" + segment_name
                 out.write("%r: %r,\n" % (seq_tag, txt.replace("@@ ", "")))
             out.write("}\n")
+
+
+class SearchWordsToCTMJob(Job):
+    """
+    Convert RETURNN search output file into CTM format file
+    """
+
+    def __init__(self, recog_words_file, bliss_corpus, filter_tags=True):
+        """
+        :param Path recog_words_file: search output file from RETURNN
+        :param Path bliss_corpus: bliss xml corpus
+        :param bool filter_tags: if set to True, tags such as [noise] will be filtered out
+        """
+        self.recog_words_file = recog_words_file
+        self.bliss_corpus = bliss_corpus
+        self.filter_tags = filter_tags
+
+        self.out_ctm_file = self.output_path("search.ctm")
+
+    def tasks(self):
+        yield Task("run", mini_task=True)
+
+    def run(self):
+        corpus = Corpus()
+        corpus.load(self.bliss_corpus.get_path())
+        d = eval(util.uopen(self.recog_words_file.get_path(), "r").read())
+        assert isinstance(
+            d, dict
+        ), "only search output file with dict format is supported"
+        with util.uopen(self.out_ctm_file.get_path(), "w") as out:
+            out.write(
+                ";; <name> <track> <start> <duration> <word> <confidence> [<n-best>]\n"
+            )
+            for seg in corpus.segments():
+                seg_start = 0.0 if seg.start == float("inf") else seg.start
+                seg_end = 0.0 if seg.end == float("inf") else seg.end
+                seg_fullname = seg.fullname()
+                assert seg_fullname in d, "can not find {} in search output".format(
+                    seg_fullname
+                )
+                out.write(";; %s (%f-%f)\n" % (seg_fullname, seg_start, seg_end))
+                words = d[seg_fullname].split()
+                # Just linearly interpolate the start/end of each word as time stamps are not given
+                avg_dur = (seg_end - seg_start) * 0.9 / max(len(words), 1)
+                for i in range(len(words)):
+                    if (
+                        self.filter_tags
+                        and words[i].startswith("[")
+                        and words[i].endswith("]")
+                    ):
+                        continue
+                    out.write(
+                        "%s 1 %f %f %s 0.99\n"
+                        % (
+                            seg.recording.name,
+                            seg_start + avg_dur * i,
+                            avg_dur,
+                            words[i],
+                        )
+                    )
 
 
 class ReturnnComputeWERJob(Job):
