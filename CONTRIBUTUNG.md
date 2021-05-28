@@ -39,6 +39,6 @@ Some general things:
     1. Don't break a jobs hash
     2. Really don't break a jobs hash
     3. very strong preference to avoid config files / scripts in the recipe repo itself. Everything should be code
-    4. Jobs should be as deterministic as possible
+    4. Jobs have to be deterministic. Especially the code in the Job itself and the computed output (files). If this is not possible at all, please add a clear warning.
     5. `sh` function should definitely not be used
 
