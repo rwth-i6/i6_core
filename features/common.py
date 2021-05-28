@@ -50,7 +50,22 @@ def samples_flow(
         "min-non-dc-segment-length": 0.021,
     },
     input_options=None,
+    scale_input=None,
 ):
+    """
+    Create a flow to read samples from audio files, convert it to f32 and apply optional dc-detection.
+
+    Non-wav files will be opened with the ffmpeg flow node. Please check if scaling is needed.
+
+    :param audio_format: the input audio format
+    :param dc_detection: enable dc-detection node
+    :param dc_params: optional dc-detection node parameters
+    :param dict input_options: additional options for the input node
+    :param int|float|None scale_input: scale the waveform samples,
+        this might be needed to scale ogg inputs by 2**15 to support feature flows
+        designed for 16-bit wav inputs
+    :return:
+    """
     net = rasr.FlowNetwork()
 
     net.add_output("samples")
@@ -65,10 +80,10 @@ def samples_flow(
     if input_options is not None:
         input_opts.update(**input_options)
 
-    prescale = input_opts.pop("prescale", None)
+    input_node_type = "ffmpeg" if audio_format != "wav" else "wav"
 
-    samples = net.add_node("audio-input-file-" + audio_format, "samples", input_opts)
-    if audio_format == "ffmpeg":
+    samples = net.add_node("audio-input-file-" + input_node_type, "samples", input_opts)
+    if input_node_type == "ffmpeg":
         samples_out = samples
     else:
         demultiplex = net.add_node(
@@ -80,12 +95,12 @@ def samples_flow(
         net.link(demultiplex, convert)
         samples_out = convert
 
-    if prescale:
-        prescale = net.add_node(
-            "generic-vector-f32-multiplication", "prescale", value=str(prescale)
+    if scale_input:
+        scale = net.add_node(
+            "generic-vector-f32-multiplication", "scale", value=str(scale_input)
         )
-        net.link(samples_out, prescale)
-        pre_dc_out = prescale
+        net.link(samples_out, scale)
+        pre_dc_out = scale
     else:
         pre_dc_out = samples_out
 
