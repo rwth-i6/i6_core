@@ -135,8 +135,8 @@ class CompileNativeOpJob(Job):
             returnn_root if returnn_root is not None else gs.RETURNN_ROOT
         )
 
-        self.out_op = self.output_path("op.so")
-        self.out_grad_op = self.output_path("op_grad.so")
+        self.out_op = self.output_path("%s.so" % native_op)
+        self.out_grad_op = self.output_path("GradOf%s.so" % native_op)
 
         self.rqmt = None
 
@@ -147,7 +147,7 @@ class CompileNativeOpJob(Job):
             yield Task("run", resume="run", rqmt=self.rqmt)
 
     def run(self):
-        args = [
+        cmd = [
             tk.uncached_path(self.returnn_python_exe),
             os.path.join(
                 tk.uncached_path(self.returnn_root), "tools/compile_native_op.py"
@@ -157,8 +157,9 @@ class CompileNativeOpJob(Job):
             "--output_file",
             "compile.out",
         ]
-        logging.info(args)
+        logging.info(cmd)
 
+        util.create_executable("compile.sh", cmd)  # convenience file for manual execution
         sp.run(args, check=True)
 
         with open("compile.out", "rt") as f:
