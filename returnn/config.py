@@ -1,10 +1,5 @@
 __all__ = ["CodeWrapper", "ReturnnConfig", "WriteReturnnConfigJob"]
 
-from sisyphus import *
-
-Path = setup_path(__package__)
-Variable = tk.Variable
-
 import base64
 import inspect
 import json
@@ -12,6 +7,12 @@ import pickle
 import pprint
 import string
 import textwrap
+
+from sisyphus import *
+from sisyphus.hash import sis_hash_helper
+
+Path = setup_path(__package__)
+Variable = tk.Variable
 
 
 def instanciate_vars(o):
@@ -82,10 +83,10 @@ class ReturnnConfig:
         :param dict post_config: dictionary of the RETURNN config variables that are not hashed
         :param None|str|Callable|Class|tuple|list|dict python_prolog: str or structure containing str/callables/classes
             that should be pasted as code at the beginning of the config file
-        :param str python_prolog_hash: sets a specific hash for the python_prolog
+        :param str|None python_prolog_hash: sets a specific hash for the python_prolog
         :param None|str|Callable|Class|tuple|list|dict python_epilog: str or structure containing
             str/callables/classes that should be pasted as code at the end of the config file
-        :param str python_epilog_hash: sets a specific hash for the python_epilog
+        :param str|None python_epilog_hash: sets a specific hash for the python_epilog
         """
         self.config = config
         self.post_config = post_config if post_config is not None else {}
@@ -185,14 +186,13 @@ class ReturnnConfig:
             return inspect.getsource(code)
         raise RuntimeError("Could not serialize %s" % code)
 
-    def hash(self):
+    def _sis_hash(self):
         h = {
             "returnn_config": self.config,
             "python_epilog_hash": self.python_epilog_hash,
+            "python_prolog_hash": self.python_prolog_hash,
         }
-        if self.python_prolog_hash is not None:
-            h["python_prolog_hash"] = self.python_prolog_hash
-        return h
+        return sis_hash_helper(h)
 
 
 class WriteReturnnConfigJob(Job):
@@ -216,7 +216,3 @@ class WriteReturnnConfigJob(Job):
 
     def run(self):
         self.returnn_config.write(self.out_returnn_config_file.get_path())
-
-    @classmethod
-    def hash(self, kwargs):
-        return super().hash(kwargs["returnn_config"].hash())
