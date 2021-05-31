@@ -7,7 +7,7 @@ __all__ = [
 
 import itertools as it
 
-import recipe.i6_core.util as util
+import i6_core.util as util
 
 
 class RasrConfig:
@@ -220,7 +220,7 @@ class RasrConfig:
 
 def build_config_from_mapping(crp, mapping, include_log_config=True, parallelize=False):
     """
-    :param recipe.rasr.crp.CommonRasrParameters crp:
+    :param rasr.crp.CommonRasrParameters crp:
     :param dict[str,str|list[str]] mapping:
     :param bool include_log_config:
     :param bool parallelize:

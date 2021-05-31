@@ -16,8 +16,8 @@ import os
 import wave
 import xml.etree.cElementTree as ET
 
-from recipe.i6_core.lib import corpus
-from recipe.i6_core.util import uopen
+from i6_core.lib import corpus
+from i6_core.util import uopen
 
 from sisyphus import *
 

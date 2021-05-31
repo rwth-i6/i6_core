@@ -16,9 +16,9 @@ import re
 
 import numpy as np
 
-from recipe.i6_core.util import MultiOutputPath
-from recipe.i6_core.lib import corpus
-from recipe.i6_core.util import chunks
+from i6_core.util import MultiOutputPath
+from i6_core.lib import corpus
+from i6_core.util import chunks
 
 from sisyphus import *
 
@@ -264,7 +264,7 @@ class SplitSegmentFileJob(Job):
 class SortSegmentsByLengthAndShuffleJob(Job):
     def __init__(self, crp, shuffle_strength=1.0, shuffle_seed=0x3C5EA3E47D4E0077):
         """
-        :param crp: recipe.rasr.crp.CommonRasrParameters
+        :param crp: rasr.crp.CommonRasrParameters
         :param shuffle_strength: float in [0,inf) determines how much the length should affect sorting
                                  0 -> completely random; inf -> strictly sorted
         :param shuffle_seed: random number seed

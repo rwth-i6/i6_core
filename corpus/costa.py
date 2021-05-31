@@ -2,9 +2,9 @@ from sisyphus import *
 
 Path = setup_path(__package__)
 
-from recipe.i6_core.features.common import raw_audio_flow
-import recipe.i6_core.rasr as rasr
-import recipe.i6_core.util as util
+from i6_core.features.common import raw_audio_flow
+import i6_core.rasr as rasr
+import i6_core.util as util
 
 
 class CostaJob(rasr.RasrCommand, Job):

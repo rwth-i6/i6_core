@@ -15,11 +15,11 @@ def generate():
         """
         :param str modname:
         """
-        fn = "api/%s.rst" % (modname[len("recipe.i6_core.") :] or "___base")
+        fn = "api/%s.rst" % (modname[len("i6_core.") :] or "___base")
         if os.path.exists(fn):
             return
         f = open(fn, "w")
-        title = ":mod:`%s`" % modname[len("recipe.") :]
+        title = ":mod:`%s`" % modname
         f.write("\n%s\n%s\n\n" % (title, "-" * len(title)))
         f.write(".. automodule:: %s\n\t:members:\n\t:undoc-members:\n\n" % modname)
         f.close()
@@ -59,4 +59,4 @@ def generate():
                 continue
             makeapi(".".join(modpath + [modname]))
 
-    scan_modules(["recipe"])
+    scan_modules(["i6_core"])

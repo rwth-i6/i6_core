@@ -9,14 +9,14 @@ from sisyphus import *
 
 Path = setup_path(__package__)
 
-import recipe.i6_core.corpus as corpus_recipes
-import recipe.i6_core.lexicon as lexicon
-import recipe.i6_core.returnn as returnn
-import recipe.i6_core.features as features
-import recipe.i6_core.mm as mm
-import recipe.i6_core.recognition as recog
-import recipe.i6_core.rasr as rasr
-import recipe.i6_core.vtln as vtln
+import i6_core.corpus as corpus_recipes
+import i6_core.lexicon as lexicon
+import i6_core.returnn as returnn
+import i6_core.features as features
+import i6_core.mm as mm
+import i6_core.recognition as recog
+import i6_core.rasr as rasr
+import i6_core.vtln as vtln
 
 from .mm_sequence import AlignSplitAccumulateSequence
 
@@ -58,7 +58,7 @@ class System:
         :param str name:
         :param tk.Object corpus:
         :param int concurrent:
-        :param recipe.util.MultiOutputPath segment_path:
+        :param util.MultiOutputPath segment_path:
         """
         self.crp[name] = rasr.CommonRasrParameters(base=self.crp["base"])
         rasr.crp_set_corpus(self.crp[name], corpus)

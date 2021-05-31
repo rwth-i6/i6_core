@@ -15,8 +15,8 @@ import subprocess as sp
 
 from sisyphus import *
 
-from recipe.i6_core.lib.corpus import Corpus
-import recipe.i6_core.util as util
+from i6_core.lib.corpus import Corpus
+import i6_core.util as util
 
 Path = setup_path(__package__)
 

@@ -4,15 +4,15 @@ import copy
 
 from .common import *
 from .extraction import *
-import recipe.i6_core.rasr as rasr
+import i6_core.rasr as rasr
 
 
 def MfccJob(crp, mfcc_options=None, extra_config=None, extra_post_config=None):
     """
-    :param recipe.rasr.crp.CommonRasrParameters crp:
+    :param rasr.crp.CommonRasrParameters crp:
     :param dict[str] mfcc_options:
-    :param recipe.rasr.config.RasrConfig|None extra_config:
-    :param recipe.rasr.config.RasrConfig|None extra_post_config:
+    :param rasr.config.RasrConfig|None extra_config:
+    :param rasr.config.RasrConfig|None extra_post_config:
     :rtype: FeatureExtractionJob
     """
     if mfcc_options is None:

@@ -12,7 +12,7 @@ import subprocess as sp
 
 from sisyphus import *
 
-import recipe.i6_core.util as util
+import i6_core.util as util
 from .config import ReturnnConfig
 
 Path = setup_path(__package__)

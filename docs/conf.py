@@ -13,18 +13,17 @@
 import os
 import sys
 
-if not os.path.exists("recipe"):
-    os.mkdir("recipe")
-    os.mkdir("recipe/i6_core")
+if not os.path.exists("i6_core"):
+    os.mkdir("i6_core")
     for fn in sorted(os.listdir("..")):
         print(fn)
         if fn.endswith(".py"):
-            os.symlink("../../../%s" % fn, "recipe/i6_core/%s" % fn)
+            os.symlink("../../%s" % fn, "i6_core/%s" % fn)
             continue
         if os.path.isdir(os.path.join("..", fn)) and os.path.exists(
             os.path.join("..", fn, "__init__.py")
         ):
-            os.symlink("../../../%s" % fn, "recipe/i6_core/%s" % fn)
+            os.symlink("../../%s" % fn, "i6_core/%s" % fn)
             continue
 
 sys.path.insert(0, os.path.abspath("."))

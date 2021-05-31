@@ -4,8 +4,8 @@ import os
 import subprocess as sp
 
 from .rasr_training import ReturnnRasrTrainingJob
-import recipe.i6_core.rasr as rasr
-from recipe.i6_core.util import relink
+import i6_core.rasr as rasr
+from i6_core.util import relink
 
 from sisyphus import *
 

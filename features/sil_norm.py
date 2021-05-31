@@ -12,7 +12,7 @@ Path = setup_path(__package__)
 import gzip
 import xml.etree.ElementTree as ET
 
-import recipe.i6_core.rasr as rasr
+import i6_core.rasr as rasr
 
 
 def samples_with_silence_normalization_flow(

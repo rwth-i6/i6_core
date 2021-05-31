@@ -6,7 +6,7 @@ __all__ = [
     "confidence_based_alignment_flow",
 ]
 
-from recipe.i6_core.rasr import FlowNetwork, RasrConfig
+from i6_core.rasr import FlowNetwork, RasrConfig
 
 
 def linear_segmentation_flow(feature_energy_net, alignment_cache=None):

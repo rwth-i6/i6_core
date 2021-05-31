@@ -3,7 +3,7 @@ __all__ = [
     "build_generalized_eigenvalue_problem_config",
 ]
 
-from recipe.i6_core.rasr import ConfigBuilder
+from i6_core.rasr import ConfigBuilder
 
 build_eigenvalue_problem_config = ConfigBuilder(
     {
