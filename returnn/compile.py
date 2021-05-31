@@ -1,11 +1,13 @@
-__all__ = ["CompileTFGraphJob"]
+__all__ = ["CompileTFGraphJob", "CompileNativeOpJob"]
 
 from sisyphus import *
 
 Path = setup_path(__package__)
 
 import copy
+import logging
 import os
+import shutil
 import subprocess as sp
 
 from .config import ReturnnConfig
@@ -105,3 +107,64 @@ class CompileTFGraphJob(Job):
         c = copy.copy(kwargs)
         del c["verbosity"]
         return super().hash(c)
+
+
+class CompileNativeOpJob(Job):
+    """
+    Compile a RETURNN native op into a shared object file.
+    """
+
+    def __init__(
+        self,
+        native_op,
+        returnn_python_exe=None,
+        returnn_root=None,
+    ):
+        """
+        :param str native_op: Name of the native op to compile (e.g. NativeLstm2)
+        :param Path|str returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
+        :param Path|str returnn_root: file path to the RETURNN repository root folder
+        """
+        self.native_op = native_op
+        self.returnn_python_exe = (
+            returnn_python_exe
+            if returnn_python_exe is not None
+            else gs.RETURNN_PYTHON_EXE
+        )
+        self.returnn_root = (
+            returnn_root if returnn_root is not None else gs.RETURNN_ROOT
+        )
+
+        self.out_op = self.output_path("op.so")
+        self.out_grad_op = self.output_path("op_grad.so")
+
+        self.rqmt = None
+
+    def tasks(self):
+        if self.rqmt is None:
+            yield Task("run", resume="run", mini_task=True)
+        else:
+            yield Task("run", resume="run", rqmt=self.rqmt)
+
+    def run(self):
+        args = [
+            tk.uncached_path(self.returnn_python_exe),
+            os.path.join(
+                tk.uncached_path(self.returnn_root), "tools/compile_native_op.py"
+            ),
+            "--native_op",
+            self.native_op,
+            "--output_file",
+            "compile.out",
+        ]
+        logging.info(args)
+
+        sp.run(args, check=True)
+
+        with open("compile.out", "rt") as f:
+            files = [l.strip() for l in f]
+
+        if len(files) > 0:
+            shutil.move(files[0], self.out_op.get_path())
+        if len(files) > 1:
+            shutil.move(files[1], self.out_grad_op.get_path())
