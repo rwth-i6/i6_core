@@ -1,4 +1,4 @@
-__all__ = ["ReturnnModel", "ReturnnTrainingJob", "ReturnnTrainingFromFileJob"]
+__all__ = ["ReturnnModel", "Checkpoint", "ReturnnTrainingJob", "ReturnnTrainingFromFileJob"]
 
 import copy
 import os
