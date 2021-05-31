@@ -352,7 +352,7 @@ class FlowNetwork:
         for node, names in zip(
             ["in", "out", "param"], [self.inputs, self.outputs, self.params]
         ):
-            for n in names:
+            for n in sorted(names):
                 ET.SubElement(root, node, name=n)
 
         for name in self.__compute_node_order():
