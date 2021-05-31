@@ -10,6 +10,8 @@ import os
 import shutil
 import subprocess as sp
 
+import i6_core.util as util
+
 from .config import ReturnnConfig
 
 
@@ -162,7 +164,7 @@ class CompileNativeOpJob(Job):
         util.create_executable(
             "compile.sh", cmd
         )  # convenience file for manual execution
-        sp.run(args, check=True)
+        sp.run(cmd, check=True)
 
         with open("compile.out", "rt") as f:
             files = [l.strip() for l in f]
