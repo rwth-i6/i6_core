@@ -15,7 +15,7 @@ def generate():
         """
         :param str modname:
         """
-        fn = "api/%s.rst" % (modname[len("recipe.i6_core.") :] or "___base")
+        fn = "api/%s.rst" % (modname[len("i6_core.") :] or "___base")
         if os.path.exists(fn):
             return
         f = open(fn, "w")

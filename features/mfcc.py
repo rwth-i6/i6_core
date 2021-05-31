@@ -4,7 +4,7 @@ import copy
 
 from .common import *
 from .extraction import *
-import recipe.i6_core.rasr as rasr
+import i6_core.rasr as rasr
 
 
 def MfccJob(crp, mfcc_options=None, extra_config=None, extra_post_config=None):

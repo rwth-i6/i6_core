@@ -6,8 +6,8 @@ import pprint
 
 from sisyphus import *
 
-from recipe.i6_core.lib import corpus
-from recipe.i6_core.util import uopen
+from i6_core.lib import corpus
+from i6_core.util import uopen
 
 Path = setup_path(__package__)
 

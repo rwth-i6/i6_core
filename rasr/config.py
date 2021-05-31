@@ -7,7 +7,7 @@ __all__ = [
 
 import itertools as it
 
-import recipe.i6_core.util as util
+import i6_core.util as util
 
 
 class RasrConfig:

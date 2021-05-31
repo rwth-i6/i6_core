@@ -15,8 +15,8 @@ from sisyphus import *
 Path = setup_path(__package__)
 
 from .flow import linear_segmentation_flow, cached_alignment_flow
-import recipe.i6_core.rasr as rasr
-import recipe.i6_core.util as util
+import i6_core.rasr as rasr
+import i6_core.util as util
 
 
 class MergeMixturesJob(rasr.RasrCommand, Job):

@@ -14,11 +14,11 @@ from sisyphus import *
 
 Path = setup_path(__package__)
 
-from recipe.i6_core.mm.flow import alignment_flow
-import recipe.i6_core.mm as mm
-import recipe.i6_core.recognition as recognition
-import recipe.i6_core.util as util
-import recipe.i6_core.rasr as rasr
+from i6_core.mm.flow import alignment_flow
+import i6_core.mm as mm
+import i6_core.recognition as recognition
+import i6_core.util as util
+import i6_core.rasr as rasr
 
 
 class NumeratorLatticeJob(rasr.RasrCommand, Job):

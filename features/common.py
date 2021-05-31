@@ -14,7 +14,7 @@ __all__ = [
     "select_features",
 ]
 
-import recipe.i6_core.rasr as rasr
+import i6_core.rasr as rasr
 
 
 # -------------------- Flows --------------------

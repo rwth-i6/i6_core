@@ -1,10 +1,10 @@
 __all__ = ["CartAndLDA"]
 
-import recipe.i6_core.cart as cart
-import recipe.i6_core.features as features
-import recipe.i6_core.lda as lda
-import recipe.i6_core.mm as mm
-import recipe.i6_core.rasr as rasr
+import i6_core.cart as cart
+import i6_core.features as features
+import i6_core.lda as lda
+import i6_core.mm as mm
+import i6_core.rasr as rasr
 
 
 class CartAndLDA:
