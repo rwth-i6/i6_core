@@ -159,7 +159,9 @@ class CompileNativeOpJob(Job):
         ]
         logging.info(cmd)
 
-        util.create_executable("compile.sh", cmd)  # convenience file for manual execution
+        util.create_executable(
+            "compile.sh", cmd
+        )  # convenience file for manual execution
         sp.run(args, check=True)
 
         with open("compile.out", "rt") as f:
