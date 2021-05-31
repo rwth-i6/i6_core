@@ -55,11 +55,24 @@ def samples_flow(
     """
     Create a flow to read samples from audio files, convert it to f32 and apply optional dc-detection.
 
-    Non-wav files will be opened with the ffmpeg flow node. Please check if scaling is needed.
+    Files that do not have a native input node will be opened with the ffmpeg flow node.
+    Please check if scaling is needed.
 
-    :param audio_format: the input audio format
-    :param dc_detection: enable dc-detection node
-    :param dc_params: optional dc-detection node parameters
+    Native input formats are:
+        - wav
+        - nist
+        - flac
+        - mpeg (mp3)
+        - gsm
+        - htk
+        - phondat
+        - oss
+
+    For more information see: https://www-i6.informatik.rwth-aachen.de/rwth-asr/manual/index.php/Audio_Nodes
+
+    :param str audio_format: the input audio format
+    :param bool dc_detection: enable dc-detection node
+    :param dict dc_params: optional dc-detection node parameters
     :param dict input_options: additional options for the input node
     :param int|float|None scale_input: scale the waveform samples,
         this might be needed to scale ogg inputs by 2**15 to support feature flows
@@ -80,7 +93,18 @@ def samples_flow(
     if input_options is not None:
         input_opts.update(**input_options)
 
-    input_node_type = "ffmpeg" if audio_format != "wav" else "wav"
+    native_audio_formats = [
+        "wav",
+        "nist",
+        "flac",
+        "mpeg",
+        "gsm",
+        "htk",
+        "phondat",
+        "oss",
+    ]
+
+    input_node_type = audio_format if audio_format in native_audio_formats else "ffmpeg"
 
     samples = net.add_node("audio-input-file-" + input_node_type, "samples", input_opts)
     if input_node_type == "ffmpeg":
