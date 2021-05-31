@@ -2,8 +2,8 @@ __all__ = ["add_cmllr_transform", "segment_clustering_flow"]
 
 import os
 
-from recipe.i6_core.features import add_linear_transform
-from recipe.i6_core.rasr import FlowNetwork
+from i6_core.features import add_linear_transform
+from i6_core.rasr import FlowNetwork
 
 
 def add_cmllr_transform(

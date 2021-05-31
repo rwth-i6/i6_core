@@ -13,8 +13,8 @@ from sisyphus import *
 Path = setup_path(__package__)
 
 from .common import samples_flow as default_samples_flow
-import recipe.i6_core.rasr as rasr
-import recipe.i6_core.util as util
+import i6_core.rasr as rasr
+import i6_core.util as util
 
 
 class ToneJob(rasr.RasrCommand, Job):

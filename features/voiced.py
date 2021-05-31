@@ -2,7 +2,7 @@ __all__ = ["VoicedJob", "voiced_flow"]
 
 from .common import *
 from .extraction import *
-import recipe.i6_core.rasr as rasr
+import i6_core.rasr as rasr
 
 
 def VoicedJob(crp, voiced_options=None, extra_config=None, extra_post_config=None):

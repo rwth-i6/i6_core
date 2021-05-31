@@ -10,5 +10,5 @@ else:
     import logging
 
     logging.debug(
-        'Warning (recipe.adaptation.__init__.py): "bob" was not found. I-vector training and extraction will not be available.'
+        'Warning (adaptation.__init__.py): "bob" was not found. I-vector training and extraction will not be available.'
     )

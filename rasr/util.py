@@ -13,7 +13,7 @@ from sisyphus import *
 
 Path = setup_path(__package__)
 
-from recipe.i6_core.util import *
+from i6_core.util import *
 
 
 class MapSegmentsWithBundlesJob(Job):

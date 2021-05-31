@@ -7,9 +7,9 @@ __all__ = [
     "first_split_acc_then_align_split_acc",
 ]
 
-from recipe.i6_core.mm.alignment import AlignmentJob
-from recipe.i6_core.mm.mixtures import EstimateMixturesJob
-from recipe.i6_core.rasr import FlagDependentFlowAttribute, DiagonalMaximumScorer
+from i6_core.mm.alignment import AlignmentJob
+from i6_core.mm.mixtures import EstimateMixturesJob
+from i6_core.rasr import FlagDependentFlowAttribute, DiagonalMaximumScorer
 
 
 class AlignSplitAccumulateSequence:
@@ -34,7 +34,7 @@ class AlignSplitAccumulateSequence:
         feature_scorer=DiagonalMaximumScorer,
     ):
         """
-        :param recipe.rasr.crp.CommonRasrParameters crp:
+        :param rasr.crp.CommonRasrParameters crp:
         :param list[str] action_sequence:
         :param feature_flow:
         :param initial_mixtures:

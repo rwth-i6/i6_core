@@ -7,7 +7,7 @@ from sisyphus import *
 
 Path = setup_path(__package__)
 
-from recipe.i6_core.util import *
+from i6_core.util import *
 
 
 class RasrCommand:
@@ -21,7 +21,7 @@ class RasrCommand:
     def log_file_output_path(self, name, crp, parallel):
         """
         :param str name:
-        :param recipe.rasr.crp.CommonRasrParameters crp:
+        :param rasr.crp.CommonRasrParameters crp:
         :param int|bool parallel:
         :rtype: Path
         """
@@ -37,8 +37,8 @@ class RasrCommand:
     @staticmethod
     def write_config(config, post_config, filename):
         """
-        :param recipe.rasr.RasrConfig config:
-        :param recipe.rasr.RasrConfig post_config:
+        :param rasr.RasrConfig config:
+        :param rasr.RasrConfig post_config:
         :param str filename:
         """
         config._update(post_config)

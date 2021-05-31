@@ -7,8 +7,8 @@ from sisyphus import *
 Path = setup_path(__package__)
 
 from .common import *
-import recipe.i6_core.rasr as rasr
-import recipe.i6_core.util as util
+import i6_core.rasr as rasr
+import i6_core.util as util
 
 
 class FeatureExtractionJob(rasr.RasrCommand, Job):
@@ -126,7 +126,7 @@ class FeatureExtractionJob(rasr.RasrCommand, Job):
         :param rasr.config.RasrConfig|None extra_config:
         :param rasr.config.RasrConfig|None extra_post_config:
         :return: config, post_config
-        :rtype: (rasr.config.RasrConfig, recipe.rasr.config.RasrConfig)
+        :rtype: (rasr.config.RasrConfig, rasr.config.RasrConfig)
         """
         config, post_config = rasr.build_config_from_mapping(
             crp, {"corpus": "extraction.corpus"}, parallelize=True

@@ -14,7 +14,7 @@ import collections
 import re
 
 from sisyphus import *
-from recipe.i6_core.lib.corpus import *
+from i6_core.lib.corpus import *
 
 Path = setup_path(__package__)
 

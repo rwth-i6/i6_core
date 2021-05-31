@@ -7,7 +7,7 @@ import subprocess
 
 from sisyphus import *
 
-from recipe.i6_core.lib import corpus
+from i6_core.lib import corpus
 
 
 class BlissFfmpegJob(Job):

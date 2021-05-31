@@ -7,8 +7,8 @@ from sisyphus import *
 
 Path = setup_path(__package__)
 
-import recipe.i6_core.rasr as rasr
-import recipe.i6_core.util as util
+import i6_core.rasr as rasr
+import i6_core.util as util
 
 
 class AccumulateCartStatisticsJob(rasr.RasrCommand, Job):

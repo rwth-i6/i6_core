@@ -10,8 +10,8 @@ from sisyphus import *
 Path = setup_path(__package__)
 
 from .flow import alignment_flow, dump_alignment_flow
-import recipe.i6_core.rasr as rasr
-import recipe.i6_core.util as util
+import i6_core.rasr as rasr
+import i6_core.util as util
 
 
 class AlignmentJob(rasr.RasrCommand, Job):
@@ -28,7 +28,7 @@ class AlignmentJob(rasr.RasrCommand, Job):
         extra_post_config=None,
     ):
         """
-        :param recipe.rasr.crp.CommonRasrParameters crp:
+        :param rasr.crp.CommonRasrParameters crp:
         :param feature_flow:
         :param rasr.FeatureScorer feature_scorer:
         :param dict[str] alignment_options:
@@ -146,7 +146,7 @@ class AlignmentJob(rasr.RasrCommand, Job):
         **kwargs,
     ):
         """
-        :param recipe.rasr.crp.CommonRasrParameters crp:
+        :param rasr.crp.CommonRasrParameters crp:
         :param feature_flow:
         :param rasr.FeatureScorer feature_scorer:
         :param dict[str] alignment_options:

@@ -2,7 +2,7 @@ __all__ = ["BlissChangeEncodingJob"]
 
 from sisyphus import Path
 
-from recipe.i6_core.audio.ffmpeg import BlissFfmpegJob
+from i6_core.audio.ffmpeg import BlissFfmpegJob
 
 
 class BlissChangeEncodingJob(BlissFfmpegJob):

@@ -11,10 +11,10 @@ import xml.etree.cElementTree as ET
 
 import numpy as np
 
-from recipe.i6_core.util import MultiOutputPath
+from i6_core.util import MultiOutputPath
 
-from recipe.i6_core.lib import corpus
-from recipe.i6_core.util import chunks, uopen
+from i6_core.lib import corpus
+from i6_core.util import chunks, uopen
 
 from sisyphus import *
 
@@ -87,7 +87,7 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
         :param dict[int,str] alignment_logs: alignment_job.log_file; task_id -> log_file
         :param float|int percentile: in range [0,100]. for :func:`np.percentile`
         :param float absolute_threshold:
-        :param recipe.rasr.crp.CommonRasrParameters crp:
+        :param rasr.crp.CommonRasrParameters crp:
         :param bool plot:
         """
         self.alignment_logs = alignment_logs  # alignment_job.log_file
