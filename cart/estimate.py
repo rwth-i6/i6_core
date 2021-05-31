@@ -135,9 +135,7 @@ class AccumulateCartStatisticsJob(rasr.RasrCommand, Job):
         config.acoustic_model_trainer.cart_trainer.merge_example_files = " ".join(
             "cart.acc.xml.%d.gz" % i for i in range(1, crp.concurrent + 1)
         )
-        config.acoustic_model_trainer.cart_trainer.example_file = (
-            "cart.sum.xml.gz"
-        )
+        config.acoustic_model_trainer.cart_trainer.example_file = "cart.sum.xml.gz"
 
         config._update(extra_config_merge)
         post_config._update(extra_post_config_merge)
