@@ -15,12 +15,16 @@ import i6_core.util as util
 
 
 class ApplyBPEModelToLexiconJob(Job):
-    def __init__(self, bpe_code, lexicon_path, vocabulary_path=None, subword_nmt_repo=None):
+    def __init__(
+        self, bpe_code, lexicon_path, vocabulary_path=None, subword_nmt_repo=None
+    ):
         self.bpe_code = bpe_code
         self.lexicon_path = lexicon_path
         self.vocabulary_path = vocabulary_path
 
-        self.subword_nmt_repo = subword_nmt_repo if subword_nmt_repo is not None else gs.SUBWORD_NMT_PATH
+        self.subword_nmt_repo = (
+            subword_nmt_repo if subword_nmt_repo is not None else gs.SUBWORD_NMT_PATH
+        )
 
         self.out_converted_lexicon = self.output_path("lexicon.xml.gz", cached=True)
 
@@ -109,7 +113,9 @@ class ApplyBPEToTextJob(Job):
         """
         self.text_file = text_file
         self.bpe_codes = bpe_codes
-        self.subword_nmt_repo = subword_nmt_repo if subword_nmt_repo is not None else gs.SUBWORD_NMT_PATH
+        self.subword_nmt_repo = (
+            subword_nmt_repo if subword_nmt_repo is not None else gs.SUBWORD_NMT_PATH
+        )
         self.bpe_vocab = bpe_vocab
 
         self.out_bpe_text = self.output_path("words_to_bpe.txt")
@@ -132,5 +138,5 @@ class ApplyBPEToTextJob(Job):
         if self.bpe_vocab:
             cmd += ["--vocabulary", tk.uncached_path(self.bpe_vocab)]
 
-        util.create_executable('apply_bpe.sh', cmd)
+        util.create_executable("apply_bpe.sh", cmd)
         sp.run(cmd, check=True)

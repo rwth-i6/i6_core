@@ -28,7 +28,9 @@ class TrainBPEModelJob(Job):
         self.dict_input = dict_input
         self.total_symbols = total_symbols
 
-        self.subword_nmt_repo = subword_nmt_repo if subword_nmt_repo is not None else gs.SUBWORD_NMT_PATH
+        self.subword_nmt_repo = (
+            subword_nmt_repo if subword_nmt_repo is not None else gs.SUBWORD_NMT_PATH
+        )
 
         self.code_file = self.output_path("code")
 
@@ -84,7 +86,9 @@ class ReturnnTrainBpeJob(Job):
         """
         self.text_file = text_file
         self.bpe_size = bpe_size
-        self.subword_nmt_repo = subword_nmt_repo if subword_nmt_repo is not None else gs.SUBWORD_NMT_PATH
+        self.subword_nmt_repo = (
+            subword_nmt_repo if subword_nmt_repo is not None else gs.SUBWORD_NMT_PATH
+        )
         self.unk_label = unk_label
 
         self.out_bpe_codes = self.output_path("bpe.codes")
@@ -101,7 +105,7 @@ class ReturnnTrainBpeJob(Job):
             str(self.bpe_size),
         ]
 
-        util.create_executable('create_bpe_codes.sh', bpe_codes_cmd)
+        util.create_executable("create_bpe_codes.sh", bpe_codes_cmd)
 
         with util.uopen(self.text_file, "rb") as f:
             p = sp.Popen(
@@ -129,7 +133,7 @@ class ReturnnTrainBpeJob(Job):
             self.out_bpe_vocab.get_path(),
         ]
 
-        util.create_executable('create_bpe_vocab.sh', bpe_vocab_cmd)
+        util.create_executable("create_bpe_vocab.sh", bpe_vocab_cmd)
         sp.run(bpe_vocab_cmd, check=True)
 
         with util.uopen(self.out_bpe_vocab) as f:
