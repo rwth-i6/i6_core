@@ -274,18 +274,11 @@ class ReturnnRasrTrainingJob(ReturnnTrainingJob):
         kwargs["crp"] = dev_crp
         dev_config, dev_post_config = cls.create_config(**kwargs)
         returnn_config = kwargs["returnn_config"]
-        python_epilog_hash = (
-            returnn_config.python_epilog
-            if returnn_config.python_epilog_hash is None
-            else returnn_config.python_epilog_hash
-        )
-
         d = {
             "train_config": train_config,
             "dev_config": dev_config,
             "alignment_flow": flow,
-            "returnn_config": returnn_config.config,
-            "python_epilog": python_epilog_hash,
+            "returnn_config": returnn_config,
             "rasr_exe": train_crp.nn_trainer_exe,
             "returnn_python_exe": kwargs["returnn_python_exe"],
             "returnn_root": kwargs["returnn_root"],
