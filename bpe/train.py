@@ -7,9 +7,10 @@ import sys
 
 from sisyphus import *
 
-Path = setup_path(__package__)
-
 from i6_core.tools.git import *
+import i6_core.util as util
+
+Path = setup_path(__package__)
 
 
 class TrainBPEModelJob(Job):
@@ -29,7 +30,7 @@ class TrainBPEModelJob(Job):
 
         self.subword_nmt_repo = CloneGitRepositoryJob(
             "https://github.com/rsennrich/subword-nmt.git"
-        ).repository
+        ).out_repository
 
         self.code_file = self.output_path("code")
 
@@ -79,52 +80,64 @@ class ReturnnTrainBpeJob(Job):
         Create Bpe codes and vocab files
         NOTE: This uses Albert's subword-nmt fork which is compatible to RETURNN BytePairEncoding class
 
-        :param Path text_file: corpus text file
+        :param Path|str text_file: corpus text file
         :param int bpe_size: number of BPE merge operations
+        :param str unk_label: unknown label
         """
         self.text_file = text_file
         self.bpe_size = bpe_size
         self.unk_label = unk_label
 
-        self.bpe_codes = self.output_path("bpe.codes")
-        self.bpe_vocab = self.output_path("bpe.vocab")
-        self.vocab_size = self.output_var("vocab_size")
-
         self.subword_nmt_repo = CloneGitRepositoryJob(
-            "https://github.com/albertz/subword-nmt.git"
-        ).repository
+            "https://github.com/albertz/subword-nmt.git",
+            branch="master",
+            commit="6ba4515d684393496502b79188be13af9cad66e2",
+        ).out_repository
+
+        self.out_bpe_codes = self.output_path("bpe.codes")
+        self.out_bpe_vocab = self.output_path("bpe.vocab")
+        self.out_vocab_size = self.output_var("vocab_size")
 
     def run(self):
-        text_file = tk.uncached_path(self.text_file)
-        cmd_cat_txt = "%s %s" % (
-            "zcat" if text_file.endswith(".gz") else "cat",
-            text_file,
-        )
-        self.sh(
-            "%s | %s %s/learn_bpe.py --output %s --symbols %s"
-            % (
-                cmd_cat_txt,
-                sys.executable,
-                self.subword_nmt_repo.get_path(),
-                self.bpe_codes.get_path(),
-                self.bpe_size,
-            )
-        )
-        self.sh(
-            "%s %s/create-py-vocab.py --txt %s --bpe %s --unk %s --out %s"
-            % (
-                sys.executable,
-                self.subword_nmt_repo.get_path(),
-                text_file,
-                self.bpe_codes.get_path(),
-                self.unk_label,
-                self.bpe_vocab.get_path(),
-            )
-        )
+        bpe_codes_cmd = [
+            sys.executable,
+            os.path.join(self.subword_nmt_repo.get_path(), "learn_bpe.py"),
+            "--output",
+            self.out_bpe_codes.get_path(),
+            "--symbols",
+            str(self.bpe_size),
+        ]
 
-        with open(self.bpe_vocab.get_path()) as f:
+        with util.uopen(self.text_file, "rb") as f:
+            p = sp.Popen(
+                bpe_codes_cmd, stdin=sp.PIPE, stdout=sys.stdout, stderr=sys.stderr
+            )
+            while True:
+                data = f.read(4096)
+                if len(data) > 0:
+                    p.stdin.write(data)
+                else:
+                    break
+            p.communicate()
+            assert p.returncode == 0
+
+        bpe_vocab_cmd = [
+            sys.executable,
+            os.path.join(self.subword_nmt_repo.get_path(), "create-py-vocab.py"),
+            "--txt",
+            tk.uncached_path(self.text_file),
+            "--bpe",
+            self.out_bpe_codes.get_path(),
+            "--unk",
+            self.unk_label,
+            "--out",
+            self.out_bpe_vocab.get_path(),
+        ]
+        sp.run(bpe_vocab_cmd)
+
+        with open(self.out_bpe_vocab.get_path()) as f:
             num_labels = max(list(eval(f.read()).values())) + 1  # 0-based index
-            self.vocab_size.set(num_labels)
+            self.out_vocab_size.set(num_labels)
 
     def tasks(self):
         yield Task("run", rqmt={"cpu": 1, "mem": 2, "time": 4})

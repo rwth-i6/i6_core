@@ -1,4 +1,4 @@
-__all__ = ["ApplyBPEModelToLexiconJob"]
+__all__ = ["ApplyBPEModelToLexiconJob", "ApplyBPEToTextJob"]
 
 import gzip
 import subprocess as sp
@@ -10,8 +10,8 @@ from sisyphus import *
 
 Path = setup_path(__package__)
 
-from i6_core.tools.git import *
 from i6_core.lib.lexicon import Lexicon
+from i6_core.tools.git import *
 
 
 class ApplyBPEModelToLexiconJob(Job):
@@ -22,7 +22,7 @@ class ApplyBPEModelToLexiconJob(Job):
 
         self.subword_nmt_repo = CloneGitRepositoryJob(
             "https://github.com/rsennrich/subword-nmt.git"
-        ).repository
+        ).out_repository
 
         self.converted_lexicon = self.output_path("lexicon.xml.gz", cached=True)
 
@@ -95,3 +95,45 @@ class ApplyBPEModelToLexiconJob(Job):
         tree = ET.ElementTree(elem)
         with gzip.open(self.converted_lexicon.get_path(), "wb") as f:
             tree.write(f, encoding="utf-8")
+
+
+class ApplyBPEToTextJob(Job):
+    """
+    Apply BPE codes on a text file
+    """
+
+    def __init__(self, text_file, bpe_codes, bpe_vocab=None):
+        """
+        :param Path|str text_file: words text file to convert to bpe
+        :param Path|str bpe_codes: bpe codes file
+        :param Path|str|None: bpe_vocab: if provided, then merge operations that produce OOV are reverted
+        """
+        self.text_file = text_file
+        self.bpe_codes = bpe_codes
+        self.bpe_vocab = bpe_vocab
+
+        self.subword_nmt_repo = CloneGitRepositoryJob(
+            "https://github.com/albertz/subword-nmt.git",
+            branch="master",
+            commit="6ba4515d684393496502b79188be13af9cad66e2",
+        ).out_repository
+
+        self.out_bpe_text = self.output_path("words_to_bpe.txt")
+
+    def tasks(self):
+        yield Task("run", mini_task=True)
+
+    def run(self):
+        cmd = [
+            sys.executable,
+            os.path.join(self.subword_nmt_repo.get_path(), "apply_bpe.py"),
+            "--input",
+            tk.uncached_path(self.text_file),
+            "--codes",
+            tk.uncached_path(self.bpe_codes),
+            "--output",
+            self.out_bpe_text.get_path(),
+        ]
+        if self.bpe_vocab:
+            cmd += ["--vocabulary", tk.uncached_path(self.bpe_vocab)]
+        sp.run(cmd)
