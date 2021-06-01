@@ -111,7 +111,7 @@ class AccumulateCartStatisticsJob(rasr.RasrCommand, Job):
             "alignment.flow"
         )
         config.acoustic_model_trainer.cart_trainer.example_file = (
-            "`cf -d cart.acc.xml.$(TASK).gz`"
+            "cart.acc.xml.$(TASK).gz"
         )
 
         alignment_flow.apply_config(
@@ -135,9 +135,7 @@ class AccumulateCartStatisticsJob(rasr.RasrCommand, Job):
         config.acoustic_model_trainer.cart_trainer.merge_example_files = " ".join(
             "cart.acc.xml.%d.gz" % i for i in range(1, crp.concurrent + 1)
         )
-        config.acoustic_model_trainer.cart_trainer.example_file = (
-            "`cf -d cart.sum.xml.gz`"
-        )
+        config.acoustic_model_trainer.cart_trainer.example_file = "cart.sum.xml.gz"
 
         config._update(extra_config_merge)
         post_config._update(extra_post_config_merge)
@@ -233,11 +231,11 @@ class EstimateCartJob(rasr.RasrCommand, Job):
         config.acoustic_model_trainer.cart_trainer.training_file = questions_path
         config.acoustic_model_trainer.cart_trainer.example_file = cart_examples
         config.acoustic_model_trainer.cart_trainer.decision_tree_file = (
-            "`cf -d cart.tree.xml.gz`"
+            "cart.tree.xml.gz"
         )
         if generate_cluster_file:
             config.acoustic_model_trainer.cart_trainer.cluster_file = (
-                "`cf -d cart.cluster.xml.gz`"
+                "cart.cluster.xml.gz"
             )
         config.acoustic_model_trainer.cart_trainer.log_likelihood_gain.variance_clipping = (
             variance_clipping

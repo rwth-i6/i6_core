@@ -202,7 +202,7 @@ class EstimateScatterMatricesJob(rasr.RasrCommand, Job):
             "alignment.flow"
         )
         config.acoustic_model_trainer.scatter_matrices_estimator.new_accumulator_file = (
-            "`cf -d scatter.acc.$(TASK)`"
+            "scatter.acc.$(TASK)"
         )
 
         alignment_flow.apply_config(
@@ -345,7 +345,7 @@ class EstimateLDAMatrixJob(rasr.RasrCommand, Job):
             rasr.PathWithPrefixFlowAttribute("xml:", within_class_scatter_matrix)
         )
         config.acoustic_model_trainer.lda_estimator.projector_matrix_file = (
-            "xml:`cf -d lda.matrix`"
+            "xml:lda.matrix"
         )
 
         config.acoustic_model_trainer.lda_estimator.results.channel = (
