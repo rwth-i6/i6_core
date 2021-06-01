@@ -7,7 +7,6 @@ import sys
 
 from sisyphus import *
 
-from i6_core.tools.git import *
 import i6_core.util as util
 
 Path = setup_path(__package__)
@@ -21,6 +20,7 @@ class TrainBPEModelJob(Job):
         min_frequency=2,
         dict_input=False,
         total_symbols=False,
+        subword_nmt_repo=None,
     ):
         self.text_corpus = text_corpus
         self.symbols = symbols
@@ -28,9 +28,7 @@ class TrainBPEModelJob(Job):
         self.dict_input = dict_input
         self.total_symbols = total_symbols
 
-        self.subword_nmt_repo = CloneGitRepositoryJob(
-            "https://github.com/rsennrich/subword-nmt.git"
-        ).out_repository
+        self.subword_nmt_repo = subword_nmt_repo if subword_nmt_repo is not None else gs.SUBWORD_NMT_PATH
 
         self.code_file = self.output_path("code")
 
@@ -41,7 +39,7 @@ class TrainBPEModelJob(Job):
 
     def run(self):
         train_binary = os.path.join(
-            self.subword_nmt_repo.get_path(), "subword_nmt/learn_bpe.py"
+            tk.uncached_path(self.subword_nmt_repo), "subword_nmt/learn_bpe.py"
         )
         args = [
             sys.executable,
@@ -59,9 +57,8 @@ class TrainBPEModelJob(Job):
             args += ["--total-symbols"]
 
         text_corpus = tk.uncached_path(self.text_corpus)
-        open_fun = gzip.open if text_corpus.endswith(".gz") else open
 
-        with open_fun(text_corpus, "rb") as f:
+        with util.uopen(text_corpus, "rb") as f:
             p = sp.Popen(args, stdin=sp.PIPE, stdout=sys.stdout, stderr=sys.stderr)
             while True:
                 data = f.read(4096)
@@ -75,24 +72,20 @@ class TrainBPEModelJob(Job):
 
 
 class ReturnnTrainBpeJob(Job):
-    def __init__(self, text_file, bpe_size, unk_label="UNK"):
+    def __init__(self, text_file, bpe_size, subword_nmt_repo=None, unk_label="UNK"):
         """
         Create Bpe codes and vocab files
         NOTE: This uses Albert's subword-nmt fork which is compatible to RETURNN BytePairEncoding class
 
         :param Path|str text_file: corpus text file
         :param int bpe_size: number of BPE merge operations
+        :param Path|str|None subword_nmt_repo: subword nmt repository path. see also `CloneGitRepositoryJob`
         :param str unk_label: unknown label
         """
         self.text_file = text_file
         self.bpe_size = bpe_size
+        self.subword_nmt_repo = subword_nmt_repo if subword_nmt_repo is not None else gs.SUBWORD_NMT_PATH
         self.unk_label = unk_label
-
-        self.subword_nmt_repo = CloneGitRepositoryJob(
-            "https://github.com/albertz/subword-nmt.git",
-            branch="master",
-            commit="6ba4515d684393496502b79188be13af9cad66e2",
-        ).out_repository
 
         self.out_bpe_codes = self.output_path("bpe.codes")
         self.out_bpe_vocab = self.output_path("bpe.vocab")
@@ -101,12 +94,14 @@ class ReturnnTrainBpeJob(Job):
     def run(self):
         bpe_codes_cmd = [
             sys.executable,
-            os.path.join(self.subword_nmt_repo.get_path(), "learn_bpe.py"),
+            os.path.join(tk.uncached_path(self.subword_nmt_repo), "learn_bpe.py"),
             "--output",
             self.out_bpe_codes.get_path(),
             "--symbols",
             str(self.bpe_size),
         ]
+
+        util.create_executable('create_bpe_codes.sh', bpe_codes_cmd)
 
         with util.uopen(self.text_file, "rb") as f:
             p = sp.Popen(
@@ -123,7 +118,7 @@ class ReturnnTrainBpeJob(Job):
 
         bpe_vocab_cmd = [
             sys.executable,
-            os.path.join(self.subword_nmt_repo.get_path(), "create-py-vocab.py"),
+            os.path.join(tk.uncached_path(self.subword_nmt_repo), "create-py-vocab.py"),
             "--txt",
             tk.uncached_path(self.text_file),
             "--bpe",
@@ -133,9 +128,11 @@ class ReturnnTrainBpeJob(Job):
             "--out",
             self.out_bpe_vocab.get_path(),
         ]
-        sp.run(bpe_vocab_cmd)
 
-        with open(self.out_bpe_vocab.get_path()) as f:
+        util.create_executable('create_bpe_vocab.sh', bpe_vocab_cmd)
+        sp.run(bpe_vocab_cmd, check=True)
+
+        with util.uopen(self.out_bpe_vocab) as f:
             num_labels = max(list(eval(f.read()).values())) + 1  # 0-based index
             self.out_vocab_size.set(num_labels)
 
