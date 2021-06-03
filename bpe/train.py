@@ -76,8 +76,9 @@ class TrainBPEModelJob(Job):
 class ReturnnTrainBpeJob(Job):
     def __init__(self, text_file, bpe_size, subword_nmt_repo=None, unk_label="UNK"):
         """
-        Create Bpe codes and vocab files
-        NOTE: This uses Albert's subword-nmt fork which is compatible to RETURNN BytePairEncoding class
+        Create Bpe codes and vocab files compatible with RETURNN BytePairEncoding
+        Repository:
+            https://github.com/albertz/subword-nmt
 
         :param Path|str text_file: corpus text file
         :param int bpe_size: number of BPE merge operations
