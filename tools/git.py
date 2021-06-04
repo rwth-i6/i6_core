@@ -27,7 +27,7 @@ class CloneGitRepositoryJob(Job):
         self.branch = branch
         self.commit = commit
 
-        self.repository = self.output_path(checkout_folder_name, True)
+        self.out_repository = self.output_path(checkout_folder_name, True)
 
     def tasks(self):
         yield Task("run", mini_task=True)
@@ -36,7 +36,7 @@ class CloneGitRepositoryJob(Job):
         args = ["git", "clone", self.url]
         if self.branch is not None:
             args.extend(["-b", self.branch])
-        repository_dir = self.repository.get_path()
+        repository_dir = self.out_repository.get_path()
         args += [repository_dir]
         logging.info("running command: %s" % " ".join(args))
         sp.run(args)

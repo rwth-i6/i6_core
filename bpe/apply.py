@@ -1,4 +1,4 @@
-__all__ = ["ApplyBPEModelToLexiconJob"]
+__all__ = ["ApplyBPEModelToLexiconJob", "ApplyBPEToTextJob"]
 
 import gzip
 import subprocess as sp
@@ -10,21 +10,23 @@ from sisyphus import *
 
 Path = setup_path(__package__)
 
-from i6_core.tools.git import *
 from i6_core.lib.lexicon import Lexicon
+import i6_core.util as util
 
 
 class ApplyBPEModelToLexiconJob(Job):
-    def __init__(self, bpe_code, lexicon_path, vocabulary_path=None):
+    def __init__(
+        self, bpe_code, lexicon_path, vocabulary_path=None, subword_nmt_repo=None
+    ):
         self.bpe_code = bpe_code
         self.lexicon_path = lexicon_path
         self.vocabulary_path = vocabulary_path
 
-        self.subword_nmt_repo = CloneGitRepositoryJob(
-            "https://github.com/rsennrich/subword-nmt.git"
-        ).repository
+        self.subword_nmt_repo = (
+            subword_nmt_repo if subword_nmt_repo is not None else gs.SUBWORD_NMT_PATH
+        )
 
-        self.converted_lexicon = self.output_path("lexicon.xml.gz", cached=True)
+        self.out_converted_lexicon = self.output_path("lexicon.xml.gz", cached=True)
 
     def tasks(self):
         yield Task("run", resume="run", mini_task=True)
@@ -48,12 +50,12 @@ class ApplyBPEModelToLexiconJob(Job):
 
         lm_tokens = list(lm_tokens)
 
-        with open("words", "wt") as f:
+        with util.uopen("words", "wt") as f:
             for t in lm_tokens:
                 f.write("%s\n" % t)
 
         apply_binary = os.path.join(
-            self.subword_nmt_repo.get_path(), "subword_nmt/apply_bpe.py"
+            tk.uncached_path(self.subword_nmt_repo), "subword_nmt/apply_bpe.py"
         )
         args = [
             sys.executable,
@@ -67,9 +69,9 @@ class ApplyBPEModelToLexiconJob(Job):
         ]
         if self.vocabulary_path is not None:
             args += ["--vocabulary", tk.uncached_path(self.vocabulary_path)]
-        sp.run(args)
+        sp.run(args, check=True)
 
-        with open("bpes", "rt") as f:
+        with util.uopen("bpes", "rt") as f:
             bpe_tokens = [l.strip().split() for l in f]
 
         w2b = {w: b for w, b in zip(lm_tokens, bpe_tokens)}
@@ -93,5 +95,48 @@ class ApplyBPEModelToLexiconJob(Job):
 
         elem = lexicon.to_xml()
         tree = ET.ElementTree(elem)
-        with gzip.open(self.converted_lexicon.get_path(), "wb") as f:
+        with util.uopen(self.out_converted_lexicon.get_path(), "wb") as f:
             tree.write(f, encoding="utf-8")
+
+
+class ApplyBPEToTextJob(Job):
+    """
+    Apply BPE codes on a text file
+    """
+
+    def __init__(self, text_file, bpe_codes, subword_nmt_repo=None, bpe_vocab=None):
+        """
+        :param Path|str text_file: words text file to convert to bpe
+        :param Path|str bpe_codes: bpe codes file
+        :param Path|str|None subword_nmt_repo: subword nmt repository path. see also `CloneGitRepositoryJob`
+        :param Path|str|None bpe_vocab: if provided, then merge operations that produce OOV are reverted
+        """
+        self.text_file = text_file
+        self.bpe_codes = bpe_codes
+        self.subword_nmt_repo = (
+            subword_nmt_repo if subword_nmt_repo is not None else gs.SUBWORD_NMT_PATH
+        )
+        self.bpe_vocab = bpe_vocab
+
+        self.out_bpe_text = self.output_path("words_to_bpe.txt")
+
+    def tasks(self):
+        yield Task("run", mini_task=True)
+
+    def run(self):
+        cmd = [
+            sys.executable,
+            os.path.join(tk.uncached_path(self.subword_nmt_repo), "apply_bpe.py"),
+            "--input",
+            tk.uncached_path(self.text_file),
+            "--codes",
+            tk.uncached_path(self.bpe_codes),
+            "--output",
+            self.out_bpe_text.get_path(),
+        ]
+
+        if self.bpe_vocab:
+            cmd += ["--vocabulary", tk.uncached_path(self.bpe_vocab)]
+
+        util.create_executable("apply_bpe.sh", cmd)
+        sp.run(cmd, check=True)
