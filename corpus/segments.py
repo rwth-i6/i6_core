@@ -4,6 +4,7 @@ __all__ = [
     "SegmentCorpusByRegexJob",
     "ShuffleAndSplitSegmentsJob",
     "SplitSegmentFileJob",
+    "DynamicSplitSegmentFileJob",
     "SortSegmentsByLengthAndShuffleJob",
     "UpdateSegmentsWithSegmentMapJob",
 ]
@@ -258,6 +259,33 @@ class SplitSegmentFileJob(Job):
             start = end
             end += n // self.concurrent + (1 if i <= m else 0)
             with open(self.single_segments[i].get_path(), "wt") as f:
+                f.writelines(lines[start:end])
+
+
+class DynamicSplitSegmentFileJob(Job):
+
+    def __init__(self, segment_file, concurrent=1):
+        self.segment_file = segment_file
+        self.concurrent = concurrent
+        self.segment_dir = self.output_path("split", directory=True)
+
+    def tasks(self):
+        yield Task("run", resume="run", mini_task=True)
+
+    def run(self):
+        with open(tk.uncached_path(self.segment_file), "rt") as f:
+            lines = [l for l in f.readlines() if len(l.strip()) > 0]
+
+        nb_seg = len(lines)
+        self.concurrent = self.concurrent.get()
+        seg_per_split = nb_seg // self.concurrent
+        nb_rest_seg = nb_seg % self.concurrent
+        end = 0
+        for i in range(1, self.concurrent + 1):
+            start = end
+            fpath = '{}/segments.{}'.format(self.segment_dir, i)
+            end += seg_per_split + (1 if i <= nb_rest_seg else 0)
+            with open(fpath, "wt") as f:
                 f.writelines(lines[start:end])
 
 
