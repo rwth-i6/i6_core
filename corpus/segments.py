@@ -264,10 +264,19 @@ class SplitSegmentFileJob(Job):
 
 class DynamicSplitSegmentFileJob(Job):
 
-    def __init__(self, segment_file, concurrent=1):
+    """
+    This split the segments to concurrent many shares.
+    It is a variant to the existing SplitSegmentFileJob, which requires a delayed variable for argument concurrent.
+    """
+
+    def __init__(self, segment_file: tk.Union[tk.Path, str], concurrent: tk.Delayed):
+        """
+        :param tk.Union[tk.Path, str] segment_file: segment file
+        :param tk.Delayed concurrent: number of splits
+        """
         self.segment_file = segment_file
         self.concurrent = concurrent
-        self.segment_dir = self.output_path("split", directory=True)
+        self.out_split_dir = self.output_path("split", directory=True)
 
     def tasks(self):
         yield Task("run", resume="run", mini_task=True)
@@ -277,13 +286,14 @@ class DynamicSplitSegmentFileJob(Job):
             lines = [l for l in f.readlines() if len(l.strip()) > 0]
 
         nb_seg = len(lines)
-        self.concurrent = self.concurrent.get()
+        if isinstance(self.concurrent, tk.Delayed):
+            self.concurrent = self.concurrent.get()
         seg_per_split = nb_seg // self.concurrent
         nb_rest_seg = nb_seg % self.concurrent
         end = 0
         for i in range(1, self.concurrent + 1):
             start = end
-            fpath = '{}/segments.{}'.format(self.segment_dir, i)
+            fpath = '{}/segments.{}'.format(self.out_split_dir, i)
             end += seg_per_split + (1 if i <= nb_rest_seg else 0)
             with open(fpath, "wt") as f:
                 f.writelines(lines[start:end])
