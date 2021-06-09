@@ -271,7 +271,7 @@ class DynamicSplitSegmentFileJob(Job):
 
     def __init__(self, segment_file, concurrent):
         """
-        :param tk.Union[tk.Path, str] segment_file: segment file
+        :param tk.Path|str segment_file: segment file
         :param tk.Delayed concurrent: number of splits
         """
         self.segment_file = segment_file
