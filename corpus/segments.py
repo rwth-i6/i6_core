@@ -19,7 +19,7 @@ import numpy as np
 
 from i6_core.util import MultiOutputPath
 from i6_core.lib import corpus
-from i6_core.util import chunks
+from i6_core.util import chunks, uopen
 
 from sisyphus import *
 
@@ -269,7 +269,7 @@ class DynamicSplitSegmentFileJob(Job):
     It is a variant to the existing SplitSegmentFileJob, which requires a delayed variable for argument concurrent.
     """
 
-    def __init__(self, segment_file: tk.Union[tk.Path, str], concurrent: tk.Delayed):
+    def __init__(self, segment_file, concurrent):
         """
         :param tk.Union[tk.Path, str] segment_file: segment file
         :param tk.Delayed concurrent: number of splits
@@ -282,12 +282,11 @@ class DynamicSplitSegmentFileJob(Job):
         yield Task("run", resume="run", mini_task=True)
 
     def run(self):
-        with open(tk.uncached_path(self.segment_file), "rt") as f:
+        with uopen(tk.uncached_path(self.segment_file), "rt") as f:
             lines = [l for l in f.readlines() if len(l.strip()) > 0]
 
         nb_seg = len(lines)
-        if isinstance(self.concurrent, tk.Delayed):
-            self.concurrent = self.concurrent.get()
+        self.concurrent = self.concurrent.get()
         seg_per_split = nb_seg // self.concurrent
         nb_rest_seg = nb_seg % self.concurrent
         end = 0
