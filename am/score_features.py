@@ -12,7 +12,11 @@ Path = setup_path(__package__)
 
 
 class ScoreFeaturesJob(rasr.RasrCommand, Job):
-    """ """
+    """
+
+    This job uses a (multiple) RASR process(es) to forward all the data and calculates the average softmax output.
+    It can be used to calculate the prior based on the "Povey" method.
+    """
 
     def __init__(
         self,
