@@ -1,17 +1,23 @@
 __all__ = ["ScoreFeaturesJob"]
 
-from sisyphus import *
-
-Path = setup_path(__package__)
-
 import math
 import xml.etree.ElementTree as ET
+
+from sisyphus import *
 
 import i6_core.rasr as rasr
 import i6_core.util as util
 
+Path = setup_path(__package__)
+
 
 class ScoreFeaturesJob(rasr.RasrCommand, Job):
+    """
+
+    This job uses a (multiple) RASR process(es) to forward all the data and calculates the average softmax output.
+    It can be used to calculate the prior based on the "Povey" method.
+    """
+
     def __init__(
         self,
         crp,
@@ -25,6 +31,18 @@ class ScoreFeaturesJob(rasr.RasrCommand, Job):
         extra_post_config=None,
         rqmt=None,
     ):
+        """
+        :param rasr.crp.CommonRasrParameters crp:
+        :param rasr.flow.FlowNetwork feature_flow:
+        :param rasr.feature_scorer.FeatureScorer feature_scorer:
+        :param bool normalize:
+        :param bool plot_prior:
+        :param bool use_gpu:
+        :param float rtf:
+        :param rasr.config.RasrConfig|None extra_config:
+        :param rasr.config.RasrConfig|None extra_post_config:
+        :param dict|None rqmt:
+        """
         assert isinstance(feature_scorer, rasr.FeatureScorer)
 
         kwargs = locals()
@@ -41,10 +59,10 @@ class ScoreFeaturesJob(rasr.RasrCommand, Job):
         self.plot_prior = plot_prior
         self.use_gpu = use_gpu
 
-        self.log_file = self.log_file_output_path("score_features", crp, True)
-        self.prior = self.output_path("prior.xml", cached=True)
+        self.out_log_file = self.log_file_output_path("score_features", crp, True)
+        self.out_prior = self.output_path("prior.xml", cached=True)
         if self.plot_prior:
-            self.prior_plot = self.output_path("prior.png")
+            self.out_prior_plot = self.output_path("prior.png")
 
         self.rqmt = {
             "time": max(rtf * crp.corpus_duration / crp.concurrent, 0.5),
@@ -80,7 +98,7 @@ class ScoreFeaturesJob(rasr.RasrCommand, Job):
         self.write_run_script(self.exe, "score_features.config", extra_code=extra_code)
 
     def run(self, task_id):
-        self.run_script(task_id, self.log_file[task_id])
+        self.run_script(task_id, self.out_log_file[task_id])
 
     def cleanup_before_run(self, cmd, retry, task_id, *args):
         util.backup_if_exists("score_features.log.%d" % task_id)
@@ -89,7 +107,7 @@ class ScoreFeaturesJob(rasr.RasrCommand, Job):
         all_scores = []
         all_frames = []
         max_emission = 0
-        for l in self.log_file.values():
+        for l in self.out_log_file.values():
             with util.uopen(l.get_path(), "rb") as f:
                 tree = ET.parse(f)
             scores = {}
@@ -112,7 +130,7 @@ class ScoreFeaturesJob(rasr.RasrCommand, Job):
         total_mass = sum(merged_scores)
         merged_scores = [s / total_mass for s in merged_scores]
 
-        with open(self.prior.get_path(), "wt") as f:
+        with open(self.out_prior.get_path(), "wt") as f:
             f.write(
                 '<?xml version="1.0" encoding="UTF-8"?>\n<vector-f32 size="%d">\n'
                 % len(merged_scores)
@@ -132,7 +150,7 @@ class ScoreFeaturesJob(rasr.RasrCommand, Job):
             plt.xlabel("emission idx")
             plt.ylabel("prior")
             plt.grid(True)
-            plt.savefig(self.prior_plot.get_path())
+            plt.savefig(self.out_prior_plot.get_path())
 
     @classmethod
     def create_config(
@@ -144,6 +162,16 @@ class ScoreFeaturesJob(rasr.RasrCommand, Job):
         extra_post_config,
         **kwargs,
     ):
+        """
+        :param rasr.crp.CommonRasrParameters crp:
+        :param rasr.flow.FlowNetwork feature_flow:
+        :param rasr.feature_scorer.FeatureScorer feature_scorer:
+        :param rasr.config.RasrConfig|None extra_config:
+        :param rasr.config.RasrConfig|None extra_post_config:
+        :param kwargs:
+        :return:
+        :rtype (rasr.config.RasrConfig, rasr.config.RasrConfig)
+        """
         config, post_config = rasr.build_config_from_mapping(
             crp, {"corpus": "acoustic-model-trainer.corpus"}, parallelize=True
         )
