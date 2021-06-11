@@ -175,6 +175,11 @@ class Corpus(NamedEntity, CorpusSection):
         for sc in self.subcorpora:
             yield from sc.all_recordings()
 
+    def all_speakers(self):
+        yield from self.speakers
+        for sc in self.subcorpora:
+            yield from sc.all_speakers()
+
     def remove_recording(self, recording):
         to_delete = []
         for idx, r in enumerate(self.recordings):
