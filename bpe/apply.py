@@ -15,13 +15,20 @@ import i6_core.util as util
 
 
 class ApplyBPEModelToLexiconJob(Job):
-    def __init__(
-        self, bpe_code, lexicon_path, vocabulary_path=None, subword_nmt_repo=None
-    ):
-        self.bpe_code = bpe_code
-        self.lexicon_path = lexicon_path
-        self.vocabulary_path = vocabulary_path
+    """
+    Apply BPE codes to a Bliss lexicon file
+    """
 
+    def __init__(self, bliss_lexicon, bpe_codes, bpe_vocab=None, subword_nmt_repo=None):
+        """
+        :param Path bliss_lexicon:
+        :param Path bpe_codes:
+        :param Path|None bpe_vocab:
+        :param Path|str|None subword_nmt_repo:
+        """
+        self.bliss_lexicon = bliss_lexicon
+        self.bpe_codes = bpe_codes
+        self.bpe_vocab = bpe_vocab
         self.subword_nmt_repo = (
             subword_nmt_repo if subword_nmt_repo is not None else gs.SUBWORD_NMT_PATH
         )
@@ -32,7 +39,7 @@ class ApplyBPEModelToLexiconJob(Job):
         yield Task("run", resume="run", mini_task=True)
 
     def run(self):
-        lexicon_path = tk.uncached_path(self.lexicon_path)
+        lexicon_path = self.bliss_lexicon.get_path()
 
         lexicon = Lexicon()
         lexicon.load(lexicon_path)
@@ -63,12 +70,12 @@ class ApplyBPEModelToLexiconJob(Job):
             "--input",
             "words",
             "--codes",
-            tk.uncached_path(self.bpe_code),
+            self.bpe_codes.get_path(),
             "--output",
             "bpes",
         ]
-        if self.vocabulary_path is not None:
-            args += ["--vocabulary", tk.uncached_path(self.vocabulary_path)]
+        if self.bpe_vocab is not None:
+            args += ["--vocabulary", self.bpe_vocab.get_path()]
         sp.run(args, check=True)
 
         with util.uopen("bpes", "rt") as f:
@@ -104,19 +111,19 @@ class ApplyBPEToTextJob(Job):
     Apply BPE codes on a text file
     """
 
-    def __init__(self, text_file, bpe_codes, subword_nmt_repo=None, bpe_vocab=None):
+    def __init__(self, text_file, bpe_codes, bpe_vocab=None, subword_nmt_repo=None):
         """
-        :param Path|str text_file: words text file to convert to bpe
-        :param Path|str bpe_codes: bpe codes file
+        :param Path text_file: words text file to convert to bpe
+        :param Path bpe_codes: bpe codes file
+        :param Path|None bpe_vocab: if provided, then merge operations that produce OOV are reverted
         :param Path|str|None subword_nmt_repo: subword nmt repository path. see also `CloneGitRepositoryJob`
-        :param Path|str|None bpe_vocab: if provided, then merge operations that produce OOV are reverted
         """
         self.text_file = text_file
         self.bpe_codes = bpe_codes
+        self.bpe_vocab = bpe_vocab
         self.subword_nmt_repo = (
             subword_nmt_repo if subword_nmt_repo is not None else gs.SUBWORD_NMT_PATH
         )
-        self.bpe_vocab = bpe_vocab
 
         self.out_bpe_text = self.output_path("words_to_bpe.txt")
 
@@ -128,15 +135,15 @@ class ApplyBPEToTextJob(Job):
             sys.executable,
             os.path.join(tk.uncached_path(self.subword_nmt_repo), "apply_bpe.py"),
             "--input",
-            tk.uncached_path(self.text_file),
+            self.text_file.get_path(),
             "--codes",
-            tk.uncached_path(self.bpe_codes),
+            self.bpe_codes.get_path(),
             "--output",
             self.out_bpe_text.get_path(),
         ]
 
         if self.bpe_vocab:
-            cmd += ["--vocabulary", tk.uncached_path(self.bpe_vocab)]
+            cmd += ["--vocabulary", self.bpe_vocab.get_path()]
 
         util.create_executable("apply_bpe.sh", cmd)
         sp.run(cmd, check=True)

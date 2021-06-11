@@ -13,6 +13,11 @@ Path = setup_path(__package__)
 
 
 class TrainBPEModelJob(Job):
+    """
+    Create a bpe codes file using the official subword-nmt repo, either installed from pip
+    or https://github.com/rsennrich/subword-nmt
+    """
+
     def __init__(
         self,
         text_corpus,
@@ -22,6 +27,14 @@ class TrainBPEModelJob(Job):
         total_symbols=False,
         subword_nmt_repo=None,
     ):
+        """
+        :param Path text_corpus:
+        :param int symbols:
+        :param int min_frequency:
+        :param bool dict_input:
+        :param bool total_symbols:
+        :param Path|str|None subword_nmt_repo:
+        """
         self.text_corpus = text_corpus
         self.symbols = symbols
         self.min_frequency = min_frequency
@@ -32,7 +45,7 @@ class TrainBPEModelJob(Job):
             subword_nmt_repo if subword_nmt_repo is not None else gs.SUBWORD_NMT_PATH
         )
 
-        self.code_file = self.output_path("code")
+        self.out_code_file = self.output_path("codes")
 
         self.rqmt = {"cpu": 1, "mem": 2, "time": 4}
 
@@ -47,7 +60,7 @@ class TrainBPEModelJob(Job):
             sys.executable,
             train_binary,
             "-o",
-            self.code_file.get_path(),
+            self.out_code_file.get_path(),
             "-s",
             str(self.symbols),
             "--min-frequency",
@@ -58,7 +71,7 @@ class TrainBPEModelJob(Job):
         if self.total_symbols:
             args += ["--total-symbols"]
 
-        text_corpus = tk.uncached_path(self.text_corpus)
+        text_corpus = self.text_corpus.get_path()
 
         with util.uopen(text_corpus, "rb") as f:
             p = sp.Popen(args, stdin=sp.PIPE, stdout=sys.stdout, stderr=sys.stderr)
@@ -74,16 +87,18 @@ class TrainBPEModelJob(Job):
 
 
 class ReturnnTrainBpeJob(Job):
-    def __init__(self, text_file, bpe_size, subword_nmt_repo=None, unk_label="UNK"):
-        """
-        Create Bpe codes and vocab files compatible with RETURNN BytePairEncoding
-        Repository:
-            https://github.com/albertz/subword-nmt
+    """
+    Create Bpe codes and vocab files compatible with RETURNN BytePairEncoding
+    Repository:
+        https://github.com/albertz/subword-nmt
+    """
 
-        :param Path|str text_file: corpus text file
+    def __init__(self, text_file, bpe_size, unk_label="UNK", subword_nmt_repo=None):
+        """
+        :param Path text_file: corpus text file
         :param int bpe_size: number of BPE merge operations
-        :param Path|str|None subword_nmt_repo: subword nmt repository path. see also `CloneGitRepositoryJob`
         :param str unk_label: unknown label
+        :param Path|str|None subword_nmt_repo: subword nmt repository path. see also `CloneGitRepositoryJob`
         """
         self.text_file = text_file
         self.bpe_size = bpe_size
@@ -125,7 +140,7 @@ class ReturnnTrainBpeJob(Job):
             sys.executable,
             os.path.join(tk.uncached_path(self.subword_nmt_repo), "create-py-vocab.py"),
             "--txt",
-            tk.uncached_path(self.text_file),
+            self.text_file.get_path(),
             "--bpe",
             self.out_bpe_codes.get_path(),
             "--unk",
