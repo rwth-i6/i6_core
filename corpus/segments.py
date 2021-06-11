@@ -292,7 +292,7 @@ class DynamicSplitSegmentFileJob(Job):
         end = 0
         for i in range(1, self.concurrent + 1):
             start = end
-            fpath = '{}/segments.{}'.format(self.out_split_dir, i)
+            fpath = "{}/segments.{}".format(self.out_split_dir, i)
             end += seg_per_split + (1 if i <= nb_rest_seg else 0)
             with open(fpath, "wt") as f:
                 f.writelines(lines[start:end])
