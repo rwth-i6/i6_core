@@ -4,6 +4,7 @@ __all__ = [
     "SegmentCorpusByRegexJob",
     "ShuffleAndSplitSegmentsJob",
     "SplitSegmentFileJob",
+    "DynamicSplitSegmentFileJob",
     "SortSegmentsByLengthAndShuffleJob",
     "UpdateSegmentsWithSegmentMapJob",
 ]
@@ -18,7 +19,7 @@ import numpy as np
 
 from i6_core.util import MultiOutputPath
 from i6_core.lib import corpus
-from i6_core.util import chunks
+from i6_core.util import chunks, uopen
 
 from sisyphus import *
 
@@ -258,6 +259,42 @@ class SplitSegmentFileJob(Job):
             start = end
             end += n // self.concurrent + (1 if i <= m else 0)
             with open(self.single_segments[i].get_path(), "wt") as f:
+                f.writelines(lines[start:end])
+
+
+class DynamicSplitSegmentFileJob(Job):
+
+    """
+    Split the segments to concurrent many shares. It is a variant to the existing SplitSegmentFileJob.
+    This requires a tk.Delayed variable (instead of int) for the argument concurrent.
+    """
+
+    def __init__(self, segment_file, concurrent):
+        """
+        :param tk.Path|str segment_file: segment file
+        :param tk.Delayed concurrent: number of splits
+        """
+        self.segment_file = segment_file
+        self.concurrent = concurrent
+        self.out_split_dir = self.output_path("split", directory=True)
+
+    def tasks(self):
+        yield Task("run", resume="run", mini_task=True)
+
+    def run(self):
+        with uopen(self.segment_file, "rt") as f:
+            lines = [l for l in f.readlines() if len(l.strip()) > 0]
+
+        nb_seg = len(lines)
+        self.concurrent = self.concurrent.get()
+        seg_per_split = nb_seg // self.concurrent
+        nb_rest_seg = nb_seg % self.concurrent
+        end = 0
+        for i in range(1, self.concurrent + 1):
+            start = end
+            fpath = "{}/segments.{}".format(self.out_split_dir, i)
+            end += seg_per_split + (1 if i <= nb_rest_seg else 0)
+            with open(fpath, "wt") as f:
                 f.writelines(lines[start:end])
 
 
