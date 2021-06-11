@@ -5,13 +5,16 @@ import shutil
 
 from sisyphus import *
 
-Path = setup_path(__package__)
-
+from i6_core.cart.questions import BasicCartQuestions
 import i6_core.rasr as rasr
 import i6_core.util as util
 
+Path = setup_path(__package__)
+
 
 class AccumulateCartStatisticsJob(rasr.RasrCommand, Job):
+    """ """
+
     def __init__(
         self,
         crp,
@@ -22,6 +25,15 @@ class AccumulateCartStatisticsJob(rasr.RasrCommand, Job):
         extra_config_merge=None,
         extra_post_config_merge=None,
     ):
+        """
+        :param rasr.crp.CommonRasrParameters crp:
+        :param rasr.flow.FlowNetwork alignment_flow:
+        :param bool keep_accumulators:
+        :param rasr.config.RasrConfig extra_config_accumulate:
+        :param rasr.config.RasrConfig extra_post_config_accumulate:
+        :param rasr.config.RasrConfig extra_config_merge:
+        :param rasr.config.RasrConfig extra_post_config_merge:
+        """
         self.set_vis_name("Accumulate CART")
 
         kwargs = locals()
@@ -42,9 +54,11 @@ class AccumulateCartStatisticsJob(rasr.RasrCommand, Job):
         self.keep_accumulators = keep_accumulators
         self.concurrent = crp.concurrent
 
-        self.accumulate_log_file = self.log_file_output_path("accumulate", crp, True)
-        self.merge_log_file = self.log_file_output_path("merge", crp, False)
-        self.cart_sum = self.output_path("cart.sum.xml.gz", cached=True)
+        self.out_accumulate_log_file = self.log_file_output_path(
+            "accumulate", crp, True
+        )
+        self.out_merge_log_file = self.log_file_output_path("merge", crp, False)
+        self.out_cart_sum = self.output_path("cart.sum.xml.gz", cached=True)
 
         self.rqmt = {
             "time": max(crp.corpus_duration / (20 * crp.concurrent), 0.5),
@@ -72,11 +86,13 @@ class AccumulateCartStatisticsJob(rasr.RasrCommand, Job):
         self.write_run_script(self.exe, "merge.config", "merge.sh")
 
     def accumulate(self, task_id):
-        self.run_script(task_id, self.accumulate_log_file[task_id], "./accumulate.sh")
+        self.run_script(
+            task_id, self.out_accumulate_log_file[task_id], "./accumulate.sh"
+        )
 
     def merge(self):
-        self.run_script(1, self.merge_log_file, "./merge.sh")
-        shutil.move("cart.sum.xml.gz", self.cart_sum.get_path())
+        self.run_script(1, self.out_merge_log_file, "./merge.sh")
+        shutil.move("cart.sum.xml.gz", self.out_cart_sum.get_path())
         if not self.keep_accumulators:
             for i in range(1, self.concurrent + 1):
                 os.remove("cart.acc.xml.%d.gz" % i)
@@ -96,6 +112,15 @@ class AccumulateCartStatisticsJob(rasr.RasrCommand, Job):
         extra_post_config_accumulate,
         **kwargs,
     ):
+        """
+        :param rasr.crp.CommonRasrParameters crp:
+        :param rasr.flow.FlowNetwork alignment_flow:
+        :param rasr.config.RasrConfig extra_config_accumulate:
+        :param rasr.config.RasrConfig extra_post_config_accumulate:
+        :param kwargs:
+        :return:
+        :rtype: (rasr.config.RasrConfig, rasr.config.RasrConfig)
+        """
         config, post_config = rasr.build_config_from_mapping(
             crp,
             {
@@ -129,6 +154,14 @@ class AccumulateCartStatisticsJob(rasr.RasrCommand, Job):
     def create_merge_config(
         cls, crp, extra_config_merge, extra_post_config_merge, **kwargs
     ):
+        """
+        :param rasr.crp.CommonRasrParameters crp:
+        :param rasr.config.RasrConfig extra_config_merge:
+        :param rasr.config.RasrConfig extra_post_config_merge:
+        :param kwargs:
+        :return:
+        :rtype: (rasr.config.RasrConfig, rasr.config.RasrConfig)
+        """
         config, post_config = rasr.build_config_from_mapping(crp, {})
 
         config.acoustic_model_trainer.action = "merge-cart-examples"
@@ -157,6 +190,8 @@ class AccumulateCartStatisticsJob(rasr.RasrCommand, Job):
 
 
 class EstimateCartJob(rasr.RasrCommand, Job):
+    """ """
+
     def __init__(
         self,
         crp,
@@ -167,6 +202,16 @@ class EstimateCartJob(rasr.RasrCommand, Job):
         extra_config=None,
         extra_post_config=None,
     ):
+        """
+        :param rasr.crp.CommonRasrParameters crp:
+        :param Path|BasicCartQuestions|str questions: Either a Path to a questions.xml file,
+            a question object or simply a str
+        :param Path cart_examples:
+        :param float variance_clipping:
+        :param bool generate_cluster_file:
+        :param rasr.config.RasrConfig extra_config:
+        :param rasr.config.RasrConfig extra_post_config:
+        """
         self.set_vis_name("Estimate CART")
 
         kwargs = locals()
@@ -180,11 +225,11 @@ class EstimateCartJob(rasr.RasrCommand, Job):
         self.generate_cluster_file = generate_cluster_file
         self.concurrent = crp.concurrent
 
-        self.log_file = self.log_file_output_path("cart", crp, False)
-        self.cart_tree = self.output_path("cart.tree.xml.gz")
+        self.out_log_file = self.log_file_output_path("cart", crp, False)
+        self.out_cart_tree = self.output_path("cart.tree.xml.gz")
         if generate_cluster_file:
-            self.cart_cluster = self.output_path("cart.cluster.xml.gz")
-        self.num_labels = self.output_var("num_labels", pickle=False)
+            self.out_cart_cluster = self.output_path("cart.cluster.xml.gz")
+        self.out_num_labels = self.output_var("num_labels", pickle=False)
 
         self.rqmt = {"time": 0.5, "cpu": 1, "mem": 1}
 
@@ -199,11 +244,11 @@ class EstimateCartJob(rasr.RasrCommand, Job):
         self.write_run_script(self.exe, "cart.config")
 
     def run(self):
-        self.run_script(1, self.log_file)
-        shutil.move("cart.tree.xml.gz", self.cart_tree.get_path())
+        self.run_script(1, self.out_log_file)
+        shutil.move("cart.tree.xml.gz", self.out_cart_tree.get_path())
         if self.generate_cluster_file:
-            shutil.move("cart.cluster.xml.gz", self.cart_cluster.get_path())
-        self.num_labels.set(util.num_cart_labels(self.cart_tree.get_path()))
+            shutil.move("cart.cluster.xml.gz", self.out_cart_cluster.get_path())
+        self.out_num_labels.set(util.num_cart_labels(self.out_cart_tree.get_path()))
 
     def cleanup_before_run(self, *args):
         util.backup_if_exists("cart.log")
@@ -220,6 +265,15 @@ class EstimateCartJob(rasr.RasrCommand, Job):
         extra_post_config,
         **kwargs,
     ):
+        """
+        :param rasr.crp.CommonRasrParameters crp:
+        :param Path|BasicCartQuestions|str questions:
+        :param Path cart_examples:
+        :param float variance_clipping:
+        :param bool generate_cluster_file:
+        :param rasr.config.RasrConfig extra_config:
+        :param rasr.config.RasrConfig extra_post_config:
+        """
         if not type(questions) == str and not tk.is_path(questions):
             questions_path = "questions.xml"
         else:

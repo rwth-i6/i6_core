@@ -64,13 +64,13 @@ class CartAndLDA:
             args = {
                 "crp": crp,
                 "questions": questions,
-                "cart_examples": cart_sum.cart_sum,
+                "cart_examples": cart_sum.out_cart_sum,
             }
             args.update(select_args(cart_estimate_args, iteration))
             cart_estimate = cart.EstimateCartJob(**args)
 
             crp.acoustic_model_config.state_tying.type = "cart"
-            crp.acoustic_model_config.state_tying.file = cart_estimate.cart_tree
+            crp.acoustic_model_config.state_tying.file = cart_estimate.out_cart_tree
 
             temp_alignment_flow = mm.cached_alignment_flow(context_flow, alignment)
 
@@ -108,9 +108,9 @@ class CartAndLDA:
             self.lda_scatter_jobs.append(lda_scatter)
             self.lda_estimate_jobs.append(lda_estimate)
 
-            self.last_cart_tree = cart_estimate.cart_tree
+            self.last_cart_tree = cart_estimate.out_cart_tree
             self.last_lda_matrix = lda_estimate.lda_matrix
-            self.last_num_cart_labels = cart_estimate.num_labels
+            self.last_num_cart_labels = cart_estimate.out_num_labels
 
 
 def select_args(args, iteration):
