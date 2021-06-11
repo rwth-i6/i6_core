@@ -265,8 +265,8 @@ class SplitSegmentFileJob(Job):
 class DynamicSplitSegmentFileJob(Job):
 
     """
-    This split the segments to concurrent many shares.
-    It is a variant to the existing SplitSegmentFileJob, which requires a delayed variable for argument concurrent.
+    Split the segments to concurrent many shares. It is a variant to the existing SplitSegmentFileJob.
+    This requires a tk.Delayed variable (instead of int) for the argument concurrent.
     """
 
     def __init__(self, segment_file, concurrent):
@@ -282,7 +282,7 @@ class DynamicSplitSegmentFileJob(Job):
         yield Task("run", resume="run", mini_task=True)
 
     def run(self):
-        with uopen(tk.uncached_path(self.segment_file), "rt") as f:
+        with uopen(self.segment_file, "rt") as f:
             lines = [l for l in f.readlines() if len(l.strip()) > 0]
 
         nb_seg = len(lines)
