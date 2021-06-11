@@ -42,3 +42,17 @@ Some general things:
     4. Jobs have to be deterministic. Especially the code in the Job itself and the computed output (files). If this is not possible at all, please add a clear warning.
     5. `sh` function should definitely not be used
 
+[Black](https://github.com/psf/black) formatting:
+
+The check for black formating is a fixed test case that will automatically run for new pull requests.
+To prohibit errors before commiting,
+it is recommended to add a git hook that will automatically perform the check before submission.
+
+Create an executable `.git/hook/pre-commit` with:
+
+    #!/bin/bash
+    set -eu
+    black --check .
+    exit 0
+
+
