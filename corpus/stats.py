@@ -14,15 +14,15 @@ class ExtractOovWordsFromCorpusJob(Job):
     Extracts the out of vocabulary words based on a given corpus and lexicon
     """
 
-    def __init__(self, corpus, lexicon):
+    def __init__(self, bliss_corpus, bliss_lexicon):
         """
-        :param Union[Path, str] corpus: path to corpus file
-        :param Union[Path, str] lexicon: path to lexicon
+        :param Union[Path, str] bliss_corpus: path to corpus file
+        :param Union[Path, str] bliss_lexicon: path to lexicon
         """
-        self.corpus = corpus
-        self.lexicon = lexicon
+        self.corpus = bliss_corpus
+        self.lexicon = bliss_lexicon
 
-        self.oov_words = self.output_path("oov_words")
+        self.out_oov_words = self.output_path("oov_words")
 
     def tasks(self):
         yield Task("run", mini_task=True)
@@ -43,6 +43,6 @@ class ExtractOovWordsFromCorpusJob(Job):
                 if w.upper() not in iv_words
             }
 
-        with uopen(self.oov_words, "wt") as f:
+        with uopen(self.out_oov_words, "wt") as f:
             for w in sorted(oov_words):
                 f.write("%s\n" % w)

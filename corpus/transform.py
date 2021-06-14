@@ -25,14 +25,14 @@ Path = setup_path(__package__)
 
 
 class ReplaceTranscriptionFromCtmJob(Job):
-    def __init__(self, corpus_path, ctm_path, remove_empty_segments=True):
+    def __init__(self, bliss_corpus, ctm_path, remove_empty_segments=True):
         self.set_vis_name("Replace Transcription from CTM file")
 
-        self.corpus_path = corpus_path
+        self.corpus_path = bliss_corpus
         self.ctm_path = ctm_path
         self.remove_empty_segments = remove_empty_segments
 
-        gzip_output = tk.uncached_path(corpus_path).endswith(".gz")
+        gzip_output = tk.uncached_path(bliss_corpus).endswith(".gz")
         self.output_corpus_path = self.output_path(
             "corpus.xml" + (".gz" if gzip_output else ""), cached=True
         )
@@ -91,11 +91,11 @@ class ReplaceTranscriptionFromCtmJob(Job):
 class AddCacheToCorpusJob(Job):
     """
     Adds cache manager call to all audio paths in a corpus file
-    :param Path corpus_file: bliss corpora file path
+    :param Path bliss_corpus: bliss corpora file path
     """
 
-    def __init__(self, corpus_file):
-        self.corpus_file = corpus_file
+    def __init__(self, bliss_corpus):
+        self.corpus_file = bliss_corpus
         self.cached_corpus = self.output_path("corpus.xml.gz")
 
     def tasks(self):
@@ -113,14 +113,14 @@ class CompressCorpusJob(Job):
     """
     Compresses a corpus by concatenating audio files and using a compression codec.
     Does currently not support corpora with subcorpora, files need to be .wav
-    :param Path corpus: path to an xml corpus file with wave recordings
+    :param Path bliss_corpus: path to an xml corpus file with wave recordings
     :param str format: supported file formats, currently limited to mp3
     :param str bitrate: bitrate as string, e.g. '32k' or '192k', can also be an integer e.g. 192000
     :param int max_num_splits: maximum number of resulting audio files.
     """
 
-    def __init__(self, corpus: Path, format="mp3", bitrate="32k", max_num_splits=15):
-        self.corpus = corpus
+    def __init__(self, bliss_corpus, format="mp3", bitrate="32k", max_num_splits=15):
+        self.corpus = bliss_corpus
         self.num_splits = max_num_splits
         self.format = format
         self.bitrate = str(bitrate)
@@ -317,13 +317,13 @@ class MergeCorporaJob(Job):
     Merges Bliss Corpora files into a single file as subcorpora or flat
     """
 
-    def __init__(self, corpora, name, merge_strategy=MergeStrategy.SUBCORPORA):
+    def __init__(self, bliss_corpora, name, merge_strategy=MergeStrategy.SUBCORPORA):
         """
-        :param Iterable[Path] corpora: any iterable of bliss corpora file paths to merge
+        :param Iterable[Path] bliss_corpora: any iterable of bliss corpora file paths to merge
         :param str name: name of the new corpus (subcorpora will keep the original names)
         :param MergeStrategy merge_strategy: how the corpora should be merged, e.g. as subcorpora or flat
         """
-        self.corpora = corpora
+        self.corpora = bliss_corpora
         self.name = name
         self.merge_strategy = merge_strategy
 
@@ -359,8 +359,8 @@ class MergeCorpusSegmentsAndAudioJob(Job):
     The job outputs a new corpus file + the corresponding audio files.
     """
 
-    def __init__(self, corpus_file, cluster_map, cluster_names):
-        self.corpus_file = corpus_file
+    def __init__(self, bliss_corpus, cluster_map, cluster_names):
+        self.corpus_file = bliss_corpus
         self.cluster_map = cluster_map
         self.cluster_names = cluster_names
 
@@ -437,10 +437,6 @@ class MergeCorpusSegmentsAndAudioJob(Job):
 class ShiftCorpusSegmentStartJob(Job):
     """
     Shifts the start time of a corpus to change the fft window offset
-
-    :param Path corpus_file: path to a bliss corpus file
-    :param str corpus_name: name of the new corpus
-    :param float shift: shift in seconds
     """
 
     def __init__(self, corpus_file, corpus_name, shift):

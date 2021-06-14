@@ -84,7 +84,7 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
         self, alignment_logs, percentile, crp, plot=True, absolute_threshold=None
     ):
         """
-        :param dict[int,str] alignment_logs: alignment_job.log_file; task_id -> log_file
+        :param dict[int,str] alignment_logs: alignment_job.out_log_file; task_id -> log_file
         :param float|int percentile: in range [0,100]. for :func:`np.percentile`
         :param float absolute_threshold:
         :param rasr.crp.CommonRasrParameters crp:
@@ -174,16 +174,18 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
 
 
 class FilterCorpusBySegmentsJob(Job):
-    def __init__(self, corpus_file, segment_list, compressed=False, invert_match=False):
+    def __init__(
+        self, bliss_corpus, segment_file, compressed=False, invert_match=False
+    ):
         """
-        :param Path corpus_file:
-        :param Path segment_list:
+        :param Path bliss_corpus:
+        :param Path segment_file:
         :param bool compressed:
         :param bool invert_match:
         """
-        self.in_corpus = corpus_file
+        self.in_corpus = bliss_corpus
         self.segment_list = (
-            [segment_list] if isinstance(segment_list, (tk.Path, str)) else segment_list
+            [segment_file] if isinstance(segment_file, (tk.Path, str)) else segment_file
         )
         self.invert_match = invert_match
 
@@ -224,14 +226,14 @@ class FilterCorpusBySegmentsJob(Job):
 
 
 class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
-    def __init__(self, corpus, lexicon, case_sensitive=False):
+    def __init__(self, bliss_corpus, bliss_lexicon, case_sensitive=False):
         """
-        :param Path corpus:
-        :param Path lexicon:
+        :param Path bliss_corpus:
+        :param Path bliss_lexicon:
         :param bool case_sensitive:
         """
-        self.corpus = corpus
-        self.lexicon = lexicon
+        self.corpus = bliss_corpus
+        self.lexicon = bliss_lexicon
         self.case_sensitive = case_sensitive
 
         self.out_corpus = self.output_path("corpus.xml.gz", cached=True)

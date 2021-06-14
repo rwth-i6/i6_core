@@ -187,14 +187,14 @@ class CorpusToTextDictJob(Job):
     Extract the Text from a Bliss corpus to fit a "{key: text}" structure (e.g. for RETURNN)
     """
 
-    def __init__(self, bliss_corpus, segments=None, invert_match=False):
+    def __init__(self, bliss_corpus, segment_file=None, invert_match=False):
         """
         :param Path bliss_corpus: bliss corpus file
-        :param Path|None segments: a segment file as optional whitelist
+        :param Path|None segment_file: a segment file as optional whitelist
         :param bool invert_match: use segment file as blacklist (needs to contain full segment names then)
         """
         self.bliss_corpus = bliss_corpus
-        self.segments_file_path = segments
+        self.segment_file = segments
         self.invert_match = invert_match
 
         self.out_dictionary = self.output_path("text_dictionary.py")
@@ -209,8 +209,8 @@ class CorpusToTextDictJob(Job):
         dictionary = {}
 
         segments = None
-        if self.segments_file_path:
-            with uopen(self.segments_file_path) as f:
+        if self.segment_file:
+            with uopen(self.segment_file) as f:
                 segments = set(line.decode().strip() for line in f)
 
         for segment in c.segments():
