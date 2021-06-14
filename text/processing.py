@@ -18,7 +18,7 @@ class PipelineJob(Job):
         mini_task=False,
     ):
         """
-        :param iterable[Path]|Path text_file: text file (raw or gz) or list of files to be processed
+        :param iterable[Path]|Path text_files: text file (raw or gz) or list of files to be processed
         :param list[str] pipeline: list of shell commands to form the pipeline
         :param bool zip_output: apply gzip to the output
         :param bool check_equal_length: the line count of the input and output should match
@@ -73,19 +73,19 @@ class PipelineJob(Job):
         pipeline = self.pipeline.copy()
         if self.zip_output:
             pipeline.append("gzip")
-        self.pipe = " | ".join([str(i) for i in pipeline])
+        pipe = " | ".join([str(i) for i in pipeline])
         if isinstance(self.text_files, (list, tuple)):
-            self.input_text = " ".join(gs.file_caching(str(i)) for i in self.text_files)
+            inputs = " ".join(gs.file_caching(str(i)) for i in self.text_files)
         else:
-            self.input_text = gs.file_caching(str(self.text_files))
-        self.sh("zcat -f {text_file} | {pipe} > {out}")
+            inputs = gs.file_caching(str(self.text_files))
+        self.sh("zcat -f %s | %s > %s" % (inputs, pipe, self.out.get_path()))
 
         # assume that we do not want empty pipe results
         assert not (os.stat(str(self.out)).st_size == 0), "Pipe result was empty"
 
-        input_length = int(self.sh("zcat -f {text_file} | sed '$a\\' | wc -l", True))
+        input_length = int(self.sh("zcat -f %s | sed '$a\\' | wc -l" % inputs, True))
         assert input_length > 0
-        output_length = int(self.sh("zcat -f {out} | wc -l", True))
+        output_length = int(self.sh("zcat -f %s | wc -l" % self.out.get_path(), True))
         assert output_length > 0
         if self.check_equal_length:
             assert (
