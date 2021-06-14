@@ -194,7 +194,7 @@ class CorpusToTextDictJob(Job):
         :param bool invert_match: use segment file as blacklist (needs to contain full segment names then)
         """
         self.bliss_corpus = bliss_corpus
-        self.segment_file = segments
+        self.segment_file = segment_file
         self.invert_match = invert_match
 
         self.out_dictionary = self.output_path("text_dictionary.py")

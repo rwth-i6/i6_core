@@ -175,17 +175,17 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
 
 class FilterCorpusBySegmentsJob(Job):
     def __init__(
-        self, bliss_corpus, segment_file, compressed=False, invert_match=False
+        self, bliss_corpus, segment_files, compressed=False, invert_match=False
     ):
         """
         :param Path bliss_corpus:
-        :param Path segment_file:
+        :param list[Path]|Path segment_files: a single segment file or a list of segment files
         :param bool compressed:
         :param bool invert_match:
         """
         self.bliss_corpus = bliss_corpus
-        self.segment_list = (
-            [segment_file] if isinstance(segment_file, (tk.Path, str)) else segment_file
+        self.segment_file_list = (
+            [segment_files] if isinstance(segment_files, tk.Path) else segment_files
         )
         self.invert_match = invert_match
 
@@ -197,7 +197,7 @@ class FilterCorpusBySegmentsJob(Job):
     def run(self):
 
         segments = []
-        for seg in self.segment_list:
+        for seg in self.segment_file_list:
             with open(tk.uncached_path(seg)) as f:
                 lines = f.readlines()
                 segments += [l.strip() for l in lines]
