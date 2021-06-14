@@ -32,7 +32,7 @@ class StoreAllophonesJob(rasr.RasrCommand, Job):
         self.out_allophone_file = self.output_path("allophones")
         self.out_num_allophones = self.output_var("num_allophones")
         self.out_num_monophones = self.output_var("num_monophones")
-        self.num_monophone_states = self.output_var("num_monophone_states")
+        self.out_num_monophone_states = self.output_var("num_monophone_states")
 
     def tasks(self):
         yield Task("create_files", mini_task=True)
@@ -64,7 +64,7 @@ class StoreAllophonesJob(rasr.RasrCommand, Job):
             self.num_single_state_monophones
             + (num_monophones - self.num_single_state_monophones) * states_per_phone
         )
-        self.num_monophone_states.set(num_monophone_states)
+        self.out_num_monophone_states.set(num_monophone_states)
 
     def cleanup_before_run(self, cmd, retry, *args):
         util.backup_if_exists("store-allophones.log")
