@@ -183,7 +183,7 @@ class FilterCorpusBySegmentsJob(Job):
         :param bool compressed:
         :param bool invert_match:
         """
-        self.in_corpus = bliss_corpus
+        self.bliss_corpus = bliss_corpus
         self.segment_list = (
             [segment_file] if isinstance(segment_file, (tk.Path, str)) else segment_file
         )
@@ -207,7 +207,7 @@ class FilterCorpusBySegmentsJob(Job):
         )
         segments = set(segments)
         c = corpus.Corpus()
-        c.load(tk.uncached_path(self.in_corpus))
+        c.load(tk.uncached_path(self.bliss_corpus))
         for rec in c.all_recordings():
             if self.invert_match:
                 rec.segments = [

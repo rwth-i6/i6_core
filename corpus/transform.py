@@ -28,7 +28,7 @@ class ReplaceTranscriptionFromCtmJob(Job):
     def __init__(self, bliss_corpus, ctm_path, remove_empty_segments=True):
         self.set_vis_name("Replace Transcription from CTM file")
 
-        self.corpus_path = bliss_corpus
+        self.bliss_corpus = bliss_corpus
         self.ctm_path = ctm_path
         self.remove_empty_segments = remove_empty_segments
 
@@ -57,7 +57,7 @@ class ReplaceTranscriptionFromCtmJob(Job):
         for recording, times_and_words in transcriptions.items():
             times_and_words.sort()
 
-        corpus_path = tk.uncached_path(self.corpus_path)
+        corpus_path = tk.uncached_path(self.bliss_corpus)
         c = corpus.Corpus()
         c.load(corpus_path)
 
@@ -95,7 +95,7 @@ class AddCacheToCorpusJob(Job):
     """
 
     def __init__(self, bliss_corpus):
-        self.corpus_file = bliss_corpus
+        self.bliss_corpus = bliss_corpus
         self.cached_corpus = self.output_path("corpus.xml.gz")
 
     def tasks(self):
@@ -103,7 +103,7 @@ class AddCacheToCorpusJob(Job):
 
     def run(self):
         c = corpus.Corpus()
-        c.load(tk.uncached_path(self.corpus_file))
+        c.load(tk.uncached_path(self.bliss_corpus))
         for recording in c.all_recordings():
             recording.audio = gs.file_caching(recording.audio)
         c.dump(tk.uncached_path(self.cached_corpus))
@@ -120,7 +120,7 @@ class CompressCorpusJob(Job):
     """
 
     def __init__(self, bliss_corpus, format="mp3", bitrate="32k", max_num_splits=15):
-        self.corpus = bliss_corpus
+        self.bliss_corpus = bliss_corpus
         self.num_splits = max_num_splits
         self.format = format
         self.bitrate = str(bitrate)
@@ -139,7 +139,7 @@ class CompressCorpusJob(Job):
 
     def run(self):
         c = corpus.Corpus()
-        c.load(str(self.corpus))
+        c.load(str(self.bliss_corpus))
 
         assert (
             len(c.subcorpora) == 0
@@ -323,7 +323,7 @@ class MergeCorporaJob(Job):
         :param str name: name of the new corpus (subcorpora will keep the original names)
         :param MergeStrategy merge_strategy: how the corpora should be merged, e.g. as subcorpora or flat
         """
-        self.corpora = bliss_corpora
+        self.bliss_corpora = bliss_corpora
         self.name = name
         self.merge_strategy = merge_strategy
 
@@ -335,7 +335,7 @@ class MergeCorporaJob(Job):
     def run(self):
         merged_corpus = corpus.Corpus()
         merged_corpus.name = self.name
-        for corpus_path in self.corpora:
+        for corpus_path in self.bliss_corpora:
             c = corpus.Corpus()
             c.load(tk.uncached_path(corpus_path))
             if self.merge_strategy == MergeStrategy.SUBCORPORA:

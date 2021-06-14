@@ -60,7 +60,7 @@ class SegmentCorpusBySpeakerJob(Job):
     def __init__(self, bliss_corpus, num_speakers=None):
         self.set_vis_name("Segment By Speaker")
 
-        self.corpus_path = bliss_corpus
+        self.bliss_corpus = bliss_corpus
 
         self.num_speakers = self.output_var("num_speakers", True)
         self.segment_dir = self.output_path("segments", True)
@@ -75,7 +75,7 @@ class SegmentCorpusBySpeakerJob(Job):
 
     def run(self):
         c = corpus.Corpus()
-        c.load(tk.uncached_path(self.corpus_path))
+        c.load(tk.uncached_path(self.bliss_corpus))
         speaker_map = collections.defaultdict(list)
 
         for segment in c.segments():

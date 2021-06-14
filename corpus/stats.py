@@ -19,8 +19,8 @@ class ExtractOovWordsFromCorpusJob(Job):
         :param Union[Path, str] bliss_corpus: path to corpus file
         :param Union[Path, str] bliss_lexicon: path to lexicon
         """
-        self.corpus = bliss_corpus
-        self.lexicon = bliss_lexicon
+        self.bliss_corpus = bliss_corpus
+        self.bliss_lexicon = bliss_lexicon
 
         self.out_oov_words = self.output_path("oov_words")
 
@@ -28,13 +28,13 @@ class ExtractOovWordsFromCorpusJob(Job):
         yield Task("run", mini_task=True)
 
     def run(self):
-        with uopen(self.lexicon, "rt", encoding="utf-8") as f:
+        with uopen(self.bliss_lexicon, "rt", encoding="utf-8") as f:
             tree = ET.parse(f)
             iv_words = {
                 orth.text.upper() for orth in tree.findall(".//lemma/orth") if orth.text
             }
 
-        with uopen(self.corpus, "rt", encoding="utf-8") as f:
+        with uopen(self.bliss_corpus, "rt", encoding="utf-8") as f:
             tree = ET.parse(f)
             oov_words = {
                 w
