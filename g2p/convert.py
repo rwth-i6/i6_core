@@ -12,10 +12,17 @@ import i6_core.util as util
 
 
 class BlissLexiconToG2PLexiconJob(Job):
+    """
+    Convert a bliss lexicon into a g2p compatible lexicon for training
+    """
+
     def __init__(self, bliss_lexicon):
+        """
+        :param Path bliss_lexicon:
+        """
         self.bliss_lexicon = bliss_lexicon
 
-        self.g2p_lexicon = self.output_path("g2p.lexicon")
+        self.out_g2p_lexicon = self.output_path("g2p.lexicon")
 
     def tasks(self):
         yield Task("run", mini_task=True)
@@ -24,7 +31,7 @@ class BlissLexiconToG2PLexiconJob(Job):
         with util.uopen(self.bliss_lexicon, "rt") as f:
             tree = ET.parse(f)
 
-        with open(self.g2p_lexicon.get_path(), "wt") as out:
+        with open(self.out_g2p_lexicon.get_path(), "wt") as out:
             for lemma in tree.findall(".//lemma"):
                 if lemma.get("special") is not None:
                     continue
@@ -36,18 +43,28 @@ class BlissLexiconToG2PLexiconJob(Job):
 
 
 class G2POutputToBlissLexiconJob(Job):
-    def __init__(self, iv_lexicon, g2p_output, merge=True):
-        self.iv_lexicon = iv_lexicon
-        self.g2p_output = g2p_output
+    """
+    Convert a g2p applied word list file into a lexicon
+    """
+
+    def __init__(self, iv_bliss_lexicon, g2p_output_lexicon, merge=True):
+        """
+        :param Path iv_bliss_lexicon: bliss lexicon as reference for the phoneme inventory
+        :param Path g2p_output_lexicon: from ApplyG2PModelJob.out_g2p_lexicon
+        :param bool merge: merge the g2p lexicon into the iv_bliss_lexicon instead of
+            only taking the phoneme inventory
+        """
+        self.iv_bliss_lexicon = iv_bliss_lexicon
+        self.g2p_output_lexicon = g2p_output_lexicon
         self.merge = merge
 
-        self.oov_lexicon = self.output_path("oov.lexicon.gz", cached=True)
+        self.out_oov_lexicon = self.output_path("oov.lexicon.gz", cached=True)
 
     def tasks(self):
         yield Task("run", mini_task=True)
 
     def run(self):
-        with util.uopen(self.g2p_output, "rt", encoding="utf-8") as f:
+        with util.uopen(self.g2p_output_lexicon, "rt", encoding="utf-8") as f:
             oov_words = dict()
             for orth, data in it.groupby(
                 map(lambda line: line.strip().split("\t"), f), lambda t: t[0]
@@ -67,7 +84,7 @@ class G2POutputToBlissLexiconJob(Job):
                             )
                         )
 
-        with util.uopen(self.iv_lexicon, "rt") as f:
+        with util.uopen(self.iv_bliss_lexicon, "rt") as f:
             iv_lexicon = ET.parse(f)
 
         if self.merge:
@@ -82,6 +99,6 @@ class G2POutputToBlissLexiconJob(Job):
             for pron in prons:
                 ET.SubElement(lemma, "phon").text = pron
 
-        with util.uopen(self.oov_lexicon, "wt", encoding="utf-8") as f:
+        with util.uopen(self.out_oov_lexicon, "wt", encoding="utf-8") as f:
             tree = ET.ElementTree(root)
             tree.write(f, "unicode", True)
