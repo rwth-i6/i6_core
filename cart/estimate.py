@@ -13,7 +13,10 @@ Path = setup_path(__package__)
 
 
 class AccumulateCartStatisticsJob(rasr.RasrCommand, Job):
-    """ """
+    """
+    Goes over all training data and for each triphone state accumulates
+    the values and squared values of the given feature flow
+    """
 
     def __init__(
         self,
@@ -190,7 +193,13 @@ class AccumulateCartStatisticsJob(rasr.RasrCommand, Job):
 
 
 class EstimateCartJob(rasr.RasrCommand, Job):
-    """ """
+    """
+    This job estimates a phonetic decision tree.
+    Given a set of accumulated (squared) feature values a single gaussian model is estimated per triphone state.
+    Then iteratively states are merged according to the provided questions
+    such that the log-likelihood of the resulting models is minimized.
+    Finally states which have a low number of occurrences are merged into the closest cluster.
+    """
 
     def __init__(
         self,
