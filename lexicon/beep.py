@@ -18,9 +18,9 @@ class DownloadBeepJob(Job):
 
         self.url = url
 
-        self.archive = self.output_path("beep.tar.gz")
-        self.phoneme_list = self.output_path("phone45.tab")
-        self.lexicon = self.output_path("beep-1.0")
+        self.out_archive = self.output_path("beep.tar.gz")
+        self.out_phoneme_list = self.output_path("phone45.tab")
+        self.out_beep_lexicon = self.output_path("beep-1.0")
 
         self.set_rqmt("run", {"time": 5 / 60, "cpu": 1, "mem": "64M"})
 
@@ -29,34 +29,33 @@ class DownloadBeepJob(Job):
 
     def run(self):
         with urllib.request.urlopen(self.url) as src:
-            with open(self.archive.get_path(), "wb") as dst:
+            with open(self.out_archive.get_path(), "wb") as dst:
                 shutil.copyfileobj(src, dst)
         with tempfile.TemporaryDirectory() as temp:
             self.sh("tar xz -C %s -f {archive}" % temp)
             shutil.copyfile(
-                os.path.join(temp, "beep", "phone45.tab"), self.phoneme_list.get_path()
+                os.path.join(temp, "beep", "phone45.tab"),
+                self.out_phoneme_list.get_path(),
             )
             shutil.copyfile(
-                os.path.join(temp, "beep", "beep-1.0"), self.lexicon.get_path()
+                os.path.join(temp, "beep", "beep-1.0"), self.out_beep_lexicon.get_path()
             )
 
 
 class BeepToBlissLexiconJob(Job):
-    __sis_hash_exclude__ = {"add_unknown": False}
-
     def __init__(
         self,
         phoneme_list,  # the phone45.tab file from the beep lexicon
-        input_lexicon,  # the pronounciation file from the beep lexicon
+        beep_lexicon,  # the pronounciation file from the beep lexicon
         add_unknown=False,
     ):
         self.set_vis_name("Convert Beep Lexicon to Bliss")
 
         self.phoneme_list = phoneme_list
-        self.input_lexicon = input_lexicon
+        self.beep_lexicon = beep_lexicon
         self.add_unknown = add_unknown
 
-        self.lexicon = self.output_path("lexicon.gz", cached=True)
+        self.out_bliss_lexicon = self.output_path("lexicon.gz", cached=True)
         self.set_rqmt("run", {"time": 10 / 60, "cpu": 1, "mem": "64M"})
 
     def tasks(self):
@@ -64,8 +63,8 @@ class BeepToBlissLexiconJob(Job):
 
     def run(self):
         with open(tk.uncached_path(self.phoneme_list), "r") as input_phonemes:
-            with open(tk.uncached_path(self.input_lexicon), "r") as input_lexicon:
-                with gzip.open(self.lexicon.get_path(), "w") as out_binary:
+            with open(tk.uncached_path(self.beep_lexicon), "r") as input_lexicon:
+                with gzip.open(self.out_bliss_lexicon.get_path(), "w") as out_binary:
                     out = io.TextIOWrapper(out_binary, encoding="utf-8")
                     out.write('<?xml version="1.0" encoding="UTF-8"?>\n')
                     out.write("<lexicon>\n")

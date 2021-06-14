@@ -21,15 +21,17 @@ class DownloadCMUDictJob(Job):
         self.url = url
         self.dict_file = dict_file
         self.phoneme_file = phoneme_file
-        self.phoneme_list = self.output_path(phoneme_file)
-        self.lexicon = self.output_path(dict_file, cached=True)
+
+        self.out_phoneme_list = self.output_path(phoneme_file)
+        self.out_cmu_lexicon = self.output_path(dict_file, cached=True)
 
     def tasks(self):
         yield Task("run", mini_task=True)
 
     def run(self):
         for name, path in zip(
-            [self.dict_file, self.phoneme_file], [self.lexicon, self.phoneme_list]
+            [self.dict_file, self.phoneme_file],
+            [self.out_cmu_lexicon, self.out_phoneme_list],
         ):
             with urllib.request.urlopen(self.url + name) as src:
                 with open(path.get_path(), "wb") as dst:
@@ -37,12 +39,10 @@ class DownloadCMUDictJob(Job):
 
 
 class CMUDictToBlissJob(Job):
-    __sis_hash_exclude__ = {"noise_lemmas": None}
-
     def __init__(
         self,
         phoneme_list,
-        input_lexicon,
+        cmu_lexicon,
         add_unknown=False,
         capitalize_words=True,
         noise_lemmas=None,
@@ -50,12 +50,12 @@ class CMUDictToBlissJob(Job):
         self.set_vis_name("Convert CMU Lexicon to Bliss")
 
         self.phoneme_list = phoneme_list
-        self.input_lexicon = input_lexicon
+        self.cmu_lexicon = cmu_lexicon
         self.add_unknown = add_unknown
         self.capitalize_words = capitalize_words
         self.noise_lemmas = noise_lemmas
 
-        self.lexicon = self.output_path("lexicon.gz", cached=True)
+        self.out_bliss_lexicon = self.output_path("lexicon.gz", cached=True)
 
     def tasks(self):
         yield Task(
@@ -67,9 +67,9 @@ class CMUDictToBlissJob(Job):
             tk.uncached_path(self.phoneme_list), "r", encoding="iso-8859-1"
         ) as input_phonemes:
             with open(
-                tk.uncached_path(self.input_lexicon), "r", encoding="iso-8859-1"
+                tk.uncached_path(self.cmu_lexicon), "r", encoding="iso-8859-1"
             ) as input_lexicon:
-                with gzip.open(self.lexicon.get_path(), "wt") as out:
+                with gzip.open(self.out_bliss_lexicon.get_path(), "wt") as out:
                     out.write('<?xml version="1.0" encoding="UTF-8"?>\n')
                     out.write("<lexicon>\n")
 

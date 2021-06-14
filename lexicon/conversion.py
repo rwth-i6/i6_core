@@ -13,18 +13,19 @@ from i6_core.util import uopen
 
 
 class LexiconToWordListJob(Job):
-    def __init__(self, lexicon, apply_filter=True):
+    def __init__(self, bliss_lexicon, apply_filter=True):
         self.set_vis_name("Lexicon to Word List")
 
-        self.lexicon = lexicon
+        self.bliss_lexicon = bliss_lexicon
         self.apply_filter = apply_filter
-        self.word_list = self.output_path("words")
+
+        self.out_word_list = self.output_path("words")
 
     def tasks(self):
         yield Task("run", mini_task=True)
 
     def run(self):
-        with uopen(tk.uncached_path(self.lexicon), "r") as lexicon_file:
+        with uopen(tk.uncached_path(self.bliss_lexicon), "r") as lexicon_file:
             lexicon = ET.fromstring(lexicon_file.read())
             words = set()
             for e in lexicon.findall("./lemma/orth"):
@@ -35,20 +36,21 @@ class LexiconToWordListJob(Job):
                 ):
                     words.add(e.text)
 
-        with open(self.word_list.get_path(), "w") as word_file:
+        with open(self.out_word_list.get_path(), "w") as word_file:
             for w in sorted(words):
                 word_file.write("%s\n" % w)
 
 
 class FilterLexiconByWordListJob(Job):
-    def __init__(self, old_lexicon, word_list, case_sensitive=False):
+    def __init__(self, bliss_lexicon, word_list, case_sensitive=False):
         self.set_vis_name("Filter Lexicon by Word List")
 
-        self.old_lexicon = old_lexicon
+        self.bliss_lexicon = bliss_lexicon
         self.word_list = word_list
         self.case_sensitive = case_sensitive
-        self.new_lexicon = self.output_path(
-            os.path.basename(tk.uncached_path(old_lexicon)), cached=True
+
+        self.out_bliss_lexicon = self.output_path(
+            os.path.basename(tk.uncached_path(bliss_lexicon)), cached=True
         )
 
     def tasks(self):
@@ -57,7 +59,7 @@ class FilterLexiconByWordListJob(Job):
     def run(self):
         transform = (lambda s: s.lower()) if self.case_sensitive else (lambda s: s)
 
-        with uopen(tk.uncached_path(self.old_lexicon), "r") as lexicon_file:
+        with uopen(tk.uncached_path(self.bliss_lexicon), "r") as lexicon_file:
             old_lexicon = ET.fromstring(lexicon_file.read())
 
         with uopen(tk.uncached_path(self.word_list), "r") as words_file:
@@ -73,25 +75,26 @@ class FilterLexiconByWordListJob(Job):
             ):
                 root.append(lemma)
 
-        with uopen(self.new_lexicon.get_path(), "w") as lexicon_file:
+        with uopen(self.out_bliss_lexicon.get_path(), "w") as lexicon_file:
             lexicon_file.write('<?xml version="1.0" encoding="utf-8"?>\n')
             lexicon_file.write(ET.tostring(root, "unicode"))
 
 
 class LexiconUniqueOrthJob(Job):
-    def __init__(self, old_lexicon):
+    def __init__(self, bliss_lexicon):
         self.set_vis_name("Make Lexicon Orths Unique")
 
-        self.old_lexicon = old_lexicon
-        self.new_lexicon = self.output_path(
-            os.path.basename(tk.uncached_path(old_lexicon)), cached=True
+        self.bliss_lexicon = bliss_lexicon
+
+        self.out_bliss_lexicon = self.output_path(
+            os.path.basename(tk.uncached_path(bliss_lexicon)), cached=True
         )
 
     def tasks(self):
         yield Task("run", mini_task=True)
 
     def run(self):
-        with uopen(tk.uncached_path(self.old_lexicon), "r") as lexicon_file:
+        with uopen(tk.uncached_path(self.bliss_lexicon), "r") as lexicon_file:
             old_lexicon = ET.fromstring(lexicon_file.read())
 
         root = ET.Element("lexicon")
@@ -132,7 +135,7 @@ class LexiconUniqueOrthJob(Job):
                 ev = ET.SubElement(el, "eval")
                 ev.text = eval
 
-        with uopen(self.new_lexicon.get_path(), "w") as lexicon_file:
+        with uopen(self.out_bliss_lexicon.get_path(), "w") as lexicon_file:
             lexicon_file.write('<?xml version="1.0" encoding="utf-8"?>\n')
             lexicon_file.write(ET.tostring(root, "unicode"))
 
@@ -140,21 +143,23 @@ class LexiconUniqueOrthJob(Job):
 class GraphemicLexiconFromWordListJob(Job):
     default_transforms = {".": "DOT", "+": "PLUS", "{": "LBR", "}": "RBR"}
 
-    def __init__(self, word_list, add_unknown=False, add_noise=False, transforms=None):
+    def __init__(
+        self, word_list_file, add_unknown=False, add_noise=False, transforms=None
+    ):
         self.add_unknown = add_unknown
         self.add_noise = add_noise
         self.transforms = (
             transforms if transforms is not None else self.default_transforms
         )
-        self.word_list = word_list
+        self.word_list_file = word_list_file
 
-        self.lexicon = self.output_path("grapheme.lexicon", cached=True)
+        self.out_bliss_lexicon = self.output_path("grapheme.lexicon", cached=True)
 
     def tasks(self):
         yield Task("run", mini_task=True)
 
     def run(self):
-        with uopen(tk.uncached_path(self.word_list), "rt") as f:
+        with uopen(tk.uncached_path(self.word_list_file), "rt") as f:
             words = [l.strip() for l in f]
 
         phonemes = set()
@@ -208,6 +213,6 @@ class GraphemicLexiconFromWordListJob(Job):
             l.phon.append(" " + " ".join(self.transforms.get(p, p) for p in w) + " ")
             lex.add_lemma(l)
 
-        with uopen(self.lexicon.get_path(), "w") as lexicon_file:
+        with uopen(self.out_bliss_lexicon.get_path(), "w") as lexicon_file:
             lexicon_file.write('<?xml version="1.0" encoding="utf-8"?>\n')
             lexicon_file.write(ET.tostring(lex.to_xml(), "unicode"))
