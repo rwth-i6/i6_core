@@ -11,6 +11,7 @@ import subprocess
 from sisyphus import *
 
 from i6_core.lib import corpus
+from i6_core.util import uopen
 
 
 class DownloadLibriSpeechCorpusJob(Job):
@@ -139,7 +140,7 @@ class LibriSpeechCreateBlissCorpusJob(Job):
         self._get_transcripts()
 
         c = corpus.Corpus()
-        c.name = os.path.basename(tk.uncached_path(self.corpus_folder))
+        c.name = os.path.basename(self.corpus_folder.get_path())
 
         used_speaker_ids = set()  # store which speakers are used
 
@@ -177,7 +178,7 @@ class LibriSpeechCreateBlissCorpusJob(Job):
         """
         Extract the speakers from the SPEAKERS.TXT file
         """
-        with open(tk.uncached_path(self.speaker_metadata), "r") as speakersfile:
+        with uopen(self.speaker_metadata, "r") as speakersfile:
             for line in speakersfile:
                 if line[0] == ";":
                     continue
@@ -194,12 +195,12 @@ class LibriSpeechCreateBlissCorpusJob(Job):
         Traverse the folder structure and search for the *.trans.txt files and read the content
         """
         for dirpath, dirs, files in os.walk(
-            tk.uncached_path(self.corpus_folder), followlinks=True
+            self.corpus_folder.get_path(), followlinks=True
         ):
             for file in files:
                 if not file.endswith(".trans.txt"):
                     continue
-                with open(os.path.join(dirpath, file), "r") as transcription:
+                with uopen(os.path.join(dirpath, file), "r") as transcription:
                     for line in transcription:
                         line_t = list(map(str.strip, line.split(" ", 1)))
                         orth = line_t[1]
