@@ -11,39 +11,40 @@ class PipelineJob(Job):
 
     def __init__(
         self,
-        text_file,
+        text_files,
         pipeline,
-        zip_out=False,
+        zip_output=False,
         check_equal_length=False,
         mini_task=False,
     ):
         """
-
-        :param Path text: text file (raw or gz) to be processed
+        :param iterable[Path]|Path text_file: text file (raw or gz) or list of files to be processed
         :param list[str] pipeline: list of shell commands to form the pipeline
-        :param bool zip_out: apply gzip to the output
+        :param bool zip_output: apply gzip to the output
         :param bool check_equal_length: the line count of the input and output should match
         :param bool mini_task: the pipeline should be run as mini_task
         """
-        assert text is not None
-        self.set_attrs(locals())
-        if zip_out:
+        assert text_file is not None
+        self.text_files = text_files
+        self.pipeline = pipeline
+        self.zip_output = zip_output
+        self.check_equal_length = check_equal_length
+        self.mini_task = mini_task
+
+        if zip_output:
             self.out = self.output_path("out.gz")
         else:
             self.out = self.output_path("out")
-
-        self.check_equal_length = check_equal_length
-        self.pipeline = pipeline
 
         self.rqmt = None
 
     def tasks(self):
         if not self.rqmt:
             # estimate rqmt if not set explicitly
-            if isinstance(self.text, (list, tuple)):
-                size = sum(text.estimate_text_size() / 1024 for text in self.text)
+            if isinstance(self.text_files, (list, tuple)):
+                size = sum(text.estimate_text_size() / 1024 for text in self.text_files)
             else:
-                size = self.text.estimate_text_size() / 1024
+                size = self.text_files.estimate_text_size() / 1024
 
             if size <= 128:
                 time = 2
@@ -70,19 +71,19 @@ class PipelineJob(Job):
 
     def run(self):
         pipeline = self.pipeline.copy()
-        if self.zip_out:
+        if self.zip_output:
             pipeline.append("gzip")
         self.pipe = " | ".join([str(i) for i in pipeline])
-        if isinstance(self.text, (list, tuple)):
-            self.input_text = " ".join(gs.file_caching(str(i)) for i in self.text)
+        if isinstance(self.text_files, (list, tuple)):
+            self.input_text = " ".join(gs.file_caching(str(i)) for i in self.text_files)
         else:
-            self.input_text = gs.file_caching(str(self.text))
-        self.sh("zcat -f {input_text} | {pipe} > {out}")
+            self.input_text = gs.file_caching(str(self.text_files))
+        self.sh("zcat -f {text_file} | {pipe} > {out}")
 
         # assume that we do not want empty pipe results
         assert not (os.stat(str(self.out)).st_size == 0), "Pipe result was empty"
 
-        input_length = int(self.sh("zcat -f {input_text} | sed '$a\\' | wc -l", True))
+        input_length = int(self.sh("zcat -f {text_file} | sed '$a\\' | wc -l", True))
         assert input_length > 0
         output_length = int(self.sh("zcat -f {out} | wc -l", True))
         assert output_length > 0
