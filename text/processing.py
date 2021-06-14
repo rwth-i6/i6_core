@@ -10,7 +10,12 @@ class PipelineJob(Job):
     """
 
     def __init__(
-        self, text, pipeline, zip_out=False, check_equal_length=False, mini_task=False
+        self,
+        text_file,
+        pipeline,
+        zip_out=False,
+        check_equal_length=False,
+        mini_task=False,
     ):
         """
 
@@ -99,37 +104,37 @@ class ConcatenateJob(Job):
     Concatenate all given input files (gz or raw)
     """
 
-    def __init__(self, inputs):
+    def __init__(self, text_files):
         """
-        :param list[Path] inputs: input text files
+        :param list[Path] text_files: input text files
         """
-        assert inputs
+        assert text_files
 
         # ensure sets are always merged in the same order
-        if isinstance(inputs, set):
-            inputs = list(inputs)
-            inputs.sort(key=lambda x: str(x))
+        if isinstance(text_files, set):
+            text_files = list(text_files)
+            text_files.sort(key=lambda x: str(x))
 
-        assert isinstance(inputs, list)
+        assert isinstance(text_files, list)
 
         # Skip this job if only one input is present
-        if len(inputs) == 1:
-            self.out = inputs.pop()
+        if len(text_files) == 1:
+            self.out = text_files.pop()
         else:
             self.out = self.output_path("out.gz")
 
-        for input in inputs:
+        for input in text_files:
             assert isinstance(input, Path) or isinstance(
                 input, str
             ), "input to Concatenate is not a valid path"
 
-        self.inputs = inputs
+        self.text_files = text_files
 
     def tasks(self):
         yield Task("run", rqmt={"mem": 3, "time": 3})
 
     def run(self):
-        self.f_list = " ".join(gs.file_caching(str(i)) for i in self.inputs)
+        self.f_list = " ".join(gs.file_caching(str(i)) for i in self.text_files)
         self.sh("zcat -f {f_list} | gzip > {out}")
 
 
@@ -138,15 +143,15 @@ class HeadJob(Job):
     Return the head of a text file, either absolute or as ratio (provide one)
     """
 
-    def __init__(self, data, lines=None, ratio=None):
+    def __init__(self, text_file, num_lines=None, ratio=None):
         """
-        :param Path data: text file (gz or raw)
-        :param int lines: number of lines to extract
+        :param Path text_file: text file (gz or raw)
+        :param int num_lines: number of lines to extract
         :param float ratio: ratio of lines to extract
         """
 
-        assert lines or ratio, "please specify either lines or ratio"
-        assert not (lines and ratio), "please specify only lines or ratio, not both"
+        assert num_lines or ratio, "please specify either lines or ratio"
+        assert not (num_lines and ratio), "please specify only lines or ratio, not both"
         self.set_attrs(locals())
         if ratio:
             assert ratio <= 1
@@ -166,11 +171,11 @@ class HeadJob(Job):
     def run(self):
         if self.ratio:
             assert not self.lines
-            length = int(self.sh("zcat -f {data} | wc -l", True))
+            length = int(self.sh("zcat -f {text_file} | wc -l", True))
             self.lines = int(length * self.ratio)
 
         self.sh(
-            "zcat -f {data} | head -n {lines} | gzip > {out}",
+            "zcat -f {data} | head -n {num_lines} | gzip > {out}",
             except_return_codes=(141,),
         )
         self.length.set(self.lines)
@@ -184,7 +189,7 @@ class TailJob(HeadJob):
     def run(self):
         if self.ratio:
             assert not self.lines
-            length = int(self.sh("zcat -f {data} | wc -l", True))
+            length = int(self.sh("zcat -f {text_file} | wc -l", True))
             self.lines = int(length * self.ratio)
 
         self.sh("zcat -f {data} | tail -n {lines} | gzip > {out}")
