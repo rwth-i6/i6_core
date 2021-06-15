@@ -139,7 +139,7 @@ class CompressCorpusJob(Job):
 
     def run(self):
         c = corpus.Corpus()
-        c.load(str(self.bliss_corpus))
+        c.load(self.bliss_corpus.get_path())
 
         assert (
             len(c.subcorpora) == 0
@@ -439,12 +439,17 @@ class ShiftCorpusSegmentStartJob(Job):
     Shifts the start time of a corpus to change the fft window offset
     """
 
-    def __init__(self, corpus_file, corpus_name, shift):
-        self.corpus_file = corpus_file
+    def __init__(self, bliss_corpus, corpus_name, shift):
+        """
+        :param Path bliss_corpus: path to a bliss corpus file
+        :param str corpus_name: name of the new corpus
+        :param int shift: shift in seconds
+        """
+        self.bliss_corpus = bliss_corpus
         self.corpus_name = corpus_name
         self.shift = shift
-        self.shifted_corpus = self.output_path("shifted.xml.gz")
-        self.segments = self.output_path("shifted.segments")
+        self.out_shifted_corpus = self.output_path("shifted.xml.gz")
+        self.out_segments = self.output_path("shifted.segments")
 
     def tasks(self):
         yield Task("run", mini_task=True)
@@ -454,7 +459,7 @@ class ShiftCorpusSegmentStartJob(Job):
         nc = corpus.Corpus()
         segment_file_names = []
 
-        c.load(tk.uncached_path(self.corpus_file))
+        c.load(tk.uncached_path(self.bliss_corpus))
         nc.name = self.corpus_name
         nc.speakers = c.speakers
         nc.default_speaker = c.default_speaker
@@ -473,7 +478,7 @@ class ShiftCorpusSegmentStartJob(Job):
                 segment_file_names.append(nc.name + "/" + sr.name + "/" + s.name)
                 s.start += self.shift
 
-        nc.dump(str(self.shifted_corpus))
+        nc.dump(str(self.out_shifted_corpus))
 
-        with open(str(self.segments), "w") as segments_outfile:
+        with open(str(self.out_segments), "w") as segments_outfile:
             segments_outfile.writelines(segment_file_names)
