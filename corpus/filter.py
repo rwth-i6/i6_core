@@ -175,17 +175,17 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
 
 class FilterCorpusBySegmentsJob(Job):
     def __init__(
-        self, bliss_corpus, segment_files, compressed=False, invert_match=False
+        self, bliss_corpus, segment_file, compressed=False, invert_match=False
     ):
         """
         :param Path bliss_corpus:
-        :param list[Path]|Path segment_files: a single segment file or a list of segment files
+        :param list[Path]|Path segment_file: a single segment file or a list of segment files
         :param bool compressed:
         :param bool invert_match:
         """
         self.bliss_corpus = bliss_corpus
         self.segment_file_list = (
-            [segment_files] if isinstance(segment_files, tk.Path) else segment_files
+            [segment_file] if isinstance(segment_file, tk.Path) else segment_file
         )
         self.invert_match = invert_match
 
