@@ -43,18 +43,18 @@ class BlissLexiconToG2PLexiconJob(Job):
 
 class G2POutputToBlissLexiconJob(Job):
     """
-    Convert a g2p applied word list file into a lexicon
+    Convert a g2p applied word list file (g2p lexicon) into a bliss lexicon
     """
 
-    def __init__(self, iv_bliss_lexicon, g2p_output_lexicon, merge=True):
+    def __init__(self, iv_bliss_lexicon, g2p_lexicon, merge=True):
         """
         :param Path iv_bliss_lexicon: bliss lexicon as reference for the phoneme inventory
-        :param Path g2p_output_lexicon: from ApplyG2PModelJob.out_g2p_lexicon
+        :param Path g2p_lexicon: from ApplyG2PModelJob.out_g2p_lexicon
         :param bool merge: merge the g2p lexicon into the iv_bliss_lexicon instead of
             only taking the phoneme inventory
         """
         self.iv_bliss_lexicon = iv_bliss_lexicon
-        self.g2p_output_lexicon = g2p_output_lexicon
+        self.g2p_lexicon = g2p_lexicon
         self.merge = merge
 
         self.out_oov_lexicon = self.output_path("oov.lexicon.gz", cached=True)
@@ -63,7 +63,7 @@ class G2POutputToBlissLexiconJob(Job):
         yield Task("run", mini_task=True)
 
     def run(self):
-        with uopen(self.g2p_output_lexicon, "rt", encoding="utf-8") as f:
+        with uopen(self.g2p_lexicon, "rt", encoding="utf-8") as f:
             oov_words = dict()
             for orth, data in it.groupby(
                 map(lambda line: line.strip().split("\t"), f), lambda t: t[0]
