@@ -287,6 +287,26 @@ class System:
         self.feature_flows[corpus]["gt"] = features.basic_cache_flow(feature_path)
         self.feature_flows[corpus]["uncached_gt"] = f.feature_flow
 
+    def generic_features(
+        self, corpus, name, feature_flow, port_name_mapping, prefix="", **kwargs
+    ):
+        self.jobs[corpus][f"{name}_features"] = f = features.FeatureExtractionJob(
+            self.crp[corpus], feature_flow, port_name_mapping, job_name=name, **kwargs
+        )
+        f.add_alias(f"{prefix}{corpus}_{name}_features")
+        self.feature_caches[corpus][name] = f.out_feature_path[name]
+        self.feature_bundles[corpus][name] = f.out_feature_bundle[name]
+
+        feature_path = rasr.FlagDependentFlowAttribute(
+            "cache_mode",
+            {
+                "task_dependent": self.feature_caches[corpus][name],
+                "bundle": self.feature_bundles[corpus][name],
+            },
+        )
+        self.feature_flows[corpus][name] = features.basic_cache_flow(feature_path)
+        self.feature_flows[corpus][f"uncached_{name}"] = f.feature_dlow
+
     def plp_features(self, corpus, num_deriv=2, num_features=23, **kwargs):
         self.jobs[corpus]["plp_features"] = f = features.PlpJob(
             self.crp[corpus], **kwargs
