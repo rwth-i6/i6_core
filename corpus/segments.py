@@ -27,10 +27,10 @@ Path = setup_path(__package__)
 
 
 class SegmentCorpusJob(Job):
-    def __init__(self, corpus_path, num_segments):
+    def __init__(self, bliss_corpus, num_segments):
         self.set_vis_name("Segment Corpus")
 
-        self.corpus_path = corpus_path
+        self.corpus_path = bliss_corpus
         self.num_segments = num_segments
         self.single_segment_files = dict(
             (i, self.output_path("segments.%d" % i)) for i in range(1, num_segments + 1)
@@ -57,10 +57,10 @@ class SegmentCorpusJob(Job):
 
 
 class SegmentCorpusBySpeakerJob(Job):
-    def __init__(self, corpus_path, num_speakers=None):
+    def __init__(self, bliss_corpus, num_speakers=None):
         self.set_vis_name("Segment By Speaker")
 
-        self.corpus_path = corpus_path
+        self.bliss_corpus = bliss_corpus
 
         self.num_speakers = self.output_var("num_speakers", True)
         self.segment_dir = self.output_path("segments", True)
@@ -75,7 +75,7 @@ class SegmentCorpusBySpeakerJob(Job):
 
     def run(self):
         c = corpus.Corpus()
-        c.load(tk.uncached_path(self.corpus_path))
+        c.load(tk.uncached_path(self.bliss_corpus))
         speaker_map = collections.defaultdict(list)
 
         for segment in c.segments():
@@ -106,11 +106,11 @@ class SegmentCorpusBySpeakerJob(Job):
 
 class SegmentCorpusByRegexJob(Job):
     def __init__(
-        self, corpus_path, regex, regex_flags=0, use_fullpath=False, groups=None
+        self, bliss_corpus, regex, regex_flags=0, use_fullpath=False, groups=None
     ):
         self.set_vis_name("Segment By Regex")
 
-        self.corpus_path = corpus_path
+        self.corpus_path = bliss_corpus
         self.regex = re.compile(regex, regex_flags)
         self.use_fullpath = use_fullpath
         self.groups = groups if groups is not None else [1]

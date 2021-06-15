@@ -25,14 +25,14 @@ Path = setup_path(__package__)
 
 
 class ReplaceTranscriptionFromCtmJob(Job):
-    def __init__(self, corpus_path, ctm_path, remove_empty_segments=True):
+    def __init__(self, bliss_corpus, ctm_path, remove_empty_segments=True):
         self.set_vis_name("Replace Transcription from CTM file")
 
-        self.corpus_path = corpus_path
+        self.bliss_corpus = bliss_corpus
         self.ctm_path = ctm_path
         self.remove_empty_segments = remove_empty_segments
 
-        gzip_output = tk.uncached_path(corpus_path).endswith(".gz")
+        gzip_output = tk.uncached_path(bliss_corpus).endswith(".gz")
         self.output_corpus_path = self.output_path(
             "corpus.xml" + (".gz" if gzip_output else ""), cached=True
         )
@@ -57,7 +57,7 @@ class ReplaceTranscriptionFromCtmJob(Job):
         for recording, times_and_words in transcriptions.items():
             times_and_words.sort()
 
-        corpus_path = tk.uncached_path(self.corpus_path)
+        corpus_path = tk.uncached_path(self.bliss_corpus)
         c = corpus.Corpus()
         c.load(corpus_path)
 
@@ -91,11 +91,11 @@ class ReplaceTranscriptionFromCtmJob(Job):
 class AddCacheToCorpusJob(Job):
     """
     Adds cache manager call to all audio paths in a corpus file
-    :param Path corpus_file: bliss corpora file path
+    :param Path bliss_corpus: bliss corpora file path
     """
 
-    def __init__(self, corpus_file):
-        self.corpus_file = corpus_file
+    def __init__(self, bliss_corpus):
+        self.bliss_corpus = bliss_corpus
         self.cached_corpus = self.output_path("corpus.xml.gz")
 
     def tasks(self):
@@ -103,7 +103,7 @@ class AddCacheToCorpusJob(Job):
 
     def run(self):
         c = corpus.Corpus()
-        c.load(tk.uncached_path(self.corpus_file))
+        c.load(tk.uncached_path(self.bliss_corpus))
         for recording in c.all_recordings():
             recording.audio = gs.file_caching(recording.audio)
         c.dump(tk.uncached_path(self.cached_corpus))
@@ -113,14 +113,14 @@ class CompressCorpusJob(Job):
     """
     Compresses a corpus by concatenating audio files and using a compression codec.
     Does currently not support corpora with subcorpora, files need to be .wav
-    :param Path corpus: path to an xml corpus file with wave recordings
+    :param Path bliss_corpus: path to an xml corpus file with wave recordings
     :param str format: supported file formats, currently limited to mp3
     :param str bitrate: bitrate as string, e.g. '32k' or '192k', can also be an integer e.g. 192000
     :param int max_num_splits: maximum number of resulting audio files.
     """
 
-    def __init__(self, corpus: Path, format="mp3", bitrate="32k", max_num_splits=15):
-        self.corpus = corpus
+    def __init__(self, bliss_corpus, format="mp3", bitrate="32k", max_num_splits=15):
+        self.bliss_corpus = bliss_corpus
         self.num_splits = max_num_splits
         self.format = format
         self.bitrate = str(bitrate)
@@ -139,7 +139,7 @@ class CompressCorpusJob(Job):
 
     def run(self):
         c = corpus.Corpus()
-        c.load(str(self.corpus))
+        c.load(self.bliss_corpus.get_path())
 
         assert (
             len(c.subcorpora) == 0
@@ -317,13 +317,13 @@ class MergeCorporaJob(Job):
     Merges Bliss Corpora files into a single file as subcorpora or flat
     """
 
-    def __init__(self, corpora, name, merge_strategy=MergeStrategy.SUBCORPORA):
+    def __init__(self, bliss_corpora, name, merge_strategy=MergeStrategy.SUBCORPORA):
         """
-        :param Iterable[Path] corpora: any iterable of bliss corpora file paths to merge
+        :param Iterable[Path] bliss_corpora: any iterable of bliss corpora file paths to merge
         :param str name: name of the new corpus (subcorpora will keep the original names)
         :param MergeStrategy merge_strategy: how the corpora should be merged, e.g. as subcorpora or flat
         """
-        self.corpora = corpora
+        self.bliss_corpora = bliss_corpora
         self.name = name
         self.merge_strategy = merge_strategy
 
@@ -335,7 +335,7 @@ class MergeCorporaJob(Job):
     def run(self):
         merged_corpus = corpus.Corpus()
         merged_corpus.name = self.name
-        for corpus_path in self.corpora:
+        for corpus_path in self.bliss_corpora:
             c = corpus.Corpus()
             c.load(tk.uncached_path(corpus_path))
             if self.merge_strategy == MergeStrategy.SUBCORPORA:
@@ -359,8 +359,8 @@ class MergeCorpusSegmentsAndAudioJob(Job):
     The job outputs a new corpus file + the corresponding audio files.
     """
 
-    def __init__(self, corpus_file, cluster_map, cluster_names):
-        self.corpus_file = corpus_file
+    def __init__(self, bliss_corpus, cluster_map, cluster_names):
+        self.corpus_file = bliss_corpus
         self.cluster_map = cluster_map
         self.cluster_names = cluster_names
 
@@ -437,18 +437,19 @@ class MergeCorpusSegmentsAndAudioJob(Job):
 class ShiftCorpusSegmentStartJob(Job):
     """
     Shifts the start time of a corpus to change the fft window offset
-
-    :param Path corpus_file: path to a bliss corpus file
-    :param str corpus_name: name of the new corpus
-    :param float shift: shift in seconds
     """
 
-    def __init__(self, corpus_file, corpus_name, shift):
-        self.corpus_file = corpus_file
+    def __init__(self, bliss_corpus, corpus_name, shift):
+        """
+        :param Path bliss_corpus: path to a bliss corpus file
+        :param str corpus_name: name of the new corpus
+        :param int shift: shift in seconds
+        """
+        self.bliss_corpus = bliss_corpus
         self.corpus_name = corpus_name
         self.shift = shift
-        self.shifted_corpus = self.output_path("shifted.xml.gz")
-        self.segments = self.output_path("shifted.segments")
+        self.out_shifted_corpus = self.output_path("shifted.xml.gz")
+        self.out_segments = self.output_path("shifted.segments")
 
     def tasks(self):
         yield Task("run", mini_task=True)
@@ -458,7 +459,7 @@ class ShiftCorpusSegmentStartJob(Job):
         nc = corpus.Corpus()
         segment_file_names = []
 
-        c.load(tk.uncached_path(self.corpus_file))
+        c.load(tk.uncached_path(self.bliss_corpus))
         nc.name = self.corpus_name
         nc.speakers = c.speakers
         nc.default_speaker = c.default_speaker
@@ -477,7 +478,7 @@ class ShiftCorpusSegmentStartJob(Job):
                 segment_file_names.append(nc.name + "/" + sr.name + "/" + s.name)
                 s.start += self.shift
 
-        nc.dump(str(self.shifted_corpus))
+        nc.dump(str(self.out_shifted_corpus))
 
-        with open(str(self.segments), "w") as segments_outfile:
+        with open(str(self.out_segments), "w") as segments_outfile:
             segments_outfile.writelines(segment_file_names)

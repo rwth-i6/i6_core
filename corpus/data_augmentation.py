@@ -22,16 +22,16 @@ class SelfNoiseCorpusJob(Job):
     WARNING: This Job uses /dev/shm for performance reasons, please be cautious
     """
 
-    def __init__(self, corpus_file, snr, corpus_name, n_noise_tracks=1, seed=0):
+    def __init__(self, bliss_corpus, snr, corpus_name, n_noise_tracks=1, seed=0):
         """
 
-        :param Path corpus_file: Bliss corpus with wav files
+        :param Path bliss_corpus: Bliss corpus with wav files
         :param float snr: signal to noise ratio in db, positive values only
         :param str corpus_name: name of the new corpus
         :param int n_noise_tracks: number of random (parallel) utterances to add
         :param int seed: seed for random utterance selection
         """
-        self.corpus_file = corpus_file
+        self.bliss_corpus = bliss_corpus
         self.snr = snr
         self.corpus_name = corpus_name
         self.n_noise_tracks = n_noise_tracks
@@ -59,7 +59,7 @@ class SelfNoiseCorpusJob(Job):
         nc = corpus.Corpus()
         segment_file_names = []
 
-        c.load(tk.uncached_path(self.corpus_file))
+        c.load(tk.uncached_path(self.bliss_corpus))
         nc.name = self.corpus_name
         nc.speakers = c.speakers
         nc.default_speaker = c.default_speaker
@@ -173,15 +173,15 @@ class ChangeCorpusSpeedJob(Job):
     Changes the speed of all audio files in the corpus (shifting time AND frequency)
     """
 
-    def __init__(self, corpus_file, corpus_name, speed_factor, base_frequency):
+    def __init__(self, bliss_corpus, corpus_name, speed_factor, base_frequency):
         """
 
-        :param Path corpus_file: Bliss corpus
+        :param Path bliss_corpus: Bliss corpus
         :param str corpus_name: name of the new corpus
         :param float speed_factor: relative speed factor
         :param int base_frequency: sampling rate of the audio files
         """
-        self.corpus_file = corpus_file
+        self.bliss_corpus = bliss_corpus
         self.speed_factor = speed_factor
         self.corpus_name = corpus_name
         self.base_frequency = base_frequency
@@ -204,7 +204,7 @@ class ChangeCorpusSpeedJob(Job):
         nc = corpus.Corpus()
         segment_file_names = []
 
-        c.load(tk.uncached_path(self.corpus_file))
+        c.load(tk.uncached_path(self.bliss_corpus))
         nc.name = self.corpus_name
         nc.speakers = c.speakers
         nc.default_speaker = c.default_speaker
