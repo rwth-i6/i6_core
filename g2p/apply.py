@@ -4,6 +4,8 @@ import subprocess as sp
 
 from sisyphus import *
 
+from recipe.i6_core.util import uopen
+
 Path = setup_path(__package__)
 
 
@@ -48,7 +50,7 @@ class ApplyG2PModelJob(Job):
         yield Task("run", mini_task=True)
 
     def run(self):
-        with open(self.out_g2p_lexicon.get_path(), "wt") as out:
+        with uopen(self.out_g2p_lexicon, "wt") as out:
             sp.check_call(
                 [
                     self.g2p_python,
@@ -60,9 +62,9 @@ class ApplyG2PModelJob(Job):
                     "--variants-number",
                     str(self.variants_number),
                     "-m",
-                    tk.uncached_path(self.g2p_model),
+                    self.g2p_model.get_path(),
                     "-a",
-                    tk.uncached_path(self.word_list),
+                    self.word_list.get_path(),
                 ],
                 stdout=out,
             )
