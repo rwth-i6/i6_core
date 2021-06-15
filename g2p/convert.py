@@ -6,9 +6,9 @@ import xml.etree.ElementTree as ET
 
 from sisyphus import *
 
-Path = setup_path(__package__)
+from i6_core.util import uopen
 
-import i6_core.util as util
+Path = setup_path(__package__)
 
 
 class BlissLexiconToG2PLexiconJob(Job):
@@ -28,10 +28,9 @@ class BlissLexiconToG2PLexiconJob(Job):
         yield Task("run", mini_task=True)
 
     def run(self):
-        with util.uopen(self.bliss_lexicon, "rt") as f:
+        with uopen(self.bliss_lexicon, "rt") as f:
             tree = ET.parse(f)
-
-        with open(self.out_g2p_lexicon.get_path(), "wt") as out:
+        with uopen(self.out_g2p_lexicon, "wt") as out:
             for lemma in tree.findall(".//lemma"):
                 if lemma.get("special") is not None:
                     continue
@@ -64,7 +63,7 @@ class G2POutputToBlissLexiconJob(Job):
         yield Task("run", mini_task=True)
 
     def run(self):
-        with util.uopen(self.g2p_output_lexicon, "rt", encoding="utf-8") as f:
+        with uopen(self.g2p_output_lexicon, "rt", encoding="utf-8") as f:
             oov_words = dict()
             for orth, data in it.groupby(
                 map(lambda line: line.strip().split("\t"), f), lambda t: t[0]
@@ -84,7 +83,7 @@ class G2POutputToBlissLexiconJob(Job):
                             )
                         )
 
-        with util.uopen(self.iv_bliss_lexicon, "rt") as f:
+        with uopen(self.iv_bliss_lexicon, "rt") as f:
             iv_lexicon = ET.parse(f)
 
         if self.merge:
@@ -99,6 +98,6 @@ class G2POutputToBlissLexiconJob(Job):
             for pron in prons:
                 ET.SubElement(lemma, "phon").text = pron
 
-        with util.uopen(self.out_oov_lexicon, "wt", encoding="utf-8") as f:
+        with uopen(self.out_oov_lexicon, "wt", encoding="utf-8") as f:
             tree = ET.ElementTree(root)
             tree.write(f, "unicode", True)
