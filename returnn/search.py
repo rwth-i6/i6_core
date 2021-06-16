@@ -32,6 +32,7 @@ class ReturnnSearchJob(Job):
         model_checkpoint,
         returnn_config,
         *,
+        output_mode="py",
         log_verbosity=3,
         device="gpu",
         time_rqmt=4,
@@ -55,6 +56,9 @@ class ReturnnSearchJob(Job):
         self.search_data = search_data
 
         self.model_checkpoint = model_checkpoint
+
+        assert output_mode in ["py", "txt"]
+        self.output_mode = output_mode
 
         self.returnn_python_exe = (
             returnn_python_exe
@@ -125,7 +129,7 @@ class ReturnnSearchJob(Job):
         assert "network" in original_config
 
         config = {
-            "search_output_file_format": "py",
+            "search_output_file_format": self.output_mode,
             "search_output_file": self.out_search_file,
             "need_data": False,
             "search_do_eval": 0,
