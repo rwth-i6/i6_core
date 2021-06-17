@@ -16,8 +16,6 @@ class BlissToOggZipJob(Job):
 
     """
 
-    __sis_hash_exclude__ = {"no_conversion": False}
-
     def __init__(
         self,
         bliss_corpus,

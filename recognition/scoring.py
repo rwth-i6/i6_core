@@ -44,8 +44,6 @@ class AnalogJob(Job):
 
 
 class ScliteJob(Job):
-    __sis_hash_exclude__ = {"cer": False, "sort_files": False, "additional_args": None}
-
     def __init__(self, ref, hyp, cer=False, sort_files=False, additional_args=None):
         self.set_vis_name("Sclite - %s" % ("CER" if cer else "WER"))
 
