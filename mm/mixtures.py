@@ -107,6 +107,7 @@ class MergeMixturesJob(rasr.RasrCommand, Job):
                 if e in tmp_files:
                     logging.info("unlink %s" % e)
                     os.unlink(e)
+                    tmp_files.remove(e)
 
             return tmp_merge_file
 
