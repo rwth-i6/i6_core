@@ -23,39 +23,6 @@ from i6_core.util import MultiOutputPath
 # nothing should be hard coded here, only modules
 
 
-class LinearAdaptationTrainingJob(Job):
-    def __init__(
-        self,
-        name,
-        feature_corpus,
-        train_corpus,
-        dev_corpus,
-        feature_flow,
-        alignment,
-        returnn_config,
-        num_classes,
-        num_epochs,
-    ):
-        kwargs = locals()
-        del kwargs["self"]
-        self.rqmt = {"gpu": 1, "cpu": 2, "mem": 15, "time": 24}
-
-    def tasks(self):
-        num_clusters = util.get_val(self.num_clusters)
-        yield Task("create_files", mini_task=True)
-        yield Task("run", resume="run", rqmt=self.rqmt, args=range(1, num_clusters + 1))
-        yield Task("extract_transforms", mini_task=True)
-
-    def create_files(self):
-        yield NotImplemented
-
-    def run(self, task_id):
-        yield NotImplemented
-
-    def extract_transforms(self):
-        yield NotImplemented
-
-
 class MetaLinearAdaptationJob(Job):
     def __init__(
         self,
