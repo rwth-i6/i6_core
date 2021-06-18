@@ -24,7 +24,7 @@ class PipelineJob(Job):
         :param bool check_equal_length: the line count of the input and output should match
         :param bool mini_task: the pipeline should be run as mini_task
         """
-        assert text_file is not None
+        assert text_files is not None
         self.text_files = text_files
         self.pipeline = pipeline
         self.zip_output = zip_output
