@@ -388,7 +388,7 @@ class System:
             self.crp[corpus], self.feature_flows[corpus][flow], **kwargs
         )
         j.add_alias(prefix + name)
-        self.mixtures[corpus][name] = j.mixtures
+        self.mixtures[corpus][name] = j.out_mixtures
         if hasattr(j, "alignment_path") and hasattr(j, "alignment_bundle"):
             self.alignments[corpus][name] = rasr.FlagDependentFlowAttribute(
                 "cache_mode",
@@ -406,7 +406,7 @@ class System:
         self.jobs[corpus]["alignment_%s" % name] = j
         self.alignments[corpus][name] = rasr.FlagDependentFlowAttribute(
             "cache_mode",
-            {"task_dependent": j.alignment_path, "bundle": j.alignment_bundle},
+            {"task_dependent": j.out_alignment_path, "bundle": j.out_alignment_bundle},
         )
 
     def estimate_mixtures(
@@ -423,8 +423,8 @@ class System:
         j.add_alias("{}{}".format(prefix, name))
 
         self.jobs[corpus][name] = j
-        self.mixtures[corpus][name] = j.mixtures
-        self.feature_scorers[corpus][name] = self.default_mixture_scorer(j.mixtures)
+        self.mixtures[corpus][name] = j.out_mixtures
+        self.feature_scorers[corpus][name] = self.default_mixture_scorer(j.out_mixtures)
 
     def train(self, name, corpus, sequence, flow, **kwargs):
         """

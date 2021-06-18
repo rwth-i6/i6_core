@@ -77,7 +77,7 @@ class ViterbiTdpTuningJob(Job):
         align = AlignmentJob(
             crp=self.crp, feature_flow=self.flow, feature_scorer=self.scorer
         )
-        self.add_input(align.alignment_bundle)
+        self.add_input(align.out_alignment_bundle)
         tdp = TdpFromAlignmentJob(
             crp=self.crp, alignment=align, allophones=self.allophone
         )
@@ -116,7 +116,7 @@ class TdpFromAlignmentJob(Job):
         yield Task("prob", resume="prob", mini_task=True)
 
     def run(self, task_id):
-        alignment_path = self.alignment.single_alignment_caches[task_id].get_path()
+        alignment_path = self.alignment.out_single_alignment_caches[task_id].get_path()
         segment_path = self.crp.segment_path.hidden_paths[task_id].get_path()
         exe = os.path.join(
             gs.RASR_ROOT,

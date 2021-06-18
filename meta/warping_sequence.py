@@ -48,9 +48,9 @@ class TrainWarpingFactorsSequence:
             j = vtln.EstimateWarpingMixturesJob(**args)
             self.all_jobs.append(j)
             self.all_logs.append(j.log_file)
-            self.all_mixtures.append(j.mixtures)
+            self.all_mixtures.append(j.out_mixtures)
 
-            current_mixtures = j.mixtures
+            current_mixtures = j.out_mixtures
 
             if action[-1] == "!":
-                self.selected_mixtures.append(j.mixtures)
+                self.selected_mixtures.append(j.out_mixtures)

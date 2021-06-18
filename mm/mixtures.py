@@ -60,14 +60,14 @@ class MergeMixturesJob(rasr.RasrCommand, Job):
             util.partition_into_tree(mixtures_to_combine, combine_per_step),
         )
 
-        self.merge_log_file = self.log_file_output_path("merge", crp, merge_count)
-        self.mixtures = self.output_path("am.mix", cached=True)
+        self.out_merge_log_file = self.log_file_output_path("merge", crp, merge_count)
+        self.out_mixtures = self.output_path("am.mix", cached=True)
 
-        self.merge_rqmt = {"time": max(merge_count / 25, 0.5), "cpu": 1, "mem": 1}
+        self.rqmt = {"time": max(merge_count / 25, 0.5), "cpu": 1, "mem": 1}
 
     def tasks(self):
         yield Task("create_merge_mixtures_config", mini_task=True)
-        yield Task("merge_mixtures", rqmt=self.merge_rqmt)
+        yield Task("merge_mixtures", rqmt=self.rqmt)
 
     def create_merge_mixtures_config(self):
         with open("merge-mixtures.config", "wt") as f:
@@ -100,7 +100,8 @@ class MergeMixturesJob(rasr.RasrCommand, Job):
                 ],
             )
             util.zmove(
-                "merge.log.%d" % merge_num, self.merge_log_file[merge_num].get_path()
+                "merge.log.%d" % merge_num,
+                self.out_merge_log_file[merge_num].get_path(),
             )
 
             for e in elements:
@@ -115,7 +116,7 @@ class MergeMixturesJob(rasr.RasrCommand, Job):
             merge_helper,
             util.partition_into_tree(self.mixtures_to_combine, self.combine_per_step),
         )
-        shutil.move(mixtures, self.mixtures.get_path())
+        shutil.move(mixtures, self.out_mixtures.get_path())
 
     def cleanup_before_run(self, cmd, retry, *args):
         log = args[2][12:]

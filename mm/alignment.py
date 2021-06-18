@@ -55,27 +55,32 @@ class AlignmentJob(rasr.RasrCommand, Job):
         self.use_gpu = use_gpu
         self.word_boundaries = word_boundaries
 
-        self.log_file = self.log_file_output_path("alignment", crp, True)
-        self.single_alignment_caches = dict(
+        self.out_log_file = self.log_file_output_path("alignment", crp, True)
+        self.out_single_alignment_caches = dict(
             (i, self.output_path("alignment.cache.%d" % i, cached=True))
             for i in range(1, self.concurrent + 1)
         )
-        self.alignment_path = util.MultiOutputPath(
-            self, "alignment.cache.$(TASK)", self.single_alignment_caches, cached=True
+        self.out_alignment_path = util.MultiOutputPath(
+            self,
+            "alignment.cache.$(TASK)",
+            self.out_single_alignment_caches,
+            cached=True,
         )
-        self.alignment_bundle = self.output_path("alignment.cache.bundle", cached=True)
+        self.out_alignment_bundle = self.output_path(
+            "alignment.cache.bundle", cached=True
+        )
         if self.word_boundaries:
-            self.single_word_boundary_caches = dict(
+            self.out_single_word_boundary_caches = dict(
                 (i, self.output_path("word_boundary.cache.%d" % i, cached=True))
                 for i in range(1, self.concurrent + 1)
             )
             self.word_boundary_path = util.MultiOutputPath(
                 self,
                 "word_boundary.cache.$(TASK)",
-                self.single_word_boundary_caches,
+                self.out_single_word_boundary_caches,
                 cached=True,
             )
-            self.word_boundary_bundle = self.output_path(
+            self.out_word_boundary_bundle = self.output_path(
                 "word_boundary.cache.bundle", cached=True
             )
 
@@ -101,11 +106,12 @@ class AlignmentJob(rasr.RasrCommand, Job):
         self.write_config(self.config, self.post_config, "alignment.config")
         self.alignment_flow.write_to_file("alignment.flow")
         util.write_paths_to_file(
-            self.alignment_bundle, self.single_alignment_caches.values()
+            self.out_alignment_bundle, self.out_single_alignment_caches.values()
         )
         if self.word_boundaries:
             util.write_paths_to_file(
-                self.word_boundary_bundle, self.single_word_boundary_caches.values()
+                self.out_word_boundary_bundle,
+                self.out_single_word_boundary_caches.values(),
             )
         extra_code = (
             ":${{THEANO_FLAGS:="
@@ -116,15 +122,15 @@ class AlignmentJob(rasr.RasrCommand, Job):
         self.write_run_script(self.exe, "alignment.config", extra_code=extra_code)
 
     def run(self, task_id):
-        self.run_script(task_id, self.log_file[task_id])
+        self.run_script(task_id, self.out_log_file[task_id])
         shutil.move(
             "alignment.cache.%d" % task_id,
-            self.single_alignment_caches[task_id].get_path(),
+            self.out_single_alignment_caches[task_id].get_path(),
         )
         if self.word_boundaries:
             shutil.move(
                 "word_boundary.cache.%d" % task_id,
-                self.single_word_boundary_caches[task_id].get_path(),
+                self.out_single_word_boundary_caches[task_id].get_path(),
             )
 
     def cleanup_before_run(self, cmd, retry, task_id, *args):
@@ -261,15 +267,20 @@ class DumpAlignmentJob(rasr.RasrCommand, Job):
         )
         self.concurrent = crp.concurrent
 
-        self.log_file = self.log_file_output_path("dump", crp, True)
-        self.single_alignment_caches = dict(
+        self.out_log_file = self.log_file_output_path("dump", crp, True)
+        self.out_single_alignment_caches = dict(
             (i, self.output_path("alignment.cache.%d" % i, cached=True))
             for i in range(1, self.concurrent + 1)
         )
-        self.alignment_path = util.MultiOutputPath(
-            self, "alignment.cache.$(TASK)", self.single_alignment_caches, cached=True
+        self.out_alignment_path = util.MultiOutputPath(
+            self,
+            "alignment.cache.$(TASK)",
+            self.out_single_alignment_caches,
+            cached=True,
         )
-        self.alignment_bundle = self.output_path("alignment.cache.bundle", cached=True)
+        self.out_alignment_bundle = self.output_path(
+            "alignment.cache.bundle", cached=True
+        )
 
         self.rqmt = {
             "time": max(crp.corpus_duration / (50.0 * crp.concurrent), 0.5),
@@ -285,15 +296,15 @@ class DumpAlignmentJob(rasr.RasrCommand, Job):
         self.write_config(self.config, self.post_config, "dump.config")
         self.dump_flow.write_to_file("dump.flow")
         util.write_paths_to_file(
-            self.alignment_bundle, self.single_alignment_caches.values()
+            self.out_alignment_bundle, self.out_single_alignment_caches.values()
         )
         self.write_run_script(self.exe, "dump.config")
 
     def run(self, task_id):
-        self.run_script(task_id, self.log_file[task_id])
+        self.run_script(task_id, self.out_log_file[task_id])
         shutil.move(
             "alignment.cache.%d" % task_id,
-            self.single_alignment_caches[task_id].get_path(),
+            self.out_single_alignment_caches[task_id].get_path(),
         )
 
     def cleanup_before_run(self, cmd, retry, task_id, *args):
@@ -364,13 +375,13 @@ class DumpAlignmentJob(rasr.RasrCommand, Job):
 class AMScoresFromAlignmentLogJob(Job):
     def __init__(self, logs):
         self.logs = logs
-        self.report = self.output_path("report.txt")
+        self.out_report = self.output_path("report.txt")
 
     def tasks(self):
         yield Task("run", resume="run", mini_task=True)
 
     def run(self):
-        with open(self.report.get_path(), "wt") as f:
+        with open(self.out_report.get_path(), "wt") as f:
             for log in self.logs:
                 if isinstance(log, dict):
                     log = log.values()
