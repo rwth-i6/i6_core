@@ -5,6 +5,7 @@ __all__ = [
     "CreateDummyMixturesJob",
 ]
 
+import logging
 import os
 import shutil
 import struct
@@ -75,7 +76,7 @@ class MergeMixturesJob(rasr.RasrCommand, Job):
 
     def merge_mixtures(self):
         merge_num = 0
-        tmp_files_to_delete = []
+        tmp_files = set()
 
         def merge_helper(elements):
             nonlocal merge_num
@@ -83,7 +84,9 @@ class MergeMixturesJob(rasr.RasrCommand, Job):
 
             (fd, tmp_merge_file) = tempfile.mkstemp(suffix=".mix")
             os.close(fd)
-            tmp_files_to_delete.append(tmp_merge_file)
+            logging.info("merge %d, %r -> %s", merge_num, elements, tmp_merge_file)
+
+            tmp_files.add(tmp_merge_file)
 
             self.run_cmd(
                 self.merge_exe,
@@ -100,6 +103,12 @@ class MergeMixturesJob(rasr.RasrCommand, Job):
                 "merge.log.%d" % merge_num, self.merge_log_file[merge_num].get_path()
             )
 
+            for e in elements:
+                if e in tmp_files:
+                    logging.info("unlink %s" % e)
+                    os.unlink(e)
+                    tmp_files.remove(e)
+
             return tmp_merge_file
 
         mixtures = util.reduce_tree(
@@ -107,9 +116,6 @@ class MergeMixturesJob(rasr.RasrCommand, Job):
             util.partition_into_tree(self.mixtures_to_combine, self.combine_per_step),
         )
         shutil.move(mixtures, self.mixtures.get_path())
-
-        for tmp_file in tmp_files_to_delete[:-1]:
-            os.unlink(tmp_file)
 
     def cleanup_before_run(self, cmd, retry, *args):
         log = args[2][12:]
