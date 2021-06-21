@@ -1,5 +1,5 @@
 name: black
-on: [push, pull_request]
+on: push
 jobs:
   check-black-formatting:
     runs-on: ubuntu-latest
