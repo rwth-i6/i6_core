@@ -210,15 +210,15 @@ class FilterCorpusBySegmentsJob(Job):
         c.load(tk.uncached_path(self.bliss_corpus))
         for rec in c.all_recordings():
             if self.invert_match:
-                rec.out_segments = [
+                rec.segments = [
                     x
-                    for x in rec.out_segments
+                    for x in rec.segments
                     if x.fullname() not in segments and x.name not in segments
                 ]
             else:
-                rec.out_segments = [
+                rec.segments = [
                     x
-                    for x in rec.out_segments
+                    for x in rec.segments
                     if x.fullname() in segments or x.name in segments
                 ]
 
@@ -271,8 +271,8 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
             return all(w not in vocabulary for w in words)
 
         for rec in c.recordings:
-            rec.out_segments = [
-                s for s in rec.out_segments if not only_unknowns(s.orth)
+            rec.segments = [
+                s for s in rec.segments if not only_unknowns(s.orth)
             ]
 
         c.dump(self.out_corpus.get_path())
