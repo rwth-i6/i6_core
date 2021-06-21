@@ -271,8 +271,6 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
             return all(w not in vocabulary for w in words)
 
         for rec in c.recordings:
-            rec.segments = [
-                s for s in rec.segments if not only_unknowns(s.orth)
-            ]
+            rec.segments = [s for s in rec.segments if not only_unknowns(s.orth)]
 
         c.dump(self.out_corpus.get_path())
