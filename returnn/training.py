@@ -97,6 +97,7 @@ class ReturnnTrainingJob(Job):
         :param Path|str returnn_root: file path to the RETURNN repository root folder
         """
         assert isinstance(returnn_config, ReturnnConfig)
+        self.check_blacklisted_parameters(returnn_config)
         kwargs = locals()
         del kwargs["self"]
 
@@ -369,6 +370,28 @@ class ReturnnTrainingJob(Job):
         res.post_config = post_config
 
         return res
+
+    def check_blacklisted_parameters(self, returnn_config):
+        """
+        Check for parameters that should not be set in the config directly
+
+        :param ReturnnConfig returnn_config:
+        :return:
+        """
+        blacklisted_keys = [
+            "log_verbosity",
+            "device",
+            "num_epochs",
+            "save_interval",
+            "keep_epochs",
+        ]
+        for key in blacklisted_keys:
+            assert not (
+                key in returnn_config.config or key in returnn_config.post_config
+            ), (
+                "please define %s only as parameter to ReturnnTrainingJob directly"
+                % key
+            )
 
     @classmethod
     def hash(cls, kwargs):
