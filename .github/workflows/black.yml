@@ -2,10 +2,10 @@ name: black
 on:
   push:
     branches:
-      - master
+      - main
   pull_request:
     branches:
-      - master
+      - main
 jobs:
   check-black-formatting:
     runs-on: ubuntu-latest
