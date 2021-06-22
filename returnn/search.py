@@ -171,6 +171,7 @@ class ReturnnSearchJob(Job):
             "returnn_root": kwargs["returnn_root"],
             "model_checkpoint": kwargs["model_checkpoint"],
             "search_data": kwargs["search_data"],
+            "output_mode": kwargs["output_mode"],
         }
         return super().hash(d)
 
