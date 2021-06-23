@@ -192,9 +192,9 @@ class ReturnnConfig:
         check that there is no config key overwritten by post_config
         """
         for key in self.config:
-            assert (
-                key not in self.post_config
-            ), "%s in post_config would overwrite existing entry in config"
+            assert key not in self.post_config, (
+                "%s in post_config would overwrite existing entry in config" % key
+            )
 
     def _sis_hash(self):
         h = {
