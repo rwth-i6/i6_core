@@ -367,6 +367,7 @@ class ReturnnTrainingJob(Job):
 
         res.config = config
         res.post_config = post_config
+        res.check_consisteny()
 
         return res
 
