@@ -17,6 +17,7 @@ from sisyphus import *
 
 from i6_core.lib.corpus import Corpus
 import i6_core.util as util
+from .config import ReturnnConfig
 
 Path = setup_path(__package__)
 
@@ -45,6 +46,7 @@ class ReturnnSearchJob(Job):
         :param dict[str] search_data: dataset used for search
         :param Checkpoint model_checkpoint:  TF model checkpoint. see `ReturnnTrainingJob`.
         :param ReturnnConfig returnn_config: object representing RETURNN config
+        :param str output_mode: "txt" or "py"
         :param int log_verbosity: RETURNN log verbosity
         :param str device: RETURNN device, cpu or gpu
         :param float|int time_rqmt: job time requirement in hours
@@ -53,12 +55,11 @@ class ReturnnSearchJob(Job):
         :param tk.Path|str|None returnn_python_exe: path to the RETURNN executable (python binary or launch script)
         :param tk.Path|str|None returnn_root: path to the RETURNN src folder
         """
-        self.search_data = search_data
+        assert isinstance(returnn_config, ReturnnConfig)
+        kwargs = locals()
+        del kwargs["self"]
 
         self.model_checkpoint = model_checkpoint
-
-        assert output_mode in ["py", "txt"]
-        self.output_mode = output_mode
 
         self.returnn_python_exe = (
             returnn_python_exe
@@ -74,9 +75,8 @@ class ReturnnSearchJob(Job):
 
         self.out_search_file = self.output_path("search_out")
 
-        self.returnn_config = self.create_returnn_config(
-            returnn_config, log_verbosity, device
-        )
+        self.returnn_config = ReturnnSearchJob.create_returnn_config(**kwargs)
+        self.returnn_config.post_config["search_output_file"] = self.out_search_file
 
         self.rqmt = {
             "gpu": 1 if device == "gpu" else 0,
@@ -91,8 +91,6 @@ class ReturnnSearchJob(Job):
 
     def create_files(self):
         config = self.returnn_config
-
-        config.config["load"] = self.model_checkpoint.ckpt_path
         config.write(self.out_returnn_config_file.get_path())
 
         cmd = [
@@ -116,10 +114,23 @@ class ReturnnSearchJob(Job):
         ]
         sp.check_call(call)
 
-    def create_returnn_config(self, returnn_config, log_verbosity, device):
+    @classmethod
+    def create_returnn_config(
+        cls,
+        search_data,
+        model_checkpoint,
+        returnn_config,
+        output_mode,
+        log_verbosity,
+        device,
+        **kwargs,
+    ):
         """
         Creates search RETURNN config
+        :param dict[str] search_data: dataset used for search
+        :param Checkpoint model_checkpoint:  TF model checkpoint. see `ReturnnTrainingJob`.
         :param ReturnnConfig returnn_config: object representing RETURNN config
+        :param str output_mode: "txt" or "py"
         :param int log_verbosity: RETURNN log verbosity
         :param str device: RETURNN device, cpu or gpu
         :rtype: ReturnnConfig
@@ -127,10 +138,11 @@ class ReturnnSearchJob(Job):
         assert device in ["gpu", "cpu"]
         original_config = returnn_config.config
         assert "network" in original_config
+        assert output_mode in ["py", "txt"]
 
         config = {
-            "search_output_file_format": self.output_mode,
-            "search_output_file": self.out_search_file,
+            "load": model_checkpoint.ckpt_path,
+            "search_output_file_format": output_mode,
             "need_data": False,
             "search_do_eval": 0,
         }
@@ -144,10 +156,10 @@ class ReturnnSearchJob(Job):
         if "search_data" in original_config:
             config["search_data"] = {
                 **original_config["search_data"].copy(),
-                **self.search_data,
+                **search_data,
             }
         else:
-            config["search_data"] = self.search_data
+            config["search_data"] = search_data
 
         post_config = {
             "device": device,
@@ -166,11 +178,9 @@ class ReturnnSearchJob(Job):
     @classmethod
     def hash(cls, kwargs):
         d = {
-            "returnn_config": kwargs["returnn_config"],
+            "returnn_config": ReturnnSearchJob.create_returnn_config(**kwargs),
             "returnn_python_exe": kwargs["returnn_python_exe"],
             "returnn_root": kwargs["returnn_root"],
-            "model_checkpoint": kwargs["model_checkpoint"],
-            "search_data": kwargs["search_data"],
         }
         return super().hash(d)
 
