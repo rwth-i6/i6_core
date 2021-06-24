@@ -19,7 +19,7 @@ class LatticeToCtmJob(rasr.RasrCommand, Job):
         parallelize=False,
         encoding="utf-8",
         fill_empty_segments=False,
-        best_path_algo=None,  # defaults to dijkstra, which does not work on graphs with negative edge-weights
+        best_path_algo="bellman-ford",  # default is dijkstra, which does not work on graphs with negative edge-weights
         extra_config=None,
         extra_post_config=None,
     ):
