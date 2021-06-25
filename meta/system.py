@@ -181,7 +181,7 @@ class System:
         )
         self.allophone_files[target_corpus] = self.jobs[target_corpus][
             "allophones"
-        ].allophone_file
+        ].out_allophone_file
         if self.crp[target_corpus].acoustic_model_post_config is None:
             self.crp[target_corpus].acoustic_model_post_config = rasr.RasrConfig()
         self.crp[
