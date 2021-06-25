@@ -389,7 +389,7 @@ class System:
         )
         j.add_alias(prefix + name)
         self.mixtures[corpus][name] = j.out_mixtures
-        if hasattr(j, "alignment_path") and hasattr(j, "alignment_bundle"):
+        if hasattr(j, "out_alignment_path") and hasattr(j, "out_alignment_bundle"):
             self.alignments[corpus][name] = rasr.FlagDependentFlowAttribute(
                 "cache_mode",
                 {
