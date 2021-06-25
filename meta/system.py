@@ -294,12 +294,7 @@ class System:
         :param str corpus: corpus identifier
         :param str name: feature identifier, like "mfcc". Also used in the naming of the output feature caches.
         :param rasr.FlowNetwork feature_flow: definition of the RASR feature flow network
-        :param str port_name:
-                Maps the output of a flow network (key) to the name of the extracted feature (value).
-                name is the value and port_name is the key.
-                The port_name_mapping is used as parameter for the
-                FeaturesExtractionJob which normally has this structure:
-                {"features": name}
+        :param str port_name: output port of the flow network to use
         :param str prefix: prefix for the alias job symlink
         :param kwargs:
         :return:
