@@ -386,9 +386,7 @@ class ReturnnTrainingJob(Job):
             "keep_epochs",
         ]
         for key in blacklisted_keys:
-            assert not (
-                key in returnn_config.config or key in returnn_config.post_config
-            ), (
+            assert returnn_config.get(key) is None, (
                 "please define %s only as parameter to ReturnnTrainingJob directly"
                 % key
             )
