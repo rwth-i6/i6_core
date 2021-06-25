@@ -394,7 +394,7 @@ class ReturnnTrainingJob(Job):
     @classmethod
     def hash(cls, kwargs):
         d = {
-            "returnn_config": kwargs["returnn_config"],
+            "returnn_config": ReturnnTrainingJob.create_returnn_config(**kwargs),
             "returnn_python_exe": kwargs["returnn_python_exe"],
             "returnn_root": kwargs["returnn_root"],
         }

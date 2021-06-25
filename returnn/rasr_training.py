@@ -273,7 +273,11 @@ class ReturnnRasrTrainingJob(ReturnnTrainingJob):
         train_config, train_post_config = cls.create_config(**kwargs)
         kwargs["crp"] = dev_crp
         dev_config, dev_post_config = cls.create_config(**kwargs)
-        returnn_config = kwargs["returnn_config"]
+
+        datasets = cls.create_dataset_config(train_crp, kwargs["partition_epochs"])
+        kwargs["returnn_config"].config["train"] = datasets["train"]
+        kwargs["returnn_config"].config["dev"] = datasets["dev"]
+        returnn_config = ReturnnTrainingJob.create_returnn_config(**kwargs)
         d = {
             "train_config": train_config,
             "dev_config": dev_config,
@@ -286,8 +290,5 @@ class ReturnnRasrTrainingJob(ReturnnTrainingJob):
 
         if kwargs["additional_rasr_config_files"] is not None:
             d["additional_rasr_config_files"] = kwargs["additional_rasr_config_files"]
-
-        if kwargs["partition_epochs"] is not None:
-            d["partition_epochs"] = kwargs["partition_epochs"]
 
         return Job.hash(d)
