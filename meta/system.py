@@ -392,7 +392,10 @@ class System:
         if hasattr(j, "alignment_path") and hasattr(j, "alignment_bundle"):
             self.alignments[corpus][name] = rasr.FlagDependentFlowAttribute(
                 "cache_mode",
-                {"task_dependent": j.alignment_path, "bundle": j.alignment_bundle},
+                {
+                    "task_dependent": j.out_alignment_path,
+                    "bundle": j.out_alignment_bundle,
+                },
             )
 
     def align(self, name, corpus, flow, feature_scorer, **kwargs):

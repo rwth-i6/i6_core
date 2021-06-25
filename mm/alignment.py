@@ -74,7 +74,7 @@ class AlignmentJob(rasr.RasrCommand, Job):
                 (i, self.output_path("word_boundary.cache.%d" % i, cached=True))
                 for i in range(1, self.concurrent + 1)
             )
-            self.word_boundary_path = util.MultiOutputPath(
+            self.out_word_boundary_path = util.MultiOutputPath(
                 self,
                 "word_boundary.cache.$(TASK)",
                 self.out_single_word_boundary_caches,

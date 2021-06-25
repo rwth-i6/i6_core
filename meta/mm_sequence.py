@@ -152,7 +152,7 @@ class AlignSplitAccumulateSequence:
                     split_extra_rqmt if split else accumulate_extra_rqmt,
                 )
                 self.all_jobs.append(job)
-                self.all_logs.append(job.log_file)
+                self.all_logs.append(job.out_log_file)
 
                 current_mixtures = job.out_mixtures
                 self.all_mixtures.append(current_mixtures)
