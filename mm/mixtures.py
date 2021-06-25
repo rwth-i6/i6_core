@@ -63,11 +63,11 @@ class MergeMixturesJob(rasr.RasrCommand, Job):
         self.out_merge_log_file = self.log_file_output_path("merge", crp, merge_count)
         self.out_mixtures = self.output_path("am.mix", cached=True)
 
-        self.rqmt = {"time": max(merge_count / 25, 0.5), "cpu": 1, "mem": 1}
+        self.merge_rqmt = {"time": max(merge_count / 25, 0.5), "cpu": 1, "mem": 1}
 
     def tasks(self):
         yield Task("create_merge_mixtures_config", mini_task=True)
-        yield Task("merge_mixtures", rqmt=self.rqmt)
+        yield Task("merge_mixtures", rqmt=self.merge_rqmt)
 
     def create_merge_mixtures_config(self):
         with open("merge-mixtures.config", "wt") as f:
