@@ -338,11 +338,11 @@ class EstimateLDAMatrixJob(rasr.RasrCommand, Job):
         )
         config.acoustic_model_trainer.lda_estimator.output_precision = 20
 
-        config.acoustic_model_trainer.lda_estimator.between_class_scatter_matrix_file = rasr.PathWithPrefixFlowAttribute(
-            "xml:", between_class_scatter_matrix
+        config.acoustic_model_trainer.lda_estimator.between_class_scatter_matrix_file = (
+            between_class_scatter_matrix
         )
         config.acoustic_model_trainer.lda_estimator.within_class_scatter_matrix_file = (
-            rasr.PathWithPrefixFlowAttribute("xml:", within_class_scatter_matrix)
+            within_class_scatter_matrix
         )
         config.acoustic_model_trainer.lda_estimator.projector_matrix_file = (
             "xml:lda.matrix"
