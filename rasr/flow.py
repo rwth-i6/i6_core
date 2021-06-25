@@ -431,7 +431,7 @@ class PathWithPrefixFlowAttribute(FlowAttribute):
         self.path = path
 
     def get(self, net):
-        return "%s:%s" % (self.prefix, path)
+        return "%s:%s" % (self.prefix, self.path)
 
 
 def _smart_union(s, e):
