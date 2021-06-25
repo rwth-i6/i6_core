@@ -48,15 +48,20 @@ class ConfidenceBasedAlignmentJob(rasr.RasrCommand, Job):
         self.feature_scorer = feature_scorer
         self.use_gpu = use_gpu
 
-        self.log_file = self.log_file_output_path("alignment", crp, True)
-        self.single_alignment_caches = dict(
+        self.out_log_file = self.log_file_output_path("alignment", crp, True)
+        self.out_single_alignment_caches = dict(
             (i, self.output_path("alignment.cache.%d" % i, cached=True))
             for i in range(1, self.concurrent + 1)
         )
-        self.alignment_path = util.MultiOutputPath(
-            self, "alignment.cache.$(TASK)", self.single_alignment_caches, cached=True
+        self.out_alignment_path = util.MultiOutputPath(
+            self,
+            "alignment.cache.$(TASK)",
+            self.out_single_alignment_caches,
+            cached=True,
         )
-        self.alignment_bundle = self.output_path("alignment.cache.bundle", cached=True)
+        self.out_alignment_bundle = self.output_path(
+            "alignment.cache.bundle", cached=True
+        )
 
         self.rqmt = {
             "time": max(rtf * crp.corpus_duration / crp.concurrent, 0.5),
@@ -80,7 +85,7 @@ class ConfidenceBasedAlignmentJob(rasr.RasrCommand, Job):
         self.write_config(self.config, self.post_config, "alignment.config")
         self.alignment_flow.write_to_file("alignment.flow")
         util.write_paths_to_file(
-            self.alignment_bundle, self.single_alignment_caches.values()
+            self.out_alignment_bundle, self.out_single_alignment_caches.values()
         )
         extra_code = (
             ":${{THEANO_FLAGS:="
@@ -91,10 +96,10 @@ class ConfidenceBasedAlignmentJob(rasr.RasrCommand, Job):
         self.write_run_script(self.exe, "alignment.config", extra_code=extra_code)
 
     def run(self, task_id):
-        self.run_script(task_id, self.log_file[task_id])
+        self.run_script(task_id, self.out_log_file[task_id])
         shutil.move(
             "alignment.cache.%d" % task_id,
-            self.single_alignment_caches[task_id].get_path(),
+            self.out_single_alignment_caches[task_id].get_path(),
         )
 
     def cleanup_before_run(self, cmd, retry, task_id, *args):

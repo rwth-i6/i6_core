@@ -60,8 +60,8 @@ class MergeMixturesJob(rasr.RasrCommand, Job):
             util.partition_into_tree(mixtures_to_combine, combine_per_step),
         )
 
-        self.merge_log_file = self.log_file_output_path("merge", crp, merge_count)
-        self.mixtures = self.output_path("am.mix", cached=True)
+        self.out_merge_log_file = self.log_file_output_path("merge", crp, merge_count)
+        self.out_mixtures = self.output_path("am.mix", cached=True)
 
         self.merge_rqmt = {"time": max(merge_count / 25, 0.5), "cpu": 1, "mem": 1}
 
@@ -100,7 +100,8 @@ class MergeMixturesJob(rasr.RasrCommand, Job):
                 ],
             )
             util.zmove(
-                "merge.log.%d" % merge_num, self.merge_log_file[merge_num].get_path()
+                "merge.log.%d" % merge_num,
+                self.out_merge_log_file[merge_num].get_path(),
             )
 
             for e in elements:
@@ -115,7 +116,7 @@ class MergeMixturesJob(rasr.RasrCommand, Job):
             merge_helper,
             util.partition_into_tree(self.mixtures_to_combine, self.combine_per_step),
         )
-        shutil.move(mixtures, self.mixtures.get_path())
+        shutil.move(mixtures, self.out_mixtures.get_path())
 
     def cleanup_before_run(self, cmd, retry, *args):
         log = args[2][12:]
@@ -179,19 +180,19 @@ class LinearAlignmentJob(MergeMixturesJob):
         self.save_alignment = save_alignment
         self.keep_accumulators = keep_accumulators
 
-        self.log_file = self.log_file_output_path("accumulate", crp, True)
+        self.out_log_file = self.log_file_output_path("accumulate", crp, True)
         if save_alignment:
             self.single_alignment_caches = dict(
                 (i, self.output_path("alignment.cache.%d" % i, cached=True))
                 for i in range(1, self.concurrent + 1)
             )
-            self.alignment_path = util.MultiOutputPath(
+            self.out_alignment_path = util.MultiOutputPath(
                 self,
                 "alignment.cache.$(TASK)",
                 self.single_alignment_caches,
                 cached=True,
             )
-            self.alignment_bundle = self.output_path("alignment.cache.bundle")
+            self.out_alignment_bundle = self.output_path("alignment.cache.bundle")
 
         self.accumulate_rqmt = {
             "time": max(crp.corpus_duration / (20.0 * self.concurrent), 0.5),
@@ -217,11 +218,11 @@ class LinearAlignmentJob(MergeMixturesJob):
         self.write_run_script(self.exe, "linear-segmentation.config", "accumulate.sh")
         if self.save_alignment:
             util.write_paths_to_file(
-                self.alignment_bundle, self.single_alignment_caches.values()
+                self.out_alignment_bundle, self.single_alignment_caches.values()
             )
 
     def accumulate(self, task_id):
-        self.run_script(task_id, self.log_file[task_id], "./accumulate.sh")
+        self.run_script(task_id, self.out_log_file[task_id], "./accumulate.sh")
         if self.save_alignment:
             shutil.move(
                 "alignment.cache.%d" % task_id,
@@ -382,7 +383,7 @@ class EstimateMixturesJob(MergeMixturesJob):
 
         self._old_mixtures = old_mixtures
 
-        self.log_file = self.log_file_output_path("accumulate", crp, True)
+        self.out_log_file = self.log_file_output_path("accumulate", crp, True)
 
         self.accumulate_rqmt = {
             "time": max(crp.corpus_duration / 20, 0.5),
@@ -418,7 +419,7 @@ class EstimateMixturesJob(MergeMixturesJob):
         self.write_run_script(self.exe, "accumulate-mixtures.config", "accumulate.sh")
 
     def accumulate(self, task_id):
-        self.run_script(task_id, self.log_file[task_id], "./accumulate.sh")
+        self.run_script(task_id, self.out_log_file[task_id], "./accumulate.sh")
 
     def delete_accumulators(self):
         for i in range(1, self.concurrent + 1):
@@ -518,7 +519,7 @@ class CreateDummyMixturesJob(Job):
         self.num_mixtures = num_mixtures
         self.num_features = num_features
 
-        self.mixtures = self.output_path("dummy.mix")
+        self.out_mixtures = self.output_path("dummy.mix")
 
     def tasks(self):
         yield Task("run", mini_task=True)
@@ -535,7 +536,7 @@ class CreateDummyMixturesJob(Job):
             else self.num_features
         )
 
-        with open(tk.uncached_path(self.mixtures), "wb") as f:
+        with open(tk.uncached_path(self.out_mixtures), "wb") as f:
             f.write(b"MIXSET\0\0")
             f.write(struct.pack("II", 2, num_features))
             args = [1, num_features] + [0.0] * num_features + [1.0]

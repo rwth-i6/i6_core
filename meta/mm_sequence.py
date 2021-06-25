@@ -111,16 +111,16 @@ class AlignSplitAccumulateSequence:
                 job = AlignmentJob(**args)
                 update_rqmt(job.rqmt, align_extra_rqmt)
                 self.all_jobs.append(job)
-                self.all_logs.append(job.log_file)
+                self.all_logs.append(job.out_log_file)
 
                 current_alignment = FlagDependentFlowAttribute(
                     "cache_mode",
                     {
-                        "task_dependent": job.alignment_path,
-                        "bundle": job.alignment_bundle,
+                        "task_dependent": job.out_alignment_path,
+                        "bundle": job.out_alignment_bundle,
                     },
                 )
-                current_alignment.hidden_paths = job.single_alignment_caches
+                current_alignment.hidden_paths = job.out_single_alignment_caches
                 self.all_alignments.append(current_alignment)
                 if action[-1] == "!":
                     self.selected_alignment_jobs.append(job)
@@ -152,9 +152,9 @@ class AlignSplitAccumulateSequence:
                     split_extra_rqmt if split else accumulate_extra_rqmt,
                 )
                 self.all_jobs.append(job)
-                self.all_logs.append(job.log_file)
+                self.all_logs.append(job.out_log_file)
 
-                current_mixtures = job.mixtures
+                current_mixtures = job.out_mixtures
                 self.all_mixtures.append(current_mixtures)
                 if action[-1] == "!":
                     self.selected_mixture_jobs.append(job)
