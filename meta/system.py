@@ -287,6 +287,36 @@ class System:
         self.feature_flows[corpus]["gt"] = features.basic_cache_flow(feature_path)
         self.feature_flows[corpus]["uncached_gt"] = f.feature_flow
 
+    def generic_features(
+        self, corpus, name, feature_flow, port_name="features", prefix="", **kwargs
+    ):
+        """
+        :param str corpus: corpus identifier
+        :param str name: feature identifier, like "mfcc". Also used in the naming of the output feature caches.
+        :param rasr.FlowNetwork feature_flow: definition of the RASR feature flow network
+        :param str port_name: output port of the flow network to use
+        :param str prefix: prefix for the alias job symlink
+        :param kwargs:
+        :return:
+        """
+        port_name_mapping = {port_name: name}
+        self.jobs[corpus][f"{name}_features"] = f = features.FeatureExtractionJob(
+            self.crp[corpus], feature_flow, port_name_mapping, job_name=name, **kwargs
+        )
+        f.add_alias(f"{prefix}{corpus}_{name}_features")
+        self.feature_caches[corpus][name] = f.out_feature_path[name]
+        self.feature_bundles[corpus][name] = f.out_feature_bundle[name]
+
+        feature_path = rasr.FlagDependentFlowAttribute(
+            "cache_mode",
+            {
+                "task_dependent": self.feature_caches[corpus][name],
+                "bundle": self.feature_bundles[corpus][name],
+            },
+        )
+        self.feature_flows[corpus][name] = features.basic_cache_flow(feature_path)
+        self.feature_flows[corpus][f"uncached_{name}"] = f.feature_flow
+
     def plp_features(self, corpus, num_deriv=2, num_features=23, **kwargs):
         self.jobs[corpus]["plp_features"] = f = features.PlpJob(
             self.crp[corpus], **kwargs
