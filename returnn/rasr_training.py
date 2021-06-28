@@ -72,7 +72,7 @@ class ReturnnRasrTrainingJob(ReturnnTrainingJob):
         :param disregarded_classes:
         :param class_label_file:
         :param buffer_size:
-        :param dict[str, int] partition_epochs:
+        :param dict[str, int]|None partition_epochs: a dict containing the partition values for "train" and "dev"
         :param extra_rasr_config:
         :param extra_rasr_post_config:
         :param additional_rasr_config_files:
@@ -238,7 +238,7 @@ class ReturnnRasrTrainingJob(ReturnnTrainingJob):
         """
         :param rasr.CommonRasrParameters train_crp:
         :param ReturnnConfig returnn_config:
-        :param dict[str, int] partition_epochs:
+        :param dict[str, int]|None partition_epochs: a dict containing the partition values for "train" and "dev"
         :return:
         """
         datasets = {}
