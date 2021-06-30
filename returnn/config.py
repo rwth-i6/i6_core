@@ -9,30 +9,31 @@ import string
 import textwrap
 
 from sisyphus import *
+from sisyphus.delayed_ops import DelayedBase
 from sisyphus.hash import sis_hash_helper
 
 Path = setup_path(__package__)
 Variable = tk.Variable
 
 
-def instanciate_vars(o):
+def instanciate_delayed(o):
     """
     Recursively traverses a structure and calls .get() on all
-    existing Variables in the structure
+    existing Delayed Operations, especially Variables in the structure
 
-    :param Any o: nested structure that may contain Variable objects
+    :param Any o: nested structure that may contain DelayedBase objects
     :return:
     """
-    if isinstance(o, Variable):
+    if isinstance(o, DelayedBase):
         o = o.get()
     elif isinstance(o, list):
         for k in range(len(o)):
-            o[k] = instanciate_vars(o[k])
+            o[k] = instanciate_delayed(o[k])
     elif isinstance(o, tuple):
-        o = tuple(instanciate_vars(e) for e in o)
+        o = tuple(instanciate_delayed(e) for e in o)
     elif isinstance(o, dict):
         for k in o:
-            o[k] = instanciate_vars(o[k])
+            o[k] = instanciate_delayed(o[k])
     return o
 
 
@@ -112,7 +113,7 @@ class ReturnnConfig:
         config = self.config
         config.update(self.post_config)
 
-        config = instanciate_vars(config)
+        config = instanciate_delayed(config)
 
         config_lines = []
         unreadable_data = {}
