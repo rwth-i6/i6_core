@@ -38,6 +38,7 @@ class ReturnnRasrTrainingJob(ReturnnTrainingJob):
         time_rqmt=4,
         mem_rqmt=4,
         cpu_rqmt=2,
+        horovod_num_processes=None,
         returnn_python_exe=None,
         returnn_root=None,
         # these are new parameters
@@ -67,6 +68,7 @@ class ReturnnRasrTrainingJob(ReturnnTrainingJob):
         :param int|float time_rqmt:
         :param int|float mem_rqmt:
         :param int cpu_rqmt:
+        :param int horovod_num_processes:
         :param Path|str returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
         :param Path|str returnn_root: file path to the RETURNN repository root folder
         :param disregarded_classes:
@@ -92,6 +94,7 @@ class ReturnnRasrTrainingJob(ReturnnTrainingJob):
             time_rqmt=time_rqmt,
             mem_rqmt=mem_rqmt,
             cpu_rqmt=cpu_rqmt,
+            horovod_num_processes=horovod_num_processes,
             returnn_python_exe=returnn_python_exe,
             returnn_root=returnn_root,
         )
