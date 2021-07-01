@@ -145,6 +145,9 @@ class RasrConfig:
     def __dir__(self):
         return self.__dict.keys()
 
+    def __iter__(self):
+        return self.__dict.__iter__()
+
     def __str__(self, parent_prefix="--"):
         l = []
         if self._value is not None:
