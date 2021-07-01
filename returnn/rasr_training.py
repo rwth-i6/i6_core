@@ -74,14 +74,16 @@ class ReturnnRasrTrainingJob(ReturnnTrainingJob):
         :param disregarded_classes:
         :param class_label_file:
         :param buffer_size:
-        :param partition_epochs:
+        :param dict[str, int]|None partition_epochs: a dict containing the partition values for "train" and "dev"
         :param extra_rasr_config:
         :param extra_rasr_post_config:
         :param additional_rasr_config_files:
         :param additional_rasr_post_config_files:
         :param use_python_control:
         """
-        datasets = self.create_dataset_config(train_crp, partition_epochs)
+        datasets = self.create_dataset_config(
+            train_crp, returnn_config, partition_epochs
+        )
         returnn_config.config["train"] = datasets["train"]
         returnn_config.config["dev"] = datasets["dev"]
         super().__init__(
@@ -235,8 +237,21 @@ class ReturnnRasrTrainingJob(ReturnnTrainingJob):
         return config, post_config
 
     @classmethod
-    def create_dataset_config(cls, train_crp, partition_epochs):
+    def create_dataset_config(cls, train_crp, returnn_config, partition_epochs):
+        """
+        :param rasr.CommonRasrParameters train_crp:
+        :param ReturnnConfig returnn_config:
+        :param dict[str, int]|None partition_epochs: a dict containing the partition values for "train" and "dev"
+        :return:
+        """
         datasets = {}
+
+        assert not (
+            "partition_epoch" in returnn_config.config["train"] and partition_epochs
+        )
+        assert not (
+            "partition_epoch" in returnn_config.config["dev"] and partition_epochs
+        )
 
         if partition_epochs is None:
             partition_epochs = {"train": 1, "dev": 1}
@@ -252,6 +267,15 @@ class ReturnnRasrTrainingJob(ReturnnTrainingJob):
                 % (ds, ds),
                 "partitionEpoch": partition,
             }
+
+        # update rasr defaults with custom definitions
+        if "train" in returnn_config.config:
+            datasets["train"] = {
+                **datasets["train"],
+                **returnn_config.config["train"].copy(),
+            }
+        if "dev" in returnn_config.config:
+            datasets["dev"] = {**datasets["dev"], **returnn_config.config["dev"].copy()}
 
         return datasets
 
