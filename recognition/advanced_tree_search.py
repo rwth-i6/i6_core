@@ -21,7 +21,7 @@ class AdvancedTreeSearchLmImageAndGlobalCacheJob(rasr.RasrCommand, Job):
     def __init__(self, crp, feature_scorer, extra_config=None, extra_post_config=None):
         assert isinstance(feature_scorer, rasr.FeatureScorer)
 
-        self.set_vis_name("Precomptue LM Image/Global Cache")
+        self.set_vis_name("Precompute LM Image/Global Cache")
 
         kwargs = locals()
         del kwargs["self"]
