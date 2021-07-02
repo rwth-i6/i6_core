@@ -247,10 +247,12 @@ class ReturnnRasrTrainingJob(ReturnnTrainingJob):
         datasets = {}
 
         assert not (
-            "partition_epoch" in returnn_config.config["train"] and partition_epochs
+            "partition_epoch" in returnn_config.config.get("train", {})
+            and partition_epochs
         )
         assert not (
-            "partition_epoch" in returnn_config.config["dev"] and partition_epochs
+            "partition_epoch" in returnn_config.config.get("dev", {})
+            and partition_epochs
         )
 
         if partition_epochs is None:
