@@ -303,7 +303,9 @@ class ReturnnRasrTrainingJob(ReturnnTrainingJob):
         kwargs["crp"] = dev_crp
         dev_config, dev_post_config = cls.create_config(**kwargs)
 
-        datasets = cls.create_dataset_config(train_crp, kwargs["partition_epochs"])
+        datasets = cls.create_dataset_config(
+            train_crp, kwargs["returnn_config"], kwargs["partition_epochs"]
+        )
         kwargs["returnn_config"].config["train"] = datasets["train"]
         kwargs["returnn_config"].config["dev"] = datasets["dev"]
         returnn_config = ReturnnTrainingJob.create_returnn_config(**kwargs)
