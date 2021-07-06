@@ -36,7 +36,7 @@ class DownloadJob(Job):
         yield Task("run", mini_task=True)
 
     def run(self):
-        sp.check_call(["wget", self.url])
+        sp.check_call(["wget", "-O", self.out_file.get_path(), self.url])
         if self.checksum:
             checksum = sp.check_output(["sha256sum", self.out_file.get_path()])
             assert checksum.strip() == self.checksum
