@@ -110,6 +110,7 @@ class ReturnnConfig:
             f.write(self.serialize())
 
     def serialize(self):
+        self.check_consistency()
         config = self.config
         config.update(self.post_config)
 
@@ -186,6 +187,15 @@ class ReturnnConfig:
         if inspect.isclass(code):
             return inspect.getsource(code)
         raise RuntimeError("Could not serialize %s" % code)
+
+    def check_consistency(self):
+        """
+        check that there is no config key overwritten by post_config
+        """
+        for key in self.config:
+            assert key not in self.post_config, (
+                "%s in post_config would overwrite existing entry in config" % key
+            )
 
     def _sis_hash(self):
         h = {

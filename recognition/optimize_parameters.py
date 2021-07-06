@@ -64,16 +64,7 @@ class OptimizeAMandLMScaleJob(rasr.RasrCommand, Job):
         lm_scale = self.initial_lm_scale
 
         result_cache = collections.OrderedDict()
-
-        if tk.is_path(self.lattice_cache) and self.lattice_cache.cached:
-            import cachemanager as cf
-
-            config = cf.ClientConfiguration()
-            config.loadDefault()
-            client = cf.CmClient(config)
-            lattice_cache = client.fetch(self.lattice_cache.get_path())[0]
-        else:
-            lattice_cache = self.lattice_cache
+        lattice_cache = self.lattice_cache
 
         def calc_wer(params):
             def clip_float(f):
