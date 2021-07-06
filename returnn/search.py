@@ -172,6 +172,7 @@ class ReturnnSearchJob(Job):
         res = copy.deepcopy(returnn_config)
         res.config = config
         res.post_config = post_config
+        res.check_consistency()
 
         return res
 
