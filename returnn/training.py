@@ -356,7 +356,6 @@ class ReturnnTrainingJob(Job):
             "log_verbosity": log_verbosity,
             "num_epochs": num_epochs,
             "save_interval": save_interval,
-            "multiprocessing": True,
         }
 
         if horovod_num_processes is not None:
