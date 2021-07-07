@@ -1,7 +1,8 @@
-__all__ = ["ExtractOovWordsFromCorpusJob"]
+__all__ = ["ExtractOovWordsFromCorpusJob", "ExtractVocabularyFromCorpusJob"]
 
 import xml.etree.cElementTree as ET
 
+import i6_core.lib.corpus as libcorpus
 from i6_core.util import uopen
 
 from sisyphus import *
@@ -46,3 +47,31 @@ class ExtractOovWordsFromCorpusJob(Job):
         with uopen(self.out_oov_words, "wt") as f:
             for w in sorted(oov_words):
                 f.write("%s\n" % w)
+
+
+class ExtractVocabularyFromCorpusJob(Job):
+    """
+    Extracts the vocabulary from a corpus file
+    """
+
+    def __init__(self, bliss_corpus):
+        """
+        :param Path bliss_corpus: path to corpus file
+        """
+        self.bliss_corpus = bliss_corpus
+
+        self.out_vocabulary = self.output_path("vocabulary")
+
+    def tasks(self):
+        yield Task("run", resume="run", mini_task=True)
+
+    def run(self):
+        c = libcorpus.Corpus()
+        c.load(self.bliss_corpus.get_path())
+
+        words = set()
+        for s in c.segments():
+            words.update(set(s.orth.strip().split()))
+
+        with open(self.out_vocabulary.get_path(), "wt") as f:
+            f.write("\n".join(sorted(words)))
