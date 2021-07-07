@@ -364,6 +364,9 @@ class ReturnnTrainingJob(Job):
 
         config.update(copy.deepcopy(returnn_config.config))
         if returnn_config.post_config is not None:
+            invalid_keys = [ key for key in post_config if key in config ]
+            for key in invalid_keys:
+                del post_config[key]
             post_config.update(copy.deepcopy(returnn_config.post_config))
 
         res.config = config
