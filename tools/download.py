@@ -38,8 +38,11 @@ class DownloadJob(Job):
     def run(self):
         sp.check_call(["wget", "-O", self.out_file.get_path(), self.url])
         if self.checksum:
-            checksum = sp.check_output(["sha256sum", self.out_file.get_path()])
-            assert checksum.strip() == self.checksum
+            checksum_command_output = sp.check_output(
+                ["sha256sum", self.out_file.get_path()]
+            )
+            checksum = checksum_command_output.decode().strip().split(" ")[0]
+            assert checksum == self.checksum
 
     @classmethod
     def hash(cls, parsed_args):
