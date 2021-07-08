@@ -76,4 +76,8 @@ class CountCorpusWordFrequenciesJob(Job):
 
         counts = [(v, k) for k, v in words.items()]
         with uopen(self.out_word_counts, "wt") as f:
-            f.write("\n".join("%d\t%s" % t for t in sorted(counts, key=lambda t: (-t[0], t[1]))))
+            f.write(
+                "\n".join(
+                    "%d\t%s" % t for t in sorted(counts, key=lambda t: (-t[0], t[1]))
+                )
+            )
