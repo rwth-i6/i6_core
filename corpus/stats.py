@@ -1,5 +1,6 @@
-__all__ = ["ExtractOovWordsFromCorpusJob", "ExtractVocabularyFromCorpusJob"]
+__all__ = ["ExtractOovWordsFromCorpusJob", "CountCorpusWordFrequenciesJob"]
 
+from collections import Counter
 import xml.etree.cElementTree as ET
 
 import i6_core.lib.corpus as libcorpus
@@ -49,9 +50,9 @@ class ExtractOovWordsFromCorpusJob(Job):
                 f.write("%s\n" % w)
 
 
-class ExtractVocabularyFromCorpusJob(Job):
+class CountCorpusWordFrequenciesJob(Job):
     """
-    Extracts the vocabulary from a corpus file
+    Extracts a list of words and their counts in the provided bliss corpus
     """
 
     def __init__(self, bliss_corpus):
@@ -60,7 +61,7 @@ class ExtractVocabularyFromCorpusJob(Job):
         """
         self.bliss_corpus = bliss_corpus
 
-        self.out_vocabulary = self.output_path("vocabulary")
+        self.out_word_counts = self.output_path("counts")
 
     def tasks(self):
         yield Task("run", resume="run", mini_task=True)
@@ -69,9 +70,10 @@ class ExtractVocabularyFromCorpusJob(Job):
         c = libcorpus.Corpus()
         c.load(self.bliss_corpus.get_path())
 
-        words = set()
+        words = Counter()
         for s in c.segments():
-            words.update(set(s.orth.strip().split()))
+            words.update(s.orth.strip().split())
 
-        with open(self.out_vocabulary.get_path(), "wt") as f:
-            f.write("\n".join(sorted(words)))
+        counts = [(v, k) for k, v in words.items()]
+        with uopen(self.out_word_counts, "wt") as f:
+            f.write("\n".join("%d\t%s" % t for t in sorted(counts, key=lambda t: (-t[0], t[1]))))
