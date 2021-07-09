@@ -1,7 +1,9 @@
-__all__ = ["ExtractOovWordsFromCorpusJob"]
+__all__ = ["ExtractOovWordsFromCorpusJob", "CountCorpusWordFrequenciesJob"]
 
+from collections import Counter
 import xml.etree.cElementTree as ET
 
+import i6_core.lib.corpus as libcorpus
 from i6_core.util import uopen
 
 from sisyphus import *
@@ -46,3 +48,36 @@ class ExtractOovWordsFromCorpusJob(Job):
         with uopen(self.out_oov_words, "wt") as f:
             for w in sorted(oov_words):
                 f.write("%s\n" % w)
+
+
+class CountCorpusWordFrequenciesJob(Job):
+    """
+    Extracts a list of words and their counts in the provided bliss corpus
+    """
+
+    def __init__(self, bliss_corpus):
+        """
+        :param Path bliss_corpus: path to corpus file
+        """
+        self.bliss_corpus = bliss_corpus
+
+        self.out_word_counts = self.output_path("counts")
+
+    def tasks(self):
+        yield Task("run", resume="run", mini_task=True)
+
+    def run(self):
+        c = libcorpus.Corpus()
+        c.load(self.bliss_corpus.get_path())
+
+        words = Counter()
+        for s in c.segments():
+            words.update(s.orth.strip().split())
+
+        counts = [(v, k) for k, v in words.items()]
+        with uopen(self.out_word_counts, "wt") as f:
+            f.write(
+                "\n".join(
+                    "%d\t%s" % t for t in sorted(counts, key=lambda t: (-t[0], t[1]))
+                )
+            )
