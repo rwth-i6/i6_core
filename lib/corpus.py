@@ -223,6 +223,16 @@ class Corpus(NamedEntity, CorpusSection):
             else:
                 return default_speaker
 
+    def filter_segments(self, filter_function):
+        """
+        filter all segments (including in subcorpora) using filter_function
+        :param function filter_function: takes arguments corpus, recording and segment, returns True if segment should be kept
+        """
+        for r in self.recordings:
+            r.segments = [s for s in r.segments if filter_function(self, r, s)]
+        for sc in self.subcorpora:
+            sc.filter_segments(filter_function)
+
     def load(self, path):
         """
         :param str path:

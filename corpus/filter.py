@@ -3,6 +3,7 @@ __all__ = [
     "FilterCorpusBySegmentsJob",
     "FilterSegmentsByListJob",
     "FilterCorpusRemoveUnknownWordSegmentsJob",
+    "FilterCorpusBySegmentDurationJob",
 ]
 
 import gzip
@@ -259,18 +260,51 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
         c = corpus.Corpus()
         c.load(tk.uncached_path(self.corpus))
 
-        def only_unknowns(orth):
+        def not_only_unknowns(corpus, recording, segment):
             """
-            :param str orth:
-            :return: whether the orth contains only unknown words
+            :param Corpus corpus:
+            :param Recording recording:
+            :param Segment segment:
+            :return: whether the orth of segment contains at least one known word
             :rtype: bool
             """
+            orth = segment.orth
             if not orth:
                 return True
             words = [maybe_to_lower(o) for o in orth.strip().split(" ")]
-            return all(w not in vocabulary for w in words)
+            return not all(w not in vocabulary for w in words)
 
-        for rec in c.recordings:
-            rec.segments = [s for s in rec.segments if not only_unknowns(s.orth)]
+        c.filter_segments(not_only_unknowns)
+        c.dump(self.out_corpus.get_path())
 
+
+class FilterCorpusBySegmentDurationJob(Job):
+    def __init__(self, bliss_corpus, min_duration=0.1, max_duration=120.0):
+        """
+        :param Path bliss_corpus: path of the corpus file
+        :param float min_duration: minimum duration for a segment to keep (in seconds)
+        :param float max_duration: maximum duration for a segment to keep (in seconds)
+        """
+        self.bliss_corpus = bliss_corpus
+        self.min_duration = min_duration
+        self.max_duration = max_duration
+
+        self.out_corpus = self.output_path("corpus.xml.gz", cached=True)
+
+    def tasks(self):
+        yield Task("run", resume="run", mini_task=True)
+
+    def run(self):
+        inf = float("inf")
+
+        def good_duration(corpus, recording, segment):
+            l = segment.end - segment.start
+            if l == inf:
+                return True
+            else:
+                return l >= self.min_duration and l <= self.max_duration
+
+        c = corpus.Corpus()
+        c.load(self.bliss_corpus.get_path())
+        c.filter_segments(good_duration)
         c.dump(self.out_corpus.get_path())
