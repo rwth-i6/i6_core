@@ -64,7 +64,6 @@ class OptimizeAMandLMScaleJob(rasr.RasrCommand, Job):
         lm_scale = self.initial_lm_scale
 
         result_cache = collections.OrderedDict()
-        lattice_cache = self.lattice_cache
 
         def calc_wer(params):
             def clip_float(f):
@@ -94,7 +93,6 @@ class OptimizeAMandLMScaleJob(rasr.RasrCommand, Job):
                         "--am-scale=%s" % am_str,
                         "--lm-scale=%s" % lm_str,
                         "--ctm-file=%s" % ctm_file,
-                        "--lattice-cache=%s" % lattice_cache,
                     ],
                 )
 
@@ -147,7 +145,9 @@ class OptimizeAMandLMScaleJob(rasr.RasrCommand, Job):
         util.backup_if_exists("lm_and_state_tree.log")
 
     @classmethod
-    def create_config(cls, crp, extra_config, extra_post_config, **kwargs):
+    def create_config(
+        cls, crp, lattice_cache, extra_config, extra_post_config, **kwargs
+    ):
         config, post_config = rasr.build_config_from_mapping(
             crp,
             {
@@ -166,7 +166,7 @@ class OptimizeAMandLMScaleJob(rasr.RasrCommand, Job):
         config.flf_lattice_tool.network.archive_reader.type = "archive-reader"
         config.flf_lattice_tool.network.archive_reader.links = "scale-lm"
         config.flf_lattice_tool.network.archive_reader.format = "flf"
-        config.flf_lattice_tool.network.archive_reader.path = "$(lattice-cache)"
+        config.flf_lattice_tool.network.archive_reader.path = lattice_cache
         config.flf_lattice_tool.network.archive_reader.flf.partial.keys = "am lm"
 
         config.flf_lattice_tool.network.scale_lm.type = "rescale"
