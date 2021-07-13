@@ -265,7 +265,7 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
             :param Corpus corpus:
             :param Recording recording:
             :param Segment segment:
-            :return: whether the orth of segment contains only unknown words
+            :return: whether the orth of segment contains at least one known word
             :rtype: bool
             """
             orth = segment.orth
