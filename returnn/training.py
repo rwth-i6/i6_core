@@ -340,7 +340,10 @@ class ReturnnTrainingJob(Job):
         **kwargs,
     ):
         assert device in ["gpu", "cpu"]
-        assert "network" in returnn_config.config
+        assert "network" in returnn_config.config or "get_network" in [
+            getattr(obj, "__name__", None)
+            for obj in returnn_config.python_prolog.values()
+        ]
 
         res = copy.deepcopy(returnn_config)
 
