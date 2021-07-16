@@ -278,7 +278,7 @@ def fft_flow(
     return net
 
 
-def cepstrum_flow(normalize=True, outputs=16, add_epsilon=False):
+def cepstrum_flow(normalize=True, outputs=16, add_epsilon=False, epsilon=1.175494e-38):
     net = rasr.FlowNetwork()
 
     net.add_input("in")
@@ -286,7 +286,7 @@ def cepstrum_flow(normalize=True, outputs=16, add_epsilon=False):
 
     if add_epsilon:
         nonlinear = net.add_node(
-            "generic-vector-f32-log-plus", "nonlinear", {"value": "1.175494e-38"}
+            "generic-vector-f32-log-plus", "nonlinear", {"value": str(epsilon)}
         )
     else:
         nonlinear = net.add_node("generic-vector-f32-log", "nonlinear")
