@@ -1,6 +1,4 @@
-__all__ = [
-    "DownloadLJSpeechCorpusJob",
-]
+__all__ = ["DownloadLJSpeechCorpusJob", "LJSpeechCreateBlissCorpusJob"]
 
 import os
 import shutil
