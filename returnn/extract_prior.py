@@ -4,18 +4,17 @@ __all__ = [
     "ReturnnRasrComputePriorJob",
 ]
 
+import copy
 import math
 import os
 import subprocess as sp
 
-import copy
 import h5py
 import numpy as np
 from sisyphus import *
 
 import i6_core.rasr as rasr
 import i6_core.util as util
-
 from i6_core.returnn.config import ReturnnConfig
 from i6_core.returnn.rasr_training import ReturnnRasrTrainingJob
 from i6_core.returnn.training import ReturnnTrainingJob
