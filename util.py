@@ -254,7 +254,7 @@ def create_executable(filename, command):
     )
 
 
-def check_file_checksum(filename, reference_checksum):
+def check_file_sha256_checksum(filename, reference_checksum):
     """
     Computes the sha256sum for a file
 

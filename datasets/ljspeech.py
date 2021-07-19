@@ -8,7 +8,7 @@ import wave
 from sisyphus import *
 
 from i6_core.lib import corpus
-from i6_core.util import uopen, check_file_checksum
+from i6_core.util import uopen, check_file_sha256_checksum
 
 
 class DownloadLJSpeechCorpusJob(Job):
@@ -28,7 +28,7 @@ class DownloadLJSpeechCorpusJob(Job):
         subprocess.check_call(
             ["wget", "https://data.keithito.com/data/speech/LJSpeech-1.1.tar.bz2"]
         )
-        check_file_checksum(
+        check_file_sha256_checksum(
             "LJSpeech-1.1.tar.bz2",
             "be1a30453f28eb8dd26af4101ae40cbf2c50413b1bb21936cbcdc6fae3de8aa5",
         )
