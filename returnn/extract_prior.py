@@ -4,13 +4,13 @@ __all__ = [
     "ReturnnRasrComputePriorJob",
 ]
 
-import copy
-import h5py
 import math
-import numpy as np
 import os
 import subprocess as sp
 
+import copy
+import h5py
+import numpy as np
 from sisyphus import *
 
 import i6_core.rasr as rasr
@@ -120,13 +120,14 @@ class ReturnnComputePriorJob(Job):
             returnn_root if returnn_root is not None else gs.RETURNN_ROOT
         )
 
+        self.returnn_config = ReturnnComputePriorJob.create_returnn_config(**kwargs)
+
         self.out_returnn_config_file = self.output_path("returnn.config")
 
         self.out_prior_txt_file = self.output_path("prior.txt")
         self.out_prior_xml_file = self.output_path("prior.xml")
         self.out_prior_png_file = self.output_path("prior.png")
 
-        self.returnn_config = ReturnnComputePriorJob.create_returnn_config(**kwargs)
         self.returnn_config.post_config["output_file"] = self.out_prior_txt_file
 
         self.rqmt = {
@@ -145,12 +146,7 @@ class ReturnnComputePriorJob(Job):
         config = self.returnn_config
         config.write(self.out_returnn_config_file.get_path())
 
-        cmd = [
-            tk.uncached_path(self.returnn_python_exe),
-            os.path.join(tk.uncached_path(self.returnn_root), "rnn.py"),
-            self.out_returnn_config_file.get_path(),
-        ]
-
+        cmd = _get_run_cmd()
         util.create_executable("rnn.sh", cmd)
 
         # check here if model actually exists
@@ -159,12 +155,8 @@ class ReturnnComputePriorJob(Job):
         ), "Provided model does not exists: %s" % str(self.model_checkpoint)
 
     def run(self):
-        call = [
-            tk.uncached_path(self.returnn_python_exe),
-            os.path.join(tk.uncached_path(self.returnn_root), "rnn.py"),
-            self.out_returnn_config_file.get_path(),
-        ]
-        sp.check_call(call)
+        cmd = _get_run_cmd()
+        sp.check_call(cmd)
 
         with open(self.out_prior_txt_file.get_path(), "rt") as f:
             merged_scores = np.loadtxt(f, delimiter=" ")
@@ -193,6 +185,13 @@ class ReturnnComputePriorJob(Job):
         plt.grid(True)
         plt.savefig(self.out_prior_png_file.get_path())
 
+    def _get_run_cmd(self):
+        return [
+            tk.uncached_path(self.returnn_python_exe),
+            os.path.join(tk.uncached_path(self.returnn_root), "rnn.py"),
+            self.out_returnn_config_file.get_path(),
+        ]
+
     @classmethod
     def create_returnn_config(
         cls,
@@ -216,20 +215,12 @@ class ReturnnComputePriorJob(Job):
         original_config = returnn_config.config
         assert "network" in original_config
 
-        config = {
-            "load": model_checkpoint.ckpt_path,
-        }
-
-        config.update(copy.deepcopy(original_config))  # update with the original config
-
-        # override always
+        config = copy.deepcopy(original_config)
+        config["load"] = model_checkpoint.ckpt_path
         config["task"] = "compute_priors"
 
         if prior_data is not None:
-            config["train"] = {
-                **original_config["train"].copy(),
-                **prior_data,
-            }
+            config["train"] = prior_data
 
         post_config = {
             "device": device,
@@ -257,6 +248,10 @@ class ReturnnComputePriorJob(Job):
 
 
 class ReturnnRasrComputePriorJob(ReturnnComputePriorJob, ReturnnRasrTrainingJob):
+    """
+    Given a model checkpoint, run compute_prior task with RETURNN using RASR Dataset
+    """
+
     def __init__(
         self,
         train_crp,
