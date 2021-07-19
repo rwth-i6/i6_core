@@ -252,3 +252,16 @@ def create_executable(filename, command):
         | stat.S_IXGRP
         | stat.S_IXOTH,
     )
+
+
+def check_file_checksum(filename, reference_checksum):
+    """
+    Computes the sha256sum for a file
+
+    :param str filename: a single file to be checked
+    :param str reference_checksum: reference sha256 checksum
+    :return:
+    """
+    checksum_command_output = sp.check_output(["sha256sum", filename])
+    file_checksum = checksum_command_output.decode().strip().split(" ")[0]
+    assert file_checksum == reference_checksum

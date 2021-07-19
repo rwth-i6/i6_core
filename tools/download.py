@@ -4,6 +4,8 @@ import subprocess as sp
 
 from sisyphus import *
 
+from i6_core.util import check_file_checksum
+
 Path = setup_path(__package__)
 
 
@@ -38,11 +40,7 @@ class DownloadJob(Job):
     def run(self):
         sp.check_call(["wget", "-O", self.out_file.get_path(), self.url])
         if self.checksum:
-            checksum_command_output = sp.check_output(
-                ["sha256sum", self.out_file.get_path()]
-            )
-            checksum = checksum_command_output.decode().strip().split(" ")[0]
-            assert checksum == self.checksum
+            check_file_checksum(self.out_file.get_path(), self.checksum)
 
     @classmethod
     def hash(cls, parsed_args):
