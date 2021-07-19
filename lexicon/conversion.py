@@ -140,6 +140,118 @@ class LexiconUniqueOrthJob(Job):
             lexicon_file.write(ET.tostring(root, "unicode"))
 
 
+class LexiconFromTextFileJob(Job):
+    """
+    Create a bliss lexicon from space or tab separated files.
+
+    As the splitting is taken from RASR and not fully tested,
+    it might not work in all cases so do not use this job
+    without checking the output manually on new lexicas.
+    """
+
+    def __init__(self, text_file, add_unknown, add_noise, compressed=True):
+        """
+
+        :param Path text_file:
+        :param bool add_unknown: add [UNKNOWN] lemma
+        :param bool add_noise: add [NOISE] lemma
+        :param compressed: save as .xml.gz
+        """
+        self.text_file = text_file
+        self.add_unknown = add_unknown
+        self.add_noise = add_noise
+
+        self.out_bliss_lexicon = self.output_path(
+            "lexicon.xml.gz" if compressed else "lexicon.xml"
+        )
+
+    def tasks(self):
+        yield Task("run", mini_task=True)
+
+    def run(self):
+        lex = lexicon.Lexicon()
+
+        lex.add_lemma(
+            lexicon.Lemma(
+                orth=["[SILENCE]"],
+                phon=["[SILENCE]"],
+                synt=[""],
+                special="silence",
+                eval=[""],
+            )
+        )
+
+        lex.add_lemma(
+            lexicon.Lemma(
+                orth=["[SENTENCE-BEGIN]"], synt=[["<s>"]], special="sentence-begin"
+            )
+        )
+        lex.add_lemma(
+            lexicon.Lemma(
+                orth=["[SENTENCE-END]"], synt=[["</s>"]], special="sentence-end"
+            )
+        )
+
+        if self.add_unknown:
+            lex.add_lemma(
+                lexicon.Lemma(
+                    orth=["[UNKNOWN]"],
+                    phon=["[UNKNOWN]"],
+                    synt=[["<UNK>"]],
+                    special="unknown",
+                )
+            )
+            lex.add_phoneme("[UNKNOWN]", variation="none")
+        if self.add_noise:
+            lex.add_lemma(
+                lexicon.Lemma(
+                    orth=["[NOISE]"],
+                    phon=["[NOISE]"],
+                    synt=[["<NOISE>"]],
+                    special="unknown",
+                )
+            )
+
+        phonemes = set()
+        last_lemma = None
+        with uopen(self.text_file.get_path()) as f:
+            for line in f:
+                # splitting is taken from RASR
+                # src/Tools/Bliss/blissLexiconLib.py#L185
+                s = line.split(None, 1)
+                orth = s[0].split("\\", 1)[0]
+                phon_variants = [
+                    tuple(p.split()) for p in s[1].split("\\") if p.strip()
+                ]
+                for phon_variant in phon_variants:
+                    for phon in phon_variant:
+                        if phon not in phonemes:
+                            phonemes.add(phon)
+                phon = [" ".join(v) for v in phon_variants]
+                lemma = lexicon.Lemma(orth=[orth], phon=phon)
+                if last_lemma and lemma.orth[0] == last_lemma.orth[0]:
+                    last_lemma.phon += phon
+                else:
+                    lex.add_lemma(lemma)
+                    last_lemma = lemma
+
+        if self.add_noise:
+            lex.add_phoneme("[NOISE]", variation="none")
+
+        lex.add_phoneme("[SILENCE]", variation="none")
+
+        if self.add_unknown:
+            lex.add_phoneme("[UNKNOWN]", variation="none")
+
+        for phoneme in sorted(phonemes):
+            lex.add_phoneme(phoneme)
+
+        with uopen(self.out_bliss_lexicon.get_path(), "wb") as lexicon_file:
+            s = ET.tostring(lex.to_xml(), "unicode")
+            pretty_s = minidom.parseString(s).toprettyxml(indent=" ", encoding="utf-8")
+            lexicon_file.write(pretty_s)
+
+
 class GraphemicLexiconFromWordListJob(Job):
     default_transforms = {".": "DOT", "+": "PLUS", "{": "LBR", "}": "RBR"}
 
