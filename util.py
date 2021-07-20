@@ -205,7 +205,7 @@ def write_xml(filename, element_tree, prettify=True):
     """
     writes element tree to xml file
     :param Union[Path, str] filename: name of desired output file
-    :param ET.ElementTree element_tree: element tree which should be written to file
+    :param ET.ElementTree|ET.Element element_tree: element tree which should be written to file
     :param bool prettify: prettify the xml. Warning: be careful with this option if you care about whitespace in the xml.
     """
 
@@ -219,7 +219,13 @@ def write_xml(filename, element_tree, prettify=True):
             if not re.search(has_non_whitespace, str(element.text)):
                 element.text = ""
 
-    root = element_tree.getroot()
+    if isinstance(element_tree, ET.ElementTree):
+        root = element_tree.getroot()
+    elif isinstance(element_tree, ET.Element):
+        root = element_tree
+    else:
+        assert False, "please provide an ElementTree or Element"
+
     if prettify:
         remove_unwanted_whitespace(root)
         xml_string = xml.dom.minidom.parseString(ET.tostring(root)).toprettyxml(

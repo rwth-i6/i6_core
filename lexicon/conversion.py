@@ -9,7 +9,7 @@ from sisyphus import *
 Path = setup_path(__package__)
 
 import i6_core.lib.lexicon as lexicon
-from i6_core.util import uopen
+from i6_core.util import uopen, write_xml
 
 
 class LexiconToWordListJob(Job):
@@ -185,8 +185,7 @@ class LexiconFromTextFileJob(Job):
                 ]
                 for phon_variant in phon_variants:
                     for phon in phon_variant:
-                        if phon not in phonemes:
-                            phonemes.add(phon)
+                        phonemes.add(phon)
                 phon = [" ".join(v) for v in phon_variants]
                 lemma = lexicon.Lemma(orth=[orth], phon=phon)
                 if last_lemma and lemma.orth[0] == last_lemma.orth[0]:
@@ -198,10 +197,7 @@ class LexiconFromTextFileJob(Job):
         for phoneme in sorted(phonemes):
             lex.add_phoneme(phoneme)
 
-        with uopen(self.out_bliss_lexicon.get_path(), "wb") as lexicon_file:
-            s = ET.tostring(lex.to_xml(), "unicode")
-            pretty_s = minidom.parseString(s).toprettyxml(indent=" ", encoding="utf-8")
-            lexicon_file.write(pretty_s)
+        write_xml(self.out_bliss_lexicon.get_path(), lex.to_xml())
 
 
 class GraphemicLexiconFromWordListJob(Job):
