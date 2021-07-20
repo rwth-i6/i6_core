@@ -142,24 +142,24 @@ class LexiconUniqueOrthJob(Job):
 
 class LexiconFromTextFileJob(Job):
     """
-    Create a bliss lexicon from space or tab separated files.
+    Create a bliss lexicon from a regular text file, where each line contains:
+    < WORD > < PHONEME1 > < PHONEME2 > ...
+    separated by tabs or spaces.
+    The lemmata will be added in the order they appear in the text file,
+    the phonemes will be sorted alphabetically.
+    No special lemmata or phonemes are added.
 
     As the splitting is taken from RASR and not fully tested,
     it might not work in all cases so do not use this job
-    without checking the output manually on new lexicas.
+    without checking the output manually on new lexica.
     """
 
-    def __init__(self, text_file, add_unknown, add_noise, compressed=True):
+    def __init__(self, text_file, compressed=True):
         """
-
         :param Path text_file:
-        :param bool add_unknown: add [UNKNOWN] lemma
-        :param bool add_noise: add [NOISE] lemma
         :param compressed: save as .xml.gz
         """
         self.text_file = text_file
-        self.add_unknown = add_unknown
-        self.add_noise = add_noise
 
         self.out_bliss_lexicon = self.output_path(
             "lexicon.xml.gz" if compressed else "lexicon.xml"
@@ -170,47 +170,6 @@ class LexiconFromTextFileJob(Job):
 
     def run(self):
         lex = lexicon.Lexicon()
-
-        lex.add_lemma(
-            lexicon.Lemma(
-                orth=["[SILENCE]"],
-                phon=["[SILENCE]"],
-                synt=[""],
-                special="silence",
-                eval=[""],
-            )
-        )
-
-        lex.add_lemma(
-            lexicon.Lemma(
-                orth=["[SENTENCE-BEGIN]"], synt=[["<s>"]], special="sentence-begin"
-            )
-        )
-        lex.add_lemma(
-            lexicon.Lemma(
-                orth=["[SENTENCE-END]"], synt=[["</s>"]], special="sentence-end"
-            )
-        )
-
-        if self.add_unknown:
-            lex.add_lemma(
-                lexicon.Lemma(
-                    orth=["[UNKNOWN]"],
-                    phon=["[UNKNOWN]"],
-                    synt=[["<UNK>"]],
-                    special="unknown",
-                )
-            )
-            lex.add_phoneme("[UNKNOWN]", variation="none")
-        if self.add_noise:
-            lex.add_lemma(
-                lexicon.Lemma(
-                    orth=["[NOISE]"],
-                    phon=["[NOISE]"],
-                    synt=[["<NOISE>"]],
-                    special="unknown",
-                )
-            )
 
         phonemes = set()
         last_lemma = None
@@ -234,14 +193,6 @@ class LexiconFromTextFileJob(Job):
                 else:
                     lex.add_lemma(lemma)
                     last_lemma = lemma
-
-        if self.add_noise:
-            lex.add_phoneme("[NOISE]", variation="none")
-
-        lex.add_phoneme("[SILENCE]", variation="none")
-
-        if self.add_unknown:
-            lex.add_phoneme("[UNKNOWN]", variation="none")
 
         for phoneme in sorted(phonemes):
             lex.add_phoneme(phoneme)
