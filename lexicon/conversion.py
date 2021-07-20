@@ -143,10 +143,11 @@ class LexiconUniqueOrthJob(Job):
 class LexiconFromTextFileJob(Job):
     """
     Create a bliss lexicon from a regular text file, where each line contains:
-    < WORD > < PHONEME1 > < PHONEME2 > ...
+    <WORD> <PHONEME1> <PHONEME2> ...
     separated by tabs or spaces.
     The lemmata will be added in the order they appear in the text file,
     the phonemes will be sorted alphabetically.
+    Phoneme variants of the same word need to appear next to each other.
     No special lemmata or phonemes are added.
 
     As the splitting is taken from RASR and not fully tested,
