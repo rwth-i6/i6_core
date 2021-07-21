@@ -114,7 +114,7 @@ class CorpusToTxtJob(Job):
         self.gzip = gzip
         self.segment_file = segment_file
 
-        self.out_txt = self.output_path("corpus.txt" + ".gz" if gzip else "")
+        self.out_txt = self.output_path("corpus.txt" + (".gz" if gzip else ""))
 
     def tasks(self):
         yield Task("run", mini_task=True)
