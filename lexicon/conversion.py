@@ -148,7 +148,9 @@ class LexiconFromTextFileJob(Job):
     The lemmata will be added in the order they appear in the text file,
     the phonemes will be sorted alphabetically.
     Phoneme variants of the same word need to appear next to each other.
-    No special lemmata or phonemes are added.
+
+    WARNING: No special lemmas or phonemes are added,
+    so do not use this lexicon with RASR directly!
 
     As the splitting is taken from RASR and not fully tested,
     it might not work in all cases so do not use this job
@@ -183,9 +185,7 @@ class LexiconFromTextFileJob(Job):
                 phon_variants = [
                     tuple(p.split()) for p in s[1].split("\\") if p.strip()
                 ]
-                for phon_variant in phon_variants:
-                    for phon in phon_variant:
-                        phonemes.add(phon)
+                phonemes.update(phon_variants)
                 phon = [" ".join(v) for v in phon_variants]
                 lemma = lexicon.Lemma(orth=[orth], phon=phon)
                 if last_lemma and lemma.orth[0] == last_lemma.orth[0]:
