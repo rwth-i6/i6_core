@@ -185,7 +185,8 @@ class LexiconFromTextFileJob(Job):
                 phon_variants = [
                     tuple(p.split()) for p in s[1].split("\\") if p.strip()
                 ]
-                phonemes.update(phon_variants)
+                for phon_variant in phon_variants:
+                    phonemes.update(phon_variant)
                 phon = [" ".join(v) for v in phon_variants]
                 lemma = lexicon.Lemma(orth=[orth], phon=phon)
                 if last_lemma and lemma.orth[0] == last_lemma.orth[0]:
