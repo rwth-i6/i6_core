@@ -234,7 +234,7 @@ def write_xml(filename, element_tree, prettify=True):
     else:
         xml_string = ET.tostring(root, encoding="unicode")
 
-    with uopen(filename, "w") as f:
+    with uopen(filename, "wt") as f:
         f.write(xml_string)
 
 
