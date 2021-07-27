@@ -40,15 +40,23 @@ class TrainG2PModelJob(Job):
         :param str size_constrains: passed as -s argument,
             multigrams must have l1 ... l2 left-symbols and r1 ... r2 right-symbols
         :param list[str] extra_args: extra cmd arguments that are passed to the g2p process
-        :param Path|str|None g2p_path:
-        :param Path|str|None g2p_python:
+        :param Path|str|None g2p_path: path to the g2p installation. If None, searches for a global G2P_PATH,
+            and uses the default binary path if not existing.
+        :param Path|str|None g2p_python: path to the g2p python binary. If None, searches for a global G2P_PYTHON,
+            and uses the default python binary if not existing.
         """
         if extra_args is None:
             extra_args = []
         if g2p_path is None:
-            g2p_path = tk.gs.G2P_PATH
+            g2p_path = (
+                tk.gs.G2P_PATH
+                if hasattr(tk.gs, "G2P_PATH")
+                else os.path.join(os.path.dirname(gs.SIS_COMMAND[0]), "g2p.py")
+            )
         if g2p_python is None:
-            g2p_python = tk.gs.G2P_PYTHON
+            g2p_python = (
+                tk.gs.G2P_PYTHON if hasattr(tk.gs, "G2P_PYTHON") else gs.SIS_COMMAND[0]
+            )
 
         self.g2p_lexicon = g2p_lexicon
         self.num_ramp_ups = num_ramp_ups
