@@ -75,9 +75,9 @@ class PipelineJob(Job):
             pipeline.append("gzip")
         pipe = " | ".join([str(i) for i in pipeline])
         if isinstance(self.text_files, (list, tuple)):
-            inputs = " ".join(gs.file_caching(str(i)) for i in self.text_files)
+            inputs = " ".join(i.get_cached_path() for i in self.text_files)
         else:
-            inputs = gs.file_caching(str(self.text_files))
+            inputs = self.text_files.get_cached_path()
         self.sh("zcat -f %s | %s > %s" % (inputs, pipe, self.out.get_path()))
 
         # assume that we do not want empty pipe results
