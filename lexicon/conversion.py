@@ -9,7 +9,7 @@ from sisyphus import *
 Path = setup_path(__package__)
 
 import i6_core.lib.lexicon as lexicon
-from i6_core.util import uopen
+from i6_core.util import uopen, write_xml
 
 
 class LexiconToWordListJob(Job):
@@ -138,6 +138,67 @@ class LexiconUniqueOrthJob(Job):
         with uopen(self.out_bliss_lexicon.get_path(), "w") as lexicon_file:
             lexicon_file.write('<?xml version="1.0" encoding="utf-8"?>\n')
             lexicon_file.write(ET.tostring(root, "unicode"))
+
+
+class LexiconFromTextFileJob(Job):
+    """
+    Create a bliss lexicon from a regular text file, where each line contains:
+    <WORD> <PHONEME1> <PHONEME2> ...
+    separated by tabs or spaces.
+    The lemmata will be added in the order they appear in the text file,
+    the phonemes will be sorted alphabetically.
+    Phoneme variants of the same word need to appear next to each other.
+
+    WARNING: No special lemmas or phonemes are added,
+    so do not use this lexicon with RASR directly!
+
+    As the splitting is taken from RASR and not fully tested,
+    it might not work in all cases so do not use this job
+    without checking the output manually on new lexica.
+    """
+
+    def __init__(self, text_file, compressed=True):
+        """
+        :param Path text_file:
+        :param compressed: save as .xml.gz
+        """
+        self.text_file = text_file
+
+        self.out_bliss_lexicon = self.output_path(
+            "lexicon.xml.gz" if compressed else "lexicon.xml"
+        )
+
+    def tasks(self):
+        yield Task("run", mini_task=True)
+
+    def run(self):
+        lex = lexicon.Lexicon()
+
+        phonemes = set()
+        last_lemma = None
+        with uopen(self.text_file.get_path()) as f:
+            for line in f:
+                # splitting is taken from RASR
+                # src/Tools/Bliss/blissLexiconLib.py#L185
+                s = line.split(None, 1)
+                orth = s[0].split("\\", 1)[0]
+                phon_variants = [
+                    tuple(p.split()) for p in s[1].split("\\") if p.strip()
+                ]
+                for phon_variant in phon_variants:
+                    phonemes.update(phon_variant)
+                phon = [" ".join(v) for v in phon_variants]
+                lemma = lexicon.Lemma(orth=[orth], phon=phon)
+                if last_lemma and lemma.orth[0] == last_lemma.orth[0]:
+                    last_lemma.phon += phon
+                else:
+                    lex.add_lemma(lemma)
+                    last_lemma = lemma
+
+        for phoneme in sorted(phonemes):
+            lex.add_phoneme(phoneme)
+
+        write_xml(self.out_bliss_lexicon.get_path(), lex.to_xml())
 
 
 class GraphemicLexiconFromWordListJob(Job):
