@@ -31,15 +31,13 @@ class ExtractOovWordsFromCorpusJob(Job):
 
     def run(self):
         with uopen(self.bliss_lexicon, "rt", encoding="utf-8") as f:
-            parser = ET.XMLParser(encoding="utf-8")
-            tree = ET.parse(f, parser=parser)
+            tree = ET.parse(f)
             iv_words = {
                 orth.text.upper() for orth in tree.findall(".//lemma/orth") if orth.text
             }
 
         with uopen(self.bliss_corpus, "rt", encoding="utf-8") as f:
-            parser = ET.XMLParser(encoding="utf-8")
-            tree = ET.parse(f, parser=parser)
+            tree = ET.parse(f)
             oov_words = {
                 w
                 for kw in tree.findall(".//recording/segment/orth")
