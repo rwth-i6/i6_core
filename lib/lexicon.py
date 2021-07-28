@@ -72,7 +72,7 @@ class Lemma:
 class Lexicon:
     def __init__(self):
         self.phonemes = OrderedDict()  # symbol => variation
-        self.lemmas = []
+        self.lemmata = []
 
     def add_phoneme(self, symbol, variation="context"):
         self.phonemes[symbol] = variation
@@ -82,7 +82,7 @@ class Lexicon:
 
     def add_lemma(self, lemma):
         assert isinstance(lemma, Lemma)
-        self.lemmas.append(lemma)
+        self.lemmata.append(lemma)
 
     def load(self, path):
         open_fun = gzip.open if path.endswith(".gz") else open
@@ -113,7 +113,7 @@ class Lexicon:
             v = ET.SubElement(p, "variation")
             v.text = variation
 
-        for l in self.lemmas:
+        for l in self.lemmata:
             root.append(l.to_xml())
 
         return root

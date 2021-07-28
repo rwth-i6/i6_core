@@ -12,7 +12,7 @@ class StaticLexiconJob(Job):
     """
     Create a bliss lexicon file from a static Lexicon.
 
-    Supports optional sorting of phonemes and lemmas.
+    Supports optional sorting of phonemes and lemmata.
 
     Example for a static lexicon:
 
@@ -40,16 +40,16 @@ class StaticLexiconJob(Job):
         static_lexicon.add_phoneme("[UNKNOWN]", variation="none")
     """
 
-    def __init__(self, static_lexicon, sort_phonemes, sort_lemmas, compressed=False):
+    def __init__(self, static_lexicon, sort_phonemes, sort_lemmata, compressed=False):
         """
         :param lexicon.Lexicon static_lexicon: A Lexicon object
         :param bool sort_phonemes: sort phoneme inventory alphabetically
-        :param bool sort_lemmas: sort lemmas alphabetically based on first orth entry
+        :param bool sort_lemmata: sort lemmata alphabetically based on first orth entry
         :param bool compressed: compress final lexicon
         """
         self.static_lexicon = static_lexicon
         self.sort_phonemes = sort_phonemes
-        self.sort_lemmas = sort_lemmas
+        self.sort_lemmata = sort_lemmata
 
         self.out_bliss_lexicon = self.output_path(
             "lexicon.xml.gz" if compressed else "lexicon.xml"
@@ -70,14 +70,14 @@ class StaticLexiconJob(Job):
         else:
             lex.phonemes = self.static_lexicon.phonemes
 
-        if self.sort_lemmas:
+        if self.sort_lemmata:
             lemma_dict = {}
-            for lemma in self.static_lexicon.lemmas:
+            for lemma in self.static_lexicon.lemmata:
                 # sort by first orth entry
                 lemma_dict[lemma.orth[0]] = lemma
-            lex.lemmas = [lemma_dict[key] for key in sorted(lemma_dict.keys())]
+            lex.lemmata = [lemma_dict[key] for key in sorted(lemma_dict.keys())]
         else:
-            lex.lemmas = self.static_lexicon.lemmas
+            lex.lemmata = self.static_lexicon.lemmata
 
         write_xml(self.out_bliss_lexicon.get_path(), lex.to_xml())
 
@@ -86,22 +86,22 @@ class MergeLexiconJob(Job):
     """
     Merge multiple bliss lexica into a single bliss lexicon.
 
-    Phonemes and lemmas can be individually sorted alphabetically or kept as is.
+    Phonemes and lemmata can be individually sorted alphabetically or kept as is.
 
     When merging a lexicon with a static lexicon, putting the static lexicon first
     and only sorting the phonemes will result in the "typical" lexicon structure.
     """
 
-    def __init__(self, bliss_lexica, sort_phonemes, sort_lemmas, compressed=False):
+    def __init__(self, bliss_lexica, sort_phonemes, sort_lemmata, compressed=False):
         """
         :param list[Path] bliss_lexica: list of bliss lexicon files (plain or gz)
         :param bool sort_phonemes: sort phoneme inventory alphabetically
-        :param bool sort_lemmas: sort lemmas alphabetically based on first orth entry
+        :param bool sort_lemmata: sort lemmata alphabetically based on first orth entry
         :param bool compressed: compress final lexicon
         """
         self.lexica = bliss_lexica
         self.sort_phonemes = sort_phonemes
-        self.sort_lemmas = sort_lemmas
+        self.sort_lemmata = sort_lemmata
 
         self.out_bliss_lexicon = self.output_path(
             "lexicon.xml.gz" if compressed else "lexicon.xml"
@@ -141,16 +141,16 @@ class MergeLexiconJob(Job):
         else:
             merged_lex.phonemes = merged_phonemes
 
-        # combine the lemmas
-        if self.sort_lemmas:
+        # combine the lemmata
+        if self.sort_lemmata:
             lemma_dict = {}
             for lex in lexica:
-                for lemma in lex.lemmas:
+                for lemma in lex.lemmata:
                     # sort by first orth entry
                     lemma_dict[lemma.orth[0]] = lemma
-            merged_lex.lemmas = [lemma_dict[key] for key in sorted(lemma_dict.keys())]
+            merged_lex.lemmata = [lemma_dict[key] for key in sorted(lemma_dict.keys())]
         else:
             for lex in lexica:
-                merged_lex.lemmas.extend(lex.lemmas)
+                merged_lex.lemmata.extend(lex.lemmata)
 
         write_xml(self.out_bliss_lexicon.get_path(), merged_lex.to_xml())
