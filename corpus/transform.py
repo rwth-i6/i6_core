@@ -3,6 +3,7 @@ __all__ = [
     "AddCacheToCorpusJob",
     "CompressCorpusJob",
     "MergeCorporaJob",
+    "MergeStrategy",
     "MergeCorpusSegmentsAndAudioJob",
     "ShiftCorpusSegmentStartJob",
 ]
