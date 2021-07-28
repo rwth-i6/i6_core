@@ -1,4 +1,4 @@
-__all__ = ["StaticLexiconJob", "MergeLexiconJob"]
+__all__ = ["WriteLexiconJob", "MergeLexiconJob"]
 
 from collections import OrderedDict
 
@@ -8,7 +8,7 @@ from i6_core.lib import lexicon
 from i6_core.util import write_xml
 
 
-class StaticLexiconJob(Job):
+class WriteLexiconJob(Job):
     """
     Create a bliss lexicon file from a static Lexicon.
 
@@ -40,7 +40,9 @@ class StaticLexiconJob(Job):
         static_lexicon.add_phoneme("[UNKNOWN]", variation="none")
     """
 
-    def __init__(self, static_lexicon, sort_phonemes, sort_lemmata, compressed=False):
+    def __init__(
+        self, static_lexicon, sort_phonemes=False, sort_lemmata=False, compressed=False
+    ):
         """
         :param lexicon.Lexicon static_lexicon: A Lexicon object
         :param bool sort_phonemes: sort phoneme inventory alphabetically
@@ -90,9 +92,14 @@ class MergeLexiconJob(Job):
 
     When merging a lexicon with a static lexicon, putting the static lexicon first
     and only sorting the phonemes will result in the "typical" lexicon structure.
+
+    Please be aware that the sorting or merging of lexica that were already used
+    will create a new lexicon that might be incompatible to previously generated alignments.
     """
 
-    def __init__(self, bliss_lexica, sort_phonemes, sort_lemmata, compressed=False):
+    def __init__(
+        self, bliss_lexica, sort_phonemes=False, sort_lemmata=False, compressed=False
+    ):
         """
         :param list[Path] bliss_lexica: list of bliss lexicon files (plain or gz)
         :param bool sort_phonemes: sort phoneme inventory alphabetically
