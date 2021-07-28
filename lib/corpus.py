@@ -250,7 +250,7 @@ class Corpus(NamedEntity, CorpusSection):
         open_fun = gzip.open if path.endswith(".gz") else open
 
         with open_fun(path, "wt") as f:
-            f.write('<?xml version="1.0" encoding="utf8"?>\n')
+            f.write('<?xml version="1.0" encoding="utf-8"?>\n')
             self._dump_internal(f)
 
     def _dump_internal(self, out, indentation=""):
@@ -399,7 +399,7 @@ class SegmentMap(object):
         open_fun = gzip.open if path.endswith(".gz") else open
 
         with open_fun(path, "wt") as f:
-            f.write('<?xml version="1.0" encoding="utf8"?>\n')
+            f.write('<?xml version="1.0" encoding="utf-8"?>\n')
             f.write("<segment-key-map>\n")
 
             for s in self.map_entries:
