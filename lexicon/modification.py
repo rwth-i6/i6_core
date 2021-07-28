@@ -148,16 +148,26 @@ class MergeLexiconJob(Job):
         else:
             merged_lex.phonemes = merged_phonemes
 
+        orth_set = set()
         # combine the lemmata
         if self.sort_lemmata:
             lemma_dict = {}
             for lex in lexica:
                 for lemma in lex.lemmata:
+                    # check for existing orths to avoid overlap
+                    assert all(
+                        [o not in orth_set for o in lemma.orths]
+                    ), "merging of overlapping lexicas is not supported yet"
+                    orth_set.update(lemma.orths)
                     # sort by first orth entry
                     lemma_dict[lemma.orth[0]] = lemma
             merged_lex.lemmata = [lemma_dict[key] for key in sorted(lemma_dict.keys())]
         else:
             for lex in lexica:
+                # check for existing orths to avoid overlap
+                for orths in [lemma.orth for lemma in lex.lemmata]:
+                    assert all([o not in orth_set for o in orths])
+                    orth_set.update(orths)
                 merged_lex.lemmata.extend(lex.lemmata)
 
         write_xml(self.out_bliss_lexicon.get_path(), merged_lex.to_xml())
