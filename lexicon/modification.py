@@ -42,7 +42,7 @@ class WriteLexiconJob(Job):
     """
 
     def __init__(
-        self, static_lexicon, sort_phonemes=False, sort_lemmata=False, compressed=False
+        self, static_lexicon, sort_phonemes=False, sort_lemmata=False, compressed=True
     ):
         """
         :param lexicon.Lexicon static_lexicon: A Lexicon object
