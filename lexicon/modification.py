@@ -151,7 +151,7 @@ class MergeLexiconJob(Job):
 
         # combine the lemmata
         if self.sort_lemmata:
-            lemma_dict = defaultdict(lambda: [])
+            lemma_dict = defaultdict(list)
             for lex in lexica:
                 for lemma in lex.lemmata:
                     # sort by first orth entry
