@@ -190,7 +190,9 @@ class LexiconFromTextFileJob(Job):
                 phon = [" ".join(v) for v in phon_variants]
                 lemma = lexicon.Lemma(orth=[orth], phon=phon)
                 if last_lemma and lemma.orth[0] == last_lemma.orth[0]:
-                    last_lemma.phon += phon
+                    for p in phon:
+                        if p not in lemma.phon:
+                            last_lemma.phon.append(p)
                 else:
                     lex.add_lemma(lemma)
                     last_lemma = lemma
