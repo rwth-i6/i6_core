@@ -10,6 +10,7 @@ number of speakers: 2260
 
 from sisyphus import *
 
+from collections import defaultdict
 import glob
 import subprocess
 import shutil
@@ -278,7 +279,7 @@ class CreateSwitchboardBlissCorpusJob(Job):
         """
         Returns recording to list of segments mapping
         """
-        rec_to_segs = {}  # typing: dict[str, List[str]]
+        rec_to_segs = defaultdict(list)
         for trans_file in glob.glob(
             os.path.join(self.trans_dir.get_path(), "*/*/*-trans.text")
         ):
@@ -287,7 +288,5 @@ class CreateSwitchboardBlissCorpusJob(Job):
                     seg_info = line.strip().split(" ", 3)  # name start end orth
                     assert len(seg_info) == 4
                     rec_name = seg_info[0].split("-")[0]
-                    if rec_name not in rec_to_segs:
-                        rec_to_segs[rec_name] = []
                     rec_to_segs[rec_name].append(seg_info)
         return rec_to_segs
