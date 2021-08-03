@@ -147,7 +147,7 @@ class CreateSwitchboardBlissCorpusJob(Job):
                 assert (
                     l[2] not in rec_to_speaker
                 ), "duplicate recording name: {}?".format(l[2])
-                assert l[1] in ["F", "M"], "Gender info must be either M or F"
+                assert l[1] in ["F", "M"]
 
                 # "sw" prefix is added to match recording names
                 rec_to_speaker["sw" + l[2]] = {
