@@ -20,6 +20,7 @@ import re
 
 from i6_core.lib import corpus
 from i6_core.util import uopen
+from i6_core.tools.download import DownloadJob
 
 
 class DownloadSwitchboardTranscriptionAndDictJob(Job):
@@ -50,26 +51,16 @@ class DownloadSwitchboardTranscriptionAndDictJob(Job):
         shutil.move("swb_ms98_transcriptions", self.out_trans_and_dict_dir)
 
 
-class DownloadSwitchboardSpeakersStatsJob(Job):
+class DownloadSwitchboardSpeakersStatsJob(DownloadJob):
     """
     Note that this does not contain the speaker info for all recordings. We assume later that each
     recording has a unique speaker and a unique id is used for those recordings with unknown speakers info
     """
 
-    def __init__(self):
-        self.out_speakers_stats_file = self.output_path("speakers_stats.txt")
-
-    def tasks(self):
-        yield Task("run", mini_task=True)
-
-    def run(self):
-        subprocess.check_call(
-            [
-                "wget",
-                "http://www.isip.piconepress.com/projects/switchboard/doc/statistics/ws97_speaker_stats.text",
-            ]
+    def __init__(self, checksum=None):
+        super(DownloadSwitchboardSpeakersStatsJob, self).__init__(
+            url="http://www.isip.piconepress.com/projects/switchboard/doc/statistics/ws97_speaker_stats.text"
         )
-        shutil.move("ws97_speaker_stats.text", self.out_speakers_stats_file)
 
 
 class CreateSwitchboardSpeakersListJob(Job):
