@@ -1,6 +1,7 @@
 """
 Switchboard is conversational telephony speech with 8 Khz audio files. The training data consists of
 300h hours.
+Reference: https://catalog.ldc.upenn.edu/LDC97S62
 
 number of recordings: 4876
 number of segments: 249624
