@@ -35,7 +35,7 @@ class DownloadSwitchboardTranscriptionAndDictJob(Job):
     def run(self):
         zipped_dirname = "switchboard_word_alignments.tar.gz"
         subprocess.check_call(
-            ["wget", os.path.join("http://www.openslr.org/resources/5", zipped_dirname)]
+            ["wget", "http://www.openslr.org/resources/5/" + zipped_dirname]
         )
         subprocess.check_call(
             [
