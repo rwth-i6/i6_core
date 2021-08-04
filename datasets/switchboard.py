@@ -116,8 +116,8 @@ class CreateSwitchboardBlissCorpusJob(Job):
         :param tk.Path audio_dir: path for audio data
         :param tk.Path trans_dir: path for transcription data. see `DownloadSwitchboardTranscriptionAndDictJob`
         :param tk.Path speakers_list_file: path to a speakers list text file with format:
-            speaker_id gender recording
-        on each line. see `CreateSwitchboardSpeakersListJob` job
+                speaker_id gender recording
+            on each line. see `CreateSwitchboardSpeakersListJob` job
         """
         self.audio_dir = audio_dir
         self.trans_dir = trans_dir
