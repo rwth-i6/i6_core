@@ -58,10 +58,15 @@ class DownloadSwitchboardSpeakersStatsJob(DownloadJob):
     recording has a unique speaker and a unique id is used for those recordings with unknown speakers info
     """
 
-    def __init__(self, checksum=None):
+    def __init__(self):
         super(DownloadSwitchboardSpeakersStatsJob, self).__init__(
-            url="http://www.isip.piconepress.com/projects/switchboard/doc/statistics/ws97_speaker_stats.text"
+            url="http://www.isip.piconepress.com/projects/switchboard/doc/statistics/ws97_speaker_stats.text",
+            checksum="64f538839073dbbdf46027fff40cec57a11c5de1eed4e8b22b50ed86038d9e90",
         )
+
+    @classmethod
+    def hash(cls, parsed_args):
+        return Job.hash(parsed_args)
 
 
 class CreateSwitchboardSpeakersListJob(Job):
