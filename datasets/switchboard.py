@@ -35,20 +35,21 @@ class DownloadSwitchboardTranscriptionAndDictJob(Job):
         yield Task("run", mini_task=True)
 
     def run(self):
-        zipped_dirname = "switchboard_word_alignments.tar.gz"
+        zipped_filename = "switchboard_word_alignments.tar.gz"
         subprocess.check_call(
-            ["wget", "http://www.openslr.org/resources/5/" + zipped_dirname]
+            ["wget", "http://www.openslr.org/resources/5/" + zipped_filename]
         )
         subprocess.check_call(
             [
                 "tar",
                 "-xf",
-                zipped_dirname,
+                zipped_filename,
                 "-C",
                 ".",
             ]
         )
         shutil.move("swb_ms98_transcriptions", self.out_trans_and_dict_dir)
+        os.remove(zipped_filename)
 
 
 class DownloadSwitchboardSpeakersStatsJob(DownloadJob):
