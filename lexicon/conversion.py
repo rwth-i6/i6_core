@@ -41,6 +41,33 @@ class LexiconToWordListJob(Job):
                 word_file.write("%s\n" % w)
 
 
+class LexiconToTextListJob(Job):
+    def __init__(self, bliss_lexicon, apply_filter=True):
+        self.set_vis_name("Lexicon to Text Pair List")
+
+        self.bliss_lexicon = bliss_lexicon
+        self.apply_filter = apply_filter
+
+        self.out_lexicon = self.output_path("pron.txt")
+
+    def tasks(self):
+        yield Task("run", mini_task=True)
+
+    def run(self):
+        mode = "rb" if self.bliss_lexicon.get_path().endswith(".gz") else "r"
+        with uopen(tk.uncached_path(self.bliss_lexicon), mode) as lexicon_file:
+            lexicon = ET.fromstring(lexicon_file.read())
+            words = dict()
+            for e in lexicon.findall("lemma"):
+                orth = e.find("orth")
+                phon = e.findall("phon")
+                if orth.text is not None and len(phon) > 0:
+                    words[orth.text] = phon[0].text
+        with open(self.out_lexicon.get_path(), "w") as word_file:
+            for w in sorted(words.keys()):
+                word_file.write("%s\t%s\n" % (w, words[w]))
+
+
 class FilterLexiconByWordListJob(Job):
     def __init__(self, bliss_lexicon, word_list, case_sensitive=False):
         self.set_vis_name("Filter Lexicon by Word List")
