@@ -23,6 +23,48 @@ from i6_core.util import uopen
 from i6_core.tools.download import DownloadJob
 
 
+def _map_token(token):
+    """
+    This function applies some mapping rules for Switchboard transcription words
+    Reference: https://github.com/espnet/espnet/blob/master/egs/swbd/asr1/local/swbd1_map_words.pl
+
+    :param str token: string representing token, e.g word
+    :rtype str
+    """
+
+    mapped_token = re.sub(
+        "(|\-)^\[laughter-(.+)\](|\-)$", "\g<1>\g<2>\g<3>", token
+    )  # e.g. [laughter-story] -> story;
+    # 1 and 3 relate to preserving trailing "-"
+    mapped_token = re.sub(
+        "^\[(.+)/.+\](|\-)$", "\g<1>\g<2>", mapped_token
+    )  # e.g. [it'n/isn't] -> it'n ... note
+    # 1st part may include partial-word stuff, which we process further below,
+    # e.g. [LEM[GUINI]-/LINGUINI]
+    # the (|\_) at the end is to accept and preserve trailing -'s.
+    mapped_token = re.sub(
+        "^(|\-)\[[^][]+\](.+)$", "-\g<2>", mapped_token
+    )  # e.g. -[an]y , note \047 is quote;
+    # let the leading - be optional on input, as sometimes omitted.
+    mapped_token = re.sub(
+        "^(.+)\[[^][]+\](|\-)$", "\g<1>-", mapped_token
+    )  # e.g. ab[solute]- -> ab-;
+    # let the trailing - be optional on input, as sometimes omitted.
+    mapped_token = re.sub(
+        "([^][]+)\[.+\]$", "\g<1>", mapped_token
+    )  # e.g. ex[specially]-/especially] -> ex-
+    # which is a  mistake in the input.
+    mapped_token = re.sub(
+        "^\{(.+)\}$", "\g<1>", mapped_token
+    )  # e.g. {yuppiedom} -> yuppiedom
+    mapped_token = re.sub(
+        "([a-z])\[([^][])+\]([a-z])", "\g<1>-\g<3>", mapped_token
+    )  # e.g. ammu[n]it- -> ammu-it-
+    mapped_token = re.sub("_\d$", "", mapped_token)  # e.g. them_1 -> them
+
+    return mapped_token
+
+
 class DownloadSwitchboardTranscriptionAndDictJob(Job):
     """
     Downloads switchboard training transcriptions and dictionary (or lexicon)
@@ -222,39 +264,7 @@ class CreateSwitchboardBlissCorpusJob(Job):
                     token.upper()
                 )  # make upper case for consistency with older setups
             else:
-                # ref: https://github.com/espnet/espnet/blob/master/egs/swbd/asr1/local/swbd1_map_words.pl
-
-                mapped_token = re.sub(
-                    "(|\-)^\[laughter-(.+)\](|\-)$", "\g<1>\g<2>\g<3>", token
-                )  # e.g. [laughter-story] -> story;
-                # 1 and 3 relate to preserving trailing "-"
-                mapped_token = re.sub(
-                    "^\[(.+)/.+\](|\-)$", "\g<1>\g<2>", mapped_token
-                )  # e.g. [it'n/isn't] -> it'n ... note
-                # 1st part may include partial-word stuff, which we process further below,
-                # e.g. [LEM[GUINI]-/LINGUINI]
-                # the (|\_) at the end is to accept and preserve trailing -'s.
-                mapped_token = re.sub(
-                    "^(|\-)\[[^][]+\](.+)$", "-\g<2>", mapped_token
-                )  # e.g. -[an]y , note \047 is quote;
-                # let the leading - be optional on input, as sometimes omitted.
-                mapped_token = re.sub(
-                    "^(.+)\[[^][]+\](|\-)$", "\g<1>-", mapped_token
-                )  # e.g. ab[solute]- -> ab-;
-                # let the trailing - be optional on input, as sometimes omitted.
-                mapped_token = re.sub(
-                    "([^][]+)\[.+\]$", "\g<1>", mapped_token
-                )  # e.g. ex[specially]-/especially] -> ex-
-                # which is a  mistake in the input.
-                mapped_token = re.sub(
-                    "^\{(.+)\}$", "\g<1>", mapped_token
-                )  # e.g. {yuppiedom} -> yuppiedom
-                mapped_token = re.sub(
-                    "([a-z])\[([^][])+\]([a-z])", "\g<1>-\g<3>", mapped_token
-                )  # e.g. ammu[n]it- -> ammu-it-
-                mapped_token = re.sub("_\d$", "", mapped_token)  # e.g. them_1 -> them
-
-                filtered_orth.append(mapped_token)
+                filtered_orth.append(_map_token(token))
 
         # do not add empty transcription segments
         all_special = True
@@ -288,3 +298,35 @@ class CreateSwitchboardBlissCorpusJob(Job):
                     rec_name = seg_info[0].split("-")[0]
                     rec_to_segs[rec_name].append(seg_info)
         return rec_to_segs
+
+
+class CreateSwitchboardLexiconTextFileJob(Job):
+    """
+    This job creates SWB preprocessed dictionary text file consistent with the training corpus given a raw dictionary
+    text file downloaded within the transcription directory using `DownloadSwitchboardTranscriptionAndDictJob` Job.
+    The resulted dictionary text file will be passed as argument to `LexiconFromTextFileJob` job in order to create
+    bliss xml lexicon.
+    """
+
+    def __init__(self, dict_dir):
+        """
+        :param tk.Path dict_dir: path containing the raw dictionary text file
+        """
+        self.dict_dir = dict_dir
+        self.out_dict = self.output_path("dict.txt")
+
+    def tasks(self):
+        yield Task("run", mini_task=True)
+
+    def run(self):
+        raw_dict_file = os.path.join(self.dict_dir.get_path(), "sw-ms98-dict.text")
+        with uopen(raw_dict_file) as read_f, uopen(self.out_dict, "w") as out_f:
+            for line in read_f.readlines()[1:]:
+                if line.startswith("#"):  # skip comment
+                    continue
+                parts = line.strip().split(" ", 1)
+                if len(parts) < 2:
+                    continue
+                token = parts[0].replace('&amp;', '&')  # e.g A&amp;E -> A&E
+                mapped_token = _map_token(token)  # preprocessing as corpus
+                out_f.write(mapped_token + " " + " ".join(parts[1:]) + "\n")
