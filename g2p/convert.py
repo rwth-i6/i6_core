@@ -16,13 +16,15 @@ class BlissLexiconToG2PLexiconJob(Job):
     Convert a bliss lexicon into a g2p compatible lexicon for training
     """
 
-    def __init__(self, bliss_lexicon):
+    def __init__(self, bliss_lexicon, all_phons=False):
         """
         :param Path bliss_lexicon:
         """
         self.bliss_lexicon = bliss_lexicon
 
         self.out_g2p_lexicon = self.output_path("g2p.lexicon")
+
+        self.all_phons = all_phons
 
     def tasks(self):
         yield Task("run", mini_task=True)
@@ -36,9 +38,15 @@ class BlissLexiconToG2PLexiconJob(Job):
                     continue
 
                 orth = lemma.find("orth").text.strip()
-                phon = lemma.find("phon").text.strip()
 
-                out.write("%s %s\n" % (orth, phon))
+                if self.all_phons:
+                    phon = lemma.findall("phon")
+                    for p in phon:
+                        out.write("%s %s\n" % (orth, p.text.strip()))
+
+                else:
+                    phon = lemma.find("phon").text.strip()
+                    out.write("%s %s\n" % (orth, phon))
 
 
 class G2POutputToBlissLexiconJob(Job):
