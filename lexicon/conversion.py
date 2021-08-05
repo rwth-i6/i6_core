@@ -188,12 +188,12 @@ class LexiconFromTextFileJob(Job):
                 for phon_variant in phon_variants:
                     phonemes.update(phon_variant)
                 phon = [" ".join(v) for v in phon_variants]
-                lemma = lexicon.Lemma(orth=[orth], phon=phon)
-                if last_lemma and lemma.orth[0] == last_lemma.orth[0]:
+                if last_lemma and orth == last_lemma.orth[0]:
                     for p in phon:
-                        if p not in lemma.phon:
+                        if p not in last_lemma.phon:
                             last_lemma.phon.append(p)
                 else:
+                    lemma = lexicon.Lemma(orth=[orth], phon=phon)
                     lex.add_lemma(lemma)
                     last_lemma = lemma
 
