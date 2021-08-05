@@ -36,7 +36,12 @@ class BlissLexiconToG2PLexiconJob(Job):
         with uopen(self.bliss_lexicon, "rt") as f:
             tree = ET.parse(f)
         with uopen(self.out_g2p_lexicon, "wt") as out:
-            for lemma in tree.findall(".//lemma"):
+            all_lemmas = tree.findall(".//lemma")
+            assert (
+                len(all_lemmas) > 0
+            ), "No lemma tag found in the lexicon file! Wrong format file?"
+
+            for lemma in all_lemmas:
                 if lemma.get("special") is not None:
                     continue
 
@@ -47,9 +52,13 @@ class BlissLexiconToG2PLexiconJob(Job):
                     out.write("%s %s\n" % (orth, phon))
 
                 else:
-                    phon = lemma.findall("phon")
-                    for p in phon:
-                        out.write("%s %s\n" % (orth, p.text.strip()))
+                    phons = lemma.findall("phon")
+                    phon_single = []
+                    for phon in phons:
+                        p = phon.text.strip()
+                        if p not in phon_single:
+                            phon_single.append(p)
+                            out.write("%s %s\n" % (orth, p))
 
 
 class G2POutputToBlissLexiconJob(Job):
