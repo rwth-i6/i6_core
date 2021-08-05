@@ -327,6 +327,6 @@ class CreateSwitchboardLexiconTextFileJob(Job):
                 parts = line.strip().split(" ", 1)
                 if len(parts) < 2:
                     continue
-                token = parts[0].replace('&amp;', '&')  # e.g A&amp;E -> A&E
+                token = parts[0].replace("&amp;", "&")  # e.g A&amp;E -> A&E
                 mapped_token = _map_token(token)  # preprocessing as corpus
                 out_f.write(mapped_token + " " + " ".join(parts[1:]) + "\n")
