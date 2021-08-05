@@ -16,15 +16,18 @@ class BlissLexiconToG2PLexiconJob(Job):
     Convert a bliss lexicon into a g2p compatible lexicon for training
     """
 
-    def __init__(self, bliss_lexicon, all_phons=False):
+    __sis_hash_exclude = {"write_first_phoneme_only": True}
+
+    def __init__(self, bliss_lexicon, write_first_phoneme_only=True):
         """
         :param Path bliss_lexicon:
+        :param bool write_first_phoneme_only: In case of multiple phoneme representations for one lemma, when this is true it outputs only the first phoneme
         """
         self.bliss_lexicon = bliss_lexicon
 
-        self.out_g2p_lexicon = self.output_path("g2p.lexicon")
+        self.write_first_phoneme_only = write_first_phoneme_only
 
-        self.all_phons = all_phons
+        self.out_g2p_lexicon = self.output_path("g2p.lexicon")
 
     def tasks(self):
         yield Task("run", mini_task=True)
@@ -39,14 +42,14 @@ class BlissLexiconToG2PLexiconJob(Job):
 
                 orth = lemma.find("orth").text.strip()
 
-                if self.all_phons:
+                if self.write_first_phoneme_only:
+                    phon = lemma.find("phon").text.strip()
+                    out.write("%s %s\n" % (orth, phon))
+
+                else:
                     phon = lemma.findall("phon")
                     for p in phon:
                         out.write("%s %s\n" % (orth, p.text.strip()))
-
-                else:
-                    phon = lemma.find("phon").text.strip()
-                    out.write("%s %s\n" % (orth, phon))
 
 
 class G2POutputToBlissLexiconJob(Job):
