@@ -175,7 +175,7 @@ class LexiconFromTextFileJob(Job):
         lex = lexicon.Lexicon()
 
         phonemes = set()
-        last_lemma = None
+        seen_lemma = {}
         with uopen(self.text_file.get_path()) as f:
             for line in f:
                 # splitting is taken from RASR
@@ -188,14 +188,15 @@ class LexiconFromTextFileJob(Job):
                 for phon_variant in phon_variants:
                     phonemes.update(phon_variant)
                 phon = [" ".join(v) for v in phon_variants]
-                if last_lemma and orth == last_lemma.orth[0]:
+                if orth in seen_lemma:
+                    lemma = seen_lemma[orth]
                     for p in phon:
-                        if p not in last_lemma.phon:
-                            last_lemma.phon.append(p)
+                        if p not in lemma.phon:
+                            lemma.phon.append(p)
                 else:
                     lemma = lexicon.Lemma(orth=[orth], phon=phon)
+                    seen_lemma[orth] = lemma
                     lex.add_lemma(lemma)
-                    last_lemma = lemma
 
         for phoneme in sorted(phonemes):
             lex.add_phoneme(phoneme)
