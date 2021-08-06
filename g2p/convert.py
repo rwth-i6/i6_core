@@ -25,6 +25,7 @@ class BlissLexiconToG2PLexiconJob(Job):
         """
         self.bliss_lexicon = bliss_lexicon
         self.include_pronunciation_variants = include_pronunciation_variants
+
         self.out_g2p_lexicon = self.output_path("g2p.lexicon")
 
     def tasks(self):
