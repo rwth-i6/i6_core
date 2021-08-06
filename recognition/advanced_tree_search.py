@@ -3,6 +3,7 @@ __all__ = [
     "AdvancedTreeSearchJob",
     "AdvancedTreeSearchWithRescoringJob",
     "BidirectionalAdvancedTreeSearchJob",
+    "BuildGlobalCacheJob",
 ]
 
 from sisyphus import *
@@ -853,4 +854,76 @@ class BidirectionalAdvancedTreeSearchJob(rasr.RasrCommand, Job):
                 "feature_flow": kwargs["feature_flow"],
                 "exe": kwargs["crp"].flf_tool_exe,
             }
+        )
+
+
+class BuildGlobalCacheJob(rasr.RasrCommand, Job):
+    """
+    Standalone job to create the global-cache for advanced-tree-search
+    """
+
+    def __init__(self, crp, extra_config=None, extra_post_config=None):
+        """
+        :param rasr.CommonRasrParameters crp: common RASR params (required: lexicon, acoustic_model, language_model, recognizer)
+        :param rasr.Configuration extra_config: overlay config that influences the Job's hash
+        :param rasr.Configuration extra_post_config: overlay config that does not influences the Job's hash
+        """
+        self.set_vis_name("Build Global Cache")
+
+        kwargs = locals()
+        del kwargs["self"]
+
+        (
+            self.config,
+            self.post_config,
+        ) = BuildGlobalCacheJob.create_config(**kwargs)
+        self.exe = self.select_exe(crp.speech_recognizer_exe, "speech-recognizer")
+
+        self.out_log_file = self.log_file_output_path("build_global_cache", crp, False)
+        self.out_global_cache = self.output_path("global.cache", cached=True)
+
+        self.rqmt = {"time": 1, "cpu": 1, "mem": 2}
+
+    def tasks(self):
+        yield Task("create_files", mini_task=True)
+        yield Task("run", resume="run", rqmt=self.rqmt)
+
+    def create_files(self):
+        self.write_config(self.config, self.post_config, "build_global_cache.config")
+        self.write_run_script(self.exe, "build_global_cache.config")
+
+    def run(self):
+        self.run_script(1, self.out_log_file)
+        shutil.move("global.cache", self.out_global_cache.get_path())
+
+    def cleanup_before_run(self, cmd, retry, *args):
+        util.backup_if_exists("build_global_cache.log")
+
+    @classmethod
+    def create_config(cls, crp, extra_config, extra_post_config, **kwargs):
+        config, post_config = rasr.build_config_from_mapping(
+            crp,
+            {
+                "lexicon": "speech-recognizer.model-combination.lexicon",
+                "acoustic_model": "speech-recognizer.model-combination.acoustic-model",
+                "language_model": "speech-recognizer.model-combination.lm",
+                "recognizer": "speech-recognizer.recognizer",
+            },
+        )
+
+        config.speech_recognizer.recognition_mode = "init-only"
+        config.speech_recognizer.search_type = "advanced-tree-search"
+        config.speech_recognizer.global_cache.file = "global.cache"
+        config.speech_recognizer.global_cache.read_only = False
+
+        config._update(extra_config)
+        post_config._update(extra_post_config)
+
+        return config, post_config
+
+    @classmethod
+    def hash(cls, kwargs):
+        config, post_config = cls.create_config(**kwargs)
+        return super().hash(
+            {"config": config, "exe": kwargs["crp"].speech_recognizer_exe}
         )
