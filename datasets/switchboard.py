@@ -329,4 +329,4 @@ class CreateSwitchboardLexiconTextFileJob(Job):
                     continue
                 token = parts[0].replace("&amp;", "&")  # e.g A&amp;E -> A&E
                 mapped_token = _map_token(token)  # preprocessing as corpus
-                out_f.write(mapped_token + " " + " ".join(parts[1:]) + "\n")
+                out_f.write(mapped_token + " " + parts[1] + "\n")
