@@ -1,5 +1,7 @@
 __all__ = ["ApplyG2PModelJob"]
 
+
+import os
 import subprocess as sp
 
 from sisyphus import *
@@ -33,9 +35,15 @@ class ApplyG2PModelJob(Job):
         """
 
         if g2p_path is None:
-            g2p_path = tk.gs.G2P_PATH
+            g2p_path = (
+                tk.gs.G2P_PATH
+                if hasattr(tk.gs, "G2P_PATH")
+                else os.path.join(os.path.dirname(gs.SIS_COMMAND[0]), "g2p.py")
+            )
         if g2p_python is None:
-            g2p_python = tk.gs.G2P_PYTHON
+            g2p_python = (
+                tk.gs.G2P_PYTHON if hasattr(tk.gs, "G2P_PYTHON") else gs.SIS_COMMAND[0]
+            )
 
         self.g2p_model = g2p_model
         self.g2p_path = g2p_path
