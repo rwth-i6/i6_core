@@ -71,7 +71,7 @@ class DownloadSwitchboardTranscriptionAndDictJob(Job):
     """
 
     def __init__(self):
-        self.out_raw_dict = self.output_path("raw_dict.txt")
+        self.out_raw_dict = self.output_path("swb_trans/sw-ms98-dict.text")
         self.out_trans_dir = self.output_path("swb_trans")
 
     def tasks(self):
@@ -92,10 +92,6 @@ class DownloadSwitchboardTranscriptionAndDictJob(Job):
             ]
         )
         shutil.move("swb_ms98_transcriptions", self.out_trans_dir.get_path())
-        shutil.copy(
-            os.path.join(self.out_trans_dir.get_path(), "sw-ms98-dict.text"),
-            self.out_raw_dict.get_path(),
-        )
         os.remove(zipped_filename)
 
 
