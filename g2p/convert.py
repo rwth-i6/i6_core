@@ -16,11 +16,15 @@ class BlissLexiconToG2PLexiconJob(Job):
     Convert a bliss lexicon into a g2p compatible lexicon for training
     """
 
-    def __init__(self, bliss_lexicon):
+    __sis_hash_exclude = {"include_pronunciation_variants": False}
+
+    def __init__(self, bliss_lexicon, include_pronunciation_variants=False):
         """
         :param Path bliss_lexicon:
+        :param bool include_pronunciation_variants: In case of multiple phoneme representations for one lemma, when this is false it outputs only the first phoneme
         """
         self.bliss_lexicon = bliss_lexicon
+        self.include_pronunciation_variants = include_pronunciation_variants
 
         self.out_g2p_lexicon = self.output_path("g2p.lexicon")
 
@@ -31,14 +35,28 @@ class BlissLexiconToG2PLexiconJob(Job):
         with uopen(self.bliss_lexicon, "rt") as f:
             tree = ET.parse(f)
         with uopen(self.out_g2p_lexicon, "wt") as out:
-            for lemma in tree.findall(".//lemma"):
+            all_lemmas = tree.findall(".//lemma")
+            assert (
+                len(all_lemmas) > 0
+            ), "No lemma tag found in the lexicon file! Wrong format file?"
+
+            for lemma in all_lemmas:
                 if lemma.get("special") is not None:
                     continue
 
                 orth = lemma.find("orth").text.strip()
-                phon = lemma.find("phon").text.strip()
 
-                out.write("%s %s\n" % (orth, phon))
+                if self.include_pronunciation_variants:
+                    phons = lemma.findall("phon")
+                    phon_single = []
+                    for phon in phons:
+                        p = phon.text.strip()
+                        if p not in phon_single:
+                            phon_single.append(p)
+                            out.write("%s %s\n" % (orth, p))
+                else:
+                    phon = lemma.find("phon").text.strip()
+                    out.write("%s %s\n" % (orth, phon))
 
 
 class G2POutputToBlissLexiconJob(Job):
