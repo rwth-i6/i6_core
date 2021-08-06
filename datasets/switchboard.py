@@ -71,7 +71,8 @@ class DownloadSwitchboardTranscriptionAndDictJob(Job):
     """
 
     def __init__(self):
-        self.out_trans_and_dict_dir = self.output_path("swb_trans_and_dict")
+        self.out_raw_dict = self.output_path("raw_dict.txt")
+        self.out_trans_dir = self.output_path("swb_trans")
 
     def tasks(self):
         yield Task("run", mini_task=True)
@@ -90,7 +91,11 @@ class DownloadSwitchboardTranscriptionAndDictJob(Job):
                 ".",
             ]
         )
-        shutil.move("swb_ms98_transcriptions", self.out_trans_and_dict_dir)
+        shutil.move("swb_ms98_transcriptions", self.out_trans_dir.get_path())
+        shutil.copy(
+            os.path.join(self.out_trans_dir.get_path(), "sw-ms98-dict.text"),
+            self.out_raw_dict.get_path(),
+        )
         os.remove(zipped_filename)
 
 
@@ -308,19 +313,18 @@ class CreateSwitchboardLexiconTextFileJob(Job):
     bliss xml lexicon.
     """
 
-    def __init__(self, dict_dir):
+    def __init__(self, raw_dict_file):
         """
-        :param tk.Path dict_dir: path containing the raw dictionary text file
+        :param tk.Path raw_dict_file: path containing the raw dictionary text file
         """
-        self.dict_dir = dict_dir
+        self.raw_dict_file = raw_dict_file
         self.out_dict = self.output_path("dict.txt")
 
     def tasks(self):
         yield Task("run", mini_task=True)
 
     def run(self):
-        raw_dict_file = os.path.join(self.dict_dir.get_path(), "sw-ms98-dict.text")
-        with uopen(raw_dict_file) as read_f, uopen(self.out_dict, "w") as out_f:
+        with uopen(self.raw_dict_file) as read_f, uopen(self.out_dict, "w") as out_f:
             for line in read_f.readlines()[1:]:
                 if line.startswith("#"):  # skip comment
                     continue
