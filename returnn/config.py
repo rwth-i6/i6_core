@@ -78,6 +78,7 @@ class ReturnnConfig:
         python_epilog="",
         python_epilog_hash=None,
         hash_full_python_code=False,
+        pprint_kwargs=None,
     ):
         """
 
@@ -91,6 +92,8 @@ class ReturnnConfig:
         :param str|None python_epilog_hash: sets a specific hash for the python_epilog
         :param bool hash_full_python_code: By default, function bodies are not hashed. If set to True, the full content
             of python pro-/epilog is parsed and hashed.
+        :param dict|None pprint_kwargs: kwargs for pprint, e.g. {"sort_dicts": False} to print dicts in given order for
+            python >= 3.8
         """
         self.config = config
         self.post_config = post_config if post_config is not None else {}
@@ -108,6 +111,7 @@ class ReturnnConfig:
                 self.python_epilog_hash = self.__parse_python(python_epilog)
             else:
                 self.python_epilog_hash = python_epilog
+        self.pprint_kwargs = pprint_kwargs or {}
 
     def get(self, key, default=None):
         if key in self.post_config:
@@ -128,7 +132,7 @@ class ReturnnConfig:
         config_lines = []
         unreadable_data = {}
 
-        pp = pprint.PrettyPrinter(indent=2, width=150)
+        pp = pprint.PrettyPrinter(indent=2, width=150, **self.pprint_kwargs)
         for k, v in sorted(config.items()):
             if pprint.isreadable(v):
                 config_lines.append("%s = %s" % (k, pp.pformat(v)))
