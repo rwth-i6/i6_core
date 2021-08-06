@@ -77,6 +77,7 @@ class ReturnnConfig:
         python_prolog_hash=None,
         python_epilog="",
         python_epilog_hash=None,
+        hash_full_python_code=False,
     ):
         """
 
@@ -88,17 +89,25 @@ class ReturnnConfig:
         :param None|str|Callable|Class|tuple|list|dict python_epilog: str or structure containing
             str/callables/classes that should be pasted as code at the end of the config file
         :param str|None python_epilog_hash: sets a specific hash for the python_epilog
+        :param bool hash_full_python_code: By default, function bodies are not hashed. If set to True, the full content
+            of python pro-/epilog is parsed and hashed.
         """
         self.config = config
         self.post_config = post_config if post_config is not None else {}
         self.python_prolog = python_prolog
-        self.python_prolog_hash = (
-            python_prolog_hash if python_prolog_hash is not None else python_prolog
-        )
+        self.python_prolog_hash = python_prolog_hash
+        if self.python_prolog_hash is None:
+            if hash_full_python_code:
+                self.python_prolog_hash = self.__parse_python(python_prolog)
+            else:
+                self.python_prolog_hash = python_prolog
         self.python_epilog = python_epilog
-        self.python_epilog_hash = (
-            python_epilog_hash if python_epilog_hash is not None else python_epilog
-        )
+        self.python_epilog_hash = python_epilog_hash
+        if self.python_epilog_hash is None:
+            if hash_full_python_code:
+                self.python_epilog_hash = self.__parse_python(python_epilog)
+            else:
+                self.python_epilog_hash = python_epilog
 
     def get(self, key, default=None):
         if key in self.post_config:
