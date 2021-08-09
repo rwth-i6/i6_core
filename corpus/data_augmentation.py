@@ -9,7 +9,9 @@ import shutil
 try:
     import audiomentations
 except ImportError:
-    logging.warning('The audiomentations library could not be imported. Some jobs need it.')
+    logging.warning(
+        "The audiomentations library could not be imported. Some jobs need it."
+    )
 
 from sisyphus import *
 
@@ -361,7 +363,6 @@ class MixNoiseJob(Job):
         self.augment_prob = augment_prob
 
         self.rqmt = {"time": time_rqmt, "cpu": 2}
-
 
     def tasks(self):
         yield Task("run", rqmt=self.rqmt)
