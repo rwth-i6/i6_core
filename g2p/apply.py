@@ -30,8 +30,8 @@ class ApplyG2PModelJob(Job):
         :param Path word_list_file: text file with a word each line
         :param float variants_mass:
         :param int variants_number:
-        :param Path|str|None g2p_path:
-        :param Path|str|None g2p_python:
+        :param DelayedBase|str|None g2p_path:
+        :param DelayedBase|str|None g2p_python:
         """
 
         if g2p_path is None:
@@ -61,8 +61,8 @@ class ApplyG2PModelJob(Job):
         with uopen(self.out_g2p_lexicon, "wt") as out:
             sp.check_call(
                 [
-                    self.g2p_python,
-                    self.g2p_path,
+                    str(self.g2p_python),
+                    str(self.g2p_path),
                     "-e",
                     "utf-8",
                     "-V",
