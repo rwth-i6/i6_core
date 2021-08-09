@@ -194,8 +194,8 @@ class LibriSpeechCreateBlissCorpusJob(Job):
         """
         Traverse the folder structure and search for the *.trans.txt files and read the content
         """
-        for dirpath, dirs, files in os.walk(
-            self.corpus_folder.get_path(), followlinks=True
+        for dirpath, dirs, files in sorted(
+            os.walk(self.corpus_folder.get_path(), followlinks=True)
         ):
             for file in files:
                 if not file.endswith(".trans.txt"):
