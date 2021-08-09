@@ -269,13 +269,13 @@ class AddImpulseResponseJob(Job):
         self.new_corpus_name = new_corpus_name
         self.impulse_responses_dir = ir_path
 
-        self.out_audio_folder = self.output_path("out_audio/", directory=True)
-        self.out_corpus = self.output_path("ir_convoluted.corpus.xml.gz")
-
         self.ir_path = ir_path
         self.augment_prob = augment_prob
 
         self.rqmt = {"time": time_rqmt, "cpu": 2}
+
+        self.out_audio_folder = self.output_path("out_audio/", directory=True)
+        self.out_corpus = self.output_path("ir_convoluted.corpus.xml.gz")
 
     def tasks(self):
         yield Task("run", rqmt=self.rqmt)
@@ -354,15 +354,15 @@ class MixNoiseJob(Job):
         self.noise_files_dir = noise_files_dir
         self.new_corpus_name = new_corpus_name
 
-        self.out_audio_folder = self.output_path("out_audio/", directory=True)
-        self.out_corpus = self.output_path("noise_mixed.corpus.xml.gz")
-        self.out_segment_file = self.output_path("noise_mixed.segments")
-
         self.min_snr = min_snr
         self.max_snr = max_snr
         self.augment_prob = augment_prob
 
         self.rqmt = {"time": time_rqmt, "cpu": 2}
+
+        self.out_audio_folder = self.output_path("out_audio/", directory=True)
+        self.out_corpus = self.output_path("noise_mixed.corpus.xml.gz")
+        self.out_segment_file = self.output_path("noise_mixed.segments")
 
     def tasks(self):
         yield Task("run", rqmt=self.rqmt)
