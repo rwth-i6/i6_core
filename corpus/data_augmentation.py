@@ -372,16 +372,16 @@ class MixNoiseJob(Job):
         )
 
         self.id = os.path.basename(self.job_id())
-        c = corpus.Corpus()
-        nc = corpus.Corpus()
+        orig_corpus = corpus.Corpus()
+        new_corpus = corpus.Corpus()
 
-        c.load(tk.get_path(self.corpus_file))
-        nc.name = self.new_corpus_name
-        nc.speakers = c.speakers
-        nc.default_speaker = c.default_speaker
-        nc.speaker_name = c.speaker_name
+        orig_corpus.load(tk.get_path(self.corpus_file))
+        new_corpus.name = self.new_corpus_name
+        new_corpus.speakers = list(orig_corpus.all_speakers())
+        new_corpus.default_speaker = orig_corpus.default_speaker
+        new_corpus.speaker_name = orig_corpus.speaker_name
 
-        for r in c.recordings:
+        for r in orig_corpus.all_recordings():
             perturbed_audio_name = "perturbed_" + r.audio.split("/")[-1]
             (
                 samples,
@@ -403,6 +403,6 @@ class MixNoiseJob(Job):
             pr.speakers = r.speakers
             pr.default_speaker = r.default_speaker
             pr.audio = self.out_audio_folder.get_path() + "/" + perturbed_audio_name
-            nc.add_recording(pr)
+            new_corpus.add_recording(pr)
 
-        nc.dump(self.out_corpus.get_path())
+        new_corpus.dump(self.out_corpus.get_path())
