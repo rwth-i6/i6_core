@@ -30,13 +30,13 @@ class SegmentCorpusJob(Job):
     def __init__(self, bliss_corpus, num_segments):
         self.set_vis_name("Segment Corpus")
 
-        self.corpus_path = bliss_corpus
+        self.bliss_corpus = bliss_corpus
         self.num_segments = num_segments
-        self.single_segment_files = dict(
+        self.out_single_segment_files = dict(
             (i, self.output_path("segments.%d" % i)) for i in range(1, num_segments + 1)
         )
-        self.segment_path = MultiOutputPath(
-            self, "segments.$(TASK)", self.single_segment_files
+        self.out_segment_path = MultiOutputPath(
+            self, "segments.$(TASK)", self.out_single_segment_files
         )
 
     def tasks(self):
@@ -44,13 +44,13 @@ class SegmentCorpusJob(Job):
 
     def run(self):
         c = corpus.Corpus()
-        c.load(tk.uncached_path(self.corpus_path))
+        c.load(self.bliss_corpus.get_path())
 
         all_segments = list(c.segments())
 
         for idx, segments in enumerate(chunks(all_segments, self.num_segments)):
             with open(
-                self.single_segment_files[idx + 1].get_path(), "wt"
+                self.out_single_segment_files[idx + 1].get_path(), "wt"
             ) as segment_file:
                 for segment in segments:
                     segment_file.write(segment.fullname() + "\n")
@@ -62,13 +62,13 @@ class SegmentCorpusBySpeakerJob(Job):
 
         self.bliss_corpus = bliss_corpus
 
-        self.num_speakers = self.output_var("num_speakers", True)
-        self.segment_dir = self.output_path("segments", True)
-        self.segment_path = MultiOutputPath(
-            self, "segments/speaker.$(TASK)", self.segment_dir
+        self.out_num_speakers = self.output_var("num_speakers", True)
+        self.out_segment_dir = self.output_path("segments", True)
+        self.out_segment_path = MultiOutputPath(
+            self, "segments/speaker.$(TASK)", self.out_segment_dir
         )
-        self.speaker_map_file = self.output_path("speaker.map")
-        self.cluster_map_file = self.output_path("cluster.map.xml")
+        self.out_speaker_map_file = self.output_path("speaker.map")
+        self.out_cluster_map_file = self.output_path("cluster.map.xml")
 
     def tasks(self):
         yield Task("run", resume="run", mini_task=True)
@@ -83,16 +83,18 @@ class SegmentCorpusBySpeakerJob(Job):
             speaker = "unknown" if speaker is None else speaker.name
             speaker_map[speaker].append(segment.fullname())
 
-        self.num_speakers.set(len(speaker_map))
+        self.out_num_speakers.set(len(speaker_map))
 
-        with open(self.speaker_map_file.get_path(), "wt") as smf:
-            with open(self.cluster_map_file.get_path(), "wt") as cmf:
+        with open(self.out_speaker_map_file.get_path(), "wt") as smf:
+            with open(self.out_cluster_map_file.get_path(), "wt") as cmf:
                 cmf.write('<?xml version="1.0" encoding="utf-8" ?>\n')
                 cmf.write("<coprus-key-map>\n")  # misspelled on purpose
                 for idx, speaker in enumerate(sorted(speaker_map), 1):
                     smf.write("%s\n" % speaker)
                     with open(
-                        os.path.join(self.segment_dir.get_path(), "speaker.%d" % idx),
+                        os.path.join(
+                            self.out_segment_dir.get_path(), "speaker.%d" % idx
+                        ),
                         "wt",
                     ) as ssf:
                         for segment in speaker_map[speaker]:
@@ -110,25 +112,25 @@ class SegmentCorpusByRegexJob(Job):
     ):
         self.set_vis_name("Segment By Regex")
 
-        self.corpus_path = bliss_corpus
+        self.bliss_corpus = bliss_corpus
         self.regex = re.compile(regex, regex_flags)
         self.use_fullpath = use_fullpath
         self.groups = groups if groups is not None else [1]
 
-        self.num_speakers = self.output_var("num_speakers", True)
-        self.segment_dir = self.output_path("segments", True)
-        self.segment_path = MultiOutputPath(
-            self, "segments/speaker.$(TASK)", self.segment_dir
+        self.out_num_speakers = self.output_var("num_speakers", True)
+        self.out_segment_dir = self.output_path("segments", True)
+        self.out_segment_path = MultiOutputPath(
+            self, "segments/speaker.$(TASK)", self.out_segment_dir
         )
-        self.speaker_map_file = self.output_path("speaker.map")
-        self.cluster_map_file = self.output_path("cluster.map.xml")
+        self.out_speaker_map_file = self.output_path("speaker.map")
+        self.out_cluster_map_file = self.output_path("cluster.map.xml")
 
     def tasks(self):
         yield Task("run", mini_task=True)
 
     def run(self):
         c = corpus.Corpus()
-        c.load(tk.uncached_path(self.corpus_path))
+        c.load(self.bliss_corpus.get_path())
         speaker_map = {}
         for segment in c.segments():
             if self.use_fullpath:
@@ -151,16 +153,18 @@ class SegmentCorpusByRegexJob(Job):
 
             speaker_map[speaker].append(segment.fullname())
 
-        self.num_speakers.set(len(speaker_map))
+        self.out_num_speakers.set(len(speaker_map))
 
-        with open(self.speaker_map_file.get_path(), "wt") as smf:
-            with open(self.cluster_map_file.get_path(), "wt") as cmf:
+        with open(self.out_speaker_map_file.get_path(), "wt") as smf:
+            with open(self.out_cluster_map_file.get_path(), "wt") as cmf:
                 cmf.write('<?xml version="1.0" encoding="utf-8" ?>\n')
                 cmf.write("<coprus-key-map>\n")  # misspelled on purpose
                 for idx, speaker in enumerate(sorted(speaker_map), 1):
                     smf.write("%s\n" % speaker)
                     with open(
-                        os.path.join(self.segment_dir.get_path(), "speaker.%d" % idx),
+                        os.path.join(
+                            self.out_segment_dir.get_path(), "speaker.%d" % idx
+                        ),
                         "wt",
                     ) as ssf:
                         for segment in speaker_map[speaker]:
@@ -190,7 +194,7 @@ class ShuffleAndSplitSegmentsJob(Job):
         self.shuffle = shuffle
         self.shuffle_seed = shuffle_seed
 
-        self.new_segments = {
+        self.out_segments = {
             k: self.output_path("%s.segments" % k) for k in self.split.keys()
         }
 
@@ -198,7 +202,7 @@ class ShuffleAndSplitSegmentsJob(Job):
         yield Task("run", mini_task=True)
 
     def run(self):
-        with open(tk.uncached_path(self.segment_file)) as f:
+        with open(self.segment_file.get_path()) as f:
             segments = f.readlines()
 
         if self.shuffle:
@@ -215,7 +219,7 @@ class ShuffleAndSplitSegmentsJob(Job):
         ] = n  # just in case we get numeric errors that drop the last element
 
         for i, k in enumerate(ordered_keys):
-            with open(self.new_segments[k].get_path(), "wt") as f:
+            with open(self.out_segments[k].get_path(), "wt") as f:
                 f.writelines(segments[split_idx[i] : split_idx[i + 1]])
 
     @classmethod
@@ -237,19 +241,19 @@ class SplitSegmentFileJob(Job):
         self.segment_file = segment_file
         self.concurrent = concurrent
 
-        self.single_segments = {
+        self.out_single_segments = {
             i: self.output_path("segments.%d" % i)
             for i in range(1, self.concurrent + 1)
         }
-        self.segment_path = MultiOutputPath(
-            self, "segments.$(TASK)", self.single_segments, cached=True
+        self.out_segment_path = MultiOutputPath(
+            self, "segments.$(TASK)", self.out_single_segments, cached=True
         )
 
     def tasks(self):
         yield Task("run", resume="run", mini_task=True)
 
     def run(self):
-        with open(tk.uncached_path(self.segment_file), "rt") as f:
+        with open(self.segment_file.get_path(), "rt") as f:
             lines = [l for l in f.readlines() if len(l.strip()) > 0]
 
         n = len(lines)
@@ -258,7 +262,7 @@ class SplitSegmentFileJob(Job):
         for i in range(1, self.concurrent + 1):
             start = end
             end += n // self.concurrent + (1 if i <= m else 0)
-            with open(self.single_segments[i].get_path(), "wt") as f:
+            with open(self.out_single_segments[i].get_path(), "wt") as f:
                 f.writelines(lines[start:end])
 
 
@@ -310,7 +314,7 @@ class SortSegmentsByLengthAndShuffleJob(Job):
         self.shuffle_strength = shuffle_strength
         self.shuffle_seed = shuffle_seed
 
-        self.new_segments = self.output_path("segments")
+        self.out_segments = self.output_path("segments")
 
     def tasks(self):
         yield Task("run", mini_task=True)
@@ -350,7 +354,7 @@ class SortSegmentsByLengthAndShuffleJob(Job):
             list(segment_dict.keys()), size=len(probs), replace=False, p=probs
         )
 
-        with open(self.new_segments.get_path(), "wt") as f:
+        with open(self.out_segments.get_path(), "wt") as f:
             f.writelines(seglist)
 
 
@@ -366,7 +370,7 @@ class UpdateSegmentsWithSegmentMapJob(Job):
 
         self.segment_file = segment_file
         self.segment_map = segment_map
-        self.out = self.output_path("updated.segments")
+        self.out_segments = self.output_path("updated.segments")
 
     def tasks(self):
         yield Task("run", mini_task=True)
@@ -374,14 +378,14 @@ class UpdateSegmentsWithSegmentMapJob(Job):
     def run(self):
 
         sm = corpus.SegmentMap()
-        sm.load(tk.uncached_path(self.segment_map))
+        sm.load(self.segment_map.get_path())
 
         segment_map_dict = {}
         for map_item in sm.map_entries:
             segment_map_dict[map_item.key] = map_item.value
 
-        with open(tk.uncached_path(self.segment_file), "rt") as in_segments, open(
-            tk.uncached_path(self.out), "wt"
+        with open(self.segment_file.get_path(), "rt") as in_segments, open(
+            self.out_segments.get_path(), "wt"
         ) as out_segments:
             for in_segment in in_segments:
                 out_segment = segment_map_dict[in_segment.strip()].strip()
