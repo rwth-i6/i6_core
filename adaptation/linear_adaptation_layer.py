@@ -181,8 +181,8 @@ class MetaLinearAdaptationJob(Job):
         for key, seg in self.single_segments.items():
             print("{}: Adding training {}".format(self.name, key))
             new_segments = corpus_recipes.ShuffleAndSplitSegmentsJob(seg)
-            seg_train = new_segments.new_segments["train"]
-            seg_dev = new_segments.new_segments["dev"]
+            seg_train = new_segments.out_segments["train"]
+            seg_dev = new_segments.out_segments["dev"]
 
             train_corpus = copy.deepcopy(self.corpus)
             train_corpus.segment_path = seg_train
