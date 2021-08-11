@@ -32,7 +32,7 @@ class CostaJob(rasr.RasrCommand, Job):
         self.rqmt = {
             "time": max(crp.corpus_duration / 20, 0.5),
             "cpu": 1,
-            "mem": 1 if not self.config.costa.lm_statistics else 4,
+            "mem": 1 if not self.config.costa.lm_statistics else 8,
         }
 
     def tasks(self):
