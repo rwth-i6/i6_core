@@ -2,6 +2,7 @@ __all__ = ["PipelineJob", "ConcatenateJob", "HeadJob", "TailJob"]
 
 import os
 from sisyphus import Job, Task, Path, global_settings as gs
+from sisyphus.delayed_ops import DelayedBase
 
 
 class PipelineJob(Job):
@@ -19,7 +20,8 @@ class PipelineJob(Job):
     ):
         """
         :param iterable[Path]|Path text_files: text file (raw or gz) or list of files to be processed
-        :param list[str] pipeline: list of shell commands to form the pipeline
+        :param list[str|DelayedBase] pipeline: list of shell commands to form the pipeline,
+            can be empty to use the job for concatenation or gzip compression only.
         :param bool zip_output: apply gzip to the output
         :param bool check_equal_length: the line count of the input and output should match
         :param bool mini_task: the pipeline should be run as mini_task
@@ -78,7 +80,10 @@ class PipelineJob(Job):
             inputs = " ".join(i.get_cached_path() for i in self.text_files)
         else:
             inputs = self.text_files.get_cached_path()
-        self.sh("zcat -f %s | %s > %s" % (inputs, pipe, self.out.get_path()))
+        if pipe:
+            self.sh("zcat -f %s | %s > %s" % (inputs, pipe, self.out.get_path()))
+        else:
+            self.sh("zcat -f %s > %s" % (inputs, self.out.get_path()))
 
         # assume that we do not want empty pipe results
         assert not (os.stat(str(self.out)).st_size == 0), "Pipe result was empty"
@@ -171,15 +176,15 @@ class HeadJob(Job):
 
     def run(self):
         if self.ratio:
-            assert not self.lines
+            assert not self.num_lines
             length = int(self.sh("zcat -f {text_file} | wc -l", True))
             self.lines = int(length * self.ratio)
 
         self.sh(
-            "zcat -f {data} | head -n {num_lines} | gzip > {out}",
+            "zcat -f {text_file} | head -n {num_lines} | gzip > {out}",
             except_return_codes=(141,),
         )
-        self.length.set(self.lines)
+        self.length.set(self.num_lines)
 
 
 class TailJob(HeadJob):
@@ -193,4 +198,4 @@ class TailJob(HeadJob):
             length = int(self.sh("zcat -f {text_file} | wc -l", True))
             self.lines = int(length * self.ratio)
 
-        self.sh("zcat -f {data} | tail -n {lines} | gzip > {out}")
+        self.sh("zcat -f {text_file} | tail -n {num_lines} | gzip > {out}")
