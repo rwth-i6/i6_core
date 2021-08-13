@@ -37,20 +37,22 @@ class ReturnnModel:
 
 class Checkpoint:
     """
-    Checkpoint object which holds the checkpoint path prefix as string,
-    and the index file path as tk.Path
+    Checkpoint object which holds the (Tensorflow) index file path as tk.Path,
+    and will return the checkpoint path as common prefix of the .index/.meta/.data[...]
     """
 
-    def __init__(self, ckpt_path, index_path):
+    def __init__(self, index_path):
         """
-        :param str ckpt_path:
         :param Path index_path:
         """
-        self.ckpt_path = ckpt_path
         self.index_path = index_path
 
     def _sis_hash(self):
         return self.index_path._sis_hash()
+
+    @property
+    def ckpt_path(self):
+        return self.index_path.get_path()[: -len(".index")]
 
     def __str__(self):
         return self.ckpt_path
@@ -61,8 +63,19 @@ class Checkpoint:
 
 class ReturnnTrainingJob(Job):
     """
-    Train a RETURNN model using rnn.py
+    Train a RETURNN model using the rnn.py entry point.
 
+    Only returnn_config, returnn_python_exe and returnn_root influence the hash.
+
+    The outputs provided are:
+
+     - out_returnn_config_file: the finalized Returnn config which is used for the rnn.py call
+     - out_learning_rates: the file containing the learning rates and training scores (e.g. use to select the best checkpoint or generate plots)
+     - out_model_dir: the model directory, which can be used in succeeding jobs to select certain models or do combinations
+        note that the model dir is DIRECTLY AVAILABLE when the job starts running, so jobs that do not have other conditions
+        need to implement an "update" method to check if the required checkpoints are already existing
+     - out_checkpoints: a dictionary containing all created checkpoints. Note that when using the automatic checkpoint cleaning
+        function of Returnn not all checkpoints are actually available.
     """
 
     def __init__(
@@ -86,7 +99,8 @@ class ReturnnTrainingJob(Job):
         :param ReturnnConfig returnn_config:
         :param int log_verbosity: RETURNN log verbosity from 1 (least verbose) to 5 (most verbose)
         :param str device: "cpu" or "gpu"
-        :param int num_epochs: number of epochs to run, will also set `num_epochs` in the config file
+        :param int num_epochs: number of epochs to run, will also set `num_epochs` in the config file.
+            Note that this value is NOT HASHED, so that this number can be increased and the training continued.
         :param int save_interval: save a checkpoint each n-th epoch
         :param list[int]|set[int]|None keep_epochs: specify which checkpoints are kept, use None for the RETURNN default
         :param int|float time_rqmt:
@@ -109,7 +123,8 @@ class ReturnnTrainingJob(Job):
         self.returnn_root = (
             returnn_root if returnn_root is not None else gs.RETURNN_ROOT
         )
-
+        self.use_horovod = True if (horovod_num_processes is not None) else False
+        self.horovod_num_processes = horovod_num_processes
         self.returnn_config = ReturnnTrainingJob.create_returnn_config(**kwargs)
 
         stored_epochs = list(range(save_interval, num_epochs, save_interval)) + [
@@ -136,20 +151,13 @@ class ReturnnTrainingJob(Job):
         }
         if self.returnn_config.get("use_tensorflow", False):
             self.out_checkpoints = {
-                k: Checkpoint(index_path.get_path()[: -len(".index")], index_path)
+                k: Checkpoint(index_path)
                 for k in stored_epochs
                 if k in self.keep_epochs
                 for index_path in [self.output_path("models/epoch.%.3d.index" % k)]
             }
         self.out_plot_se = self.output_path("score_and_error.png")
         self.out_plot_lr = self.output_path("learning_rate.png")
-
-        self.returnn_config.post_config["model"] = os.path.join(
-            self.out_model_dir.get_path(), "epoch"
-        )
-
-        self.use_horovod = True if (horovod_num_processes is not None) else False
-        self.horovod_num_processes = horovod_num_processes
 
         self.rqmt = {
             "gpu": 1 if device == "gpu" else 0,
@@ -222,6 +230,10 @@ class ReturnnTrainingJob(Job):
         yield Task("plot", resume="plot", mini_task=True)
 
     def create_files(self):
+        self.returnn_config.post_config["model"] = os.path.join(
+            self.out_model_dir.get_path(), "epoch"
+        )
+
         self.returnn_config.write(self.out_returnn_config_file.get_path())
 
         util.create_executable("rnn.sh", self._get_run_cmd())
