@@ -100,7 +100,7 @@ class ReturnnTrainingJob(Job):
         :param int log_verbosity: RETURNN log verbosity from 1 (least verbose) to 5 (most verbose)
         :param str device: "cpu" or "gpu"
         :param int num_epochs: number of epochs to run, will also set `num_epochs` in the config file.
-            Note that this value is NOT HASHED, so that this number can be increased and the training continued.
+            Note that this value is NOT HASHED, so that this number can be increased to continue the training.
         :param int save_interval: save a checkpoint each n-th epoch
         :param list[int]|set[int]|None keep_epochs: specify which checkpoints are kept, use None for the RETURNN default
         :param int|float time_rqmt:
