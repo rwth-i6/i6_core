@@ -23,11 +23,11 @@ class MapSegmentsWithBundlesJob(Job):
         self.files = files
         self.filename = filename
 
-        self.bundle_dir = self.output_path("bundles", True)
-        self.bundle_path = MultiOutputPath(
+        self.out_bundle_dir = self.output_path("bundles", True)
+        self.out_bundle_path = MultiOutputPath(
             self,
             os.path.join("bundles", "%s") % self.filename,
-            self.bundle_dir,
+            self.out_bundle_dir,
             cached=True,
         )
 
@@ -57,7 +57,7 @@ class MapSegmentsWithBundlesJob(Job):
                     seg_files.add(seg_file)
 
             with open(
-                os.path.join(self.bundle_dir.get_path(), cluster + ".bundle"), "wt"
+                os.path.join(self.out_bundle_dir.get_path(), cluster + ".bundle"), "wt"
             ) as f:
                 for seg_file in seg_files:
                     f.write("%s\n" % seg_file)
@@ -116,11 +116,11 @@ class ClusterMapToSegmentListJob(Job):
     def __init__(self, cluster_map, filename="cluster.$(TASK)"):
         self.cluster_map = cluster_map
 
-        self.segment_dir = self.output_path("segments", True)
-        self.segment_path = MultiOutputPath(
+        self.out_segment_dir = self.output_path("segments", True)
+        self.out_segment_path = MultiOutputPath(
             self,
-            os.path.join(self.segment_dir.get_path(), filename),
-            self.segment_dir,
+            os.path.join(self.out_segment_dir.get_path(), filename),
+            self.out_segment_dir,
             cached=True,
         )
 
@@ -134,7 +134,7 @@ class ClusterMapToSegmentListJob(Job):
             cluster_map[mit.attrib["value"]].append(mit.attrib["key"])
 
         for cluster, segments in cluster_map.items():
-            with open(os.path.join(self.segment_dir.get_path(), cluster), "wt") as f:
+            with open(os.path.join(self.out_segment_dir.get_path(), cluster), "wt") as f:
                 for seg in segments:
                     f.write("%s\n" % seg)
 

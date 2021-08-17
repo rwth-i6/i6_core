@@ -185,11 +185,11 @@ class MetaLinearAdaptationJob(Job):
             seg_dev = new_segments.out_segments["dev"]
 
             train_corpus = copy.deepcopy(self.corpus)
-            train_corpus.segment_path = seg_train
+            train_corpus.out_segment_path = seg_train
             train_corpus.concurrent = 1
 
             dev_corpus = copy.deepcopy(self.corpus)
-            dev_corpus.segment_path = seg_dev
+            dev_corpus.out_segment_path = seg_dev
             dev_corpus.concurrent = 1
 
             j = returnn.ReturnnRasrTrainingJob(
@@ -256,7 +256,7 @@ class MetaLinearAdaptationJob(Job):
             print("{}: Adding recognition for epoch {}".format(self.name, epoch_name))
             for key, segment in self.single_segments.items():
                 eval_corpus = copy.deepcopy(self.corpus)
-                eval_corpus.segment_path = segment
+                eval_corpus.out_segment_path = segment
                 eval_corpus.concurrent = 1
 
                 bundled_flow = self.recog_args["feature_flow"]
