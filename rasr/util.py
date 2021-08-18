@@ -134,7 +134,9 @@ class ClusterMapToSegmentListJob(Job):
             cluster_map[mit.attrib["value"]].append(mit.attrib["key"])
 
         for cluster, segments in cluster_map.items():
-            with open(os.path.join(self.out_segment_dir.get_path(), cluster), "wt") as f:
+            with open(
+                os.path.join(self.out_segment_dir.get_path(), cluster), "wt"
+            ) as f:
                 for seg in segments:
                     f.write("%s\n" % seg)
 
