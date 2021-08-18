@@ -267,7 +267,6 @@ class AddImpulseResponseJob(Job):
         """
         self.corpus_file = corpus_file
         self.new_corpus_name = new_corpus_name
-        self.impulse_responses_dir = ir_path
 
         self.ir_path = ir_path
         self.augment_prob = augment_prob
