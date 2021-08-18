@@ -342,6 +342,24 @@ class System:
             )
         self.feature_flows[corpus]["uncached_plp"] = f.feature_flow
 
+    def voiced_features(self, corpus, prefix="", **kwargs):
+        self.jobs[corpus]["voiced_features"] = f = features.VoicedJob(
+            self.crp[corpus], **kwargs
+        )
+        f.add_alias("%s_%s_voiced_features" % (prefix, corpus))
+        self.feature_caches[corpus]["voiced"] = f.out_feature_path["voiced"]
+        self.feature_bundles[corpus]["voiced"] = f.out_feature_bundle["voiced"]
+
+        feature_path = rasr.FlagDependentFlowAttribute(
+            "cache_mode",
+            {
+                "task_dependent": self.feature_caches[corpus]["voiced"],
+                "bundle": self.feature_bundles[corpus]["voiced"],
+            },
+        )
+        self.feature_flows[corpus]["voiced"] = features.basic_cache_flow(feature_path)
+        self.feature_flows[corpus]["uncached_voiced"] = f.feature_flow
+
     def tone_features(self, corpus, timestamp_flow, prefix="", **kwargs):
         timestamp_flow = self.feature_flows[corpus][timestamp_flow]
         self.jobs[corpus]["tone_features"] = f = features.ToneJob(
