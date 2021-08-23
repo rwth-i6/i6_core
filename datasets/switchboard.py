@@ -191,8 +191,8 @@ class CreateSwitchboardBlissCorpusJob(Job):
                 ), "duplicate recording name: {}?".format(l[2])
                 assert l[1] in ["F", "M"]
 
-                # "sw" prefix is added to match recording names
-                rec_to_speaker["sw" + l[2]] = {
+                # "sw0" prefix is added to match recording names
+                rec_to_speaker["sw0" + l[2]] = {
                     "speaker_id": l[0],
                     "gender": {"M": "male", "F": "female"}.get(l[1]),
                 }
@@ -207,7 +207,11 @@ class CreateSwitchboardBlissCorpusJob(Job):
         for rec_name, segs in sorted(rec_to_segs.items()):
             recording = corpus.Recording()
             recording.name = rec_name
-            recording.audio = os.path.join(self.audio_dir, rec_name + ".wav")
+            recording.audio = os.path.join(self.audio_dir.get_path(), rec_name + ".wav")
+
+            assert os.path.exists(
+                recording.audio
+            ), "recording {} does not exist?".format(recording.audio)
 
             assert (
                 rec_name in rec_to_speaker
@@ -296,7 +300,9 @@ class CreateSwitchboardBlissCorpusJob(Job):
                 for line in f:
                     seg_info = line.strip().split(" ", 3)  # name start end orth
                     assert len(seg_info) == 4
-                    rec_name = seg_info[0].split("-")[0]
+                    rec_name = (
+                        seg_info[0].split("-")[0].replace("sw", "sw0")
+                    )  # e.g: sw2001A-ms98-a-0022 -> sw02001A
                     rec_to_segs[rec_name].append(seg_info)
         return rec_to_segs
 
