@@ -35,7 +35,7 @@ def voiced_flow(
     min_pos=0.0025,
     max_pos=0.0167,
     without_samples=False,
-    sample_options={},
+    samples_options={},
 ):
     net = rasr.FlowNetwork()
 
