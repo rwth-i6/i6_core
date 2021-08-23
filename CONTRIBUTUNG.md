@@ -7,7 +7,7 @@ Please always report problems by filling an issue here on GitHub. This also cove
 **Job general:** 
 
     1. If a class inherits directly/indirectly from the sisyphus class `Job` the class ends with "Job".
-    2. In a Sisyphus job class the output variables end in `out_*`
+    2. In a Sisyphus job class the output variables start with `out_*`
     3. If a Job has non-trivial requirements it should have a `self.rqmt`
 
 **Job constructor order:** 
