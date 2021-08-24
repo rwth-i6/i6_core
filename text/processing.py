@@ -155,12 +155,15 @@ class HeadJob(Job):
         :param int num_lines: number of lines to extract
         :param float ratio: ratio of lines to extract
         """
-
         assert num_lines or ratio, "please specify either lines or ratio"
         assert not (num_lines and ratio), "please specify only lines or ratio, not both"
-        self.set_attrs(locals())
         if ratio:
             assert ratio <= 1
+
+        self.text_file = text_file
+        self.num_lines = num_lines
+        self.ratio = ratio
+
         self.out = self.output_path("out.gz")
         self.length = self.output_var("length")
 
