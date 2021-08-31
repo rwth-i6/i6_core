@@ -234,7 +234,6 @@ class ReturnnTrainingJob(Job):
         yield Task("plot", resume="plot", mini_task=True)
 
     def create_files(self):
-
         self.returnn_config.write(self.out_returnn_config_file.get_path())
 
         util.create_executable("rnn.sh", self._get_run_cmd())
