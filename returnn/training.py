@@ -159,6 +159,10 @@ class ReturnnTrainingJob(Job):
         self.out_plot_se = self.output_path("score_and_error.png")
         self.out_plot_lr = self.output_path("learning_rate.png")
 
+        self.returnn_config.post_config["model"] = os.path.join(
+            self.out_model_dir.get_path(), "epoch"
+        )
+
         self.rqmt = {
             "gpu": 1 if device == "gpu" else 0,
             "cpu": cpu_rqmt,
@@ -230,9 +234,6 @@ class ReturnnTrainingJob(Job):
         yield Task("plot", resume="plot", mini_task=True)
 
     def create_files(self):
-        self.returnn_config.post_config["model"] = os.path.join(
-            self.out_model_dir.get_path(), "epoch"
-        )
 
         self.returnn_config.write(self.out_returnn_config_file.get_path())
 
