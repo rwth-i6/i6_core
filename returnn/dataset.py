@@ -1,17 +1,18 @@
-__all__ = ["ExtractDatasetStatisticsJob"]
+__all__ = ["ExtractDatasetMeanStddevJob"]
 
 from sisyphus import *
 
-import numpy
 import os
 import shutil
 import subprocess
+
+import numpy
 
 from i6_core.returnn.config import ReturnnConfig
 from i6_core.util import create_executable
 
 
-class ExtractDatasetStatisticsJob(Job):
+class ExtractDatasetMeanStddevJob(Job):
     """
     Runs the RETURNN tool dump-dataset with statistic extraction.
     Collects mean and std-var for each feature as file and in total as sisyphus var.
@@ -42,9 +43,9 @@ class ExtractDatasetStatisticsJob(Job):
         self.returnn_root = (
             returnn_root if returnn_root is not None else gs.RETURNN_ROOT
         )
+
         self.out_mean = self.output_var("mean_var")
         self.out_std_dev = self.output_var("std_dev_var")
-
         self.out_mean_file = self.output_path("mean")
         self.out_std_dev_file = self.output_path("std_dev")
 
@@ -68,8 +69,8 @@ class ExtractDatasetStatisticsJob(Job):
         create_executable("rnn.sh", command)
         subprocess.check_call(["./rnn.sh"])
 
-        shutil.copy("stats.mean.txt", self.out_mean_file.get_path())
-        shutil.copy("stats.std_dev.txt", self.out_std_dev_file.get_path())
+        shutil.move("stats.mean.txt", self.out_mean_file.get_path())
+        shutil.move("stats.std_dev.txt", self.out_std_dev_file.get_path())
 
         total_mean = 0
         total_var = 0
