@@ -75,17 +75,18 @@ class ExtractDatasetMeanStddevJob(Job):
         total_mean = 0
         total_var = 0
 
-        mean_file = open("stats.mean.txt")
-        std_dev_file = open("stats.std_dev.txt")
+        with open("stats.mean.txt") as mean_file, open(
+            "stats.std_dev.txt"
+        ) as std_dev_file:
 
-        # compute the total mean and std-dev in an iterative way
-        for i, (mean, std_dev) in enumerate(zip(mean_file, std_dev_file)):
-            mean = float(mean)
-            var = float(std_dev.strip()) ** 2
-            mean_variance = (total_mean - mean) ** 2
-            adjusted_mean_variance = mean_variance * i / (i + 1)
-            total_var = (total_var * i + var + adjusted_mean_variance) / (i + 1)
-            total_mean = (total_mean * i + mean) / (i + 1)
+            # compute the total mean and std-dev in an iterative way
+            for i, (mean, std_dev) in enumerate(zip(mean_file, std_dev_file)):
+                mean = float(mean)
+                var = float(std_dev.strip()) ** 2
+                mean_variance = (total_mean - mean) ** 2
+                adjusted_mean_variance = mean_variance * i / (i + 1)
+                total_var = (total_var * i + var + adjusted_mean_variance) / (i + 1)
+                total_mean = (total_mean * i + mean) / (i + 1)
 
-        self.out_mean.set(total_mean)
-        self.out_std_dev.set(numpy.sqrt(total_var))
+            self.out_mean.set(total_mean)
+            self.out_std_dev.set(numpy.sqrt(total_var))
