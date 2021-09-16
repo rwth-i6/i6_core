@@ -37,12 +37,12 @@ class FilterSegmentsByListJob(Job):
         self.invert_match = invert_match
 
         num_segment_lists = len(self.segment_files)
-        self.single_segment_files = dict(
+        self.out_single_segment_files = dict(
             (i, self.output_path("segments.%d" % i))
             for i in range(1, num_segment_lists + 1)
         )
-        self.segment_path = MultiOutputPath(
-            self, "segments.$(TASK)", self.single_segment_files
+        self.out_segment_path = MultiOutputPath(
+            self, "segments.$(TASK)", self.out_single_segment_files
         )
 
     def tasks(self):
@@ -64,7 +64,7 @@ class FilterSegmentsByListJob(Job):
             ]
             non_empty = False
             with open(
-                self.single_segment_files[idx].get_path(), "wt"
+                self.out_single_segment_files[idx].get_path(), "wt"
             ) as segment_file_filtered:
                 for segment in segment_list:
                     if (self.invert_match and segment in filter_list) or (
@@ -75,7 +75,7 @@ class FilterSegmentsByListJob(Job):
             if not non_empty:
                 logging.warning(
                     "Segment file empty after filtering: {}".format(
-                        self.single_segment_files[idx].get_path()
+                        self.out_single_segment_files[idx].get_path()
                     )
                 )
 
@@ -97,16 +97,16 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
         self.num_segments = crp.concurrent
         self.plot = plot
 
-        self.single_segment_files = dict(
+        self.out_single_segment_files = dict(
             (i, self.output_path("segments.%d" % i))
             for i in range(1, self.num_segments + 1)
         )
-        self.segment_path = MultiOutputPath(
-            self, "segments.$(TASK)", self.single_segment_files
+        self.out_segment_path = MultiOutputPath(
+            self, "segments.$(TASK)", self.out_single_segment_files
         )
-        self.single_file = self.output_path("filtered.segments")
+        self.out_single_file = self.output_path("filtered.segments")
         if plot:
-            self.plot_avg = self.output_path("score.png")
+            self.out_plot_avg = self.output_path("score.png")
 
     def tasks(self):
         yield Task("run", resume="run", mini_task=True)
@@ -154,7 +154,7 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
             plt.xlabel("Average Maximum-Likelihood Score")
             plt.ylabel("Number of Segments")
             plt.title("Histogram of Alignment Scores")
-            plt.savefig(fname=self.plot_avg.get_path())
+            plt.savefig(fname=self.out_plot_avg.get_path())
 
         # Only keep segments that are below the threshold
         filtered_segments = [
@@ -164,12 +164,12 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
 
         for idx, segments in enumerate(chunks(filtered_segments, self.num_segments)):
             with open(
-                self.single_segment_files[idx + 1].get_path(), "wt"
+                self.out_single_segment_files[idx + 1].get_path(), "wt"
             ) as segment_file:
                 for segment in segments:
                     segment_file.write(segment + "\n")
 
-        with open(self.single_file.get_path(), "wt") as segment_file:
+        with open(self.out_single_file.get_path(), "wt") as segment_file:
             for segment in filtered_segments:
                 segment_file.write(segment + "\n")
 
