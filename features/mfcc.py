@@ -101,6 +101,7 @@ def mfcc_flow(
         normalization = net.add_node("signal-normalization", "mfcc-normalization", attr)
         for src in cepstrum_net.get_output_links("out"):
             net.link(cepstrum_mapping[src], normalization)
+        net.add_output("features")
         net.link(normalization, "network:features")
     else:
         net.interconnect_outputs(cepstrum_net, cepstrum_mapping, {"out": "features"})
