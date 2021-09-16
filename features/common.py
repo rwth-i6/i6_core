@@ -8,6 +8,7 @@ __all__ = [
     "cepstrum_flow",
     "add_derivatives",
     "add_linear_transform",
+    "normalize_features",
     "make_first_feature_energy",
     "sync_energy_features",
     "sync_features",
@@ -366,6 +367,34 @@ def add_linear_transform(feature_net, matrix_path):
     )
     net.link(mapping[feature_net.get_output_links("features").pop()], transform)
     net.link(transform, "network:features")
+
+    return net
+
+
+def normalize_features(
+    feature_net, length="infinite", right="infinite", norm_type="mean-and-variance"
+):
+    """
+    Add normalization of the specfified type to the feature flow
+    :param feature_net rasr.FlowNetwork: the unnormalized flow network, must have an output named 'features'
+    :param length int|str: length of the normalization window in frames (or 'infinite')
+    :param right int|str: number of frames right of the current position in the normalization window (can also be 'infinite')
+    :param norm_type str: type of normalization, possible values are 'level', 'mean', 'mean-and-variance', 'mean-and-variance-1D', 'divide-by-mean', 'mean-norm'
+    :returns rasr.FlowNetwork: input FlowNetwork with a signal-normalization node before the output
+    """
+    net = rasr.FlowNetwork()
+    net.add_output("features")
+
+    mapping = net.add_net(feature_net)
+    net.interconnect_inputs(feature_net, mapping)
+
+    normalization = net.add_node(
+        "signal-normalization",
+        "normalization",
+        {"length": str(length), "right": str(right), "type": norm_type},
+    )
+    net.link(mapping[feature_net.get_output_links("features").pop()], normalization)
+    net.link(normalization, "network:features")
 
     return net
 
