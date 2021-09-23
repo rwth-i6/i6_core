@@ -75,7 +75,7 @@ class FilterLexiconByWordListJob(Job):
             ):
                 root.append(lemma)
 
-        with uopen(self.out_bliss_lexicon.get_path(), "w") as lexicon_file:
+        with uopen(self.out_bliss_lexicon.get_path(), "wt") as lexicon_file:
             lexicon_file.write('<?xml version="1.0" encoding="utf-8"?>\n')
             lexicon_file.write(ET.tostring(root, "unicode"))
 

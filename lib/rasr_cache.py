@@ -340,11 +340,11 @@ class FileArchive:
 
         elif typ in ["align", "align_raw"]:
             type_len = self.read_U32()
-            typ = self.read_str(type_len)
-            assert typ == "flow-alignment"
+            file_typ = self.read_str(type_len)
+            assert file_typ == "flow-alignment"
             self.read_u32()  # flag ?
-            typ = self.read_str(8)
-            if typ in ["ALIGNRLE", "AALPHRLE"]:
+            align_typ = self.read_str(8)
+            if align_typ in ["ALIGNRLE", "AALPHRLE"]:
                 # In case of AALPHRLE, after the alignment, we include the alphabet of the used labels.
                 # We ignore this at the moment.
                 size = self.read_U32()
@@ -361,7 +361,8 @@ class FileArchive:
                                 if typ != "align_raw":
                                     mix, state = self.getState(mix)
                                 logging.debug(mix, state)
-                                logging.debug(time, self.allophones[mix])
+                                if typ != "align_raw":
+                                    logging.debug(time, self.allophones[mix])
                                 alignment.append((time, mix, state, 1))
                                 time += 1
                                 n -= 1
@@ -371,7 +372,8 @@ class FileArchive:
                                 mix, state = self.getState(mix)
                             while n < 0:
                                 logging.debug(mix, state)
-                                logging.debug(time, self.allophones[mix])
+                                if typ != "align_raw":
+                                    logging.debug(time, self.allophones[mix])
                                 alignment.append((time, mix, state, 1))
                                 time += 1
                                 n += 1
