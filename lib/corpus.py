@@ -170,6 +170,10 @@ class Corpus(NamedEntity, CorpusSection):
         for sc in self.subcorpora:
             yield from sc.segments()
 
+    def all_subcorpora(self):
+        for sc in self.subcorpora:
+            yield sc
+
     def all_recordings(self):
         yield from self.recordings
         for sc in self.subcorpora:
@@ -179,6 +183,9 @@ class Corpus(NamedEntity, CorpusSection):
         yield from self.speakers
         for sc in self.subcorpora:
             yield from sc.all_speakers()
+
+    def top_level_recordings(self):
+        yield from self.recordings
 
     def remove_recording(self, recording):
         to_delete = []

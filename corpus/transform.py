@@ -311,6 +311,7 @@ class CompressCorpusJob(Job):
 class MergeStrategy(enum.Enum):
     SUBCORPORA = 0
     FLAT = 1
+    CONCATENATE = 2
 
 
 class MergeCorporaJob(Job):
@@ -345,6 +346,11 @@ class MergeCorporaJob(Job):
                 for rec in c.all_recordings():
                     merged_corpus.add_recording(rec)
                 merged_corpus.speakers.update(c.speakers)
+            elif self.merge_strategy == MergeStrategy.CONCATENATE:
+                for subcorpus in c.all_subcorpora():
+                    merged_corpus.add_subcorpus(subcorpus)
+                for rec in c.top_level_recordings():
+                    merged_corpus.add_recording(rec)
             else:
                 assert False, "invalid merge strategy"
 
