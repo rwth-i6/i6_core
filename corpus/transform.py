@@ -351,6 +351,8 @@ class MergeCorporaJob(Job):
                     merged_corpus.add_subcorpus(subcorpus)
                 for rec in c.top_level_recordings():
                     merged_corpus.add_recording(rec)
+                for speaker in c.top_level_speakers():
+                    merged_corpus.add_speaker(speaker)
             else:
                 assert False, "invalid merge strategy"
 
