@@ -347,7 +347,7 @@ class MergeCorporaJob(Job):
                     merged_corpus.add_recording(rec)
                 merged_corpus.speakers.update(c.speakers)
             elif self.merge_strategy == MergeStrategy.CONCATENATE:
-                for subcorpus in c.all_subcorpora():
+                for subcorpus in c.top_level_subcorpora():
                     merged_corpus.add_subcorpus(subcorpus)
                 for rec in c.top_level_recordings():
                     merged_corpus.add_recording(rec)
