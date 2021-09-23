@@ -240,11 +240,9 @@ class ReturnnSearchFromFileJob(Job):
         self.rqmt = {"gpu": 1, "cpu": 2, "mem": mem_rqmt, "time": time_rqmt}
 
         assert output_mode in ["py", "txt"]
-        self.search_results = self.output_path("search_results.%s" % output_mode)
+        self.out_search_file = self.output_path("search_results.%s" % output_mode)
 
-        self.parameter_dict["search_output_file"] = tk.uncached_path(
-            self.search_results
-        )
+        self.parameter_dict["search_output_file"] = self.out_search_file.get_path()
         self.parameter_dict["search_output_file_format"] = output_mode
 
     def update(self):
