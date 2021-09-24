@@ -77,12 +77,24 @@ class AdvancedTreeSearchLmImageAndGlobalCacheJob(rasr.RasrCommand, Job):
     @classmethod
     def find_arpa_lms(cls, lm_config, lm_post_config=None):
         result = []
+
+        def has_image(c, pc):
+            res = c._get("image") is not None
+            res = res or (pc is not None and pc._get("image") is not None)
+            return res
+
         if lm_config.type == "ARPA":
-            result.append((lm_config, lm_post_config))
+            if not has_image(lm_config, lm_post_config):
+                result.append((lm_config, lm_post_config))
         elif lm_config.type == "combine":
             for i in range(1, lm_config.num_lms + 1):
                 sub_lm_config = lm_config["lm-%d" % i]
-                if sub_lm_config.type == "ARPA":
+                sub_lm_config = (
+                    lm_post_config["lm-%d" % i] if lm_post_config is not None else None
+                )
+                if sub_lm_config.type == "ARPA" and not has_image(
+                    sub_lm_config, sub_lm_post_config
+                ):
                     result.append(
                         (
                             sub_lm_config,
@@ -126,7 +138,12 @@ class AdvancedTreeSearchLmImageAndGlobalCacheJob(rasr.RasrCommand, Job):
         )
         config.flf_lattice_tool.network.recognizer.lm.scale = 1.0
 
-        arpa_lms = cls.find_arpa_lms(config.flf_lattice_tool.network.recognizer.lm)
+        arpa_lms = cls.find_arpa_lms(
+            config.flf_lattice_tool.network.recognizer.lm,
+            post_config.flf_lattice_tool.network.recognizer.lm
+            if post_config is not None
+            else None,
+        )
         for i, lm_config in enumerate(arpa_lms):
             lm_config[0].image = "lm-%d.image" % (i + 1)
 
