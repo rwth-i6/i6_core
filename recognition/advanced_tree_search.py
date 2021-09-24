@@ -92,7 +92,7 @@ class AdvancedTreeSearchLmImageAndGlobalCacheJob(rasr.RasrCommand, Job):
                 sub_lm_post_config = (
                     lm_post_config["lm-%d" % i] if lm_post_config is not None else None
                 )
-                result.append(find_arpa_lms(sub_lm_config, sub_lm_post_config))
+                result += cls.find_arpa_lms(sub_lm_config, sub_lm_post_config)
         return result
 
     @classmethod
