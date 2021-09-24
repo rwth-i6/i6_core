@@ -89,12 +89,10 @@ class AdvancedTreeSearchLmImageAndGlobalCacheJob(rasr.RasrCommand, Job):
         elif lm_config.type == "combine":
             for i in range(1, lm_config.num_lms + 1):
                 sub_lm_config = lm_config["lm-%d" % i]
-                sub_lm_config = (
+                sub_lm_post_config = (
                     lm_post_config["lm-%d" % i] if lm_post_config is not None else None
                 )
-                if sub_lm_config.type == "ARPA" and not has_image(
-                    sub_lm_config, sub_lm_post_config
-                ):
+                result.append(find_arpa_lms(sub_lm_config,sub_lm_post_config))
                     result.append(
                         (
                             sub_lm_config,
