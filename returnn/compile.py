@@ -116,16 +116,22 @@ class CompileNativeOpJob(Job):
     Compile a RETURNN native op into a shared object file.
     """
 
+    __sis_hash_exclude__ = {"search_numpy_blas": True, "blas_lib": None}
+
     def __init__(
         self,
         native_op,
         returnn_python_exe=None,
         returnn_root=None,
+        search_numpy_blas=True,
+        blas_lib=None,
     ):
         """
         :param str native_op: Name of the native op to compile (e.g. NativeLstm2)
         :param Path|str returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
         :param Path|str returnn_root: file path to the RETURNN repository root folder
+        :param bool search_numpy_blas: search for blas lib in numpy's .libs folder
+        :param Path|str blas_lib: explicit path to the blas library to use
         """
         self.native_op = native_op
         self.returnn_python_exe = (
@@ -136,6 +142,8 @@ class CompileNativeOpJob(Job):
         self.returnn_root = (
             returnn_root if returnn_root is not None else gs.RETURNN_ROOT
         )
+        self.search_numpy_blas = search_numpy_blas
+        self.blas_lib = blas_lib
 
         self.out_op = self.output_path("%s.so" % native_op)
         self.out_grad_op = self.output_path("GradOf%s.so" % native_op)
@@ -159,6 +167,10 @@ class CompileNativeOpJob(Job):
             "--output_file",
             "compile.out",
         ]
+        if not self.search_numpy_blas:
+            cmd += ["--no_search_for_numpy_blas"]
+        if self.blas_lib is not None:
+            cmd += ["--blas_lib", tk.uncached_path(self.blas_lib)]
         logging.info(cmd)
 
         util.create_executable(
