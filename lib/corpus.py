@@ -176,7 +176,7 @@ class Corpus(NamedEntity, CorpusSection):
             yield from sc.all_recordings()
 
     def all_speakers(self):
-        yield from self.speakers
+        yield from self.speakers.values()
         for sc in self.subcorpora:
             yield from sc.all_speakers()
 
