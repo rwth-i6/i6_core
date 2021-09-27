@@ -48,7 +48,19 @@ def mfcc_flow(
     samples_options=None,
     fft_options=None,
     cepstrum_options=None,
+    add_features_output=False,
 ):
+    """
+    :param warping_function str:
+    :param filter_width float:
+    :param normalize bool: whether to add or not a normalization layer
+    :param without_samples bool:
+    :param samples_options dict: arguments to :func:`~features.common.sample_flow`
+    :param fft_options dict: arguments to :func:`~features.common.fft_flow`
+    :param cepstrum_options dict: arguments to :func:`~features.common.cepstrum_flow`
+    :param add_features_output bool: Add the output port "features" when normalize is True. This should be set to True,
+        default is False to not break existing hash.
+    """
     if normalization_options is None:
         normalization_options = {}
     if samples_options is None:
@@ -101,7 +113,8 @@ def mfcc_flow(
         normalization = net.add_node("signal-normalization", "mfcc-normalization", attr)
         for src in cepstrum_net.get_output_links("out"):
             net.link(cepstrum_mapping[src], normalization)
-        net.add_output("features")
+        if add_features_output:
+            net.add_output("features")
         net.link(normalization, "network:features")
     else:
         net.interconnect_outputs(cepstrum_net, cepstrum_mapping, {"out": "features"})
