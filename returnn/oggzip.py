@@ -24,6 +24,7 @@ class BlissToOggZipJob(Job):
         raw_sample_rate=None,
         feat_sample_rate=None,
         no_conversion=False,
+        no_audio=False,
         returnn_python_exe=None,
         returnn_root=None,
     ):
@@ -36,6 +37,7 @@ class BlissToOggZipJob(Job):
         :param int raw_sample_rate: raw audio sampling rate
         :param int feat_sample_rate: feature sampling rate
         :param bool no_conversion: do not call the actual conversion, assume the audio files are already correct
+        :param bool no_audio: do not add audio files
         :param Path|str returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
         :param Path|str returnn_root: file path to the RETURNN repository root folder
         """
@@ -45,6 +47,7 @@ class BlissToOggZipJob(Job):
         self.raw_sample_rate = raw_sample_rate
         self.feat_sample_rate = feat_sample_rate
         self.no_conversion = no_conversion
+        self.no_audio = no_audio
 
         self.returnn_python_exe = (
             returnn_python_exe
@@ -78,15 +81,18 @@ class BlissToOggZipJob(Job):
         if self.segments is not None:
             args.extend(["--subset_segment_file", tk.uncached_path(self.segments)])
 
-        if self.no_conversion:
-            args.extend(["--no_conversion"])
+        if self.no_audio:
+            args.extend(["--no_ogg"])
         else:
-            if self.rasr_cache is not None:
-                args.extend(["--sprint_cache", tk.uncached_path(self.rasr_cache)])
-            if self.raw_sample_rate is not None:
-                args.extend(["--raw_sample_rate", str(self.raw_sample_rate)])
-            if self.feat_sample_rate is not None:
-                args.extend(["--feat_sample_rate", str(self.feat_sample_rate)])
+            if self.no_conversion:
+                args.extend(["--no_conversion"])
+            else:
+                if self.rasr_cache is not None:
+                    args.extend(["--sprint_cache", tk.uncached_path(self.rasr_cache)])
+                if self.raw_sample_rate is not None:
+                    args.extend(["--raw_sample_rate", str(self.raw_sample_rate)])
+                if self.feat_sample_rate is not None:
+                    args.extend(["--feat_sample_rate", str(self.feat_sample_rate)])
 
         sp.check_call(args)
         relink("out.ogg.zip", self.out_ogg_zip.get_path())
@@ -94,4 +100,7 @@ class BlissToOggZipJob(Job):
     @classmethod
     def hash(cls, parsed_args):
         del parsed_args["returnn_python_exe"]
+        # hash compatibility
+        if parsed_args["no_audio"] == False:
+            del parsed_args["no_audio"]
         return super().hash(parsed_args)
