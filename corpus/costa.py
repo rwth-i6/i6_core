@@ -23,7 +23,7 @@ class CostaJob(rasr.RasrCommand, Job):
         )
         self.audio_flow = raw_audio_flow(crp.audio_format) if eval_recordings else None
 
-        self.log_file = self.output_path(
+        self.out_log_file = self.output_path(
             "costa.log" + (".gz" if crp.compress_log_file else "")
         )
         self.exe = (
@@ -48,7 +48,7 @@ class CostaJob(rasr.RasrCommand, Job):
         self.write_run_script(self.exe, "costa.config")
 
     def run(self):
-        self.run_script(1, self.log_file)
+        self.run_script(1, self.out_log_file)
 
     def cleanup_before_run(self, cmd, retry, task_id, *args):
         util.backup_if_exists("costa.log")
