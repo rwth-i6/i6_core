@@ -422,7 +422,7 @@ class System:
             self.crp[corpus], **kwargs
         )
         j.add_alias("%scosta_%s" % (prefix, corpus))
-        tk.register_output("%s%s.costa.log.gz" % (prefix, corpus), j.log_file)
+        tk.register_output("%s%s.costa.log.gz" % (prefix, corpus), j.out_log_file)
 
     def linear_alignment(self, name, corpus, flow, prefix="", **kwargs):
         """
@@ -608,7 +608,7 @@ class System:
             **kwargs,
         )
         self.jobs[corpus]["optimize_%s" % name] = j
-        tk.register_output("%soptimize_%s.log" % (prefix, name), j.log_file)
+        tk.register_output("%soptimize_%s.log" % (prefix, name), j.out_log_file)
 
     def recog_and_optimize(
         self,
