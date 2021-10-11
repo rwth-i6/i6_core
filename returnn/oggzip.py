@@ -16,6 +16,8 @@ class BlissToOggZipJob(Job):
 
     """
 
+    __sis_hash_exclude__ = {"no_audio": False}
+
     def __init__(
         self,
         bliss_corpus,
@@ -100,7 +102,4 @@ class BlissToOggZipJob(Job):
     @classmethod
     def hash(cls, parsed_args):
         del parsed_args["returnn_python_exe"]
-        # hash compatibility
-        if parsed_args["no_audio"] == False:
-            del parsed_args["no_audio"]
         return super().hash(parsed_args)
