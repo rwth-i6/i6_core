@@ -85,16 +85,15 @@ class BlissToOggZipJob(Job):
 
         if self.no_audio:
             args.extend(["--no_ogg"])
+        elif self.no_conversion:
+            args.extend(["--no_conversion"])
         else:
-            if self.no_conversion:
-                args.extend(["--no_conversion"])
-            else:
-                if self.rasr_cache is not None:
-                    args.extend(["--sprint_cache", tk.uncached_path(self.rasr_cache)])
-                if self.raw_sample_rate is not None:
-                    args.extend(["--raw_sample_rate", str(self.raw_sample_rate)])
-                if self.feat_sample_rate is not None:
-                    args.extend(["--feat_sample_rate", str(self.feat_sample_rate)])
+            if self.rasr_cache is not None:
+                args.extend(["--sprint_cache", tk.uncached_path(self.rasr_cache)])
+            if self.raw_sample_rate is not None:
+                args.extend(["--raw_sample_rate", str(self.raw_sample_rate)])
+            if self.feat_sample_rate is not None:
+                args.extend(["--feat_sample_rate", str(self.feat_sample_rate)])
 
         sp.check_call(args)
         relink("out.ogg.zip", self.out_ogg_zip.get_path())
