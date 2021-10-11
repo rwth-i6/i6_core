@@ -21,10 +21,10 @@ class Lemma:
         :param Optional[list[str]] orth: list of spellings used in the training data
         :param Optional[list[str]] phon: list of pronunciation variants. Each str should
             contain a space separated string of phonemes from the phoneme-inventory.
-        :param Optional[list[list[str]]] synt: list of language model representations.
+        :param Optional[list[list[str]]] synt: list of token sequences, for which each token sequence is used as as possible language model representation.
             Each sublist should contain words from the language model vocabulary.
         :param Optional[list[list[str]]] eval: list of output representations. Each
-            sublist should contain one possible transcription of this lemma
+            sublist should contain one possible transcription (token sequence) of this lemma
             that is scored against the reference transcription.
         :param Optional[str] special: assigns special property to a lemma.
             Supported values: "silence", "unknown", "sentence-boundary",
