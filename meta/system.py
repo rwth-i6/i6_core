@@ -196,6 +196,21 @@ class System:
             if pattern.match(name) and attr_name in flow.named_attributes:
                 flow.named_attributes[attr_name].value = new_value
 
+    def add_derivatives(self, corpus, flow, num_deriv, num_features=None):
+        """
+        :param str corpus:
+        :param str flow:
+        :param int num_deriv:
+        :param int|None num_features:
+        """
+        self.feature_flows[corpus][flow + "+deriv"] = features.add_derivatives(
+            self.feature_flows[corpus][flow], num_deriv
+        )
+        if num_features is not None:
+            self.feature_flows[corpus][flow + "+deriv"] = features.select_features(
+                self.feature_flows[corpus][flow + "+deriv"], "0-%d" % (num_features - 1)
+            )
+
     def energy_features(self, corpus, prefix="", **kwargs):
         self.jobs[corpus]["energy_features"] = f = features.EnergyJob(
             self.crp[corpus], **kwargs
@@ -236,14 +251,9 @@ class System:
             },
         )
         self.feature_flows[corpus]["mfcc"] = features.basic_cache_flow(feature_path)
-        self.feature_flows[corpus]["mfcc+deriv"] = features.add_derivatives(
-            self.feature_flows[corpus]["mfcc"], num_deriv
-        )
-        if num_features is not None:
-            self.feature_flows[corpus]["mfcc+deriv"] = features.select_features(
-                self.feature_flows[corpus]["mfcc+deriv"], "0-%d" % (num_features - 1)
-            )
         self.feature_flows[corpus]["uncached_mfcc"] = f.feature_flow
+        self.add_derivatives(corpus, "mfcc", num_deriv, num_features)
+        self.add_derivatives(corpus, "uncached_mfcc", num_deriv, num_features)
 
     def fb_features(self, corpus, **kwargs):
         self.jobs[corpus]["fb_features"] = f = features.FilterbankJob(
