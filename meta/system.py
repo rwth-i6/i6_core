@@ -46,6 +46,7 @@ class System:
         self.cart_questions = {}
         self.normalization_matrices = {}
         self.stm_files = {}
+        self.glm_files = {}
 
         self.scorers = {}
         self.scorer_args = {}
@@ -156,6 +157,19 @@ class System:
     def set_sclite_scorer(self, corpus, **kwargs):
         self.scorers[corpus] = recog.ScliteJob
         self.scorer_args[corpus] = {"ref": self.stm_files[corpus], **kwargs}
+        self.scorer_hyp_arg[corpus] = "hyp"
+
+    def set_hub5_scorer(self, corpus, **kwargs):
+        self.scorers[corpus] = recog.Hub5ScoreJob
+        assert corpus in self.glm_files, (
+            "No glm file was defined for '%s' corpus, please specify it explicitly. "
+            "For all non-inhouse corpora there should be an official glm file." % corpus
+        )
+        self.scorer_args[corpus] = {
+            "ref": self.stm_files[corpus],
+            "glm": self.glm_files[corpus],
+            **kwargs,
+        }
         self.scorer_hyp_arg[corpus] = "hyp"
 
     def set_kaldi_scorer(self, corpus, mapping):
