@@ -46,6 +46,7 @@ class System:
         self.cart_questions = {}
         self.normalization_matrices = {}
         self.stm_files = {}
+        self.glm_files = {}
 
         self.scorers = {}
         self.scorer_args = {}
@@ -158,6 +159,19 @@ class System:
         self.scorer_args[corpus] = {"ref": self.stm_files[corpus], **kwargs}
         self.scorer_hyp_arg[corpus] = "hyp"
 
+    def set_hub5_scorer(self, corpus, **kwargs):
+        self.scorers[corpus] = recog.Hub5ScoreJob
+        assert corpus in self.glm_files, (
+            "No glm file was defined for '%s' corpus, please specify it explicitly. "
+            "For all non-inhouse corpora there should be an official glm file." % corpus
+        )
+        self.scorer_args[corpus] = {
+            "ref": self.stm_files[corpus],
+            "glm": self.glm_files[corpus],
+            **kwargs,
+        }
+        self.scorer_hyp_arg[corpus] = "hyp"
+
     def set_kaldi_scorer(self, corpus, mapping):
         self.scorers[corpus] = recog.KaldiScorerJob
         self.scorer_args[corpus] = {
@@ -195,6 +209,21 @@ class System:
         for name, flow in self.feature_flows[corpus].items():
             if pattern.match(name) and attr_name in flow.named_attributes:
                 flow.named_attributes[attr_name].value = new_value
+
+    def add_derivatives(self, corpus, flow, num_deriv, num_features=None):
+        """
+        :param str corpus:
+        :param str flow:
+        :param int num_deriv:
+        :param int|None num_features:
+        """
+        self.feature_flows[corpus][flow + "+deriv"] = features.add_derivatives(
+            self.feature_flows[corpus][flow], num_deriv
+        )
+        if num_features is not None:
+            self.feature_flows[corpus][flow + "+deriv"] = features.select_features(
+                self.feature_flows[corpus][flow + "+deriv"], "0-%d" % (num_features - 1)
+            )
 
     def energy_features(self, corpus, prefix="", **kwargs):
         self.jobs[corpus]["energy_features"] = f = features.EnergyJob(
@@ -236,14 +265,9 @@ class System:
             },
         )
         self.feature_flows[corpus]["mfcc"] = features.basic_cache_flow(feature_path)
-        self.feature_flows[corpus]["mfcc+deriv"] = features.add_derivatives(
-            self.feature_flows[corpus]["mfcc"], num_deriv
-        )
-        if num_features is not None:
-            self.feature_flows[corpus]["mfcc+deriv"] = features.select_features(
-                self.feature_flows[corpus]["mfcc+deriv"], "0-%d" % (num_features - 1)
-            )
         self.feature_flows[corpus]["uncached_mfcc"] = f.feature_flow
+        self.add_derivatives(corpus, "mfcc", num_deriv, num_features)
+        self.add_derivatives(corpus, "uncached_mfcc", num_deriv, num_features)
 
     def fb_features(self, corpus, **kwargs):
         self.jobs[corpus]["fb_features"] = f = features.FilterbankJob(

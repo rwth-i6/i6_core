@@ -75,8 +75,8 @@ class ExtractDatasetMeanStddevJob(Job):
         total_mean = 0
         total_var = 0
 
-        with open("stats.mean.txt") as mean_file, open(
-            "stats.std_dev.txt"
+        with open(self.out_mean_file.get_path()) as mean_file, open(
+            self.out_std_dev_file.get_path()
         ) as std_dev_file:
 
             # compute the total mean and std-dev in an iterative way

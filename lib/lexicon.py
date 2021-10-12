@@ -1,12 +1,29 @@
+"""
+Library for the RASR Lexicon files
+
+For format details visit: `https://www-i6.informatik.rwth-aachen.de/rwth-asr/manual/index.php/Lexicon`_
+"""
 __all__ = ["Lemma", "Lexicon"]
 
 from collections import OrderedDict
 import gzip
+from typing import Optional, List
 import xml.etree.ElementTree as ET
 
 
 class Lemma:
+    """
+    Represents a lemma of a lexicon
+    """
+
     def __init__(self, orth=None, phon=None, synt=None, eval=None, special=None):
+        """
+        :param Optional[list[str]] orth:
+        :param Optional[list[str]] phon:
+        :param Optional[list[str]] synt:
+        :param Optional[list[str]] eval:
+        :param Optional[str] special:
+        """
         self.orth = [] if orth is None else orth
         self.phon = [] if phon is None else phon
         self.synt = [] if synt is None else synt
@@ -14,6 +31,10 @@ class Lemma:
         self.special = special
 
     def to_xml(self):
+        """
+        :return: xml representation
+        :rtype:  ET.Element
+        """
         attrib = {"special": self.special} if self.special is not None else {}
         res = ET.Element("lemma", attrib=attrib)
         for o in self.orth:
@@ -37,6 +58,10 @@ class Lemma:
 
     @classmethod
     def from_element(cls, e):
+        """
+        :param ET.Element e:
+        :rtype: Lemma
+        """
         orth = []
         phon = []
         synt = []
@@ -70,21 +95,40 @@ class Lemma:
 
 
 class Lexicon:
+    """
+    Represents a bliss lexicon, can be read from and written to .xml files
+    """
+
     def __init__(self):
-        self.phonemes = OrderedDict()  # symbol => variation
-        self.lemmata = []
+        self.phonemes = (
+            OrderedDict()
+        )  # type: OrderedDict[str, str] # symbol => variation
+        self.lemmata = []  # type: List[Lemma]
 
     def add_phoneme(self, symbol, variation="context"):
+        """
+        :param str symbol:
+        :param str variation:
+        """
         self.phonemes[symbol] = variation
 
     def remove_phoneme(self, symbol):
+        """
+        :param str symbol:
+        """
         del self.phonemes[symbol]
 
     def add_lemma(self, lemma):
+        """
+        :param Lemma lemma:
+        """
         assert isinstance(lemma, Lemma)
         self.lemmata.append(lemma)
 
     def load(self, path):
+        """
+        :param str path: bliss lexicon .xml or .xml.gz file
+        """
         open_fun = gzip.open if path.endswith(".gz") else open
 
         with open_fun(path, "rt") as f:
@@ -103,6 +147,10 @@ class Lexicon:
             self.add_lemma(l)
 
     def to_xml(self):
+        """
+        :return: xml representation, can be used with `util.write_xml`
+        :rtype: ET.Element
+        """
         root = ET.Element("lexicon")
 
         pi = ET.SubElement(root, "phoneme-inventory")
