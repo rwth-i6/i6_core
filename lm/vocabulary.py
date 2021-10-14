@@ -27,10 +27,10 @@ class LmVocabularyJob(Job):
             while text and text[:6] != "\\data\\":
                 text = infile.readline()
             assert text, "Invalid ARPA file"
-    
+
             while text and text[:5] != "ngram":
                 text = infile.readline()
-    
+
             # get ngram counts
             cngrams = []
             n = 0
@@ -48,37 +48,36 @@ class LmVocabularyJob(Job):
                 cngrams.append(counts)
                 text = infile.readline()
             self.out_vocabulary_size.set(cngrams[0])
-    
+
             # read all 1-grams
             n = 1
             while text and "-grams:" not in text:
                 text = infile.readline()
             assert n == int(text[1]), "invalid ARPA file: %s" % text
-    
+
             ngrams = []
             for _ in range(cngrams[0]):
                 while text and len(text.split()) < 2:
                     text = infile.readline()
                     if (not text) or (
-                            (len(text.split()) == 1)
-                            and (("-grams:" in text) or (text[:5] == "\\end\\"))
+                        (len(text.split()) == 1)
+                        and (("-grams:" in text) or (text[:5] == "\\end\\"))
                     ):
                         break
                 if (not text) or (
-                        (len(text.split()) == 1)
-                        and (("-grams:" in text) or (text[:5] == "\\end\\"))
+                    (len(text.split()) == 1)
+                    and (("-grams:" in text) or (text[:5] == "\\end\\"))
                 ):
                     break  # to deal with incorrect ARPA files
                 entry = text.split()
                 if len(entry) > n + 1:
-                    words = entry[1: n + 1]
+                    words = entry[1 : n + 1]
                 else:
                     words = entry[1:]
                 ngram = " ".join(words)
-                ngrams.append(ngram) 
+                ngrams.append(ngram)
                 text = infile.readline()
 
         with open(self.out_vocabulary.get_path(), "w") as fout:
             for word in ngrams:
                 fout.write("%s\n" % word)
-
