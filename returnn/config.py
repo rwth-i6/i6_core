@@ -3,6 +3,7 @@ __all__ = ["CodeWrapper", "ReturnnConfig", "WriteReturnnConfigJob"]
 import base64
 import inspect
 import json
+import os
 import pickle
 import pprint
 import string
@@ -68,10 +69,26 @@ class ReturnnConfig:
         """
     )
 
+    GET_NETWORK_CODE = textwrap.dedent(
+        """\
+        
+        def get_network(epoch, **kwargs):
+          from networks import networks_dict
+          while(True):
+            if epoch in networks_dict:
+              return networks_dict[epoch]
+            else:
+              epoch -= 1
+              assert epoch > 0, \"Error, no networks found\"
+        
+        """
+    )
+
     def __init__(
         self,
         config,
         post_config=None,
+        staged_network_dict=None,
         *,
         python_prolog=None,
         python_prolog_hash=None,
@@ -97,6 +114,7 @@ class ReturnnConfig:
         """
         self.config = config
         self.post_config = post_config if post_config is not None else {}
+        self.staged_network_dict = staged_network_dict
         self.python_prolog = python_prolog
         self.python_prolog_hash = python_prolog_hash
         if self.python_prolog_hash is None:
@@ -118,7 +136,45 @@ class ReturnnConfig:
             return self.post_config[key]
         return self.config.get(key, default)
 
+    def write_network(self, config_path):
+        """
+        write the networks of the staged network dict into a "networks" folder including
+        the access dictionary in the init file
+
+        :param str config_path:
+        :param dict network:
+        :param int epoch:
+        :return:
+        """
+        config_dir = os.path.dirname(config_path)
+        network_dir = os.path.join(config_dir, "networks")
+        if not os.path.exists(network_dir):
+            os.mkdir(network_dir)
+
+        init_file = os.path.join(network_dir, "__init__.py")
+        init_import_code = "\n"
+        init_dict_code = "\n\nnetworks_dict = {\n"
+
+        for epoch in self.staged_network_dict.keys():
+            network_path = os.path.join(network_dir, "network_%i.py" % epoch)
+            pp = pprint.PrettyPrinter(indent=1, width=150, **self.pprint_kwargs)
+            content = "\nnetwork = %s" % pp.pformat(self.staged_network_dict[epoch])
+            with open(network_path, "wt", encoding="utf-8") as f:
+                f.write(content)
+            init_import_code += "from .network_%i import network as network_%i\n" % (
+                epoch,
+                epoch,
+            )
+            init_dict_code += "  %i: network_%i,\n" % (epoch, epoch)
+
+        init_dict_code += "}\n"
+
+        with open(init_file, "wt", encoding="utf-8") as f:
+            f.write(init_import_code + init_dict_code)
+
     def write(self, path):
+        if self.staged_network_dict:
+            self.write_network(path)
         with open(path, "wt", encoding="utf-8") as f:
             f.write(self.serialize())
 
@@ -148,6 +204,14 @@ class ReturnnConfig:
 
         python_prolog_code = self.__parse_python(self.python_prolog)
         python_epilog_code = self.__parse_python(self.python_epilog)
+
+        if self.staged_network_dict:
+            config_lines.append(self.GET_NETWORK_CODE)
+
+            python_prolog_code = (
+                "import os\nimport sys\nsys.path.insert(0, os.path.dirname(__file__))\n\n"
+                + python_prolog_code
+            )
 
         python_code = string.Template(self.PYTHON_CODE).substitute(
             {
@@ -216,6 +280,9 @@ class ReturnnConfig:
             "python_epilog_hash": self.python_epilog_hash,
             "python_prolog_hash": self.python_prolog_hash,
         }
+        if self.staged_network_dict:
+            h["returnn_networks"] = self.staged_network_dict
+
         return sis_hash_helper(h)
 
 
