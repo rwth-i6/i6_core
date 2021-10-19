@@ -1,10 +1,17 @@
-__all__ = ["SelfNoiseCorpusJob", "ChangeCorpusSpeedJob"]
+__all__ = [
+    "SelfNoiseCorpusJob",
+    "ChangeCorpusSpeedJob",
+    "AddImpulseResponseJob",
+    "MixNoiseJob",
+]
 
 import glob
 import logging
 import os
 import random
 import shutil
+import numpy as np
+import scipy.io.wavfile as wavfile
 
 try:
     import audiomentations
@@ -245,7 +252,83 @@ class ChangeCorpusSpeedJob(Job):
             segments_outfile.writelines(segment_file_names)
 
 
-class AddImpulseResponseJob(Job):
+class AudiomentationsJob(Job):
+    """
+    Generic audiomentations job for subclassing. Class not adapted for speed perturbation changes.
+    """
+
+    def __init__(self, corpus_file, new_corpus_name):
+        """
+
+        :param Path corpus_file: Bliss corpus with wav files
+        :param str new_corpus_name: name of the new corpus
+        :param str out_corpus_path: name of the new corpus file
+        """
+        self.corpus_file = corpus_file
+        self.new_corpus_name = new_corpus_name
+
+        self.out_audio_folder = self.output_path("out_audio/", directory=True)
+        self.out_corpus = self.output_path("augmented_corpus.xml.gz")
+        self.out_segment_file = self.output_path("augmented.segments")
+
+    def tasks(self):
+        yield Task("run", rqmt=self.rqmt)
+
+    def _run(self, audiomentations_transformation, perturbed_string):
+        self.id = os.path.basename(self.job_id())
+
+        corpus_object = corpus.Corpus()
+        corpus_object.load(
+            self.corpus_file.get_path()
+        )  # Modify the Corpus object in-place
+        corpus_object.name = self.new_corpus_name
+        segment_file_names = []
+
+        for r in corpus_object.all_recordings():
+            perturbed_audio_name = perturbed_string + r.audio.split("/")[-1]
+            (
+                samples,
+                sample_rate,
+            ) = audiomentations.core.audio_loading_utils.load_wav_file(
+                r.audio, sample_rate=None
+            )
+
+            # Apply augmentation to each segment separately
+            augmented_samples = np.copy(samples)
+            for seg in r.segments:
+                first_index = int(seg.start * sample_rate)
+                last_index = int(seg.end * sample_rate)
+                seg_samples = samples[first_index:last_index]
+                audiomentations_transformation.randomize_parameters(
+                    seg_samples, sample_rate
+                )
+                augmented_seg_samples = audiomentations_transformation(
+                    seg_samples, sample_rate
+                )
+                assert (
+                    seg_samples.size == augmented_seg_samples.size
+                ), "augmentations involving speed are not supported"
+                augmented_samples[first_index:last_index] = augmented_seg_samples
+                segment_file_names.append(
+                    os.path.join(self.new_corpus_name, r.name, seg.name)
+                )
+
+            wavfile.write(
+                os.path.join(self.out_audio_folder.get_path(), perturbed_audio_name),
+                sample_rate,
+                augmented_samples,
+            )
+
+            r.audio = os.path.join(
+                self.out_audio_folder.get_path(), perturbed_audio_name
+            )
+
+        corpus_object.dump(self.out_corpus.get_path())
+        with open(self.out_segment_file, "w") as segments_outfile:
+            segments_outfile.writelines(segment_file_names)
+
+
+class AddImpulseResponseJob(AudiomentationsJob):
     """
     Add impulse responses to each recording in the corpus with a given probability to be affected.
     This is done by convolving the audio with an impulse response to simulate other acoustic conditions.
@@ -265,62 +348,20 @@ class AddImpulseResponseJob(Job):
         :param float augment_prob: probability of each audio to be augmented by impulse response convolution
         :param int time_rqmt: time requirement for the Sisypus job
         """
-        self.corpus_file = corpus_file
-        self.new_corpus_name = new_corpus_name
+        super().__init__(corpus_file, new_corpus_name)
         self.ir_path = ir_path
         self.augment_prob = augment_prob
 
-        self.rqmt = {"time": time_rqmt, "cpu": 2}
-
-        self.out_audio_folder = self.output_path("out_audio/", directory=True)
-        self.out_corpus = self.output_path("ir_convoluted.corpus.xml.gz")
-
-    def tasks(self):
-        yield Task("run", rqmt=self.rqmt)
+        self.rqmt = {"time": time_rqmt, "cpu": 1, "mem": 2}
 
     def run(self):
         add_impulse_response = audiomentations.AddImpulseResponse(
             ir_path=self.ir_path, p=self.augment_prob
         )
-
-        job_id = os.path.basename(self.job_id())
-        orig_corpus = corpus.Corpus()
-        new_corpus = corpus.Corpus()
-
-        orig_corpus.load(tk.get_path(self.corpus_file))
-        new_corpus.name = self.new_corpus_name
-        new_corpus.speakers = list(orig_corpus.all_speakers())
-        new_corpus.default_speaker = orig_corpus.default_speaker
-        new_corpus.speaker_name = orig_corpus.speaker_name
-
-        for r in orig_corpus.all_recordings():
-            perturbed_audio_name = "perturbed_" + r.audio.split("/")[-1]
-            (
-                samples,
-                sample_rate,
-            ) = audiomentations.core.audio_loading_utils.load_wav_file(
-                r.audio, sample_rate=None
-            )
-            augmented_samples = add_impulse_response(samples, sample_rate)
-            wavfile.write(
-                self.out_audio_folder.get_path() + "/" + perturbed_audio_name,
-                sample_rate,
-                augmented_samples,
-            )
-
-            pr = corpus.Recording()
-            pr.name = r.name
-            pr.segments = r.segments
-            pr.speaker_name = r.speaker_name
-            pr.speakers = r.speakers
-            pr.default_speaker = r.default_speaker
-            pr.audio = self.out_audio_folder.get_path() + "/" + perturbed_audio_name
-            new_corpus.add_recording(pr)
-
-        new_corpus.dump(self.out_corpus.get_path())
+        self._run(add_impulse_response, "impulseresponse_")
 
 
-class MixNoiseJob(Job):
+class MixNoiseJob(AudiomentationsJob):
     """
     Add noise to each recording in the corpus with a given probability to be affected.
     Supports .wav files.
@@ -348,60 +389,16 @@ class MixNoiseJob(Job):
         :param float augment_prob: probability of each audio to be augmented by noise mixing
         :param int time_rqmt: time requirement for the Sisypus job
         """
-        self.corpus_file = corpus_file
+        super().__init__(corpus_file, new_corpus_name)
         self.noise_files_dir = noise_files_dir
-        self.new_corpus_name = new_corpus_name
-
         self.min_snr = min_snr
         self.max_snr = max_snr
         self.augment_prob = augment_prob
 
-        self.rqmt = {"time": time_rqmt, "cpu": 2}
-
-        self.out_audio_folder = self.output_path("out_audio/", directory=True)
-        self.out_corpus = self.output_path("noise_mixed.corpus.xml.gz")
-        self.out_segment_file = self.output_path("noise_mixed.segments")
-
-    def tasks(self):
-        yield Task("run", rqmt=self.rqmt)
+        self.rqmt = {"time": time_rqmt, "cpu": 1, "mem": 2}
 
     def run(self):
         mix_noise = audiomentations.AddBackgroundNoise(
             self.noise_files_dir, self.min_snr, self.max_snr, p=self.augment_prob
         )
-
-        self.id = os.path.basename(self.job_id())
-        orig_corpus = corpus.Corpus()
-        new_corpus = corpus.Corpus()
-
-        orig_corpus.load(tk.get_path(self.corpus_file))
-        new_corpus.name = self.new_corpus_name
-        new_corpus.speakers = list(orig_corpus.all_speakers())
-        new_corpus.default_speaker = orig_corpus.default_speaker
-        new_corpus.speaker_name = orig_corpus.speaker_name
-
-        for r in orig_corpus.all_recordings():
-            perturbed_audio_name = "perturbed_" + r.audio.split("/")[-1]
-            (
-                samples,
-                sample_rate,
-            ) = audiomentations.core.audio_loading_utils.load_wav_file(
-                r.audio, sample_rate=None
-            )
-            augmented_samples = mix_noise(samples, sample_rate)
-            wavfile.write(
-                self.out_audio_folder.get_path() + "/" + perturbed_audio_name,
-                sample_rate,
-                augmented_samples,
-            )
-
-            pr = corpus.Recording()
-            pr.name = r.name
-            pr.segments = r.segments
-            pr.speaker_name = r.speaker_name
-            pr.speakers = r.speakers
-            pr.default_speaker = r.default_speaker
-            pr.audio = self.out_audio_folder.get_path() + "/" + perturbed_audio_name
-            new_corpus.add_recording(pr)
-
-        new_corpus.dump(self.out_corpus.get_path())
+        self._run(mix_noise, "noisemixed_")
