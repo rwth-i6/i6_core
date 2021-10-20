@@ -262,7 +262,6 @@ class AudiomentationsJob(Job):
 
         :param Path corpus_file: Bliss corpus with wav files
         :param str new_corpus_name: name of the new corpus
-        :param str out_corpus_path: name of the new corpus file
         """
         self.corpus_file = corpus_file
         self.new_corpus_name = new_corpus_name
@@ -274,7 +273,7 @@ class AudiomentationsJob(Job):
     def tasks(self):
         yield Task("run", rqmt=self.rqmt)
 
-    def _run(self, audiomentations_transformation, perturbed_string):
+    def _run(self, audiomentations_transformation, out_audio_name_prefix):
         self.id = os.path.basename(self.job_id())
 
         corpus_object = corpus.Corpus()
@@ -285,7 +284,7 @@ class AudiomentationsJob(Job):
         segment_file_names = []
 
         for r in corpus_object.all_recordings():
-            perturbed_audio_name = perturbed_string + r.audio.split("/")[-1]
+            perturbed_audio_name = out_audio_name_prefix + r.audio.split("/")[-1]
             (
                 samples,
                 sample_rate,
