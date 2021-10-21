@@ -211,9 +211,16 @@ class SetDifferenceJob(Job):
     Return the set difference of two text files, where one line is one element.
     """
 
-    def __init__(self, file1, file2, gzipped=False):
-        self.file1 = file1
-        self.file2 = file2
+    def __init__(self, minuend, subtrahend, gzipped=False):
+        """
+        This job performs the set difference minuend - subtrahend. Unlike the bash utility comm, the two files
+        do not need to be sorted.
+        :param Path minuend: left-hand side of the set subtraction
+        :param Path subtrahend: right-hand side of the set subtraction
+        :param bool gzipped: whether the output should be compressed in gzip format
+        """
+        self.minuend = minuend
+        self.subtrahend = subtrahend
 
         outfile_ext = "txt.gz" if gzipped else "txt"
         self.out_file = self.output_path("diff.%s" % outfile_ext)
@@ -224,9 +231,9 @@ class SetDifferenceJob(Job):
         yield Task("run", rqmt=self.rqmt)
 
     def run(self):
-        with util.uopen(self.file1, "rt") as fin:
+        with util.uopen(self.minuend, "rt") as fin:
             file_set1 = set(fin.read().split("\n"))
-        with util.uopen(self.file2, "rt") as fin:
+        with util.uopen(self.subtrahend, "rt") as fin:
             file_set2 = set(fin.read().split("\n"))
         with util.uopen(self.out_file, "wt") as fout:
             fout.write("\n".join(sorted(file_set1.difference(file_set2))))
