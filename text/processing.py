@@ -217,7 +217,7 @@ class DiffJob(Job):
 
         self.out_file = self.output_path("diff.txt")
 
-        self.rqmt={"cpu": 1, "time": 1, "mem": 1}
+        self.rqmt = {"cpu": 1, "time": 1, "mem": 1}
 
     def tasks(self):
         yield Task("run", rqmt=self.rqmt)
