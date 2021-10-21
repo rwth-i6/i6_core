@@ -206,16 +206,17 @@ class TailJob(HeadJob):
         self.sh("zcat -f {text_file} | tail -n {num_lines} | gzip > {out}")
 
 
-class DiffJob(Job):
+class SetDifferenceJob(Job):
     """
     Return the set difference of two text files, where one line is one element.
     """
 
-    def __init__(self, file1, file2):
+    def __init__(self, file1, file2, gzipped=False):
         self.file1 = file1
         self.file2 = file2
 
-        self.out_file = self.output_path("diff.txt")
+        outfile_ext = "txt.gz" if gzipped else "txt"
+        self.out_file = self.output_path("diff.%s" % outfile_ext)
 
         self.rqmt = {"cpu": 1, "time": 1, "mem": 1}
 
