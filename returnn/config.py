@@ -1,6 +1,7 @@
 __all__ = ["CodeWrapper", "ReturnnConfig", "WriteReturnnConfigJob"]
 
 import base64
+import black
 import inspect
 import json
 import pickle
@@ -79,6 +80,7 @@ class ReturnnConfig:
         python_epilog_hash=None,
         hash_full_python_code=False,
         pprint_kwargs=None,
+        black_formatting=True,
     ):
         """
 
@@ -94,6 +96,7 @@ class ReturnnConfig:
             of python pro-/epilog is parsed and hashed.
         :param dict|None pprint_kwargs: kwargs for pprint, e.g. {"sort_dicts": False} to print dicts in given order for
             python >= 3.8
+        :param bool black_formatting: if true, the written config will be formatted with black
         """
         self.config = config
         self.post_config = post_config if post_config is not None else {}
@@ -112,6 +115,7 @@ class ReturnnConfig:
             else:
                 self.python_epilog_hash = python_epilog
         self.pprint_kwargs = pprint_kwargs or {}
+        self.black_formatting = black_formatting
 
     def get(self, key, default=None):
         if key in self.post_config:
@@ -119,8 +123,11 @@ class ReturnnConfig:
         return self.config.get(key, default)
 
     def write(self, path):
+        config_str = self.serialize()
+        if self.black_formatting:
+            config_str = black.format_str(config_str, mode=black.Mode())
         with open(path, "wt", encoding="utf-8") as f:
-            f.write(self.serialize())
+            f.write(config_str)
 
     def serialize(self):
         self.check_consistency()
