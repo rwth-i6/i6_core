@@ -74,12 +74,10 @@ class ReturnnConfig:
         
         def get_network(epoch, **kwargs):
           from networks import networks_dict
-          while(True):
-            if epoch in networks_dict:
-              return networks_dict[epoch]
-            else:
-              epoch -= 1
-              assert epoch > 0, \"Error, no networks found\"
+          for epoch_ in sorted(networks_dict.keys(), reverse=True):
+            if epoch_ <= epoch:
+              return networks_dict[epoch_]
+          assert False, \"Error, no networks found\"
         
         """
     )
