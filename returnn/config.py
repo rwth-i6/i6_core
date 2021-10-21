@@ -101,6 +101,7 @@ class ReturnnConfig:
         :param dict post_config: dictionary of the RETURNN config variables that are not hashed
         :param None|str|Callable|Class|tuple|list|dict python_prolog: str or structure containing str/callables/classes
             that should be pasted as code at the beginning of the config file
+        :param None|dict[dict[Any]]: dictionary of network dictionaries, indexed by the desired starting epoch of the network stage
         :param str|None python_prolog_hash: sets a specific hash for the python_prolog
         :param None|str|Callable|Class|tuple|list|dict python_epilog: str or structure containing
             str/callables/classes that should be pasted as code at the end of the config file
@@ -134,15 +135,12 @@ class ReturnnConfig:
             return self.post_config[key]
         return self.config.get(key, default)
 
-    def write_network(self, config_path):
+    def _write_network_stages(self, config_path):
         """
         write the networks of the staged network dict into a "networks" folder including
         the access dictionary in the init file
 
         :param str config_path:
-        :param dict network:
-        :param int epoch:
-        :return:
         """
         config_dir = os.path.dirname(config_path)
         network_dir = os.path.join(config_dir, "networks")
@@ -150,7 +148,7 @@ class ReturnnConfig:
             os.mkdir(network_dir)
 
         init_file = os.path.join(network_dir, "__init__.py")
-        init_import_code = "\n"
+        init_import_code = ""
         init_dict_code = "\n\nnetworks_dict = {\n"
 
         for epoch in self.staged_network_dict.keys():
@@ -172,7 +170,7 @@ class ReturnnConfig:
 
     def write(self, path):
         if self.staged_network_dict:
-            self.write_network(path)
+            self._write_network_stages(path)
         with open(path, "wt", encoding="utf-8") as f:
             f.write(self.serialize())
 
