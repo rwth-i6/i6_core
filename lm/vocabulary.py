@@ -1,10 +1,12 @@
 from sisyphus import Job, Task
 
 from i6_core.lib.lm import Lm
-from i6_core.util import uopen
 
 
 class VocabularyFromLmJob(Job):
+    """
+    Extract the vocabulary from an existing LM. Currently supports only arpa files for input.
+    """
     def __init__(self, lm_file):
         """
         :param str|Path lm_file: path to the lm arpa file
@@ -17,10 +19,6 @@ class VocabularyFromLmJob(Job):
         yield Task("run", mini_task=True)
 
     def run(self):
-        # read language model in ARPA format, adapted from the code in reverse_arpa.py
-        # Copyright 2012 Mirko Hannemann BUT, mirko.hannemann@gmail.com
-        # Copied from Kaldi: http://sourceforge.net/p/kaldi/code/1640/tree//trunk/egs/wsj/s5/utils/reverse_arpa.py
-
         lm = Lm.from_arpa(self.lm_path)
         self.out_vocabulary_size.set(lm.ngram_counts[0])
 

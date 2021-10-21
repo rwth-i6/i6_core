@@ -113,5 +113,5 @@ class Lm:
 
         assert len(lm.ngrams) == len(lm.ngram_counts)
         for i in range(len(lm.ngrams)):
-            assert len(lm.ngrams[i]) == lm.ngram_counts[i]
+            assert len(lm.ngrams[i]) == lm.ngram_counts[i], "Stated n-gram count is wrong"
         return lm
