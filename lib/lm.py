@@ -1,4 +1,4 @@
-import gzip
+import logging
 
 from sisyphus import *
 
@@ -13,7 +13,6 @@ class Lm:
     def __init__(self, lm_path):
         self.lm_path = lm_path
         self.ngram_counts = []
-        self.ngrams = []
         self.ngrams_start = []
         self.ngrams_end = []
         self.sentprob = 0.0
@@ -79,13 +78,15 @@ class Lm:
                     if not_ngrams(text):
                         break
                 lm.ngrams_end.append(reader["lineno"])
+                logging.info(f"Read through the {n}grams")
 
             while text and text[:5] != "\\end\\":
                 text = read_increase_line()
             assert text, "invalid ARPA file"
 
-        assert len(lm.ngrams) == len(lm.ngrams_start) == len(lm.ngrams_end)
-        for i in range(len(lm.ngrams)):
+        assert len(lm.ngram_counts) == len(lm.ngrams_start) == len(lm.ngrams_end), \
+            f"{len(lm.ngram_counts)} == {len(lm.ngrams_start)} == {len(lm.ngrams_end)} is False"
+        for i in range(len(lm.ngram_counts)):
             assert lm.ngram_counts[i] == (
                 lm.ngrams_end[i] - lm.ngrams_start[i] + 1
             ), "Stated %d-gram count is wrong %d != %d" % (
@@ -125,6 +126,8 @@ class Lm:
                     self.sentprob = prob
                     prob = 0.0
                 ngrams[ngram] = (prob, back)
+                if i - (self.ngrams_start[n] - 1) % 1000 == 0:
+                    logging.info(f"Read 1000 {n}grams")
 
         return ngrams
 
