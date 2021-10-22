@@ -16,7 +16,7 @@ class ReverseARPALmJob(Job):
     def __init__(self, lm_path):
         self.lm_path = lm_path
 
-        self.reverse_lm_path = self.output_path("reverse.lm.gz", cached=True)
+        self.out_reverse_lm = self.output_path("reverse.lm.gz", cached=True)
 
         self.rqmt = {"cpu": 1, "mem": 2, "time": 2}
 
