@@ -269,7 +269,7 @@ class ReturnnConfig:
             assert key not in self.post_config, (
                 "%s in post_config would overwrite existing entry in config" % key
             )
-        assert bool(self.staged_network_dict) != bool("network" in self.config)
+        assert not (self.staged_network_dict and "network" in self.config)
 
     def _sis_hash(self):
         h = {
