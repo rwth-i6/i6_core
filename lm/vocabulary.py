@@ -24,5 +24,5 @@ class VocabularyFromLmJob(Job):
         self.out_vocabulary_size.set(lm.ngram_counts[0])
 
         with open(self.out_vocabulary.get_path(), "w") as fout:
-            for word in lm.get_ngrams(1):
+            for word, _ in lm.get_ngrams(1):
                 fout.write("%s\n" % word)

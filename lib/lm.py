@@ -66,18 +66,16 @@ class Lm:
                     text = read_increase_line()
                 assert n == int(text[1]), "invalid ARPA file: %s" % text
 
-                lm.ngrams_start.append(reader["lineno"] + 1)
+                lm.ngrams_start.append((reader["lineno"] + 1, reader["infile"].tell()))
                 for ng in range(lm.ngram_counts[n - 1]):
                     while text and len(text.split()) < 2:
                         text = read_increase_line()
                         if not_ngrams(text):
                             break
-                    if not_ngrams(text):
-                        break  # to deal with incorrect ARPA files
                     text = read_increase_line()
                     if not_ngrams(text):
                         break
-                lm.ngrams_end.append(reader["lineno"])
+                lm.ngrams_end.append(reader["lineno"] - 1)
                 logging.info(f"Read through the {n}grams")
 
             while text and text[:5] != "\\end\\":
@@ -88,11 +86,11 @@ class Lm:
             f"{len(lm.ngram_counts)} == {len(lm.ngrams_start)} == {len(lm.ngrams_end)} is False"
         for i in range(len(lm.ngram_counts)):
             assert lm.ngram_counts[i] == (
-                lm.ngrams_end[i] - lm.ngrams_start[i] + 1
+                lm.ngrams_end[i] - lm.ngrams_start[i][0] + 1
             ), "Stated %d-gram count is wrong %d != %d" % (
                 i + 1,
                 lm.ngram_counts[i],
-                (lm.ngrams_end[i] - lm.ngrams_start[i] + 1),
+                (lm.ngrams_end[i] - lm.ngrams_start[i][0] + 1),
             )
         return lm
 
@@ -100,17 +98,16 @@ class Lm:
         """
         returns all the ngrams of order n
         """
-        return self._read_ngrams(n - 1)
+        yield from self._read_ngrams(n)
 
     def _read_ngrams(self, n):
         """
         Read the ngrams knowing start and end lines
         """
-        ngrams = dict()
         with util.uopen(self.lm_path, "rt", encoding="utf-8") as infile:
-            skip_n_lines(infile, self.ngrams_start[n] - 1)
-            i = self.ngrams_start[n] - 1
-            while i < self.ngrams_end[n]:
+            go_to_line(infile, self.ngrams_start[n-1][1])
+            i = self.ngrams_start[n-1][0] - 1
+            while i < self.ngrams_end[n-1]:
                 i += 1
                 text = infile.readline()
                 entry = text.split()
@@ -125,19 +122,14 @@ class Lm:
                 if (n == 1) and words[0] == "<s>":
                     self.sentprob = prob
                     prob = 0.0
-                ngrams[ngram] = (prob, back)
-                if i - (self.ngrams_start[n] - 1) % 1000 == 0:
+                if i - (self.ngrams_start[n-1][0] - 1) % 1000 == 0:
                     logging.info(f"Read 1000 {n}grams")
+                yield ngram, (prob, back)
 
-        return ngrams
 
-
-def skip_n_lines(f_handle, n):
-    assert n > 0
-    i = 0
-    while i < n:
-        text = f_handle.readline()
-    return text
+def go_to_line(f_handle, n):
+    assert n >= 0
+    f_handle.seek(n)
 
 
 def not_ngrams(text: str):
