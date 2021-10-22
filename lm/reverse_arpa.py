@@ -2,10 +2,12 @@ __all__ = ["ReverseARPALmJob"]
 
 import gzip
 import sys
+import typing
 
 from sisyphus import *
 
 from i6_core.lib.lm import Lm
+import i6_core.util as util
 
 Path = setup_path(__package__)
 
@@ -27,16 +29,23 @@ class ReverseARPALmJob(Job):
         # Adapted for python 3
         lm = Lm.from_arpa(self.lm_path)
 
-        outfile = gzip.open(self.reverse_lm_path.get_path(), "wt", encoding="utf-8")
+        outfile = util.uopen(self.reverse_lm_path.get_path(), "wt", encoding="utf-8")
 
         # compute new reversed ARPA model
         outfile.write("\\data\\\n")
         for n in range(1, len(lm.ngram_counts) + 1):  # unigrams, bigrams, trigrams
-            outfile.write("ngram %d=%d\n" % (n, len(lm.ngram_counts[n - 1].keys())))
+            outfile.write("ngram %d=%d\n" % (n, len(lm.ngram_counts[n - 1])))
         offset = 0.0
+        all_ngrams = []
         for n in range(1, len(lm.ngram_counts) + 1):  # unigrams, bigrams, trigrams
+            curr_ngrams = sorted(lm.get_ngrams(n))
+            all_ngrams.append(curr_ngrams)
+            for ngram in curr_ngrams:
+                words = ngram.split(" ")
+                self.add_missing_backoffs(words, all_ngrams)
+        for n in range(1, len(lm.ngram_counts) + 1):
             outfile.write("\\%d-grams:\n" % n)
-            for ngram in sorted(lm.ngrams[n - 1]):
+            for ngram in all_ngrams[n - 1]:
                 prob = lm.ngrams[n - 1][ngram]
                 # reverse word order
                 words = ngram.split()
@@ -93,3 +102,22 @@ class ReverseARPALmJob(Job):
                         revprob = revprob + offset
                     outfile.write("%g %s\n" % (revprob, rev_ngram))
         outfile.write("\\end\\\n")
+
+    def add_missing_backoffs(
+        self, words, ngrams: typing.List[typing.Dict[str, typing.Tuple]]
+    ):
+        n = len(ngrams)
+        inf = float("inf")
+        for x in range(n - 1, 0, -1):
+            # add all missing backoff ngrams for reversed lm
+            l_ngram = " ".join(words[:x])  # shortened ngram
+            r_ngram = " ".join(words[1 : 1 + x])  # shortened ngram with offset one
+            if l_ngram not in ngrams[x - 1]:  # create missing ngram
+                ngrams[x - 1][l_ngram] = (0.0, inf)
+            if r_ngram not in ngrams[x - 1]:  # create missing ngram
+                ngrams[x - 1][r_ngram] = (0.0, inf)
+
+            # add all missing backoff ngrams for forward lm
+            h_ngram = " ".join(words[n - x:])  # shortened history
+            if h_ngram not in ngrams[x - 1]:  # create missing ngram
+                ngrams[x - 1][h_ngram] = (0.0, inf)
