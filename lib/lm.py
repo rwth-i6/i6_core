@@ -7,7 +7,7 @@ import i6_core.util as util
 
 class Lm:
     """
-    Interface to access the ngrams of an LM.
+    Interface to access the ngrams of an LM. Currently supports only LMs in arpa format.
     """
 
     def __init__(self, lm_path):
