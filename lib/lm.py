@@ -68,14 +68,10 @@ class Lm:
 
                 lm.ngrams_start.append((reader["lineno"] + 1, reader["infile"].tell()))
                 for ng in range(lm.ngram_counts[n - 1]):
-                    while text and len(text.split()) < 2:
-                        text = read_increase_line()
-                        if not_ngrams(text):
-                            break
                     text = read_increase_line()
                     if not_ngrams(text):
                         break
-                lm.ngrams_end.append(reader["lineno"] - 1)
+                lm.ngrams_end.append(reader["lineno"])
                 logging.info(f"Read through the {n}grams")
 
             while text and text[:5] != "\\end\\":
