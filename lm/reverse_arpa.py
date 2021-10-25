@@ -15,6 +15,7 @@ class ReverseARPALmJob(Job):
     """
     Create a new LM in arpa format by reverting the n-grams of an existing Arpa LM.
     """
+
     def __init__(self, lm_path):
         """
         :param Path lm_path: Path to the existing arpa file
