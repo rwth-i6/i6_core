@@ -11,6 +11,9 @@ class Lm:
     """
 
     def __init__(self, lm_path):
+        """
+        :param str lm_path: Path to the LM file, currently supports only arpa files
+        """
         self.lm_path = lm_path
         self.ngram_counts = []
         self.ngrams_start = []
@@ -19,12 +22,8 @@ class Lm:
         self.from_arpa()
 
     def from_arpa(self):
-        """
-        Create an Lm object from an arpa file
-        :param Path lm_path: path to the arpa file
-        """
         # read language model in ARPA format
-        lm_path = tk.uncached_path(self.lm_path)
+        lm_path = self.lm_path
         with util.uopen(lm_path, "rt", encoding="utf-8") as infile:
             reader = {
                 "infile": infile,

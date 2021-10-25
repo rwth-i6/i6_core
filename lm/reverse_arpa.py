@@ -12,7 +12,13 @@ Path = setup_path(__package__)
 
 
 class ReverseARPALmJob(Job):
+    """
+    Create a new LM in arpa format by reverting the n-grams of an existing Arpa LM.
+    """
     def __init__(self, lm_path):
+        """
+        :param Path lm_path: Path to the existing arpa file
+        """
         self.lm_path = lm_path
 
         self.out_reverse_lm = self.output_path("reverse.lm.gz", cached=True)
