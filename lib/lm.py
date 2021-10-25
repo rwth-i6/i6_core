@@ -60,12 +60,16 @@ class Lm:
                 text = read_increase_line()
 
             # read through the file and find start and end lines for each ngrams order
-            for n in range(1, len(self.ngram_counts) + 1):  # unigrams, bigrams, trigrams
+            for n in range(
+                1, len(self.ngram_counts) + 1
+            ):  # unigrams, bigrams, trigrams
                 while text and "-grams:" not in text:
                     text = read_increase_line()
                 assert n == int(text[1]), "invalid ARPA file: %s" % text
 
-                self.ngrams_start.append((reader["lineno"] + 1, reader["infile"].tell()))
+                self.ngrams_start.append(
+                    (reader["lineno"] + 1, reader["infile"].tell())
+                )
                 for ng in range(self.ngram_counts[n - 1]):
                     text = read_increase_line()
                     if not_ngrams(text):
