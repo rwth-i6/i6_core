@@ -47,10 +47,10 @@ class Lm:
             lm = cls(lm_path)
             n = 0
             while text and text[:5] == "ngram":
-                ind = text.split("=")
-                counts = int(ind[1].strip())
-                r = ind[0].split()
-                read_n = int(r[1].strip())
+                ngram_count = text.split("=")
+                counts = int(ngram_count[1].strip())
+                order = ngram_count[0].split()
+                read_n = int(order[1].strip())
                 assert read_n == n + 1, "invalid ARPA file: %s %d %d" % (
                     text.strip(),
                     read_n,
