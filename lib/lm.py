@@ -16,15 +16,15 @@ class Lm:
         self.ngrams_start = []
         self.ngrams_end = []
         self.sentprob = 0.0
+        self.from_arpa()
 
-    @classmethod
-    def from_arpa(cls, lm_path):
+    def from_arpa(self):
         """
         Create an Lm object from an arpa file
         :param Path lm_path: path to the arpa file
         """
         # read language model in ARPA format
-        lm_path = tk.uncached_path(lm_path)
+        lm_path = tk.uncached_path(self.lm_path)
         with util.uopen(lm_path, "rt", encoding="utf-8") as infile:
             reader = {
                 "infile": infile,
@@ -44,7 +44,6 @@ class Lm:
                 text = read_increase_line()
 
             # get ngram counts
-            lm = cls(lm_path)
             n = 0
             while text and text[:5] == "ngram":
                 ngram_count = text.split("=")
@@ -57,21 +56,21 @@ class Lm:
                     n + 1,
                 )
                 n = read_n
-                lm.ngram_counts.append(counts)
+                self.ngram_counts.append(counts)
                 text = read_increase_line()
 
             # read through the file and find start and end lines for each ngrams order
-            for n in range(1, len(lm.ngram_counts) + 1):  # unigrams, bigrams, trigrams
+            for n in range(1, len(self.ngram_counts) + 1):  # unigrams, bigrams, trigrams
                 while text and "-grams:" not in text:
                     text = read_increase_line()
                 assert n == int(text[1]), "invalid ARPA file: %s" % text
 
-                lm.ngrams_start.append((reader["lineno"] + 1, reader["infile"].tell()))
-                for ng in range(lm.ngram_counts[n - 1]):
+                self.ngrams_start.append((reader["lineno"] + 1, reader["infile"].tell()))
+                for ng in range(self.ngram_counts[n - 1]):
                     text = read_increase_line()
                     if not_ngrams(text):
                         break
-                lm.ngrams_end.append(reader["lineno"])
+                self.ngrams_end.append(reader["lineno"])
                 logging.info(f"Read through the {n}grams")
 
             while text and text[:5] != "\\end\\":
@@ -79,17 +78,16 @@ class Lm:
             assert text, "invalid ARPA file"
 
         assert (
-            len(lm.ngram_counts) == len(lm.ngrams_start) == len(lm.ngrams_end)
-        ), f"{len(lm.ngram_counts)} == {len(lm.ngrams_start)} == {len(lm.ngrams_end)} is False"
-        for i in range(len(lm.ngram_counts)):
-            assert lm.ngram_counts[i] == (
-                lm.ngrams_end[i] - lm.ngrams_start[i][0] + 1
+            len(self.ngram_counts) == len(self.ngrams_start) == len(self.ngrams_end)
+        ), f"{len(self.ngram_counts)} == {len(self.ngrams_start)} == {len(self.ngrams_end)} is False"
+        for i in range(len(self.ngram_counts)):
+            assert self.ngram_counts[i] == (
+                self.ngrams_end[i] - self.ngrams_start[i][0] + 1
             ), "Stated %d-gram count is wrong %d != %d" % (
                 i + 1,
-                lm.ngram_counts[i],
-                (lm.ngrams_end[i] - lm.ngrams_start[i][0] + 1),
+                self.ngram_counts[i],
+                (self.ngrams_end[i] - self.ngrams_start[i][0] + 1),
             )
-        return lm
 
     def get_ngrams(self, n):
         """
