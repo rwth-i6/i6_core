@@ -20,7 +20,7 @@ class VocabularyFromLmJob(Job):
         yield Task("run", mini_task=True)
 
     def run(self):
-        lm = Lm.from_arpa(self.lm_path)
+        lm = Lm(self.lm_path)
         self.out_vocabulary_size.set(lm.ngram_counts[0])
 
         with open(self.out_vocabulary.get_path(), "w") as fout:
