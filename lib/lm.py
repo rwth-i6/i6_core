@@ -82,8 +82,9 @@ class Lm:
                 text = read_increase_line()
             assert text, "invalid ARPA file"
 
-        assert len(lm.ngram_counts) == len(lm.ngrams_start) == len(lm.ngrams_end), \
-            f"{len(lm.ngram_counts)} == {len(lm.ngrams_start)} == {len(lm.ngrams_end)} is False"
+        assert (
+            len(lm.ngram_counts) == len(lm.ngrams_start) == len(lm.ngrams_end)
+        ), f"{len(lm.ngram_counts)} == {len(lm.ngrams_start)} == {len(lm.ngrams_end)} is False"
         for i in range(len(lm.ngram_counts)):
             assert lm.ngram_counts[i] == (
                 lm.ngrams_end[i] - lm.ngrams_start[i][0] + 1
@@ -105,9 +106,9 @@ class Lm:
         Read the ngrams knowing start and end lines
         """
         with util.uopen(self.lm_path, "rt", encoding="utf-8") as infile:
-            go_to_line(infile, self.ngrams_start[n-1][1])
-            i = self.ngrams_start[n-1][0] - 1
-            while i < self.ngrams_end[n-1]:
+            go_to_line(infile, self.ngrams_start[n - 1][1])
+            i = self.ngrams_start[n - 1][0] - 1
+            while i < self.ngrams_end[n - 1]:
                 i += 1
                 text = infile.readline()
                 entry = text.split()
@@ -122,7 +123,7 @@ class Lm:
                 if (n == 1) and words[0] == "<s>":
                     self.sentprob = prob
                     prob = 0.0
-                if i - (self.ngrams_start[n-1][0] - 1) % 1000 == 0:
+                if i - (self.ngrams_start[n - 1][0] - 1) % 1000 == 0:
                     logging.info(f"Read 1000 {n}grams")
                 yield ngram, (prob, back)
 

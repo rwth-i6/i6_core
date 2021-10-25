@@ -28,7 +28,9 @@ class ReverseARPALmJob(Job):
         # Adapted for python 3
         lm = Lm.from_arpa(self.lm_path)
 
-        with util.uopen(self.out_reverse_lm.get_path(), "wt", encoding="utf-8") as outfile:
+        with util.uopen(
+            self.out_reverse_lm.get_path(), "wt", encoding="utf-8"
+        ) as outfile:
 
             # compute new reversed ARPA model
             all_ngrams = []
@@ -41,7 +43,7 @@ class ReverseARPALmJob(Job):
 
             outfile.write("\\data\\\n")
             for n in range(1, len(lm.ngram_counts) + 1):  # unigrams, bigrams, trigrams
-                outfile.write("ngram %d=%d\n" % (n, len(all_ngrams[n-1])))
+                outfile.write("ngram %d=%d\n" % (n, len(all_ngrams[n - 1])))
             offset = 0.0
             for n in range(1, len(lm.ngram_counts) + 1):
                 outfile.write("\\%d-grams:\n" % n)
@@ -66,7 +68,9 @@ class ReverseARPALmJob(Job):
                     for x in range(n - 1, 0, -1):
                         l_ngram = " ".join(words[:x])  # shortened ngram
                         if l_ngram not in all_ngrams[x - 1]:
-                            sys.stderr.write("%s: not found %s\n" % (rev_ngram, l_ngram))
+                            sys.stderr.write(
+                                "%s: not found %s\n" % (rev_ngram, l_ngram)
+                            )
                         p_l = all_ngrams[x - 1][l_ngram][0]
                         revprob = revprob + p_l
 
@@ -74,7 +78,9 @@ class ReverseARPALmJob(Job):
                             words[1 : 1 + x]
                         )  # shortened ngram with offset one
                         if r_ngram not in all_ngrams[x - 1]:
-                            sys.stderr.write("%s: not found %s\n" % (rev_ngram, r_ngram))
+                            sys.stderr.write(
+                                "%s: not found %s\n" % (rev_ngram, r_ngram)
+                            )
                         p_r = all_ngrams[x - 1][r_ngram][0]
                         revprob = revprob - p_r
 
@@ -85,7 +91,9 @@ class ReverseARPALmJob(Job):
                         ):  # special handling since arpa2fst ignores <s> weight
                             if n == 1:
                                 offset = revprob  # remember <s> weight
-                                revprob = lm.sentprob  # apply <s> weight from forward model
+                                revprob = (
+                                    lm.sentprob
+                                )  # apply <s> weight from forward model
                                 back = offset
                             elif n == 2:
                                 revprob = (
@@ -119,6 +127,6 @@ class ReverseARPALmJob(Job):
                 ngrams[x - 1][r_ngram] = (0.0, inf)
 
             # add all missing backoff ngrams for forward lm
-            h_ngram = " ".join(words[n - x:])  # shortened history
+            h_ngram = " ".join(words[n - x :])  # shortened history
             if h_ngram not in ngrams[x - 1]:  # create missing ngram
                 ngrams[x - 1][h_ngram] = (0.0, inf)
