@@ -10,7 +10,7 @@ class VocabularyFromLmJob(Job):
 
     def __init__(self, lm_file):
         """
-        :param str|Path lm_file: path to the lm arpa file
+        :param Path lm_file: path to the lm arpa file
         """
         self.lm_path = lm_file
         self.out_vocabulary = self.output_path("vocabulary.txt")
@@ -20,7 +20,7 @@ class VocabularyFromLmJob(Job):
         yield Task("run", mini_task=True)
 
     def run(self):
-        lm = Lm(self.lm_path)
+        lm = Lm(self.lm_path.get())
         self.out_vocabulary_size.set(lm.ngram_counts[0])
 
         with open(self.out_vocabulary.get_path(), "w") as fout:

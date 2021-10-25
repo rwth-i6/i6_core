@@ -32,7 +32,7 @@ class ReverseARPALmJob(Job):
         # Copyright 2012 Mirko Hannemann BUT, mirko.hannemann@gmail.com
         # Copied from Kaldi: http://sourceforge.net/p/kaldi/code/1640/tree//trunk/egs/wsj/s5/utils/reverse_arpa.py
         # Adapted for python 3
-        lm = Lm(self.lm_path)
+        lm = Lm(self.lm_path.get())
 
         with util.uopen(
             self.out_reverse_lm.get_path(), "wt", encoding="utf-8"
