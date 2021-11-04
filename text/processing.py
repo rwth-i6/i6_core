@@ -134,7 +134,7 @@ class ConcatenateJob(Job):
             if zip_out:
                 self.out = self.output_path(out_name + ".gz")
             else:
-                self.out = self.output_path("out_name")
+                self.out = self.output_path(out_name)
 
         for input in text_files:
             assert isinstance(input, Path) or isinstance(
