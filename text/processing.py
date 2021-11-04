@@ -112,9 +112,11 @@ class ConcatenateJob(Job):
     Concatenate all given input files (gz or raw)
     """
 
-    def __init__(self, text_files):
+    def __init__(self, text_files, zip_out=True, out_name="out"):
         """
         :param list[Path] text_files: input text files
+        :param bool zip_out: apply gzip to the output
+        :param str out_name: user specific name
         """
         assert text_files
 
@@ -129,7 +131,10 @@ class ConcatenateJob(Job):
         if len(text_files) == 1:
             self.out = text_files.pop()
         else:
-            self.out = self.output_path("out.gz")
+            if zip_out:
+                self.out = self.output_path(out_name + ".gz")
+            else:
+                self.out = self.output_path("out_name")
 
         for input in text_files:
             assert isinstance(input, Path) or isinstance(
@@ -137,13 +142,17 @@ class ConcatenateJob(Job):
             ), "input to Concatenate is not a valid path"
 
         self.text_files = text_files
+        self.zip_out = zip_out
 
     def tasks(self):
         yield Task("run", rqmt={"mem": 3, "time": 3})
 
     def run(self):
         self.f_list = " ".join(gs.file_caching(str(i)) for i in self.text_files)
-        self.sh("zcat -f {f_list} | gzip > {out}")
+        if self.zip_out:
+            self.sh("zcat -f {f_list} | gzip > {out}")
+        else:
+            self.sh("zcat -f {f_list} > {out}")
 
 
 class HeadJob(Job):
