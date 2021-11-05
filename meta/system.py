@@ -880,7 +880,7 @@ class System:
         :param str feature_flow:
         :param str|list(str)|tuple(str)|rasr.FlagDependentFlowAttribute alignment:
         :param returnn.ReturnnConfig returnn_config:
-        :param int num_classes:
+        :param int|types.FunctionType num_classes:
         :param kwargs:
         :return:
         """
@@ -915,8 +915,8 @@ class System:
         """
         :param str name:
         :param str corpus:
-        :param int feature_dimension:
-        :param int output_dimension:
+        :param int|types.FunctionType feature_dimension:
+        :param int|types.FunctionType output_dimension:
         :param str|list(str)|tuple(str)|rasr.FlagDependentFlowAttribute prior_mixtures:
         :param str|list(str)|tuple(str)|returnn.ReturnnModel model:
         :param float prior_scale:
