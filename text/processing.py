@@ -112,6 +112,8 @@ class ConcatenateJob(Job):
     Concatenate all given input files (gz or raw)
     """
 
+    __sis_hash_exclude = {"zip_out": True, "out_name": "out"}
+
     def __init__(self, text_files, zip_out=True, out_name="out"):
         """
         :param list[Path] text_files: input text files
