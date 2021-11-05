@@ -582,8 +582,8 @@ class System:
         """
         :param str name:
         :param str corpus:
-        :param str|list(str)|tuple(str)|rasr.FlagDependentFlowAttribute flow:
-        :param str|list(str)|tuple(str)|rasr.FeatureScorer feature_scorer:
+        :param str|list[str]|tuple[str]|rasr.FlagDependentFlowAttribute flow:
+        :param str|list[str]|tuple[str]|rasr.FeatureScorer feature_scorer:
         :param kwargs:
         :return:
         """
@@ -607,8 +607,8 @@ class System:
         :param str name:
         :param str corpus:
         :param str flow:
-        :param str|list(str)|tuple(str)|rasr.FlagDependentFlowAttribute old_mixtures:
-        :param str|list(str)|tuple(str)|rasr.FlagDependentFlowAttribute alignment:
+        :param str|list[str]|tuple[str]|rasr.FlagDependentFlowAttribute old_mixtures:
+        :param str|list[str]|tuple[str]|rasr.FlagDependentFlowAttribute alignment:
         :param str prefix:
         :param kwargs:
         :return:
@@ -632,7 +632,7 @@ class System:
         :param str name:
         :param str corpus:
         :param list[str] sequence: action sequence
-        :param str|list(str)|tuple(str)|rasr.FlagDependentFlowAttribute flow:
+        :param str|list[str]|tuple[str]|rasr.FlagDependentFlowAttribute flow:
         :param kwargs: passed on to :class:`AlignSplitAccumulateSequence`
         """
         name = "train_%s" % name
@@ -667,7 +667,7 @@ class System:
         :param str name:
         :param str corpus:
         :param str flow:
-        :param str|list(str)|tuple(str)|rasr.FeatureScorer feature_scorer:
+        :param str|list[str]|tuple[str]|rasr.FeatureScorer feature_scorer:
         :param float pronunciation_scale:
         :param float lm_scale:
         :param pruning_params:
@@ -726,8 +726,8 @@ class System:
         """
         :param str name:
         :param str corpus:
-        :param str|list(str)|tuple(str)|rasr.FlagDependentFlowAttribute flow:
-        :param str|list(str)|tuple(str)|rasr.FeatureScorer feature_scorer:
+        :param str|list[str]|tuple[str]|rasr.FlagDependentFlowAttribute flow:
+        :param str|list[str]|tuple[str]|rasr.FeatureScorer feature_scorer:
         :param float pronunciation_scale:
         :param float lm_scale:
         :param bool parallelize_conversion:
@@ -810,8 +810,8 @@ class System:
         """
         :param str name:
         :param str corpus:
-        :param str|list(str)|tuple(str)|rasr.FlagDependentFlowAttribute flow:
-        :param str|list(str)|tuple(str)|rasr.FeatureScorer feature_scorer:
+        :param str|list[str]|tuple[str]|rasr.FlagDependentFlowAttribute flow:
+        :param str|list[str]|tuple[str]|rasr.FeatureScorer feature_scorer:
         :param float pronunciation_scale:
         :param  floatlm_scale:
         :param bool parallelize_conversion:
@@ -878,7 +878,7 @@ class System:
         :param str train_corpus:
         :param str dev_corpus:
         :param str feature_flow:
-        :param str|list(str)|tuple(str)|rasr.FlagDependentFlowAttribute alignment:
+        :param str|list[str]|tuple[str]|rasr.FlagDependentFlowAttribute alignment:
         :param returnn.ReturnnConfig returnn_config:
         :param int|types.FunctionType num_classes:
         :param kwargs:
@@ -917,8 +917,8 @@ class System:
         :param str corpus:
         :param int|types.FunctionType feature_dimension:
         :param int|types.FunctionType output_dimension:
-        :param str|list(str)|tuple(str)|rasr.FlagDependentFlowAttribute prior_mixtures:
-        :param str|list(str)|tuple(str)|returnn.ReturnnModel model:
+        :param str|list[str]|tuple[str]|rasr.FlagDependentFlowAttribute prior_mixtures:
+        :param str|list[str]|tuple[str]|returnn.ReturnnModel model:
         :param float prior_scale:
         :param Path prior_file:
         :param kwargs:
