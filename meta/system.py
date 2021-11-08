@@ -607,7 +607,7 @@ class System:
         :param str name:
         :param str corpus:
         :param str flow:
-        :param str|list[str]|tuple[str]|rasr.FlagDependentFlowAttribute old_mixtures:
+        :param str|list[str]|tuple[str]|tk.Path old_mixtures:
         :param str|list[str]|tuple[str]|rasr.FlagDependentFlowAttribute alignment:
         :param str prefix:
         :param kwargs:
@@ -813,9 +813,9 @@ class System:
         :param str|list[str]|tuple[str]|rasr.FlagDependentFlowAttribute flow:
         :param str|list[str]|tuple[str]|rasr.FeatureScorer feature_scorer:
         :param float pronunciation_scale:
-        :param  floatlm_scale:
+        :param float lm_scale:
         :param bool parallelize_conversion:
-        :param dictlattice_to_ctm_kwargs:
+        :param dict lattice_to_ctm_kwargs:
         :param str prefix:
         :param kwargs:
         :return:
@@ -917,7 +917,7 @@ class System:
         :param str corpus:
         :param int|types.FunctionType feature_dimension:
         :param int|types.FunctionType output_dimension:
-        :param str|list[str]|tuple[str]|rasr.FlagDependentFlowAttribute prior_mixtures:
+        :param str|list[str]|tuple[str]|tk.Path prior_mixtures:
         :param str|list[str]|tuple[str]|returnn.ReturnnModel model:
         :param float prior_scale:
         :param Path prior_file:
