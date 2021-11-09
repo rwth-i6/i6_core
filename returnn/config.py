@@ -59,7 +59,8 @@ class ReturnnConfig:
     PYTHON_CODE = textwrap.dedent(
         """\
         #!rnn.py
-    
+        ${SUPPORT_CODE}
+
         ${PROLOG}
     
         ${REGULAR_CONFIG}
@@ -72,6 +73,9 @@ class ReturnnConfig:
 
     GET_NETWORK_CODE = textwrap.dedent(
         """\
+        import os
+        import sys
+        sys.path.insert(0, os.path.dirname(__file__))
         
         def get_network(epoch, **kwargs):
           from networks import networks_dict
@@ -210,16 +214,13 @@ class ReturnnConfig:
         python_prolog_code = self.__parse_python(self.python_prolog)
         python_epilog_code = self.__parse_python(self.python_epilog)
 
+        support_code = ""
         if self.staged_network_dict:
-            config_lines.append(self.GET_NETWORK_CODE)
-
-            python_prolog_code = (
-                "import os\nimport sys\nsys.path.insert(0, os.path.dirname(__file__))\n\n"
-                + python_prolog_code
-            )
+            support_code += self.GET_NETWORK_CODE
 
         python_code = string.Template(self.PYTHON_CODE).substitute(
             {
+                "SUPPORT_CODE": support_code,
                 "PROLOG": python_prolog_code,
                 "REGULAR_CONFIG": "\n".join(config_lines),
                 "EPILOG": python_epilog_code,
