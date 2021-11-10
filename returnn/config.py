@@ -107,7 +107,8 @@ class ReturnnConfig:
         :param dict post_config: dictionary of the RETURNN config variables that are not hashed
         :param None|str|Callable|Class|tuple|list|dict python_prolog: str or structure containing str/callables/classes
             that should be pasted as code at the beginning of the config file
-        :param None|dict[dict[Any]] staged_network_dict: dictionary of network dictionaries, indexed by the desired starting epoch of the network stage
+        :param None|dict[int, dict[str, Any]] staged_network_dict: dictionary of network dictionaries, indexed by the desired starting epoch of the network stage
+            By enabling this, an additional "networks" folder will be created next to the config location
         :param str|None python_prolog_hash: sets a specific hash for the python_prolog
         :param None|str|Callable|Class|tuple|list|dict python_epilog: str or structure containing
             str/callables/classes that should be pasted as code at the end of the config file
@@ -143,6 +144,18 @@ class ReturnnConfig:
             return self.post_config[key]
         return self.config.get(key, default)
 
+    def _write_to_file(self, content, file_path):
+        """
+        write with optional black formatting
+
+        :param str content:
+        :param str config_path:
+        """
+        with open(file_path, "wt", encoding="utf-8") as f:
+            if self.black_formatting:
+                content = black.format_str(content, mode=black.Mode())
+            f.write(content)
+
     def _write_network_stages(self, config_path):
         """
         write the networks of the staged network dict into a "networks" folder including
@@ -161,7 +174,7 @@ class ReturnnConfig:
 
         for epoch in self.staged_network_dict.keys():
             network_path = os.path.join(network_dir, "network_%i.py" % epoch)
-            pp = pprint.PrettyPrinter(indent=1, width=150, **self.pprint_kwargs)
+            pp = pprint.PrettyPrinter(indent=2, width=150, **self.pprint_kwargs)
             content = "\nnetwork = %s" % pp.pformat(self.staged_network_dict[epoch])
             with open(network_path, "wt", encoding="utf-8") as f:
                 if self.black_formatting:
@@ -174,20 +187,13 @@ class ReturnnConfig:
             init_dict_code += "  %i: network_%i,\n" % (epoch, epoch)
 
         init_dict_code += "}\n"
+        self._write_to_file(init_import_code + init_dict_code, init_file)
 
-        with open(init_file, "wt", encoding="utf-8") as f:
-            f.write(init_import_code + init_dict_code)
-
-    def write(self, path):
-        if self.staged_network_dict:
-            self._write_network_stages(path)
-        config_str = self.serialize()
-        if self.black_formatting:
-            config_str = black.format_str(config_str, mode=black.Mode())
-        with open(path, "wt", encoding="utf-8") as f:
-            f.write(config_str)
-
-    def serialize(self):
+    def _serialize(self):
+        """
+        Serialize the main config
+        :return:
+        """
         self.check_consistency()
         config = self.config
         config.update(self.post_config)
@@ -227,6 +233,14 @@ class ReturnnConfig:
             }
         )
         return python_code
+
+    def write(self, path):
+        """
+        :param str path:
+        """
+        if self.staged_network_dict:
+            self._write_network_stages(path)
+        self._write_to_file(self._serialize(), path)
 
     def __parse_python(self, code, name=None):
         if code is None:
