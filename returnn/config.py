@@ -107,7 +107,7 @@ class ReturnnConfig:
         :param dict post_config: dictionary of the RETURNN config variables that are not hashed
         :param None|str|Callable|Class|tuple|list|dict python_prolog: str or structure containing str/callables/classes
             that should be pasted as code at the beginning of the config file
-        :param None|dict[dict[Any]]: dictionary of network dictionaries, indexed by the desired starting epoch of the network stage
+        :param None|dict[dict[Any]] staged_network_dict: dictionary of network dictionaries, indexed by the desired starting epoch of the network stage
         :param str|None python_prolog_hash: sets a specific hash for the python_prolog
         :param None|str|Callable|Class|tuple|list|dict python_epilog: str or structure containing
             str/callables/classes that should be pasted as code at the end of the config file
