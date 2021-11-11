@@ -10,10 +10,13 @@ Path = setup_path(__package__)
 
 
 class LmImageJob(rasr.RasrCommand, Job):
+    """
+    pre-compute LM image without generating global cache
+    """
+
     def __init__(
         self,
         crp,
-        text_file,
         extra_config=None,
         extra_post_config=None,
         encoding="utf-8",
@@ -44,10 +47,13 @@ class LmImageJob(rasr.RasrCommand, Job):
 
     def create_files(self):
         self.write_config(self.config, self.post_config, "lm_image.config")
-        device = "gpu" if self.rqmt.get("gpu", 0) > 0 else "cpu"
         extra_code = (
-            f":${{THEANO_FLAGS:="
-            '}\nexport THEANO_FLAGS="$THEANO_FLAGS,device={device},force_device=True"\nexport TF_DEVICE="{device}"'
+            ":${{THEANO_FLAGS:="
+            "}}\n"
+            'export THEANO_FLAGS="$THEANO_FLAGS,device={0},force_device=True"\n'
+            'export TF_DEVICE="{0}"'.format(
+                "gpu" if self.rqmt.get("gpu", 0) > 0 else "cpu"
+            )
         )
         self.write_run_script(self.exe, "lm_image.config", extra_code=extra_code)
 
@@ -84,7 +90,6 @@ class LmImageJob(rasr.RasrCommand, Job):
     def create_config(
         cls,
         crp,
-        text_file,
         extra_config,
         extra_post_config,
         encoding,
@@ -99,7 +104,7 @@ class LmImageJob(rasr.RasrCommand, Job):
         )  # scale not considered here, delete to remove ambiguity
 
         config.lm_util.action = "load-lm"
-        config.lm_util.file = text_file
+        config.lm_util.file = crp.language_model_config.file
         config.lm_util.encoding = encoding
         config.lm_util.batch_size = 100
         config.lm_util.renormalize = renormalize
@@ -107,6 +112,9 @@ class LmImageJob(rasr.RasrCommand, Job):
         config._update(extra_config)
         post_config._update(extra_post_config)
 
-        arpa_lms = cls.find_arpa_lms(config, post_config if post_config else None,)
+        arpa_lms = cls.find_arpa_lms(
+            config,
+            post_config if post_config else None,
+        )
 
         return config, post_config, len(arpa_lms)
