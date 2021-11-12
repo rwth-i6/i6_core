@@ -34,7 +34,7 @@ class LmImageJob(rasr.RasrCommand, Job):
         self.exe = self.select_exe(crp.lm_util_exe, "lm-util")
 
         self.log_file = self.log_file_output_path("lm_image", crp, False)
-        self.lm_images = {
+        self.out_lm_images = {
             i: self.output_path(f"lm-{i}.image", cached=True)
             for i in range(1, self.num_images + 1)
         }
