@@ -4,6 +4,7 @@ import base64
 import black
 import inspect
 import json
+import os
 import pickle
 import pprint
 import string
@@ -58,7 +59,8 @@ class ReturnnConfig:
     PYTHON_CODE = textwrap.dedent(
         """\
         #!rnn.py
-    
+        ${SUPPORT_CODE}
+
         ${PROLOG}
     
         ${REGULAR_CONFIG}
@@ -69,10 +71,27 @@ class ReturnnConfig:
         """
     )
 
+    GET_NETWORK_CODE = textwrap.dedent(
+        """\
+        import os
+        import sys
+        sys.path.insert(0, os.path.dirname(__file__))
+        
+        def get_network(epoch, **kwargs):
+          from networks import networks_dict
+          for epoch_ in sorted(networks_dict.keys(), reverse=True):
+            if epoch_ <= epoch:
+              return networks_dict[epoch_]
+          assert False, \"Error, no networks found\"
+        
+        """
+    )
+
     def __init__(
         self,
         config,
         post_config=None,
+        staged_network_dict=None,
         *,
         python_prolog=None,
         python_prolog_hash=None,
@@ -88,6 +107,8 @@ class ReturnnConfig:
         :param dict post_config: dictionary of the RETURNN config variables that are not hashed
         :param None|str|Callable|Class|tuple|list|dict python_prolog: str or structure containing str/callables/classes
             that should be pasted as code at the beginning of the config file
+        :param None|dict[int, dict[str, Any]] staged_network_dict: dictionary of network dictionaries, indexed by the desired starting epoch of the network stage
+            By enabling this, an additional "networks" folder will be created next to the config location
         :param str|None python_prolog_hash: sets a specific hash for the python_prolog
         :param None|str|Callable|Class|tuple|list|dict python_epilog: str or structure containing
             str/callables/classes that should be pasted as code at the end of the config file
@@ -100,6 +121,7 @@ class ReturnnConfig:
         """
         self.config = config
         self.post_config = post_config if post_config is not None else {}
+        self.staged_network_dict = staged_network_dict
         self.python_prolog = python_prolog
         self.python_prolog_hash = python_prolog_hash
         if self.python_prolog_hash is None:
@@ -122,14 +144,56 @@ class ReturnnConfig:
             return self.post_config[key]
         return self.config.get(key, default)
 
-    def write(self, path):
-        config_str = self.serialize()
-        if self.black_formatting:
-            config_str = black.format_str(config_str, mode=black.Mode())
-        with open(path, "wt", encoding="utf-8") as f:
-            f.write(config_str)
+    def _write_to_file(self, content, file_path):
+        """
+        write with optional black formatting
 
-    def serialize(self):
+        :param str content:
+        :param str config_path:
+        """
+        with open(file_path, "wt", encoding="utf-8") as f:
+            if self.black_formatting:
+                content = black.format_str(content, mode=black.Mode())
+            f.write(content)
+
+    def _write_network_stages(self, config_path):
+        """
+        write the networks of the staged network dict into a "networks" folder including
+        the access dictionary in the init file
+
+        :param str config_path:
+        """
+        config_dir = os.path.dirname(config_path)
+        network_dir = os.path.join(config_dir, "networks")
+        if not os.path.exists(network_dir):
+            os.mkdir(network_dir)
+
+        init_file = os.path.join(network_dir, "__init__.py")
+        init_import_code = ""
+        init_dict_code = "\n\nnetworks_dict = {\n"
+
+        for epoch in self.staged_network_dict.keys():
+            network_path = os.path.join(network_dir, "network_%i.py" % epoch)
+            pp = pprint.PrettyPrinter(indent=2, width=150, **self.pprint_kwargs)
+            content = "\nnetwork = %s" % pp.pformat(self.staged_network_dict[epoch])
+            with open(network_path, "wt", encoding="utf-8") as f:
+                if self.black_formatting:
+                    content = black.format_str(content, mode=black.Mode())
+                f.write(content)
+            init_import_code += "from .network_%i import network as network_%i\n" % (
+                epoch,
+                epoch,
+            )
+            init_dict_code += "  %i: network_%i,\n" % (epoch, epoch)
+
+        init_dict_code += "}\n"
+        self._write_to_file(init_import_code + init_dict_code, init_file)
+
+    def _serialize(self):
+        """
+        Serialize the main config
+        :return:
+        """
         self.check_consistency()
         config = self.config
         config.update(self.post_config)
@@ -156,14 +220,27 @@ class ReturnnConfig:
         python_prolog_code = self.__parse_python(self.python_prolog)
         python_epilog_code = self.__parse_python(self.python_epilog)
 
+        support_code = ""
+        if self.staged_network_dict:
+            support_code += self.GET_NETWORK_CODE
+
         python_code = string.Template(self.PYTHON_CODE).substitute(
             {
+                "SUPPORT_CODE": support_code,
                 "PROLOG": python_prolog_code,
                 "REGULAR_CONFIG": "\n".join(config_lines),
                 "EPILOG": python_epilog_code,
             }
         )
         return python_code
+
+    def write(self, path):
+        """
+        :param str path:
+        """
+        if self.staged_network_dict:
+            self._write_network_stages(path)
+        self._write_to_file(self._serialize(), path)
 
     def __parse_python(self, code, name=None):
         if code is None:
@@ -216,6 +293,7 @@ class ReturnnConfig:
             assert key not in self.post_config, (
                 "%s in post_config would overwrite existing entry in config" % key
             )
+        assert not (self.staged_network_dict and "network" in self.config)
 
     def _sis_hash(self):
         h = {
@@ -223,6 +301,9 @@ class ReturnnConfig:
             "python_epilog_hash": self.python_epilog_hash,
             "python_prolog_hash": self.python_prolog_hash,
         }
+        if self.staged_network_dict:
+            h["returnn_networks"] = self.staged_network_dict
+
         return sis_hash_helper(h)
 
 
