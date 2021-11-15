@@ -29,7 +29,7 @@ class LmImageJob(rasr.RasrCommand, Job):
         self.exe = self.select_exe(crp.lm_util_exe, "lm-util")
 
         self.log_file = self.log_file_output_path("lm_image", crp, False)
-        self.out = self.output_path("lm.image", cached=True)
+        self.out_image = self.output_path("lm.image", cached=True)
 
         self.rqmt = {"time": 1, "cpu": 1, "mem": mem}
 
@@ -51,6 +51,7 @@ class LmImageJob(rasr.RasrCommand, Job):
 
     def run(self):
         self.run_script(1, self.log_file)
+        shutil.move("lm.image.1", self.out_image.get_path())
 
     def cleanup_before_run(self, cmd, retry, *args):
         util.backup_if_exists("lm_image.log")
