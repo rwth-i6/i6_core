@@ -72,7 +72,7 @@ class AdvancedTreeSearchLmImageAndGlobalCacheJob(rasr.RasrCommand, Job):
         shutil.move("global.cache", self.global_cache.get_path())
 
     def cleanup_before_run(self, cmd, retry, *args):
-        util.backup_if_exists("lm_and_global_cache.log")
+        util.backup_if_exists("lm_and_state_tree.log")
 
     @classmethod
     def find_arpa_lms(cls, lm_config, lm_post_config=None):
@@ -242,7 +242,7 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
         )
 
     def cleanup_before_run(self, cmd, retry, task_id, *args):
-        util.backup_if_exists("recognition.log.%d" % task_id)
+        util.backup_if_exists("search.log.%d" % task_id)
         util.delete_if_exists("lattice.cache.%d" % task_id)
 
     @classmethod
@@ -626,7 +626,7 @@ class BidirectionalAdvancedTreeSearchJob(rasr.RasrCommand, Job):
         )
 
     def cleanup_before_run(self, cmd, retry, task_id, *args):
-        util.backup_if_exists("recognition.log.%d" % task_id)
+        util.backup_if_exists("search.log.%d" % task_id)
         util.delete_if_exists("lattice.cache.%d" % task_id)
 
     @classmethod
