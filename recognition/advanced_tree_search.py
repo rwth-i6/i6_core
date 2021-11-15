@@ -34,7 +34,7 @@ class AdvancedTreeSearchLmImageAndGlobalCacheJob(rasr.RasrCommand, Job):
         ) = AdvancedTreeSearchLmImageAndGlobalCacheJob.create_config(**kwargs)
         self.exe = self.select_exe(crp.flf_tool_exe, "flf-tool")
 
-        self.log_file = self.log_file_output_path("lm_and_state_tree", crp, False)
+        self.log_file = self.log_file_output_path("lm_and_global_cache", crp, False)
         self.lm_images = {
             i: self.output_path("lm-%d.image" % i, cached=True)
             for i in range(1, self.num_images + 1)
@@ -198,7 +198,7 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
         self.concurrent = crp.concurrent
         self.use_gpu = use_gpu
 
-        self.log_file = self.log_file_output_path("search", crp, True)
+        self.log_file = self.log_file_output_path("recognition", crp, True)
         self.single_lattice_caches = dict(
             (task_id, self.output_path("lattice.cache.%d" % task_id, cached=True))
             for task_id in range(1, crp.concurrent + 1)
@@ -582,7 +582,7 @@ class BidirectionalAdvancedTreeSearchJob(rasr.RasrCommand, Job):
         self.concurrent = crp.concurrent
         self.use_gpu = use_gpu
 
-        self.log_file = self.log_file_output_path("search", crp, True)
+        self.log_file = self.log_file_output_path("recognition", crp, True)
         self.single_lattice_caches = dict(
             (task_id, self.output_path("lattice.cache.%d" % task_id, cached=True))
             for task_id in range(1, crp.concurrent + 1)
