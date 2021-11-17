@@ -1,8 +1,7 @@
 import collections
-import gzip
 import os.path
+import json
 import xml.etree.ElementTree as ET
-import xml.dom.minidom as minidom
 
 from sisyphus import *
 
@@ -280,3 +279,109 @@ class GraphemicLexiconFromWordListJob(Job):
         with uopen(self.out_bliss_lexicon.get_path(), "w") as lexicon_file:
             lexicon_file.write('<?xml version="1.0" encoding="utf-8"?>\n')
             lexicon_file.write(ET.tostring(lex.to_xml(), "unicode"))
+
+
+class SpellingConversionJob(Job):
+    """Convert lexicon to a new one with other regional spellings
+    e.g. US -> GB spelling
+    """
+
+    def __init__(
+        self,
+        bliss_lexicon,
+        orth_mapping_file,
+        reverse_mapping=False,
+        mapping_delimiter=" ",
+    ):
+        """
+        :param Path bliss_lexicon:
+            input lexicon
+        :param str orth_mapping_file:
+            orthography mapping file, .json .json.gz .txt .gz
+            in case of text file, one can adjust mapping_delimiter
+        :param bool reverse_mapping:
+            reverse/flip the mapping
+        :param str mapping_delimiter:
+            delimiter of source and target orths
+            if mapping is provided with a plain text file
+        """
+
+        self.set_vis_name("Convert Between Regional Orth Spellings")
+
+        self.bliss_lexicon = bliss_lexicon
+        self.orth_mapping_file = orth_mapping_file
+        self.reverse_mapping = reverse_mapping
+        self.mapping_delimiter = mapping_delimiter
+
+        self.out_bliss_lexicon = self.output_path("lexicon.xml.gz")
+
+    def tasks(self):
+        yield Task("run", mini_task=True)
+
+    def run(self):
+
+        # load mapping from json or plain text file
+        is_json = self.orth_mapping_file.endswith(".json")
+        is_json = is_json or self.orth_mapping_file.endswith(".json.gz")
+        if is_json:
+            with uopen(self.orth_mapping_file, "rt") as f:
+                mapping = json.load(f)
+            if self.reverse_mapping:
+                mapping = {v: k for k, v in mapping.items()}
+        else:
+            mapping = dict()
+            with uopen(self.orth_mapping_file, "rt") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("#"):
+                        continue
+                    source, target = line.split(self.mapping_delimiter)
+                    if self.reverse_mapping:
+                        source, target = target, source
+                    mapping[source] = target
+
+        # load input lexicon and build orthography to lemma dict
+        lex = lexicon.Lexicon()
+        lex.load(self.bliss_lexicon.get())
+        orth2lemma = {o: lemma for lemma in lex.lemmata for o in lemma.orth}
+
+        # conversion
+        for source, target in mapping.items():
+
+            # if target lemma already existing
+            if target in orth2lemma:
+                final_lemma = orth2lemma[target]
+
+                if source in orth2lemma:
+                    source_lemma = orth2lemma[source]
+
+                    # add pronunciations of source lemma to final lemma
+                    for phon in source_lemma.phon:
+                        if phon not in final_lemma.phon:
+                            final_lemma.phon.append(phon)
+
+                    # remove source orth from source lemma
+                    if source in source_lemma.orth:
+                        source_lemma.orth.remove(source)
+
+                    # remove source lemma from lexicon if no orth remaining
+                    if not source_lemma.orth:
+                        lex.remove_lemma(source_lemma)
+
+                # add source orth as synt (for LM query) to final lemma
+                final_lemma.synt.append([source])
+                continue
+
+            # elif source lemma is existing
+            if source in orth2lemma:
+                final_lemma = orth2lemma[source]
+
+                # change orth to target orth
+                if source in final_lemma.orth:
+                    final_lemma.orth.remove(source)
+                final_lemma.orth.insert(0, target)
+
+                # add source orth as synt (for LM query) to final lemma
+                final_lemma.synt.append([source])
+
+        write_xml(self.out_bliss_lexicon.get_path(), lex.to_xml())

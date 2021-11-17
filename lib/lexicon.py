@@ -6,9 +6,10 @@ For format details visit: `https://www-i6.informatik.rwth-aachen.de/rwth-asr/man
 __all__ = ["Lemma", "Lexicon"]
 
 from collections import OrderedDict
-import gzip
 from typing import Optional, List
 import xml.etree.ElementTree as ET
+
+from i6_core.util import uopen
 
 
 class Lemma:
@@ -132,13 +133,20 @@ class Lexicon:
         assert isinstance(lemma, Lemma)
         self.lemmata.append(lemma)
 
+    def remove_lemma(self, lemma):
+        """remove a lemma if it's in lemmata
+        :param Lemma lemma:
+        :return: None
+        """
+        assert isinstance(lemma, Lemma)
+        if lemma in self.lemmata:
+            self.lemmata.remove(lemma)
+
     def load(self, path):
         """
         :param str path: bliss lexicon .xml or .xml.gz file
         """
-        open_fun = gzip.open if path.endswith(".gz") else open
-
-        with open_fun(path, "rt") as f:
+        with uopen(path, "rt") as f:
             root = ET.parse(f)
 
         for phoneme in root.findall(".//phoneme-inventory/phoneme"):
