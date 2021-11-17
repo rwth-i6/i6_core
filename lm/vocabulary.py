@@ -23,6 +23,13 @@ class VocabularyFromLmJob(Job):
         lm = Lm(self.lm_path.get())
         self.out_vocabulary_size.set(lm.ngram_counts[0])
 
+        vocabulary = set()
+
+        for n in len(lm.ngram_counts):
+            for words, _ in lm.get_ngrams(n+1):
+                for word in words.split(" "):
+                    vocabulary.add(word)
+
         with open(self.out_vocabulary.get_path(), "w") as fout:
-            for word, _ in lm.get_ngrams(1):
-                fout.write("%s\n" % word)
+            for word in sorted(vocabulary):
+                fout.write(f"{word}\n")
