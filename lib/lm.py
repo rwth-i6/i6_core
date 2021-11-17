@@ -19,7 +19,7 @@ class Lm:
         self.ngrams_start = []
         self.ngrams_end = []
         self.sentprob = 0.0
-        self.from_arpa()
+        self.load_arpa()
 
     def load_arpa(self):
         # read language model in ARPA format
