@@ -103,7 +103,7 @@ class Lm:
         Read the ngrams knowing start and end lines
         """
         with util.uopen(self.lm_path, "rt", encoding="utf-8") as infile:
-            infile.seek(infile, self.ngrams_start[n - 1][1])
+            infile.seek(self.ngrams_start[n - 1][1])
             i = self.ngrams_start[n - 1][0] - 1
             while i < self.ngrams_end[n - 1]:
                 i += 1
