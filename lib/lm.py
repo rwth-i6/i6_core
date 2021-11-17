@@ -103,7 +103,7 @@ class Lm:
         Read the ngrams knowing start and end lines
         """
         with util.uopen(self.lm_path, "rt", encoding="utf-8") as infile:
-            go_to_line(infile, self.ngrams_start[n - 1][1])
+            infile.seek(infile, self.ngrams_start[n - 1][1])
             i = self.ngrams_start[n - 1][0] - 1
             while i < self.ngrams_end[n - 1]:
                 i += 1
@@ -123,11 +123,6 @@ class Lm:
                 if i - (self.ngrams_start[n - 1][0] - 1) % 1000 == 0:
                     logging.info(f"Read 1000 {n}grams")
                 yield ngram, (prob, back)
-
-
-def go_to_line(f_handle, n):
-    assert n >= 0
-    f_handle.seek(n)
 
 
 def not_ngrams(text: str):
