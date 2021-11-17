@@ -58,4 +58,11 @@ Create an executable `.git/hook/pre-commit` with:
     black --check .
     exit 0
 
+Corpus variable naming
 
+    corpus_key -> str (basically corpus identifier)
+    corpus_object -> CorpusObject
+    corpus_file -> Path (would be filepath)
+    corpus_config -> RasrConfig describing the corpus
+
+    corpus any, but usage is discouraged
