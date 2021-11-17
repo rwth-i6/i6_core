@@ -25,7 +25,7 @@ class VocabularyFromLmJob(Job):
 
         vocabulary = set()
 
-        for n in len(lm.ngram_counts):
+        for n in range(len(lm.ngram_counts)):
             for words, _ in lm.get_ngrams(n+1):
                 for word in words.split(" "):
                     vocabulary.add(word)
