@@ -21,7 +21,7 @@ class Lm:
         self.sentprob = 0.0
         self.from_arpa()
 
-    def from_arpa(self):
+    def load_arpa(self):
         # read language model in ARPA format
         lm_path = self.lm_path
         with util.uopen(lm_path, "rt", encoding="utf-8") as infile:
