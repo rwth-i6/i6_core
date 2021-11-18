@@ -51,7 +51,7 @@ class LmImageJob(rasr.RasrCommand, Job):
 
     def run(self):
         self.run_script(1, self.log_file)
-        shutil.move("lm.image.1", self.out_image.get_path())
+        shutil.move("lm.image", self.out_image.get_path())
 
     def cleanup_before_run(self, cmd, retry, *args):
         util.backup_if_exists("lm_image.log")
@@ -72,7 +72,10 @@ class LmImageJob(rasr.RasrCommand, Job):
             config.lm_util.lm.scale
         )  # scale not considered here, delete to remove ambiguity
 
+        assert config.lm_util.lm.type == "ARPA"
+
         config.lm_util.action = "load-lm"
+        config.lm_util.lm.image = "lm.image"
         config.lm_util.encoding = encoding
         config.lm_util.batch_size = 100
 
