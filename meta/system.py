@@ -701,10 +701,10 @@ class System:
             parallelize=parallelize_conversion,
         )
         lat2ctm.add_alias("ctm_%s" % name)
-        self.ctm_files[corpus][name] = lat2ctm.ctm_file
+        self.ctm_files[corpus][name] = lat2ctm.out_ctm_file
 
         kwargs = copy.deepcopy(self.scorer_args[corpus])
-        kwargs[self.scorer_hyp_arg[corpus]] = lat2ctm.ctm_file
+        kwargs[self.scorer_hyp_arg[corpus]] = lat2ctm.out_ctm_file
         scorer = self.scorers[corpus](**kwargs)
 
         self.jobs[corpus]["scorer_%s" % name] = scorer
@@ -756,14 +756,14 @@ class System:
 
         self.jobs[corpus]["lat2ctm_%s" % name] = lat2ctm = recog.LatticeToCtmJob(
             crp=self.crp[corpus],
-            lattice_cache=rec.lattice_bundle,
+            lattice_cache=rec.out_lattice_bundle,
             parallelize=parallelize_conversion,
             **lattice_to_ctm_kwargs,
         )
-        self.ctm_files[corpus]["recog_%s" % name] = lat2ctm.ctm_file
+        self.ctm_files[corpus]["recog_%s" % name] = lat2ctm.out_ctm_file
 
         kwargs = copy.deepcopy(self.scorer_args[corpus])
-        kwargs[self.scorer_hyp_arg[corpus]] = lat2ctm.ctm_file
+        kwargs[self.scorer_hyp_arg[corpus]] = lat2ctm.out_ctm_file
         scorer = self.scorers[corpus](**kwargs)
 
         self.jobs[corpus]["scorer_%s" % name] = scorer

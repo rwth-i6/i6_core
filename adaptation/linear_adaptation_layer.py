@@ -287,16 +287,16 @@ class MetaLinearAdaptationJob(Job):
                 rec.keep_value(self.recognition_keep_value)
                 rec.set_vis_name("Recog %s" % scorer_name)
                 self.jobs["recog_%s" % scorer_name] = rec
-                lattice_bundles.append(rec.lattice_bundle)
+                lattice_bundles.append(rec.out_lattice_bundle)
             m = MergeFilesJob(lattice_bundles)
 
             self.jobs["lat2ctm_%s" % epoch_name] = lat2ctm = recog.LatticeToCtmJob(
                 crp=self.corpus, lattice_cache=m.out_file, parallelize=False
             )
-            self.ctm_files["recog_%s" % epoch_name] = lat2ctm.ctm_file
+            self.ctm_files["recog_%s" % epoch_name] = lat2ctm.out_ctm_file
 
             kwargs = copy.deepcopy(self.wer_scorer_args)
-            kwargs["hyp"] = lat2ctm.ctm_file
+            kwargs["hyp"] = lat2ctm.out_ctm_file
             scorer = self.wer_scorer(**kwargs)
 
             self.jobs["scorer_%s" % epoch_name] = scorer
