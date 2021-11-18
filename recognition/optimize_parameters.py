@@ -46,8 +46,8 @@ class OptimizeAMandLMScaleJob(rasr.RasrCommand, Job):
         self.scorer_hyp_param_name = scorer_hyp_param_name
 
         self.out_log_file = self.output_path("optimization.log")
-        self.best_am_score = self.output_var("bast_am_score")  # contains typo
-        self.best_lm_score = self.output_var("bast_lm_score")  # contains typo
+        self.out_best_am_score = self.output_var("bast_am_score")  # contains typo
+        self.out_best_lm_score = self.output_var("bast_lm_score")  # contains typo
 
         self.rqmt = {"time": 6, "cpu": 1, "mem": 1}
 
@@ -129,8 +129,8 @@ class OptimizeAMandLMScaleJob(rasr.RasrCommand, Job):
         else:
             am_scale = xopt[0]
             lm_scale = xopt[1]
-        self.best_am_score.set(float(am_scale))
-        self.best_lm_score.set(float(lm_scale))
+        self.out_best_am_score.set(float(am_scale))
+        self.out_best_lm_score.set(float(lm_scale))
         with open(self.out_log_file.get_path(), "wt") as f:
             f.write(
                 "Found optimum at am-scale = %f lm-scale = %f with WER %f\n"

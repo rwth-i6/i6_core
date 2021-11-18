@@ -34,10 +34,10 @@ class LatticeToCtmJob(rasr.RasrCommand, Job):
         self.exe = self.select_exe(crp.flf_tool_exe, "flf-tool")
         self.lattice_cache = lattice_cache
 
-        self.log_file = self.log_file_output_path(
+        self.out_log_file = self.log_file_output_path(
             "lattice_to_ctm", crp, self.concurrent > 1
         )
-        self.ctm_file = self.output_path("lattice.ctm")
+        self.out_ctm_file = self.output_path("lattice.ctm")
 
         self.rqmt = {
             "time": max(crp.corpus_duration / (5.0 * self.concurrent), 0.5),
@@ -58,13 +58,15 @@ class LatticeToCtmJob(rasr.RasrCommand, Job):
         self.write_run_script(self.exe, "lattice_to_ctm.config")
 
     def run(self, task_id):
-        log_file = self.log_file if self.concurrent <= 1 else self.log_file[task_id]
+        log_file = (
+            self.out_log_file if self.concurrent <= 1 else self.out_log_file[task_id]
+        )
         self.run_script(task_id, log_file)
         if self.concurrent <= 1:
-            shutil.move("lattice.ctm.1", self.ctm_file.get_path())
+            shutil.move("lattice.ctm.1", self.out_ctm_file.get_path())
 
     def merge(self):
-        with open(self.ctm_file.get_path(), "wt") as out:
+        with open(self.out_ctm_file.get_path(), "wt") as out:
             for t in range(1, self.concurrent + 1):
                 with open("lattice.ctm.%d" % t, "rt") as ctm:
                     shutil.copyfileobj(ctm, out)
