@@ -18,7 +18,7 @@ e.g. in the setup root call:
 # Contributing
 
 Before contributing to `i6_core`, please have a close look at
-[CONTRIBUTING.md](https://github.com/rwth-i6/i6_core/blob/main/CONTRIBUTUNG.md)
+[CONTRIBUTING.md](https://github.com/rwth-i6/i6_core/blob/main/CONTRIBUTING.md)
 
 Code style: https://github.com/psf/black
 
