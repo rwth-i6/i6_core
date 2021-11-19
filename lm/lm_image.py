@@ -1,6 +1,7 @@
 __all__ = ["LmImageJob"]
 
 import shutil
+import logging
 
 from sisyphus import *
 from i6_core import rasr
@@ -73,6 +74,11 @@ class LmImageJob(rasr.RasrCommand, Job):
         )  # scale not considered here, delete to remove ambiguity
 
         assert config.lm_util.lm.type == "ARPA"
+
+        if post_config.lm_util.lm.image:
+            logging.warning(
+                "The LM image already exists, but a new one will be recreated."
+            )
 
         config.lm_util.action = "load-lm"
         config.lm_util.lm.image = "lm.image"
