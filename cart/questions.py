@@ -99,7 +99,10 @@ class BasicCartQuestions:
 
     def write_to_file(self, file):
         from xml.dom.minidom import parseString
-        xmlstr = parseString(ET.tostring(self.get_questions())).toprettyxml(indent="   ")
+
+        xmlstr = parseString(ET.tostring(self.get_questions())).toprettyxml(
+            indent="   "
+        )
         with open(file, "wt", encoding="utf-8") as f:
             f.write(xmlstr)
 
@@ -290,6 +293,9 @@ class PythonCartQuestions:
 
     def write_to_file(self, file):
         from xml.dom.minidom import parseString
-        xmlstr = parseString(ET.tostring(self.get_questions())).toprettyxml(indent="   ")
+
+        xmlstr = parseString(ET.tostring(self.get_questions())).toprettyxml(
+            indent="   "
+        )
         with open(file, "wt", encoding="utf-8") as f:
             f.write(xmlstr)
