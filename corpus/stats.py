@@ -16,13 +16,21 @@ class ExtractOovWordsFromCorpusJob(Job):
     Extracts the out of vocabulary words based on a given corpus and lexicon
     """
 
-    def __init__(self, bliss_corpus, bliss_lexicon):
+    __sis_hash_exclude__ = {
+        "casing": "upper",
+    }
+
+    def __init__(self, bliss_corpus, bliss_lexicon, casing="upper"):
         """
         :param Union[Path, str] bliss_corpus: path to corpus file
         :param Union[Path, str] bliss_lexicon: path to lexicon
+        :param str|None casing: changes the casing of the orthography (options: upper, lower, None)
+                                str.upper() is problematic for german since ß -> SS
+                                https://bugs.python.org/issue34928
         """
         self.bliss_corpus = bliss_corpus
         self.bliss_lexicon = bliss_lexicon
+        self.casing = casing
 
         self.out_oov_words = self.output_path("oov_words")
 
@@ -32,18 +40,46 @@ class ExtractOovWordsFromCorpusJob(Job):
     def run(self):
         with uopen(self.bliss_lexicon, "rt", encoding="utf-8") as f:
             tree = ET.parse(f)
-            iv_words = {
-                orth.text.upper() for orth in tree.findall(".//lemma/orth") if orth.text
-            }
+            if self.casing == "upper":
+                iv_words = {
+                    orth.text.upper()
+                    for orth in tree.findall(".//lemma/orth")
+                    if orth.text
+                }
+            elif self.casing == "lower":
+                iv_words = {
+                    orth.text.lower()
+                    for orth in tree.findall(".//lemma/orth")
+                    if orth.text
+                }
+            else:
+                iv_words = {
+                    orth.text for orth in tree.findall(".//lemma/orth") if orth.text
+                }
 
         with uopen(self.bliss_corpus, "rt", encoding="utf-8") as f:
             tree = ET.parse(f)
-            oov_words = {
-                w
-                for kw in tree.findall(".//recording/segment/orth")
-                for w in kw.text.strip().split()
-                if w.upper() not in iv_words
-            }
+            if self.casing == "upper":
+                oov_words = {
+                    w
+                    for kw in tree.findall(".//recording/segment/orth")
+                    for w in kw.text.strip().split()
+                    if w.upper() not in iv_words
+                }
+            elif self.casing == "lower":
+                oov_words = {
+                    w
+                    for kw in tree.findall(".//recording/segment/orth")
+                    for w in kw.text.strip().split()
+                    if w.lower() not in iv_words
+                }
+            else:
+                oov_words = {
+                    w
+                    for kw in tree.findall(".//recording/segment/orth")
+                    for w in kw.text.strip().split()
+                    if w not in iv_words
+                }
 
         with uopen(self.out_oov_words, "wt") as f:
             for w in sorted(oov_words):
