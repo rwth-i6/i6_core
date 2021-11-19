@@ -16,8 +16,10 @@ class VocabularyFromLmJob(Job):
         self.out_vocabulary = self.output_path("vocabulary.txt")
         self.out_vocabulary_size = self.output_var("vocabulary_size")
 
+        self.rqmt = {"cpu": 1, "mem": 2, "time": 2}
+
     def tasks(self):
-        yield Task("run", mini_task=True)
+        yield Task("run", resume="run", rqmt=self.rqmt)
 
     def run(self):
         lm = Lm(self.lm_path.get())
