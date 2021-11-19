@@ -58,4 +58,11 @@ Create an executable `.git/hook/pre-commit` with:
     black --check .
     exit 0
 
+Corpus variable naming: in sisyphus setups there are different ways to hold the corpus information (str, Path, CorpusObject, RasrConfig). At the moment `corpus` covers all. To distinguish the different forms to hold the corpus information, we strongly encourage using the following variable naming:
 
+    corpus_key -> str (basically corpus identifier)
+    corpus_object -> CorpusObject
+    corpus_file -> Path (would be filepath)
+    corpus_config -> RasrConfig describing the corpus
+
+    corpus any, but usage is discouraged

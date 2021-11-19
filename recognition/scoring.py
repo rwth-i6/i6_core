@@ -27,14 +27,14 @@ class AnalogJob(Job):
         self.configs = configs
         if type(configs) == dict:
             self.configs = list(configs.values())
-        self.report = self.output_path("report.analog")
+        self.out_report = self.output_path("report.analog")
 
     def tasks(self):
         yield Task("run", mini_task=True)
 
     def run(self):
         analog_path = os.path.join(gs.RASR_ROOT, "src/Tools/Analog/analog")
-        with open(self.report.get_path(), "w") as out:
+        with open(self.out_report.get_path(), "w") as out:
             sp.check_call(
                 [analog_path]
                 + (["-m"] if self.merge else [])
@@ -53,22 +53,22 @@ class ScliteJob(Job):
         self.sort_files = sort_files
         self.additional_args = additional_args
 
-        self.report_dir = self.output_path("reports", True)
+        self.out_report_dir = self.output_path("reports", True)
 
-        self.wer = self.output_var("wer")
-        self.num_errors = self.output_var("num_errors")
-        self.percent_correct = self.output_var("percent_correct")
-        self.num_correct = self.output_var("num_correct")
-        self.percent_substitution = self.output_var("percent_substitution")
-        self.num_substitution = self.output_var("num_substitution")
-        self.percent_deletions = self.output_var("percent_deletions")
-        self.num_deletions = self.output_var("num_deletions")
-        self.percent_insertions = self.output_var("percent_insertions")
-        self.num_insertions = self.output_var("num_insertions")
-        self.percent_word_accuracy = self.output_var("percent_word_accuracy")
-        self.ref_words = self.output_var("ref_words")
-        self.hyp_words = self.output_var("hyp_words")
-        self.aligned_words = self.output_var("aligned_words")
+        self.out_wer = self.output_var("wer")
+        self.out_num_errors = self.output_var("num_errors")
+        self.out_percent_correct = self.output_var("percent_correct")
+        self.out_num_correct = self.output_var("num_correct")
+        self.out_percent_substitution = self.output_var("percent_substitution")
+        self.out_num_substitution = self.output_var("num_substitution")
+        self.out_percent_deletions = self.output_var("percent_deletions")
+        self.out_num_deletions = self.output_var("num_deletions")
+        self.out_percent_insertions = self.output_var("percent_insertions")
+        self.out_num_insertions = self.output_var("num_insertions")
+        self.out_percent_word_accuracy = self.output_var("percent_word_accuracy")
+        self.out_ref_words = self.output_var("ref_words")
+        self.out_hyp_words = self.output_var("hyp_words")
+        self.out_aligned_words = self.output_var("aligned_words")
 
     def tasks(self):
         yield Task("run", resume="run", mini_task=True)
@@ -92,7 +92,7 @@ class ScliteJob(Job):
             if hasattr(gs, "SCTK_PATH")
             else "sclite"
         )
-        output_dir = self.report_dir.get_path() if output_to_report_dir else "."
+        output_dir = self.out_report_dir.get_path() if output_to_report_dir else "."
         stm_file = tmp_stm_file if self.sort_files else tk.uncached_path(self.ref)
         ctm_file = tmp_ctm_file if self.sort_files else tk.uncached_path(self.hyp)
 
@@ -127,28 +127,28 @@ class ScliteJob(Job):
                 for line in f:
                     s = line.split()
                     if line.startswith("Percent Total Error"):
-                        self.wer.set(float(s[4][:-1]))
-                        self.num_errors.set(int("".join(s[5:])[1:-1]))
+                        self.out_wer.set(float(s[4][:-1]))
+                        self.out_num_errors.set(int("".join(s[5:])[1:-1]))
                     elif line.startswith("Percent Correct"):
-                        self.percent_correct.set(float(s[3][:-1]))
-                        self.num_correct.set(int("".join(s[4:])[1:-1]))
+                        self.out_percent_correct.set(float(s[3][:-1]))
+                        self.out_num_correct.set(int("".join(s[4:])[1:-1]))
                     elif line.startswith("Percent Substitution"):
-                        self.percent_substitution.set(float(s[3][:-1]))
-                        self.num_substitution.set(int("".join(s[4:])[1:-1]))
+                        self.out_percent_substitution.set(float(s[3][:-1]))
+                        self.out_num_substitution.set(int("".join(s[4:])[1:-1]))
                     elif line.startswith("Percent Deletions"):
-                        self.percent_deletions.set(float(s[3][:-1]))
-                        self.num_deletions.set(int("".join(s[4:])[1:-1]))
+                        self.out_percent_deletions.set(float(s[3][:-1]))
+                        self.out_num_deletions.set(int("".join(s[4:])[1:-1]))
                     elif line.startswith("Percent Insertions"):
-                        self.percent_insertions.set(float(s[3][:-1]))
-                        self.num_insertions.set(int("".join(s[4:])[1:-1]))
+                        self.out_percent_insertions.set(float(s[3][:-1]))
+                        self.out_num_insertions.set(int("".join(s[4:])[1:-1]))
                     elif line.startswith("Percent Word Accuracy"):
-                        self.percent_word_accuracy.set(float(s[4][:-1]))
+                        self.out_percent_word_accuracy.set(float(s[4][:-1]))
                     elif line.startswith("Ref. words"):
-                        self.ref_words.set(int("".join(s[3:])[1:-1]))
+                        self.out_ref_words.set(int("".join(s[3:])[1:-1]))
                     elif line.startswith("Hyp. words"):
-                        self.hyp_words.set(int("".join(s[3:])[1:-1]))
+                        self.out_hyp_words.set(int("".join(s[3:])[1:-1]))
                     elif line.startswith("Aligned words"):
-                        self.aligned_words.set(int("".join(s[3:])[1:-1]))
+                        self.out_aligned_words.set(int("".join(s[3:])[1:-1]))
 
     def calc_wer(self):
         wer = None
@@ -178,27 +178,27 @@ class Hub5ScoreJob(Job):
         self.hyp = hyp
         self.ref = ref
 
-        self.report_dir = self.output_path("reports", True)
+        self.out_report_dir = self.output_path("reports", True)
 
-        self.wer = self.output_var("wer")
-        self.num_errors = self.output_var("num_errors")
-        self.percent_correct = self.output_var("percent_correct")
-        self.num_correct = self.output_var("num_correct")
-        self.percent_substitution = self.output_var("percent_substitution")
-        self.num_substitution = self.output_var("num_substitution")
-        self.percent_deletions = self.output_var("percent_deletions")
-        self.num_deletions = self.output_var("num_deletions")
-        self.percent_insertions = self.output_var("percent_insertions")
-        self.num_insertions = self.output_var("num_insertions")
-        self.percent_word_accuracy = self.output_var("percent_word_accuracy")
-        self.ref_words = self.output_var("ref_words")
-        self.hyp_words = self.output_var("hyp_words")
-        self.aligned_words = self.output_var("aligned_words")
+        self.out_wer = self.output_var("wer")
+        self.out_num_errors = self.output_var("num_errors")
+        self.out_percent_correct = self.output_var("percent_correct")
+        self.out_num_correct = self.output_var("num_correct")
+        self.out_percent_substitution = self.output_var("percent_substitution")
+        self.out_num_substitution = self.output_var("num_substitution")
+        self.out_percent_deletions = self.output_var("percent_deletions")
+        self.out_num_deletions = self.output_var("num_deletions")
+        self.out_percent_insertions = self.output_var("percent_insertions")
+        self.out_num_insertions = self.output_var("num_insertions")
+        self.out_percent_word_accuracy = self.output_var("percent_word_accuracy")
+        self.out_ref_words = self.output_var("ref_words")
+        self.out_hyp_words = self.output_var("hyp_words")
+        self.out_aligned_words = self.output_var("aligned_words")
 
-        self.swb_num_errors = self.output_var("swb_num_errors")
-        self.swb_ref_words = self.output_var("swb_ref_words")
-        self.ch_num_errors = self.output_var("ch_num_errors")
-        self.ch_ref_words = self.output_var("ch_ref_words")
+        self.out_swb_num_errors = self.output_var("swb_num_errors")
+        self.out_swb_ref_words = self.output_var("swb_ref_words")
+        self.out_ch_num_errors = self.output_var("ch_num_errors")
+        self.out_ch_ref_words = self.output_var("ch_ref_words")
 
     def tasks(self):
         yield Task("run", mini_task=True)
@@ -234,28 +234,28 @@ class Hub5ScoreJob(Job):
                 for line in f:
                     s = line.split()
                     if line.startswith("Percent Total Error"):
-                        self.wer.set(float(s[4][:-1]))
-                        self.num_errors.set(int("".join(s[5:])[1:-1]))
+                        self.out_wer.set(float(s[4][:-1]))
+                        self.out_num_errors.set(int("".join(s[5:])[1:-1]))
                     elif line.startswith("Percent Correct"):
-                        self.percent_correct.set(float(s[3][:-1]))
-                        self.num_correct.set(int("".join(s[4:])[1:-1]))
+                        self.out_percent_correct.set(float(s[3][:-1]))
+                        self.out_num_correct.set(int("".join(s[4:])[1:-1]))
                     elif line.startswith("Percent Substitution"):
-                        self.percent_substitution.set(float(s[3][:-1]))
-                        self.num_substitution.set(int("".join(s[4:])[1:-1]))
+                        self.out_percent_substitution.set(float(s[3][:-1]))
+                        self.out_num_substitution.set(int("".join(s[4:])[1:-1]))
                     elif line.startswith("Percent Deletions"):
-                        self.percent_deletions.set(float(s[3][:-1]))
-                        self.num_deletions.set(int("".join(s[4:])[1:-1]))
+                        self.out_percent_deletions.set(float(s[3][:-1]))
+                        self.out_num_deletions.set(int("".join(s[4:])[1:-1]))
                     elif line.startswith("Percent Insertions"):
-                        self.percent_insertions.set(float(s[3][:-1]))
-                        self.num_insertions.set(int("".join(s[4:])[1:-1]))
+                        self.out_percent_insertions.set(float(s[3][:-1]))
+                        self.out_num_insertions.set(int("".join(s[4:])[1:-1]))
                     elif line.startswith("Percent Word Accuracy"):
-                        self.percent_word_accuracy.set(float(s[4][:-1]))
+                        self.out_percent_word_accuracy.set(float(s[4][:-1]))
                     elif line.startswith("Ref. words"):
-                        self.ref_words.set(int(s[3][1:-1]))
+                        self.out_ref_words.set(int(s[3][1:-1]))
                     elif line.startswith("Hyp. words"):
-                        self.hyp_words.set(int(s[3][1:-1]))
+                        self.out_hyp_words.set(int(s[3][1:-1]))
                     elif line.startswith("Aligned words"):
-                        self.aligned_words.set(int(s[3][1:-1]))
+                        self.out_aligned_words.set(int(s[3][1:-1]))
 
             with open(f"{hyp}.filt.raw", "rt") as f:
                 swb_err = 0
@@ -273,13 +273,13 @@ class Hub5ScoreJob(Job):
                         ch_err += int(s[10])
                         ch_ref += int(s[4])
 
-            self.swb_num_errors.set(swb_err)
-            self.swb_ref_words.set(swb_ref)
-            self.ch_num_errors.set(ch_err)
-            self.ch_ref_words.set(ch_ref)
+            self.out_swb_num_errors.set(swb_err)
+            self.out_swb_ref_words.set(swb_ref)
+            self.out_ch_num_errors.set(ch_err)
+            self.out_ch_ref_words.set(ch_ref)
 
             for f in os.listdir("."):
-                os.rename(f, os.path.join(self.report_dir.get_path(), f))
+                os.rename(f, os.path.join(self.out_report_dir.get_path(), f))
 
     def calc_wer(self):
         wer = None
@@ -311,7 +311,7 @@ class QuaeroScorerJob(Job):
         self.normalization_script = normalization_script
         self.eval_script = eval_script
 
-        self.report_dir = self.output_path("reports", True)
+        self.out_report_dir = self.output_path("reports", True)
 
     def tasks(self):
         yield Task("run", mini_task=True)
@@ -341,7 +341,7 @@ class QuaeroScorerJob(Job):
 
         if move_files:
             for f in os.listdir("."):
-                os.rename(f, os.path.join(self.report_dir.get_path(), f))
+                os.rename(f, os.path.join(self.out_report_dir.get_path(), f))
 
     def calc_wer(self):
         wer = None
@@ -380,12 +380,12 @@ class KaldiScorerJob(Job):
         self.map = map if map else {}
         self.regex = regex
 
-        self.kaldi_ref = self.output_path("ref.txt")
-        self.kaldi_hyp = self.output_path("hyp.txt")
-        self.report_dir = self.output_path("reports", True)
-        self.report_path = self.output_path("reports/wer.txt")
+        self.out_kaldi_ref = self.output_path("ref.txt")
+        self.out_kaldi_hyp = self.output_path("hyp.txt")
+        self.out_report_dir = self.output_path("reports", True)
+        self.out_report_path = self.output_path("reports/wer.txt")
         if regex:
-            self.re_table = self.output_path("reports/table.txt")
+            self.out_re_table = self.output_path("reports/table.txt")
 
     def tasks(self):
         yield Task("run", mini_task=True)
@@ -545,19 +545,19 @@ class KaldiScorerJob(Job):
                             wer = float(line.split()[1])
                             table_data[f] = wer
                             break
-            os.rename(f, os.path.join(self.report_dir.get_path(), f))
+            os.rename(f, os.path.join(self.out_report_dir.get_path(), f))
 
-        with open(self.re_table.get_path(), "w") as f:
+        with open(self.out_re_table.get_path(), "w") as f:
             for key, wer in table_data.items():
                 f.write("{} {}\n".format(key, wer))
 
     def run(self, report_path=None, ref_path=None, hyp_path=None):
         if not report_path:
-            report_path = self.report_path.get_path()
+            report_path = self.out_report_path.get_path()
         if not ref_path:
-            ref_path = self.kaldi_ref.get_path()
+            ref_path = self.out_kaldi_ref.get_path()
         if not hyp_path:
-            hyp_path = self.kaldi_hyp.get_path()
+            hyp_path = self.out_kaldi_hyp.get_path()
 
         self._make_ref(ref_path)
         self._convert_hyp(hyp_path)

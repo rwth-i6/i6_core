@@ -352,7 +352,6 @@ class ReturnnTrainingJob(Job):
         **kwargs,
     ):
         assert device in ["gpu", "cpu"]
-        assert "network" in returnn_config.config
 
         res = copy.deepcopy(returnn_config)
 

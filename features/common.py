@@ -17,6 +17,29 @@ __all__ = [
 
 import i6_core.rasr as rasr
 
+# -------------------- Helper -------------------
+
+
+def get_input_node_type(audio_format="wav"):
+    """
+    Gets the RASR flow input node type based on the audio_format
+
+    :param str audio_format:
+    :return: node type
+    :rtype: str
+    """
+    native_audio_formats = [
+        "wav",
+        "nist",
+        "flac",
+        "mpeg",
+        "gsm",
+        "htk",
+        "phondat",
+        "oss",
+    ]
+    return audio_format if audio_format in native_audio_formats else "ffmpeg"
+
 
 # -------------------- Flows --------------------
 
@@ -27,8 +50,10 @@ def raw_audio_flow(audio_format="wav"):
     net.add_output("out")
     net.add_param(["input-file", "start-time", "end-time"])
 
+    input_node_type = get_input_node_type(audio_format)
+
     samples = net.add_node(
-        "audio-input-file-" + audio_format,
+        "audio-input-file-" + input_node_type,
         "samples",
         {
             "file": "$(input-file)",
@@ -94,18 +119,7 @@ def samples_flow(
     if input_options is not None:
         input_opts.update(**input_options)
 
-    native_audio_formats = [
-        "wav",
-        "nist",
-        "flac",
-        "mpeg",
-        "gsm",
-        "htk",
-        "phondat",
-        "oss",
-    ]
-
-    input_node_type = audio_format if audio_format in native_audio_formats else "ffmpeg"
+    input_node_type = get_input_node_type(audio_format)
 
     samples = net.add_node("audio-input-file-" + input_node_type, "samples", input_opts)
     if input_node_type == "ffmpeg":

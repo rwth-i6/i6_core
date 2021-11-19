@@ -31,23 +31,23 @@ class CNDecodingJob(rasr.RasrCommand, Job):
         self.concurrent = crp.concurrent
         self.write_cn = write_cn
 
-        self.log_file = self.log_file_output_path("cn_decoding", crp, True)
-        self.single_lattice_caches = dict(
+        self.out_log_file = self.log_file_output_path("cn_decoding", crp, True)
+        self.out_single_lattice_caches = dict(
             (
                 task_id,
                 self.output_path("confusion_lattice.cache.%d" % task_id, cached=True),
             )
             for task_id in range(1, crp.concurrent + 1)
         )
-        self.ctm_file = self.output_path("lattice.ctm")
+        self.out_ctm_file = self.output_path("lattice.ctm")
         if self.write_cn:
-            self.lattice_bundle = self.output_path(
+            self.out_lattice_bundle = self.output_path(
                 "confusion_lattice.bundle", cached=True
             )
-            self.lattice_path = util.MultiOutputPath(
+            self.out_lattice_path = util.MultiOutputPath(
                 self,
                 "confusion_lattice.cache.$(TASK)",
-                self.single_lattice_caches,
+                self.out_single_lattice_caches,
                 cached=True,
             )
 
@@ -70,19 +70,19 @@ class CNDecodingJob(rasr.RasrCommand, Job):
         self.write_run_script(self.exe, "cn_decoding.config")
         if self.write_cn:
             util.write_paths_to_file(
-                self.lattice_bundle, self.single_lattice_caches.values()
+                self.out_lattice_bundle, self.out_single_lattice_caches.values()
             )
 
     def run(self, task_id):
-        self.run_script(task_id, self.log_file[task_id])
+        self.run_script(task_id, self.out_log_file[task_id])
         if self.write_cn:
             shutil.move(
                 "confusion_lattice.cache.%d" % task_id,
-                self.single_lattice_caches[task_id].get_path(),
+                self.out_single_lattice_caches[task_id].get_path(),
             )
 
     def merge(self):
-        with open(self.ctm_file.get_path(), "wt") as out:
+        with open(self.out_ctm_file.get_path(), "wt") as out:
             for t in range(1, self.concurrent + 1):
                 with open("lattice.ctm.%d" % t, "rt") as ctm:
                     shutil.copyfileobj(ctm, out)

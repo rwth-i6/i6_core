@@ -169,7 +169,7 @@ class LibriSpeechCreateBlissCorpusJob(Job):
                 continue
             speaker = corpus.Speaker()
             speaker.name = speaker_id
-            speaker.attribs["gender"] = speaker_info[0].lower()
+            speaker.attribs["gender"] = "male" if speaker_info[0] == "M" else "female"
             c.add_speaker(speaker)
 
         c.dump(self.out_corpus.get_path())

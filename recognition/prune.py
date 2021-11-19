@@ -34,19 +34,19 @@ class LatticePruningJob(rasr.RasrCommand, Job):
         self.exe = self.select_exe(crp.flf_tool_exe, "flf-tool")
         self.concurrent = crp.concurrent
 
-        self.log_file = self.log_file_output_path("pruning", crp, True)
-        self.single_lattice_caches = dict(
+        self.out_log_file = self.log_file_output_path("pruning", crp, True)
+        self.out_single_lattice_caches = dict(
             (
                 task_id,
                 self.output_path("pruned_lattice.cache.%d" % task_id, cached=True),
             )
             for task_id in range(1, crp.concurrent + 1)
         )
-        self.lattice_bundle = self.output_path("pruned_lattice.bundle", cached=True)
-        self.lattice_path = util.MultiOutputPath(
+        self.out_lattice_bundle = self.output_path("pruned_lattice.bundle", cached=True)
+        self.out_lattice_path = util.MultiOutputPath(
             self,
             "pruned_lattice.cache.$(TASK)",
-            self.single_lattice_caches,
+            self.out_single_lattice_caches,
             cached=True,
         )
 
@@ -66,15 +66,15 @@ class LatticePruningJob(rasr.RasrCommand, Job):
     def create_files(self):
         self.write_config(self.config, self.post_config, "pruning.config")
         util.write_paths_to_file(
-            self.lattice_bundle, self.single_lattice_caches.values()
+            self.out_lattice_bundle, self.out_single_lattice_caches.values()
         )
         self.write_run_script(self.exe, "pruning.config")
 
     def run(self, task_id):
-        self.run_script(task_id, self.log_file[task_id])
+        self.run_script(task_id, self.out_log_file[task_id])
         shutil.move(
             "pruned_lattice.cache.%d" % task_id,
-            self.single_lattice_caches[task_id].get_path(),
+            self.out_single_lattice_caches[task_id].get_path(),
         )
 
     def cleanup_before_run(self, cmd, retry, task_id, *args):

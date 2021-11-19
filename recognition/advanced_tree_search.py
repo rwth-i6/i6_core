@@ -34,12 +34,12 @@ class AdvancedTreeSearchLmImageAndGlobalCacheJob(rasr.RasrCommand, Job):
         ) = AdvancedTreeSearchLmImageAndGlobalCacheJob.create_config(**kwargs)
         self.exe = self.select_exe(crp.flf_tool_exe, "flf-tool")
 
-        self.log_file = self.log_file_output_path("lm_and_state_tree", crp, False)
-        self.lm_images = {
+        self.out_log_file = self.log_file_output_path("lm_and_state_tree", crp, False)
+        self.out_lm_images = {
             i: self.output_path("lm-%d.image" % i, cached=True)
             for i in range(1, self.num_images + 1)
         }
-        self.global_cache = self.output_path("global.cache", cached=True)
+        self.out_global_cache = self.output_path("global.cache", cached=True)
 
         self.rqmt = {"time": 1, "cpu": 1, "mem": 2}
 
@@ -66,13 +66,13 @@ class AdvancedTreeSearchLmImageAndGlobalCacheJob(rasr.RasrCommand, Job):
         )
 
     def run(self):
-        self.run_script(1, self.log_file)
+        self.run_script(1, self.out_log_file)
         for i in range(1, self.num_images + 1):
-            shutil.move("lm-%d.image" % i, self.lm_images[i].get_path())
-        shutil.move("global.cache", self.global_cache.get_path())
+            shutil.move("lm-%d.image" % i, self.out_lm_images[i].get_path())
+        shutil.move("global.cache", self.out_global_cache.get_path())
 
     def cleanup_before_run(self, cmd, retry, *args):
-        util.backup_if_exists("lm_and_global_cache.log")
+        util.backup_if_exists("lm_and_state_tree.log")
 
     @classmethod
     def find_arpa_lms(cls, lm_config, lm_post_config=None):
@@ -198,14 +198,14 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
         self.concurrent = crp.concurrent
         self.use_gpu = use_gpu
 
-        self.log_file = self.log_file_output_path("search", crp, True)
-        self.single_lattice_caches = dict(
+        self.out_log_file = self.log_file_output_path("search", crp, True)
+        self.out_single_lattice_caches = dict(
             (task_id, self.output_path("lattice.cache.%d" % task_id, cached=True))
             for task_id in range(1, crp.concurrent + 1)
         )
-        self.lattice_bundle = self.output_path("lattice.bundle", cached=True)
-        self.lattice_path = util.MultiOutputPath(
-            self, "lattice.cache.$(TASK)", self.single_lattice_caches, cached=True
+        self.out_lattice_bundle = self.output_path("lattice.bundle", cached=True)
+        self.out_lattice_path = util.MultiOutputPath(
+            self, "lattice.cache.$(TASK)", self.out_single_lattice_caches, cached=True
         )
 
         self.rqmt = {
@@ -225,7 +225,7 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
         self.write_config(self.config, self.post_config, "recognition.config")
         self.feature_flow.write_to_file("feature.flow")
         util.write_paths_to_file(
-            self.lattice_bundle, self.single_lattice_caches.values()
+            self.out_lattice_bundle, self.out_single_lattice_caches.values()
         )
         extra_code = (
             ":${{THEANO_FLAGS:="
@@ -236,13 +236,14 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
         self.write_run_script(self.exe, "recognition.config", extra_code=extra_code)
 
     def run(self, task_id):
-        self.run_script(task_id, self.log_file[task_id])
+        self.run_script(task_id, self.out_log_file[task_id])
         shutil.move(
-            "lattice.cache.%d" % task_id, self.single_lattice_caches[task_id].get_path()
+            "lattice.cache.%d" % task_id,
+            self.out_single_lattice_caches[task_id].get_path(),
         )
 
     def cleanup_before_run(self, cmd, retry, task_id, *args):
-        util.backup_if_exists("recognition.log.%d" % task_id)
+        util.backup_if_exists("search.log.%d" % task_id)
         util.delete_if_exists("lattice.cache.%d" % task_id)
 
     @classmethod
@@ -405,14 +406,14 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
             ]
 
         post_config.flf_lattice_tool.global_cache.read_only = True
-        post_config.flf_lattice_tool.global_cache.file = lm_gc.global_cache
+        post_config.flf_lattice_tool.global_cache.file = lm_gc.out_global_cache
 
         arpa_lms = AdvancedTreeSearchLmImageAndGlobalCacheJob.find_arpa_lms(
             config.flf_lattice_tool.network.recognizer.lm,
             post_config.flf_lattice_tool.network.recognizer.lm,
         )
         for i, lm_config in enumerate(arpa_lms):
-            lm_config[1].image = lm_gc.lm_images[i + 1]
+            lm_config[1].image = lm_gc.out_lm_images[i + 1]
 
         # Remaining Flf-network
 
@@ -582,14 +583,14 @@ class BidirectionalAdvancedTreeSearchJob(rasr.RasrCommand, Job):
         self.concurrent = crp.concurrent
         self.use_gpu = use_gpu
 
-        self.log_file = self.log_file_output_path("search", crp, True)
-        self.single_lattice_caches = dict(
+        self.out_log_file = self.log_file_output_path("search", crp, True)
+        self.out_single_lattice_caches = dict(
             (task_id, self.output_path("lattice.cache.%d" % task_id, cached=True))
             for task_id in range(1, crp.concurrent + 1)
         )
-        self.lattice_bundle = self.output_path("lattice.bundle", cached=True)
-        self.lattice_path = util.MultiOutputPath(
-            self, "lattice.cache.$(TASK)", self.single_lattice_caches, cached=True
+        self.out_lattice_bundle = self.output_path("lattice.bundle", cached=True)
+        self.out_lattice_path = util.MultiOutputPath(
+            self, "lattice.cache.$(TASK)", self.out_single_lattice_caches, cached=True
         )
 
         self.rqmt = {
@@ -609,7 +610,7 @@ class BidirectionalAdvancedTreeSearchJob(rasr.RasrCommand, Job):
         self.write_config(self.config, self.post_config, "recognition.config")
         self.feature_flow.write_to_file("feature.flow")
         util.write_paths_to_file(
-            self.lattice_bundle, self.single_lattice_caches.values()
+            self.out_lattice_bundle, self.out_single_lattice_caches.values()
         )
         extra_code = (
             ":${{THEANO_FLAGS:="
@@ -620,13 +621,14 @@ class BidirectionalAdvancedTreeSearchJob(rasr.RasrCommand, Job):
         self.write_run_script(self.exe, "recognition.config", extra_code=extra_code)
 
     def run(self, task_id):
-        self.run_script(task_id, self.log_file[task_id])
+        self.run_script(task_id, self.out_log_file[task_id])
         shutil.move(
-            "lattice.cache.%d" % task_id, self.single_lattice_caches[task_id].get_path()
+            "lattice.cache.%d" % task_id,
+            self.out_single_lattice_caches[task_id].get_path(),
         )
 
     def cleanup_before_run(self, cmd, retry, task_id, *args):
-        util.backup_if_exists("recognition.log.%d" % task_id)
+        util.backup_if_exists("search.log.%d" % task_id)
         util.delete_if_exists("lattice.cache.%d" % task_id)
 
     @classmethod
@@ -809,7 +811,7 @@ class BidirectionalAdvancedTreeSearchJob(rasr.RasrCommand, Job):
                         recognizer_config[k] = self.recognizer_parameters[k]
 
         post_config.flf_lattice_tool.global_cache.read_only = True
-        post_config.flf_lattice_tool.global_cache.file = lm_gc.global_cache
+        post_config.flf_lattice_tool.global_cache.file = lm_gc.out_global_cache
         post_config.flf_lattice_tool.network.recognizer.lm.image = lm_gc.lm_image
         post_config.flf_lattice_tool.network.recognizer.backward.lm.type = "ARPA"
         post_config.flf_lattice_tool.network.recognizer.backward.lm.file = (
