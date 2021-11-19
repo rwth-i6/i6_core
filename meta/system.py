@@ -708,7 +708,7 @@ class System:
         scorer = self.scorers[corpus](**kwargs)
 
         self.jobs[corpus]["scorer_%s" % name] = scorer
-        tk.register_output("%s.reports" % name, scorer.report_dir)
+        tk.register_output("%s.reports" % name, scorer.out_report_dir)
 
     def recog(
         self,
@@ -767,7 +767,7 @@ class System:
         scorer = self.scorers[corpus](**kwargs)
 
         self.jobs[corpus]["scorer_%s" % name] = scorer
-        tk.register_output("%srecog_%s.reports" % (prefix, name), scorer.report_dir)
+        tk.register_output("%srecog_%s.reports" % (prefix, name), scorer.out_report_dir)
 
     def optimize_am_lm(
         self, name, corpus, initial_am_scale, initial_lm_scale, prefix="", **kwargs
@@ -783,7 +783,7 @@ class System:
         """
         j = recog.OptimizeAMandLMScaleJob(
             crp=self.crp[corpus],
-            lattice_cache=self.jobs[corpus][name].lattice_bundle,
+            lattice_cache=self.jobs[corpus][name].out_lattice_bundle,
             initial_am_scale=initial_am_scale,
             initial_lm_scale=initial_lm_scale,
             scorer_cls=self.scorers[corpus],
@@ -853,7 +853,7 @@ class System:
             flow,
             feature_scorer,
             pronunciation_scale,
-            opt_job.best_lm_score,
+            opt_job.out_best_lm_score,
             parallelize_conversion,
             lattice_to_ctm_kwargs,
             prefix,
