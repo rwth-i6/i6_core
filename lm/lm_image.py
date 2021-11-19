@@ -1,4 +1,4 @@
-__all__ = ["LmImageJob"]
+__all__ = ["CreateLmImageJob"]
 
 import shutil
 import logging
@@ -10,7 +10,7 @@ from i6_core import util
 Path = setup_path(__package__)
 
 
-class LmImageJob(rasr.RasrCommand, Job):
+class CreateLmImageJob(rasr.RasrCommand, Job):
     """
     pre-compute LM image without generating global cache
     """
@@ -26,7 +26,7 @@ class LmImageJob(rasr.RasrCommand, Job):
         kwargs = locals()
         del kwargs["self"]
 
-        self.config, self.post_config = LmImageJob.create_config(**kwargs)
+        self.config, self.post_config = CreateLmImageJob.create_config(**kwargs)
         self.exe = self.select_exe(crp.lm_util_exe, "lm-util")
 
         self.log_file = self.log_file_output_path("lm_image", crp, False)
