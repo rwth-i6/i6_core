@@ -98,8 +98,10 @@ class BasicCartQuestions:
         return root
 
     def write_to_file(self, file):
-        tree = ET.ElementTree(self.get_questions())
-        tree.write(file, encoding="unicode")
+        from xml.dom.minidom import parseString
+        xmlstr = parseString(ET.tostring(self.get_questions())).toprettyxml(indent="   ")
+        with open(file, "wt", encoding="utf-8") as f:
+            f.write(xmlstr)
 
 
 class CMUCartQuestions(BasicCartQuestions):
@@ -287,5 +289,7 @@ class PythonCartQuestions:
         return root
 
     def write_to_file(self, file):
-        tree = ET.ElementTree(self.get_questions())
-        tree.write(file, encoding="unicode")
+        from xml.dom.minidom import parseString
+        xmlstr = parseString(ET.tostring(self.get_questions())).toprettyxml(indent="   ")
+        with open(file, "wt", encoding="utf-8") as f:
+            f.write(xmlstr)
