@@ -22,8 +22,8 @@ class Lemma:
         :param Optional[list[str]] orth: list of spellings used in the training data
         :param Optional[list[str]] phon: list of pronunciation variants. Each str should
             contain a space separated string of phonemes from the phoneme-inventory.
-        :param Optional[list[str]] synt: list of tokens, this token sequence
-            is used as as possible language model representation.
+        :param Optional[list[str]] synt: list of LM tokens that form a single token sequence.
+            This sequence is used as the language model representation.
         :param Optional[list[list[str]]] eval: list of output representations. Each
             sublist should contain one possible transcription (token sequence) of this lemma
             that is scored against the reference transcription.
@@ -50,11 +50,9 @@ class Lemma:
         for p in self.phon:
             el = ET.SubElement(res, "phon")
             el.text = p
-        if self.synt and any(token.strip() for token in self.synt):
+        if self.synt:
             el = ET.SubElement(res, "synt")
             for token in self.synt:
-                if not token.strip():
-                    continue
                 el2 = ET.SubElement(el, "tok")
                 el2.text = token
         for e in self.eval:
