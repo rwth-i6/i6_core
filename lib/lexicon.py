@@ -98,7 +98,7 @@ class Lemma:
                     token_element.text.strip() if token_element.text is not None else ""
                 )
             eval.append(tokens)
-        return Lemma(orth, phon, synt, eval, special)
+        return Lemma(orth, phon, synt[0], eval, special)
 
 
 class Lexicon:
