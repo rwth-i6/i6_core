@@ -33,7 +33,7 @@ class Lemma:
         """
         self.orth = [] if orth is None else orth
         self.phon = [] if phon is None else phon
-        self.synt = [] if synt is None else synt
+        self.synt = synt
         self.eval = [] if eval is None else eval
         self.special = special
 
@@ -50,7 +50,7 @@ class Lemma:
         for p in self.phon:
             el = ET.SubElement(res, "phon")
             el.text = p
-        if self.synt:
+        if self.synt is not None:
             el = ET.SubElement(res, "synt")
             for token in self.synt:
                 el2 = ET.SubElement(el, "tok")
@@ -60,7 +60,6 @@ class Lemma:
             for t in e:
                 el2 = ET.SubElement(el, "tok")
                 el2.text = t
-
         return res
 
     @classmethod
