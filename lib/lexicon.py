@@ -6,9 +6,10 @@ For format details visit: `https://www-i6.informatik.rwth-aachen.de/rwth-asr/man
 __all__ = ["Lemma", "Lexicon"]
 
 from collections import OrderedDict
-import gzip
 from typing import Optional, List
 import xml.etree.ElementTree as ET
+
+from i6_core.util import uopen
 
 
 class Lemma:
@@ -21,8 +22,8 @@ class Lemma:
         :param Optional[list[str]] orth: list of spellings used in the training data
         :param Optional[list[str]] phon: list of pronunciation variants. Each str should
             contain a space separated string of phonemes from the phoneme-inventory.
-        :param Optional[list[list[str]]] synt: list of token sequences, for which each token sequence is used as as possible language model representation.
-            Each sublist should contain words from the language model vocabulary.
+        :param Optional[list[str]] synt: list of LM tokens that form a single token sequence.
+            This sequence is used as the language model representation.
         :param Optional[list[list[str]]] eval: list of output representations. Each
             sublist should contain one possible transcription (token sequence) of this lemma
             that is scored against the reference transcription.
@@ -32,7 +33,7 @@ class Lemma:
         """
         self.orth = [] if orth is None else orth
         self.phon = [] if phon is None else phon
-        self.synt = [] if synt is None else synt
+        self.synt = synt
         self.eval = [] if eval is None else eval
         self.special = special
 
@@ -49,17 +50,16 @@ class Lemma:
         for p in self.phon:
             el = ET.SubElement(res, "phon")
             el.text = p
-        for s in self.synt:
+        if self.synt is not None:
             el = ET.SubElement(res, "synt")
-            for t in s:
+            for token in self.synt:
                 el2 = ET.SubElement(el, "tok")
-                el2.text = t
+                el2.text = token
         for e in self.eval:
             el = ET.SubElement(res, "eval")
             for t in e:
                 el2 = ET.SubElement(el, "tok")
                 el2.text = t
-
         return res
 
     @classmethod
@@ -97,7 +97,7 @@ class Lemma:
                     token_element.text.strip() if token_element.text is not None else ""
                 )
             eval.append(tokens)
-        return Lemma(orth, phon, synt, eval, special)
+        return Lemma(orth, phon, synt[0], eval, special)
 
 
 class Lexicon:
@@ -136,9 +136,7 @@ class Lexicon:
         """
         :param str path: bliss lexicon .xml or .xml.gz file
         """
-        open_fun = gzip.open if path.endswith(".gz") else open
-
-        with open_fun(path, "rt") as f:
+        with uopen(path, "rt") as f:
             root = ET.parse(f)
 
         for phoneme in root.findall(".//phoneme-inventory/phoneme"):
