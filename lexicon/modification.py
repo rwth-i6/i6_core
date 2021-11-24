@@ -24,24 +24,16 @@ class WriteLexiconJob(Job):
             static_lexiconicon.Lemma(
                 orth=["[SILENCE]", ""],
                 phon=["[SILENCE]"],
-                synt=[],
+                synt=[""],
                 special="silence",
-                eval=[[]],
+                eval=[""],
             )
         )
-        # set synt and eval carefully
-        # synt == None   --> nothing                 no synt element
-        # synt == []     --> "<synt />"              meant to be empty synt token sequence
-        # synt == [""]   --> "<synt><tok /></synt>"  incorrent
-        # eval == []     --> nothing                 no eval element
-        # eval == [[]]   --> "<eval />"              meant to be empty eval token sequence
-        # eval == [""]   --> "<eval />"              equivalent to [[]], but not encouraged
-        # eval == [[""]] --> "<eval><tok /></eval>"  incorrect
         static_lexicon.add_lemma(
             static_lexiconicon.Lemma(
                 orth=["[UNKNOWN]"],
                 phon=["[UNKNOWN]"],
-                synt=["<UNK>"],
+                synt=[["<UNK>"]],
                 special="unknown",
             )
         )

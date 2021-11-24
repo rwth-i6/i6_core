@@ -241,18 +241,15 @@ class GraphemicLexiconFromWordListJob(Job):
         if self.add_noise:
             lex.add_phoneme("noise", "none")
 
-        # TODO: figure out requirements on synt/eval element for differnt types of lemmata
-        # silence lemma, needs synt/eval element with empty token sequence
         lex.add_lemma(
             lexicon.Lemma(
                 orth=["[SILENCE]", ""],
                 phon=["sil"],
-                synt=[],
+                synt=[""],
                 special="silence",
-                eval=[[]],
+                eval=[""],
             )
         )
-        # sentence border lemmata, needs no eval element
         lex.add_lemma(
             lexicon.Lemma(
                 orth=["[SENTENCE_BEGIN]"], synt=["<s>"], special="sentence-begin"
@@ -263,20 +260,14 @@ class GraphemicLexiconFromWordListJob(Job):
                 orth=["[SENTENCE_END]"], synt=["</s>"], special="sentence-end"
             )
         )
-        # unknown lemma, needs no synt/eval element
         if self.add_unknown:
             lex.add_lemma(
                 lexicon.Lemma(orth=["[UNKNOWN]"], phon=["unk"], special="unknown")
             )
-            # TODO: synt = ["<UNK>"] ???
-        # noise lemma, needs empty synt token sequence but no eval element?
         if self.add_noise:
             lex.add_lemma(
                 lexicon.Lemma(
-                    orth=["[NOISE]"],
-                    phon=["noise"],
-                    synt=[],
-                    special="unknown",
+                    orth=["[NOISE]"], phon=["noise"], synt=[""], special="unknown"
                 )
             )
 
