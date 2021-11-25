@@ -48,8 +48,9 @@ class ApplyBPEModelToLexiconJob(Job):
         for l in lexicon.lemmata:
             for orth in l.orth:
                 lm_tokens.add(orth)
-            for token in l.synt or []:  # l.synt can be None
-                lm_tokens.add(token)
+            for synt in l.synt:
+                for t in synt:
+                    lm_tokens.add(t)
             for eval in l.eval:
                 for t in eval:
                     lm_tokens.add(t)
@@ -84,12 +85,15 @@ class ApplyBPEModelToLexiconJob(Job):
 
         for l in lexicon.lemmata:
             if l.special is None and len(l.orth) > 0:
-                if not l.synt and len(l.eval) == 0:
+                if len(l.synt) == 0 and len(l.eval) == 0:
                     o = l.orth[0]
-                    l.synt = w2b[o]
+                    l.synt.append(w2b[o])
                     l.eval.append([o])
-                if l.synt:
-                    l.synt = sum([w2b[token] for token in l.synt], [])
+                if len(l.synt) > 0:
+                    l.synt = [
+                        sum([w2b[t] for t in token_sequence], [])
+                        for token_sequence in l.synt
+                    ]
                 if len(l.eval) > 0:
                     l.eval = [
                         sum([w2b[t] for t in token_sequence], [])
