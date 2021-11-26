@@ -36,6 +36,11 @@ class Lemma:
         self.synt = synt
         self.eval = [] if eval is None else eval
         self.special = special
+        if isinstance(synt, list):
+            assert not (len(synt) > 0 and isinstance(synt[0], list)), (
+                "providing list of list is no longer supported for the 'synt' parameter "
+                "and can be safely changed into a single list"
+            )
 
     def to_xml(self):
         """
