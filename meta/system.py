@@ -1,8 +1,8 @@
 __all__ = ["System", "select_element", "CorpusObject"]
 
 import copy
-import logging
 import types
+from typing import Dict, List, Optional
 import re
 
 from sisyphus import *
@@ -30,7 +30,9 @@ class System:
 
         self.alignments = (
             {}
-        )  # type: dict[str,dict[str,list[rasr.FlagDependentFlowAttribute]]]
+        )  # type: Dict[str,Dict[str,List[rasr.FlagDependentFlowAttribute]]]
+        # corpus_key -> alignment_name -> list of FlowAttributes with cache_mode containing caches and bundle
+
         self.ctm_files = {}
         self.feature_caches = {}
         self.feature_bundles = {}
@@ -570,13 +572,15 @@ class System:
         j.add_alias(prefix + name)
         self.mixtures[corpus][name] = j.out_mixtures
         if hasattr(j, "out_alignment_path") and hasattr(j, "out_alignment_bundle"):
-            self.alignments[corpus][name] = rasr.FlagDependentFlowAttribute(
-                "cache_mode",
-                {
-                    "task_dependent": j.out_alignment_path,
-                    "bundle": j.out_alignment_bundle,
-                },
-            )
+            self.alignments[corpus][name] = [
+                rasr.FlagDependentFlowAttribute(
+                    "cache_mode",
+                    {
+                        "task_dependent": j.out_alignment_path,
+                        "bundle": j.out_alignment_bundle,
+                    },
+                )
+            ]
 
     def align(self, name, corpus, flow, feature_scorer, **kwargs):
         """
@@ -595,10 +599,15 @@ class System:
         )
 
         self.jobs[corpus]["alignment_%s" % name] = j
-        self.alignments[corpus][name] = rasr.FlagDependentFlowAttribute(
-            "cache_mode",
-            {"task_dependent": j.out_alignment_path, "bundle": j.out_alignment_bundle},
-        )
+        self.alignments[corpus][name] = [
+            rasr.FlagDependentFlowAttribute(
+                "cache_mode",
+                {
+                    "task_dependent": j.out_alignment_path,
+                    "bundle": j.out_alignment_bundle,
+                },
+            )
+        ]
 
     def estimate_mixtures(
         self, name, corpus, flow, old_mixtures=None, alignment=None, prefix="", **kwargs
