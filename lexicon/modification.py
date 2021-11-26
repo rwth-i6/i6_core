@@ -1,5 +1,6 @@
 __all__ = ["WriteLexiconJob", "MergeLexiconJob"]
 
+import copy
 from collections import OrderedDict, defaultdict
 import itertools
 
@@ -24,16 +25,24 @@ class WriteLexiconJob(Job):
             static_lexiconicon.Lemma(
                 orth=["[SILENCE]", ""],
                 phon=["[SILENCE]"],
-                synt=[""],
+                synt=[],
                 special="silence",
-                eval=[""],
+                eval=[[]],
             )
         )
+        # set synt and eval carefully
+        # synt == None   --> nothing                 no synt element
+        # synt == []     --> "<synt />"              meant to be empty synt token sequence
+        # synt == [""]   --> "<synt><tok /></synt>"  incorrent
+        # eval == []     --> nothing                 no eval element
+        # eval == [[]]   --> "<eval />"              meant to be empty eval token sequence
+        # eval == [""]   --> "<eval />"              equivalent to [[]], but not encouraged
+        # eval == [[""]] --> "<eval><tok /></eval>"  incorrect
         static_lexicon.add_lemma(
             static_lexiconicon.Lemma(
                 orth=["[UNKNOWN]"],
                 phon=["[UNKNOWN]"],
-                synt=[["<UNK>"]],
+                synt=["<UNK>"],
                 special="unknown",
             )
         )
@@ -83,6 +92,35 @@ class WriteLexiconJob(Job):
             lex.lemmata = self.static_lexicon.lemmata
 
         write_xml(self.out_bliss_lexicon.get_path(), lex.to_xml())
+
+    @classmethod
+    def _fix_hash_for_lexicon(cls, new_lexicon):
+        """
+        The "old" lexicon had an incorrect "synt" type, after fixing
+        the hashes for the lexicon changed, so this job here
+        needs to revert the lexicon to the old "synt" type.
+
+        :param lexicon.Lexicon new_lexicon:
+        :return: lexicon in the legacy format
+        :type: lexicon.Lexicon
+        """
+        lex = lexicon.Lexicon()
+        lex.phonemes = new_lexicon.phonemes
+        lex.lemmata = []
+        for new_lemma in new_lexicon.lemmata:
+            lemma = copy.deepcopy(new_lemma)
+            lemma.synt = [new_lemma.synt] if new_lemma.synt is not None else []
+            lex.lemmata.append(lemma)
+
+        return lex
+
+    @classmethod
+    def hash(cls, parsed_args):
+        parsed_args = parsed_args.copy()
+        parsed_args["static_lexicon"] = cls._fix_hash_for_lexicon(
+            parsed_args["static_lexicon"]
+        )
+        return super().hash(parsed_args)
 
 
 class MergeLexiconJob(Job):
