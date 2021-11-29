@@ -156,9 +156,10 @@ class LexiconUniqueOrthJob(Job):
                 # CAUTION: synt token sequence is only copied when
                 # 1) the final lemma does not already have one
                 # 2) and the current to-be-merged-lemma has one
+                # ** note an empty sequence (i.e. []) counts to "having a synt"
                 # this could lead to information loss if all the
                 # to-be-merged-lemmata have different synt token sequences
-                if not final_lemma.synt and lemma.synt:
+                if final_lemma.synt is None and lemma.synt is not None:
                     final_lemma.synt = lemma.synt
 
                 for eval in lemma.eval:
