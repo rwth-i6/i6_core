@@ -33,7 +33,7 @@ class RasrConfig:
         # e.g. recognizer.lm-lookahead = True
         #      recognizer.lm-lookahead.history-limit = 1
         self._value = None
-        
+
         self._prolog = prolog
         self._prolog_hash = prolog_hash if prolog_hash else prolog
         self._epilog = epilog
