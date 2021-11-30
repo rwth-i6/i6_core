@@ -6,6 +6,9 @@ __all__ = [
 ]
 
 import itertools as it
+import textwrap
+
+from sisyphus.hash import sis_hash_helper
 
 import i6_core.util as util
 
@@ -15,12 +18,26 @@ class RasrConfig:
     Used to store a Rasr configuration
     """
 
-    def __init__(self):
+    def __init__(self, prolog="", prolog_hash="", epilog="", epilog_hash=""):
+        """
+        :param string prolog: A string that should be pasted as code at the
+            beginning of the config file
+        :param string epilog: A string that should be pasted as code at the end of
+            the config file
+        :param string prolog_hash: sets a specific hash for the prolog
+        :param string epilog_hash: sets a specific hash for the epilog
+        """
+
         self.__dict = {}
         # special value that is used if there is a subtree where the root has also a value
         # e.g. recognizer.lm-lookahead = True
         #      recognizer.lm-lookahead.history-limit = 1
         self._value = None
+        
+        self._prolog = prolog
+        self._prolog_hash = prolog_hash if prolog_hash else prolog
+        self._epilog = epilog
+        self._epilog_hash = epilog_hash if epilog_hash else epilog
 
     # TODO: investigate if normal (deep)copy can be used here
     def _copy(self):
@@ -189,7 +206,7 @@ class RasrConfig:
         return result
 
     def __repr__(self):
-        buf = []
+        buf = [self._prolog]
         l = self.__repr_helper__()
         l.sort()
 
@@ -203,12 +220,16 @@ class RasrConfig:
             max_len = max(map(lambda t: len(t[1]), g))
             for t in g:
                 buf.append("%-*s = %s" % (max_len, t[1], t[2]))
-
+        buf.append(self._epilog)
         return "\n".join(buf)
 
     def __sis_state__(self):
         result = {"tree": self.__dict, "value": self._value}
         return result
+
+    def _sis_hash(self):
+        h = {"prolog_hash": self._prolog_hash, "epilog_hash": self._epilog_hash}
+        return sis_hash_helper(h)
 
     @staticmethod
     def __print_value(val):
