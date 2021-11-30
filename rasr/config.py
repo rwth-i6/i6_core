@@ -6,7 +6,6 @@ __all__ = [
 ]
 
 import itertools as it
-import textwrap
 
 from sisyphus.hash import sis_hash_helper
 
