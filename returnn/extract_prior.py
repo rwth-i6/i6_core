@@ -145,7 +145,7 @@ class ReturnnComputePriorJob(Job):
         config = self.returnn_config
         config.write(self.out_returnn_config_file.get_path())
 
-        cmd = _get_run_cmd()
+        cmd = self._get_run_cmd()
         util.create_executable("rnn.sh", cmd)
 
         # check here if model actually exists
@@ -154,7 +154,7 @@ class ReturnnComputePriorJob(Job):
         ), "Provided model does not exists: %s" % str(self.model_checkpoint)
 
     def run(self):
-        cmd = _get_run_cmd()
+        cmd = self._get_run_cmd()
         sp.check_call(cmd)
 
         with open(self.out_prior_txt_file.get_path(), "rt") as f:
