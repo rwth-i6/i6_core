@@ -12,6 +12,8 @@ import xml.etree.ElementTree as ET
 
 from sisyphus import *
 
+from i6_core.util import write_xml
+
 Path = setup_path(__package__)
 
 
@@ -98,13 +100,7 @@ class BasicCartQuestions:
         return root
 
     def write_to_file(self, file):
-        from xml.dom.minidom import parseString
-
-        xmlstr = parseString(ET.tostring(self.get_questions())).toprettyxml(
-            indent="   "
-        )
-        with open(file, "wt", encoding="utf-8") as f:
-            f.write(xmlstr)
+        write_xml(file, self.get_questions())
 
 
 class CMUCartQuestions(BasicCartQuestions):
@@ -292,10 +288,4 @@ class PythonCartQuestions:
         return root
 
     def write_to_file(self, file):
-        from xml.dom.minidom import parseString
-
-        xmlstr = parseString(ET.tostring(self.get_questions())).toprettyxml(
-            indent="   "
-        )
-        with open(file, "wt", encoding="utf-8") as f:
-            f.write(xmlstr)
+        write_xml(file, self.get_questions())
