@@ -20,11 +20,11 @@ class ExtractOovWordsFromCorpusJob(Job):
         "casing": "upper",
     }
 
-    def __init__(self, bliss_corpus, bliss_lexicon, casing="upper"):
+    def __init__(self, bliss_corpus, bliss_lexicon, casing="none"):
         """
         :param Union[Path, str] bliss_corpus: path to corpus file
         :param Union[Path, str] bliss_lexicon: path to lexicon
-        :param str|None casing: changes the casing of the orthography (options: upper, lower, None)
+        :param str casing: changes the casing of the orthography (options: upper, lower, none)
                                 str.upper() is problematic for german since ß -> SS
                                 https://bugs.python.org/issue34928
         """
@@ -38,48 +38,32 @@ class ExtractOovWordsFromCorpusJob(Job):
         yield Task("run", mini_task=True)
 
     def run(self):
+        def change_casing(text_str):
+            if self.casing == "upper":
+                return text_str.upper()
+            elif self.casing == "lower":
+                return text_str.lower()
+            elif self.casing == "none":
+                return text_str
+            else:
+                raise NotImplementedError
+
         with uopen(self.bliss_lexicon, "rt", encoding="utf-8") as f:
             tree = ET.parse(f)
-            if self.casing == "upper":
-                iv_words = {
-                    orth.text.upper()
-                    for orth in tree.findall(".//lemma/orth")
-                    if orth.text
-                }
-            elif self.casing == "lower":
-                iv_words = {
-                    orth.text.lower()
-                    for orth in tree.findall(".//lemma/orth")
-                    if orth.text
-                }
-            else:
-                iv_words = {
-                    orth.text for orth in tree.findall(".//lemma/orth") if orth.text
-                }
+            iv_words = {
+                change_casing(orth.text)
+                for orth in tree.findall(".//lemma/orth")
+                if orth.text
+            }
 
         with uopen(self.bliss_corpus, "rt", encoding="utf-8") as f:
             tree = ET.parse(f)
-            if self.casing == "upper":
-                oov_words = {
-                    w
-                    for kw in tree.findall(".//recording/segment/orth")
-                    for w in kw.text.strip().split()
-                    if w.upper() not in iv_words
-                }
-            elif self.casing == "lower":
-                oov_words = {
-                    w
-                    for kw in tree.findall(".//recording/segment/orth")
-                    for w in kw.text.strip().split()
-                    if w.lower() not in iv_words
-                }
-            else:
-                oov_words = {
-                    w
-                    for kw in tree.findall(".//recording/segment/orth")
-                    for w in kw.text.strip().split()
-                    if w not in iv_words
-                }
+            oov_words = {
+                w
+                for kw in tree.findall(".//recording/segment/orth")
+                for w in kw.text.strip().split()
+                if change_casing(w) not in iv_words
+            }
 
         with uopen(self.out_oov_words, "wt") as f:
             for w in sorted(oov_words):
