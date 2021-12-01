@@ -7,7 +7,7 @@ __all__ = [
 
 import itertools as it
 
-import i6_core.util as util
+from i6_core import util
 
 
 class RasrConfig:
@@ -15,12 +15,26 @@ class RasrConfig:
     Used to store a Rasr configuration
     """
 
-    def __init__(self):
+    def __init__(self, prolog="", prolog_hash="", epilog="", epilog_hash=""):
+        """
+        :param string prolog: A string that should be pasted as code at the
+            beginning of the config file
+        :param string epilog: A string that should be pasted as code at the end of
+            the config file
+        :param string prolog_hash: sets a specific hash for the prolog
+        :param string epilog_hash: sets a specific hash for the epilog
+        """
+
         self.__dict = {}
         # special value that is used if there is a subtree where the root has also a value
         # e.g. recognizer.lm-lookahead = True
         #      recognizer.lm-lookahead.history-limit = 1
         self._value = None
+
+        self._prolog = prolog
+        self._prolog_hash = prolog_hash if prolog_hash else prolog
+        self._epilog = epilog
+        self._epilog_hash = epilog_hash if epilog_hash else epilog
 
     # TODO: investigate if normal (deep)copy can be used here
     def _copy(self):
@@ -190,6 +204,9 @@ class RasrConfig:
 
     def __repr__(self):
         buf = []
+        if self._prolog:
+            assert isinstance(self._prolog, str), "prolog must be in a string format"
+            buf.append(self._prolog)
         l = self.__repr_helper__()
         l.sort()
 
@@ -203,11 +220,17 @@ class RasrConfig:
             max_len = max(map(lambda t: len(t[1]), g))
             for t in g:
                 buf.append("%-*s = %s" % (max_len, t[1], t[2]))
-
+        if self._epilog:
+            assert isinstance(self._epilog, str), "epilog must be in a string format"
+            buf.append(self._epilog)
         return "\n".join(buf)
 
     def __sis_state__(self):
         result = {"tree": self.__dict, "value": self._value}
+        if self._prolog_hash:
+            result["prolog_hash"] = self._prolog_hash
+        if self._epilog_hash:
+            result["epilog_hash"] = self._epilog_hash
         return result
 
     @staticmethod
@@ -217,8 +240,7 @@ class RasrConfig:
             return "yes" if val else "no"
         if type(val) == list:
             return " ".join(RasrConfig.__print_value(e) for e in val)
-        else:
-            return str(val)
+        return str(val)
 
 
 def build_config_from_mapping(crp, mapping, include_log_config=True, parallelize=False):
