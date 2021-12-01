@@ -82,10 +82,28 @@ class FilterLexiconByWordListJob(Job):
 
 class LexiconUniqueOrthJob(Job):
     """Merge lemmata with the same orthography.
-    merge_multi_orths_lemmata == True
-        --> lemmata with multiple orth variants will ALSO be handled
-        this argument is added at a later time, the original implementation
-        ignores all lemmata with more then one orth
+
+    Merging strategy (only natural proper word lemmata are affected)
+
+        1. which lemmata are merged
+            case 1:  merge_multi_orths_lemmata == False
+                only lemmata with exactly one orth element are affected
+            case 2:  merge_multi_orths_lemmata == True
+                lemmata with more than one orth will also be considered
+                for checking whether two (or more) lemmata share the same orth,
+                we only compare the PRIMARY orth, since otherwise the merging
+                logic can become ambiguous and cumbersome
+
+        2. how lemmata are merged
+            orth/phon/eval
+                all orth/phon/eval elements are merged together
+            synt
+                synt element is only copied to final lemma when
+                    1) the final lemma does not already have one
+                    2) and the rest to-be-merged-lemmata have any synt element
+                    ** having a synt <=> synt is not None
+                this could lead to INFORMATION LOSS if there are several
+                different synt token sequences in the to-be-merged lemmata
     """
 
     __sis_hash_exclude__ = {"merge_multi_orths_lemmata": False}
@@ -118,22 +136,9 @@ class LexiconUniqueOrthJob(Job):
             if num_orths < 1:
                 continue
 
-            # if merge_multi_orths_lemmata is not activated, lemmata with more
-            # than one orth is not touched by this job (this leads to the
-            # original/former behavior of this job)
             if num_orths > 1 and not self.merge_multi_orths_lemmata:
                 continue
 
-            # !!! merge only lemmata sharing the same PRIMARY orth
-            # ----------------------------------------------------------------
-            # merging "lemmata sharing ANY orth" can be cumbersome,
-            # consider following example:
-            #   lemma 1: orth = ["A", "B"],
-            #   lemma 2: orth = ["B", "C"],
-            #   lemma 3: orth = ["C", "D"]
-            # if we would have already merged lemma1 and lemma2, the resulted
-            # lemma will have orth = ["A", "B", "C"], should we also merge
-            # lemma 3 with this?
             orth2lemmata[lemma.orth[0]].append(lemma)
 
         for orth, lemmata in orth2lemmata.items():
@@ -153,12 +158,6 @@ class LexiconUniqueOrthJob(Job):
                     if phon not in final_lemma.phon:
                         final_lemma.phon.append(phon)
 
-                # CAUTION: synt token sequence is only copied when
-                # 1) the final lemma does not already have one
-                # 2) and the current to-be-merged-lemma has one
-                # ** note an empty sequence (i.e. []) counts to "having a synt"
-                # this could lead to information loss if all the
-                # to-be-merged-lemmata have different synt token sequences
                 if final_lemma.synt is None and lemma.synt is not None:
                     final_lemma.synt = lemma.synt
 
