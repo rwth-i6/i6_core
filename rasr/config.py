@@ -9,7 +9,7 @@ import itertools as it
 
 from sisyphus.hash import sis_hash_helper
 
-import i6_core.util as util
+from i6_core import util
 
 
 class RasrConfig:
@@ -205,7 +205,10 @@ class RasrConfig:
         return result
 
     def __repr__(self):
-        buf = [self._prolog]
+        buf = []
+        if self._prolog:
+            assert isinstance(self._prolog, str), "prolog must be in a string format"
+            buf.append(self._prolog)
         l = self.__repr_helper__()
         l.sort()
 
@@ -219,16 +222,18 @@ class RasrConfig:
             max_len = max(map(lambda t: len(t[1]), g))
             for t in g:
                 buf.append("%-*s = %s" % (max_len, t[1], t[2]))
-        buf.append(self._epilog)
+        if self._epilog:
+            assert isinstance(self._epilog, str), "epilog must be in a string format"
+            buf.append(self._epilog)
         return "\n".join(buf)
 
     def __sis_state__(self):
         result = {"tree": self.__dict, "value": self._value}
+        if self._prolog_hash:
+            result["prolog_hash"] = self._prolog_hash
+        if self._epilog_hash:
+            result["epilog_hash"] = self._epilog_hash
         return result
-
-    def _sis_hash(self):
-        h = {"prolog_hash": self._prolog_hash, "epilog_hash": self._epilog_hash}
-        return sis_hash_helper(h)
 
     @staticmethod
     def __print_value(val):
@@ -237,8 +242,7 @@ class RasrConfig:
             return "yes" if val else "no"
         if type(val) == list:
             return " ".join(RasrConfig.__print_value(e) for e in val)
-        else:
-            return str(val)
+        return str(val)
 
 
 def build_config_from_mapping(crp, mapping, include_log_config=True, parallelize=False):
