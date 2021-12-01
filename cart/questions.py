@@ -12,6 +12,8 @@ import xml.etree.ElementTree as ET
 
 from sisyphus import *
 
+from i6_core.util import write_xml
+
 Path = setup_path(__package__)
 
 
@@ -98,8 +100,7 @@ class BasicCartQuestions:
         return root
 
     def write_to_file(self, file):
-        tree = ET.ElementTree(self.get_questions())
-        tree.write(file, encoding="unicode")
+        write_xml(file, self.get_questions())
 
 
 class CMUCartQuestions(BasicCartQuestions):
@@ -287,5 +288,4 @@ class PythonCartQuestions:
         return root
 
     def write_to_file(self, file):
-        tree = ET.ElementTree(self.get_questions())
-        tree.write(file, encoding="unicode")
+        write_xml(file, self.get_questions())
