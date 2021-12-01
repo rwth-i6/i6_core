@@ -7,8 +7,6 @@ __all__ = [
 
 import itertools as it
 
-from sisyphus.hash import sis_hash_helper
-
 from i6_core import util
 
 
