@@ -307,9 +307,22 @@ class ConfigBuilder:
 
 
 class StringWrapper:
+    """
+    Allows to define custom strings for RASR configs with correct hashing,
+    this is somewhat redundant with DelayedFormat from Sisyphus
+    """
+
     def __init__(self, string, hidden=None):
+        """
+
+        :param str string: some string based on the hashing object
+        :param Any hidden: hashing object
+        """
         self.string = string
         self.hidden = hidden
 
     def __str__(self):
         return self.string
+
+    def __sis_state__(self):
+        return {"hidden": self.hidden}
