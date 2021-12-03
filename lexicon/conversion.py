@@ -98,8 +98,8 @@ class LexiconUniqueOrthJob(Job):
             orth/phon/eval
                 all orth/phon/eval elements are merged together
             synt
-                synt element is only copied to final lemma when
-                    1) the final lemma does not already have one
+                synt element is only copied to target lemma when
+                    1) the target lemma does not already have one
                     2) and the rest to-be-merged-lemmata have any synt element
                     ** having a synt <=> synt is not None
                 this could lead to INFORMATION LOSS if there are several
@@ -109,6 +109,12 @@ class LexiconUniqueOrthJob(Job):
     __sis_hash_exclude__ = {"merge_multi_orths_lemmata": False}
 
     def __init__(self, bliss_lexicon, merge_multi_orths_lemmata=False):
+        """
+        :param tk.Path bliss_lexicon: lexicon file to be handeled
+        :param bool merge_multi_orths_lemmata: if True, also lemmata containing
+            multiple orths are merged based on their primary orth. Otherwise
+            they are ignored.
+        """
         self.set_vis_name("Make Lexicon Orths Unique")
 
         self.bliss_lexicon = bliss_lexicon
