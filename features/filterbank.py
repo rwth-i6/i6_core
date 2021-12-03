@@ -137,7 +137,8 @@ def filter_width_from_channels(channels, warping_function="mel", f_max=8000, f_m
       number_of_filters = (maximumFrequency_ - minimumFrequency_ - filterWidth_) / spacing_ + 1));
     :param int channels: Number of channels of the filterbank
     :param str warping_function: Warping function used by the filterbank. ['mel', 'bark']
-    :param float f_max: Filters are placed only below this frequency in Hz
+    :param float f_max: Filters are placed only below this frequency in Hz.
+        The physical maximum is half of the audio sample rate, but lower values make possibly more sense.
     :param float f_min: Filters are placed only over this frequency in Hz
     :return: filter-width
     :rtype float
