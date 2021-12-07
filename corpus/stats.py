@@ -1,5 +1,6 @@
 __all__ = ["ExtractOovWordsFromCorpusJob", "CountCorpusWordFrequenciesJob"]
 
+import logging
 from collections import Counter
 import xml.etree.cElementTree as ET
 
@@ -20,7 +21,7 @@ class ExtractOovWordsFromCorpusJob(Job):
         "casing": "upper",
     }
 
-    def __init__(self, bliss_corpus, bliss_lexicon, casing="none"):
+    def __init__(self, bliss_corpus, bliss_lexicon, casing="upper"):
         """
         :param Union[Path, str] bliss_corpus: path to corpus file
         :param Union[Path, str] bliss_lexicon: path to lexicon
@@ -31,6 +32,11 @@ class ExtractOovWordsFromCorpusJob(Job):
         self.bliss_corpus = bliss_corpus
         self.bliss_lexicon = bliss_lexicon
         self.casing = casing
+
+        if self.casing != "none":
+            logging.warning(
+                "The orthography/lemma casing is changed. Is this what you want? Normally you should set this to 'none'. For legacy reasons this is set to 'upper'."
+            )
 
         self.out_oov_words = self.output_path("oov_words")
 
