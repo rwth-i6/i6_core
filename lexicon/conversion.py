@@ -129,7 +129,7 @@ class LexiconUniqueOrthJob(Job):
 
     def run(self):
         lex = lexicon.Lexicon()
-        lex.load(self.bliss_lexicon)
+        lex.load(self.bliss_lexicon.get_path())
 
         orth2lemmata = collections.defaultdict(list)
 
