@@ -1009,7 +1009,7 @@ class CorpusObject(tk.Object):
         )  # type: Optional[tk.Path] # audio directory if paths are relative (usually not needed)
         self.audio_format = (
             None
-        )  # type: Optional[str] # format type of the corpus, see e.g. get_input_node_type()
+        )  # type: Optional[str] # format type of the audio files, see e.g. get_input_node_type()
         self.duration = (
             None
         )  # type: Optional[float] # duration of the corpus, is used to determine job time
