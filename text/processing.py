@@ -1,4 +1,4 @@
-__all__ = ["PipelineJob", "ConcatenateJob", "HeadJob", "TailJob"]
+__all__ = ["PipelineJob", "ConcatenateJob", "HeadJob", "TailJob", "SetDifferenceJob"]
 
 import os
 from sisyphus import Job, Task, Path, global_settings as gs
