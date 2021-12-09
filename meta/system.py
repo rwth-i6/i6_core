@@ -2,7 +2,7 @@ __all__ = ["System", "select_element", "CorpusObject"]
 
 import copy
 import types
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 import re
 
 from sisyphus import *
@@ -34,10 +34,8 @@ class System:
 
         # collections which are a nested dict of corpus_key -> name -> some object / some container
         # container can be list, tuple or dict
-        self.alignments = (
-            {}
-        )  # type: Dict[str,Dict[str,Union[List[rasr.FlagDependentFlowAttribute], rasr.FlagDependentFlowAttribute]]]
-        # corpus_key -> alignment_name -> element or list of FlowAttributes with cache_mode containing caches and bundle
+        self.alignments = {}  # type: Dict[str,Dict[str,Union[List[Any], Any]]]
+        # corpus_key -> alignment_name -> element or list of e.g. FlowAttributes with cache_mode containing caches and bundle
         self.ctm_files = {}
         self.feature_caches = {}
         self.feature_bundles = {}
