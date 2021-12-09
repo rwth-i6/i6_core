@@ -33,17 +33,17 @@ class ExtractOovWordsFromCorpusJob(Job):
         self.bliss_lexicon = bliss_lexicon
         self.casing = casing
 
-        if self.casing != "none":
-            logging.warning(
-                "The orthography/lemma casing is changed. Is this what you want? Normally you should set this to 'none'. For legacy reasons this is set to 'upper'."
-            )
-
         self.out_oov_words = self.output_path("oov_words")
 
     def tasks(self):
         yield Task("run", mini_task=True)
 
     def run(self):
+        if self.casing != "none":
+            logging.warning(
+                "The orthography/lemma casing is changed. Is this what you want? Normally you should set this to 'none'. For legacy reasons this is set to 'upper'."
+            )
+
         def change_casing(text_str):
             if self.casing == "upper":
                 return text_str.upper()
