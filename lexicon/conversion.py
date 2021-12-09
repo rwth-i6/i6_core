@@ -81,30 +81,7 @@ class FilterLexiconByWordListJob(Job):
 
 
 class LexiconUniqueOrthJob(Job):
-    """Merge lemmata with the same orthography.
-
-    Merging strategy (only natural proper word lemmata are affected)
-
-        1. which lemmata are merged
-            case 1:  merge_multi_orths_lemmata == False
-                only lemmata with exactly one orth element are affected
-            case 2:  merge_multi_orths_lemmata == True
-                lemmata with more than one orth will also be considered
-                for checking whether two (or more) lemmata share the same orth,
-                we only compare the PRIMARY orth, since otherwise the merging
-                logic can become ambiguous and cumbersome
-
-        2. how lemmata are merged
-            orth/phon/eval
-                all orth/phon/eval elements are merged together
-            synt
-                synt element is only copied to target lemma when
-                    1) the target lemma does not already have one
-                    2) and the rest to-be-merged-lemmata have any synt element
-                    ** having a synt <=> synt is not None
-                this could lead to INFORMATION LOSS if there are several
-                different synt token sequences in the to-be-merged lemmata
-    """
+    """Merge lemmata with the same orthography."""
 
     __sis_hash_exclude__ = {"merge_multi_orths_lemmata": False}
 
@@ -114,6 +91,18 @@ class LexiconUniqueOrthJob(Job):
         :param bool merge_multi_orths_lemmata: if True, also lemmata containing
             multiple orths are merged based on their primary orth. Otherwise
             they are ignored.
+
+            Merging strategy
+            - orth/phon/eval
+                all orth/phon/eval elements are merged together
+            - synt
+                synt element is only copied to target lemma when
+                    1) the target lemma does not already have one
+                    2) and the rest to-be-merged-lemmata have any synt
+                       element.
+                    ** having a synt <=> synt is not None
+                this could lead to INFORMATION LOSS if there are several
+                different synt token sequences in the to-be-merged lemmata
         """
         self.set_vis_name("Make Lexicon Orths Unique")
 
@@ -134,45 +123,32 @@ class LexiconUniqueOrthJob(Job):
         orth2lemmata = collections.defaultdict(list)
 
         for lemma in lex.lemmata:
-
             if lemma.special:
                 continue
-
             num_orths = len(lemma.orth)
             if num_orths < 1:
                 continue
-
             if num_orths > 1 and not self.merge_multi_orths_lemmata:
                 continue
-
             orth2lemmata[lemma.orth[0]].append(lemma)
 
         for orth, lemmata in orth2lemmata.items():
-
             if len(lemmata) < 2:
                 continue
-
             final_lemma = lemmata[0]
-
             for lemma in lemmata[1:]:
-
                 for orth in lemma.orth:
                     if orth not in final_lemma.orth:
                         final_lemma.orth.append(orth)
-
                 for phon in lemma.phon:
                     if phon not in final_lemma.phon:
                         final_lemma.phon.append(phon)
-
                 if final_lemma.synt is None and lemma.synt is not None:
                     final_lemma.synt = lemma.synt
-
                 for eval in lemma.eval:
                     if eval not in final_lemma.eval:
                         final_lemma.eval.append(eval)
-
-                if lemma in lex.lemmata:
-                    lex.lemmata.remove(lemma)
+                lex.lemmata.remove(lemma)
 
         write_xml(self.out_bliss_lexicon, element_tree=lex.to_xml())
 
