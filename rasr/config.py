@@ -323,6 +323,3 @@ class StringWrapper:
 
     def __str__(self):
         return self.string
-
-    def __sis_state__(self):
-        return {"hidden": self.hidden}
