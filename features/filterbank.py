@@ -10,13 +10,11 @@ import i6_core.rasr as rasr
 
 
 def FilterbankJob(
-    crp, filterbank_options=None, extra_config=None, extra_post_config=None
+    crp, filterbank_options=None, **kwargs
 ):
     """
     :param rasr.crp.CommonRasrParameters crp:
     :param dict[str, Any]|None filterbank_options:
-    :param rasr.config.RasrConfig|None extra_config:
-    :param rasr.config.RasrConfig|None extra_post_config:
     :return: Feature extraction job with filterbank flow
     :rtype: FeatureExtractionJob
     """
@@ -32,15 +30,17 @@ def FilterbankJob(
 
     port_name_mapping = {"features": "fb"}
 
+    if "rtf" not in kwargs:
+        kwargs["rtf"] = 0.1
+    if "mem" not in kwargs:
+        kwargs["mem"] = 2
+
     return FeatureExtractionJob(
         crp,
         feature_flow,
         port_name_mapping,
         job_name="filterbank",
-        rtf=0.1,
-        mem=2,
-        extra_config=extra_config,
-        extra_post_config=extra_post_config,
+        **kwargs,
     )
 
 

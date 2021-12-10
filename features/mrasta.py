@@ -8,7 +8,7 @@ from .extraction import *
 import i6_core.rasr as rasr
 
 
-def MrastaJob(crp, mrasta_options=None, extra_config=None, extra_post_config=None):
+def MrastaJob(crp, mrasta_options=None, **kwargs):
     if mrasta_options is None:
         mrasta_options = {}
     else:
@@ -20,15 +20,17 @@ def MrastaJob(crp, mrasta_options=None, extra_config=None, extra_post_config=Non
 
     port_name_mapping = {"features-0": "high", "features-1": "low"}
 
+    if "rtf" not in kwargs:
+        kwargs["rtf"] = 0.1
+    if "mem" not in kwargs:
+        kwargs["mem"] = 2
+
     return FeatureExtractionJob(
         crp,
         feature_flow,
         port_name_mapping,
         job_name="Mrasta",
-        rtf=0.1,
-        mem=2,
-        extra_config=extra_config,
-        extra_post_config=extra_post_config,
+        **kwargs,
     )
 
 

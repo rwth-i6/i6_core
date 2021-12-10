@@ -1,6 +1,8 @@
 __all__ = ["FeatureExtractionJob"]
 
 import shutil
+import tempfile
+import os
 
 from sisyphus import *
 
@@ -28,19 +30,23 @@ class FeatureExtractionJob(rasr.RasrCommand, Job):
         job_name="features",
         rtf=0.1,
         mem=2,
+        parallel=0,
+        indirect_write=False,
         extra_config=None,
         extra_post_config=None,
     ):
         """
-        :param rasr.crp.CommonRasrParameters crp:
-        :param rasr.flow.FlowNetwork feature_flow:
-        :param dict[str,str] port_name_mapping:
-        :param set[str]|None one_dimensional_outputs:
-        :param str job_name:
-        :param float rtf:
-        :param int mem:
-        :param rasr.config.RasrConfig|None extra_config:
-        :param rasr.config.RasrConfig|None extra_post_config:
+        :param rasr.crp.CommonRasrParameters crp: common RASR parameters
+        :param rasr.flow.FlowNetwork feature_flow: feature flow for feature foraging
+        :param dict[str,str] port_name_mapping: mapping between output ports (key) and name of the features (value)
+        :param set[str]|None one_dimensional_outputs: set of output ports with one dimensional features
+        :param str job_name: name used in sisyphus visualization and job folder name
+        :param float rtf: real-time-factor of the feature-extraction
+        :param int mem: memory required for the job
+        :param int parallel: maximum number of parallely running tasks
+        :param bool indirect_write: if true will write to temporary directory first before copying to output folder
+        :param rasr.config.RasrConfig|None extra_config: additional RASR config merged into the final config
+        :param rasr.config.RasrConfig|None extra_post_config: additional RASR config that will not be part of the hash
         """
         self.set_vis_name("Extract %s" % job_name)
 
@@ -50,7 +56,7 @@ class FeatureExtractionJob(rasr.RasrCommand, Job):
         self.config, self.post_config = FeatureExtractionJob.create_config(**kwargs)
         self.feature_flow = feature_flow
         self.cached_feature_flow = feature_extraction_cache_flow(
-            feature_flow, port_name_mapping, one_dimensional_outputs
+            feature_flow, port_name_mapping, one_dimensional_outputs, "$(OUTPUT-DIR)" if indirect_write else None
         )
         self.exe = (
             crp.feature_extraction_exe
@@ -58,6 +64,8 @@ class FeatureExtractionJob(rasr.RasrCommand, Job):
             else self.default_exe("feature-extraction")
         )
         self.concurrent = crp.concurrent
+        self.parallel = min(parallel, self.concurrent)
+        self.indirect_write = indirect_write
 
         self.out_log_file = self.log_file_output_path("feature-extraction", crp, True)
         self.out_single_feature_caches = {}
@@ -90,16 +98,28 @@ class FeatureExtractionJob(rasr.RasrCommand, Job):
     def tasks(self):
         yield Task("create_files", mini_task=True)
         yield Task(
-            "run", resume="run", rqmt=self.rqmt, args=range(1, self.concurrent + 1)
+            "run", resume="run", rqmt=self.rqmt, args=range(1, self.concurrent + 1), parallel=self.parallel
         )
 
     def run(self, task_id):
-        self.run_script(task_id, self.out_log_file[task_id])
+        if self.indirect_write:
+            tmp_dir = tempfile.TemporaryDirectory()
+            out_dir = tmp_dir.name
+            args = ["--*.OUTPUT-DIR=%s" % out_dir]
+        else:
+            tmp_dir = None
+            out_dir = "."
+            args = None
+
+        self.run_script(task_id, self.out_log_file[task_id], args=args)
         for name in self.out_single_feature_caches:
             shutil.move(
-                "%s.cache.%d" % (name, task_id),
+                os.path.join(out_dir, "%s.cache.%d" % (name, task_id)),
                 self.out_single_feature_caches[name][task_id].get_path(),
             )
+
+        if tmp_dir is not None:
+            tmp_dir.cleanup()
 
     def cleanup_before_run(self, cmd, retry, task_id, *args):
         util.backup_if_exists("feature-extraction.log.%d" % task_id)
@@ -131,6 +151,7 @@ class FeatureExtractionJob(rasr.RasrCommand, Job):
         config, post_config = rasr.build_config_from_mapping(
             crp, {"corpus": "extraction.corpus"}, parallelize=True
         )
+        post_config["*"].OUTPUT_DIR = "./"  # make path very unspecific to allow easy override via command-line
         config.extraction.feature_extraction.file = "feature-extraction.flow"
         # this was a typo but we cannot remove it now without breaking a lot of hashes
         config.extraction.feature_etxraction["*"].allow_overwrite = True
