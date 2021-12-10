@@ -308,8 +308,23 @@ class ConfigBuilder:
 
 class StringWrapper:
     """
-    Allows to define custom strings for RASR configs with correct hashing,
-    this is somewhat redundant with DelayedFormat from Sisyphus
+    Deprecated, please use e.g. DelayedFormat directly from Sisyphus
+    Example for wrapping commands:
+
+        command = DelayedFormat("{} -a -l en -no-escape", tokenizer_binary)
+
+    Example for wrapping/combining paths:
+
+        pymod_config = DelayedFormat("epoch:{},action:forward,configfile:{}", model.epoch, model.returnn_config_file)
+
+    Example for wrapping even function calls:
+
+        def cut_ending(path):
+            return path[: -len(".meta")]
+
+        def foo():
+            [...]
+            config.loader.saved_model_file = DelayedFunction(returnn_model.model, cut_ending)
     """
 
     def __init__(self, string, hidden=None):
