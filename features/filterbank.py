@@ -9,9 +9,7 @@ from .extraction import *
 import i6_core.rasr as rasr
 
 
-def FilterbankJob(
-    crp, filterbank_options=None, **kwargs
-):
+def FilterbankJob(crp, filterbank_options=None, **kwargs):
     """
     :param rasr.crp.CommonRasrParameters crp:
     :param dict[str, Any]|None filterbank_options:

@@ -181,9 +181,7 @@ def feature_extraction_cache_flow(
         out_path = name + ".cache.$(TASK)"
         if out_dir is not None:
             out_path = os.path.join(out_dir, out_path)
-        fc = net.add_node(
-            "generic-cache", node_name, {"id": "$(id)", "path": out_path}
-        )
+        fc = net.add_node("generic-cache", node_name, {"id": "$(id)", "path": out_path})
         for src in feature_net.get_output_links(port):
             net.link(node_mapping[src], fc)
 

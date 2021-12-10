@@ -31,11 +31,7 @@ def MfccJob(crp, mfcc_options=None, **kwargs):
         kwargs["mem"] = 2
 
     return FeatureExtractionJob(
-        crp,
-        feature_flow,
-        port_name_mapping,
-        job_name="MFCC",
-        **kwargs
+        crp, feature_flow, port_name_mapping, job_name="MFCC", **kwargs
     )
 
 

@@ -56,7 +56,10 @@ class FeatureExtractionJob(rasr.RasrCommand, Job):
         self.config, self.post_config = FeatureExtractionJob.create_config(**kwargs)
         self.feature_flow = feature_flow
         self.cached_feature_flow = feature_extraction_cache_flow(
-            feature_flow, port_name_mapping, one_dimensional_outputs, "$(OUTPUT-DIR)" if indirect_write else None
+            feature_flow,
+            port_name_mapping,
+            one_dimensional_outputs,
+            "$(OUTPUT-DIR)" if indirect_write else None,
         )
         self.exe = (
             crp.feature_extraction_exe
@@ -98,7 +101,11 @@ class FeatureExtractionJob(rasr.RasrCommand, Job):
     def tasks(self):
         yield Task("create_files", mini_task=True)
         yield Task(
-            "run", resume="run", rqmt=self.rqmt, args=range(1, self.concurrent + 1), parallel=self.parallel
+            "run",
+            resume="run",
+            rqmt=self.rqmt,
+            args=range(1, self.concurrent + 1),
+            parallel=self.parallel,
         )
 
     def run(self, task_id):
@@ -151,7 +158,11 @@ class FeatureExtractionJob(rasr.RasrCommand, Job):
         config, post_config = rasr.build_config_from_mapping(
             crp, {"corpus": "extraction.corpus"}, parallelize=True
         )
-        post_config["*"].OUTPUT_DIR = "./"  # make path very unspecific to allow easy override via command-line
+        post_config[
+            "*"
+        ].OUTPUT_DIR = (
+            "./"  # make path very unspecific to allow easy override via command-line
+        )
         config.extraction.feature_extraction.file = "feature-extraction.flow"
         # this was a typo but we cannot remove it now without breaking a lot of hashes
         config.extraction.feature_etxraction["*"].allow_overwrite = True
