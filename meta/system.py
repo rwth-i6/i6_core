@@ -1,8 +1,8 @@
 __all__ = ["System", "select_element", "CorpusObject"]
 
 import copy
-import logging
 import types
+from typing import Any, Dict, List, Optional, Union
 import re
 
 from sisyphus import *
@@ -22,15 +22,20 @@ from .mm_sequence import AlignSplitAccumulateSequence
 
 
 class System:
+    """
+    A template class to define and manage typical elements of a full RASR-based system pipeline
+    """
+
     def __init__(self):
         self.crp = {"base": rasr.CommonRasrParameters()}
         rasr.crp_add_default_output(self.crp["base"])
 
         self.default_mixture_scorer = rasr.DiagonalMaximumScorer
 
-        self.alignments = (
-            {}
-        )  # type: dict[str,dict[str,list[rasr.FlagDependentFlowAttribute]]]
+        # collections which are a nested dict of corpus_key -> name -> some object / some container
+        # container can be list, tuple or dict
+        self.alignments = {}  # type: Dict[str,Dict[str,Union[List[Any], Any]]]
+        # corpus_key -> alignment_name -> element or list of e.g. FlowAttributes with cache_mode containing caches and bundle
         self.ctm_files = {}
         self.feature_caches = {}
         self.feature_bundles = {}
@@ -52,11 +57,13 @@ class System:
         self.scorer_args = {}
         self.scorer_hyp_arg = {}
 
-        self.jobs = {"base": {}}  # type: dict[str,dict[str,Job]]
+        self.jobs = {"base": {}}  # type: Dict[str,Dict[str,Job]]
 
     def set_corpus(self, name, corpus, concurrent, segment_path=None):
         """
-        :param str name:
+        Initialize collections and crp for a new corpus
+
+        :param str name: will be the corpus_key
         :param CorpusObject corpus:
         :param int concurrent:
         :param util.MultiOutputPath segment_path:
@@ -85,8 +92,10 @@ class System:
 
     def add_overlay(self, origin, name):
         """
-        :param str origin: name of the original common rasr parameters with associated alignments, features, etc
-        :param str name: name of the new overlay over the original
+        Creates an overlay (meaning e.g. a subset or other kind of modified version) of an existing corpus
+
+        :param str origin: name/corpus_key of the original common rasr parameters with associated alignments, features, etc
+        :param str name: name/corpus_key of the new overlay over the original
         :return:
         """
         self.crp[name] = rasr.CommonRasrParameters(base=self.crp[origin])
@@ -209,7 +218,7 @@ class System:
         """
         create and set the stm files
         :param str corpus: corpus name
-        :param kwargs:
+        :param kwargs: additional arguments for the CorpusToStmJob
         :return:
         """
         self.stm_files[corpus] = corpus_recipes.CorpusToStmJob(
@@ -227,6 +236,7 @@ class System:
         self.jobs[target_corpus]["allophones"] = lexicon.StoreAllophonesJob(
             self.crp[source_corpus], **kwargs
         )
+        # noinspection PyUnresolvedReferences
         self.allophone_files[target_corpus] = self.jobs[target_corpus][
             "allophones"
         ].out_allophone_file
@@ -783,7 +793,9 @@ class System:
         """
         j = recog.OptimizeAMandLMScaleJob(
             crp=self.crp[corpus],
-            lattice_cache=self.jobs[corpus][name].out_lattice_bundle,
+            lattice_cache=self.jobs[corpus][
+                name
+            ].out_lattice_bundle,  # noqa, job type is not known
             initial_am_scale=initial_am_scale,
             initial_lm_scale=initial_lm_scale,
             scorer_cls=self.scorers[corpus],
@@ -853,7 +865,7 @@ class System:
             flow,
             feature_scorer,
             pronunciation_scale,
-            opt_job.out_best_lm_score,
+            opt_job.out_best_lm_score,  # noqa, job type is not known
             parallelize_conversion,
             lattice_to_ctm_kwargs,
             prefix,
@@ -943,6 +955,23 @@ class System:
 
 
 def select_element(collection, default_corpus, selector, default_index=-1):
+    """
+    Select one element of the meta.System collection variables, e.g. one of:
+
+     - System.alignments
+     - System.feature_flows
+     - System.feature_scorers
+     - System.mixtures
+     - ...
+
+    :param dict collection: any meta.System collection
+    :param str default_corpus: a corpus key
+    :param Any selector: some selector
+    :param int default_index: what element to pick if the collection is a tuple, list or dict,
+        defaults to the last element (e.g. last alignment)
+    :return:
+    :rtype: Any
+    """
     if not isinstance(selector, (list, tuple, str)):
         return selector
     else:
@@ -966,8 +995,19 @@ def select_element(collection, default_corpus, selector, default_index=-1):
 
 
 class CorpusObject(tk.Object):
+    """
+    A simple container object to track additional information for a bliss corpus
+    """
+
     def __init__(self):
-        self.corpus_file = None  # type: Path
-        self.audio_dir = None  # type: Path
-        self.audio_format = None  # type: str
-        self.duration = None  # type: float
+
+        self.corpus_file = None  # type: Optional[tk.Path] # bliss corpus xml
+        self.audio_dir = (
+            None
+        )  # type: Optional[tk.Path] # audio directory if paths are relative (usually not needed)
+        self.audio_format = (
+            None
+        )  # type: Optional[str] # format type of the audio files, see e.g. get_input_node_type()
+        self.duration = (
+            None
+        )  # type: Optional[float] # duration of the corpus, is used to determine job time
