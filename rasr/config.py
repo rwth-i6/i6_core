@@ -328,6 +328,11 @@ class StringWrapper:
     """
 
     def __init__(self, string, hidden=None):
+        """
+
+        :param str string: some string based on the hashing object
+        :param Any hidden: hashing object
+        """
         self.string = string
         self.hidden = hidden
 
