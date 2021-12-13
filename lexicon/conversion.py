@@ -300,35 +300,35 @@ class GraphemicLexiconFromWordListJob(Job):
 
 
 class SpellingConversionJob(Job):
-    """Convert lexicon to a new one with other regional spellings
-    e.g. US -> GB spelling
-    """
+    """Spelling conversion for lexicon."""
 
     def __init__(
         self,
         bliss_lexicon,
         orth_mapping_file,
-        reverse_mapping=False,
+        flip_mapping=False,
         mapping_delimiter=" ",
     ):
         """
         :param Path bliss_lexicon:
-            input lexicon
+            input lexicon, whose lemmata all have unique PRIMARY orth
+            to reach the above requirements apply LexiconUniqueOrthJob
         :param str orth_mapping_file:
-            orthography mapping file, .json .json.gz .txt .gz
-            in case of text file, one can adjust mapping_delimiter
-        :param bool reverse_mapping:
-            reverse/flip the mapping
+            orthography mapping file: *.json *.json.gz *.txt *.gz
+            in case of plain text file
+                one can adjust mapping_delimiter
+                a line starting with "#" is a comment line
+        :param bool flip_mapping:
+            flip the orth mapping
         :param str mapping_delimiter:
             delimiter of source and target orths
-            if mapping is provided with a plain text file
+            relevant only if mapping is provided with a plain text file
         """
-
         self.set_vis_name("Convert Between Regional Orth Spellings")
 
         self.bliss_lexicon = bliss_lexicon
         self.orth_mapping_file = orth_mapping_file
-        self.reverse_mapping = reverse_mapping
+        self.flip_mapping = flip_mapping
         self.mapping_delimiter = mapping_delimiter
 
         self.out_bliss_lexicon = self.output_path("lexicon.xml.gz")
@@ -337,14 +337,13 @@ class SpellingConversionJob(Job):
         yield Task("run", mini_task=True)
 
     def run(self):
-
         # load mapping from json or plain text file
         is_json = self.orth_mapping_file.endswith(".json")
         is_json |= self.orth_mapping_file.endswith(".json.gz")
         if is_json:
             with uopen(self.orth_mapping_file, "rt") as f:
                 mapping = json.load(f)
-            if self.reverse_mapping:
+            if self.flip_mapping:
                 mapping = {v: k for k, v in mapping.items()}
         else:
             mapping = dict()
@@ -356,54 +355,29 @@ class SpellingConversionJob(Job):
                     source_orth, target_orth = line.split(
                         self.mapping_delimiter
                     )
-                    if self.reverse_mapping:
+                    if self.flip_mapping:
                         source_orth, target_orth = target_orth, source_orth
                     mapping[source_orth] = target_orth
-        print()
-        print("A total of {} word mapping paris".format(len(mapping)))
-        print()
+        print("\nA total of {} word mapping paris\n".format(len(mapping)))
 
-        # load input lexicon and build orthography to lemma dict
+        # load input lexicon and build "orth to lemma" dict
         lex = lexicon.Lexicon()
         lex.load(self.bliss_lexicon.get())
-
         orth2lemma = {}
         for lemma in lex.lemmata:
             primary_orth = lemma.orth[0]
             if primary_orth in orth2lemma:
                 raise ValueError(
-                    "There shouldn't be two lemmata with the same primary orth,"
-                    " use LexiconUniqueOrthJob before doing spelling conversion"
+                    "There shouldn't be two lemmata with the same primary "
+                    "orth, apply LexiconUniqueOrthJob before doing spelling "
+                    "conversion"
                 )
             orth2lemma[primary_orth] = lemma
 
-        def print_lemma(lemma):
-            res_str = minidom.parseString(
-                ET.tostring(lemma.to_xml())
-            ).toprettyxml(indent=" " * 2)
-            colored = ["\033[2m{}\033[0m".format(l)
-                       for l in res_str.split("\n")[1:]]
-            print("\n".join(colored))
-
-        # conversion
+        # spelling conversion
         for source_orth, target_orth in mapping.items():
-            print(
-                "Checking for words: \033[33;1m{}\033[0m vs. "
-                "\033[33;1m{}\033[0m".format(source_orth, target_orth)
-            )
-            print()
             target_lemma = orth2lemma.get(target_orth, None)
             source_lemma = orth2lemma.get(source_orth, None)
-            if source_lemma:
-                print("\033[34;1mraw source lemma\033[0m")
-                print_lemma(source_lemma)
-            else:
-                print("\033[34;1mfound no lemma for: {}\033[0m\n".format(source_orth))
-            if target_lemma:
-                print("\033[34;1mraw target lemma\033[0m")
-                print_lemma(target_lemma)
-            else:
-                print("\033[34;1mfound no lemma for: {}\033[0m\n".format(target_orth))
             if target_lemma:
                 if source_lemma:
                     for orth in source_lemma.orth:
@@ -425,16 +399,11 @@ class SpellingConversionJob(Job):
                 else:
                     if not target_lemma.synt:
                         target_lemma.synt = source_orth.split()
-                print("\033[32;1mconverted final lemma\033[0m")
-                print_lemma(target_lemma)
             elif source_lemma:
                 source_lemma.orth.insert(0, target_orth)
                 if not source_lemma.synt:
                     source_lemma.synt = source_orth.split()
-                print("\033[32;1mconverted final lemma\033[0m")
-                print_lemma(source_lemma)
-            print("-" * 50)
-            print()
+
         write_xml(self.out_bliss_lexicon.get_path(), lex.to_xml())
 
 
