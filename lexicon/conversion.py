@@ -1,9 +1,10 @@
 import collections
-import gzip
-import os.path
 import json
+import logging
+import os.path
+import re
+import xml.dom.minidom
 import xml.etree.ElementTree as ET
-import xml.dom.minidom as minidom
 
 from sisyphus import *
 
@@ -306,8 +307,9 @@ class SpellingConversionJob(Job):
         self,
         bliss_lexicon,
         orth_mapping_file,
-        flip_mapping=False,
         mapping_delimiter=" ",
+        mapping_rules=None,
+        invert_mapping=False,
     ):
         """
         :param Path bliss_lexicon:
@@ -318,23 +320,47 @@ class SpellingConversionJob(Job):
             in case of plain text file
                 one can adjust mapping_delimiter
                 a line starting with "#" is a comment line
-        :param bool flip_mapping:
-            flip the orth mapping
         :param str mapping_delimiter:
             delimiter of source and target orths
             relevant only if mapping is provided with a plain text file
+        :param Optional[List[Tuple[str, str, str]]] mapping_rules
+            a list of mapping rules, each rule is represented by 3 strings
+                (source orth-substring, target orth-substring, pos)
+                where
+                pos should be one of ["leading", "trailing", "any"]
+            e.g. the rule ("zation", "sation", "trailing") will convert orth
+            ending with -zation to orth ending with -sation
+            set this ONLY when it's clearly defined rules which can not
+            generate any kind of ambiguities
+        :param bool invert_mapping:
+            invert the input orth mapping
+            NOTE: this also affect the pairs which are inferred from mapping_rules
         """
         self.set_vis_name("Convert Between Regional Orth Spellings")
 
         self.bliss_lexicon = bliss_lexicon
         self.orth_mapping_file = orth_mapping_file
-        self.flip_mapping = flip_mapping
+        self.invert_mapping = invert_mapping
         self.mapping_delimiter = mapping_delimiter
+        self.mapping_rules = mapping_rules
 
         self.out_bliss_lexicon = self.output_path("lexicon.xml.gz")
 
     def tasks(self):
         yield Task("run", mini_task=True)
+
+    @staticmethod
+    def _lemma_to_str(lemma, description: str):
+        """
+        :param Lemma lemma:
+        :return:
+        """
+        xml_string = xml.dom.minidom.parseString(
+            ET.tostring(lemma.to_xml())
+        ).toprettyxml(indent=" " * 2)
+        lemma_str = "\n".join(xml_string.split("\n")[1:])
+        lemma_str = description + "\n" + lemma_str
+        return lemma_str
 
     def run(self):
         # load mapping from json or plain text file
@@ -343,7 +369,7 @@ class SpellingConversionJob(Job):
         if is_json:
             with uopen(self.orth_mapping_file, "rt") as f:
                 mapping = json.load(f)
-            if self.flip_mapping:
+            if self.invert_mapping:
                 mapping = {v: k for k, v in mapping.items()}
         else:
             mapping = dict()
@@ -352,15 +378,46 @@ class SpellingConversionJob(Job):
                     line = line.strip()
                     if not line or line.startswith("#"):
                         continue
-                    source_orth, target_orth = line.split(self.mapping_delimiter)
-                    if self.flip_mapping:
+                    orths = line.split(self.mapping_delimiter)
+                    if len(orths) != 2:
+                        raise ValueError(
+                            "The selected mapping delimiter is not valid, it "
+                            'generates {} orths for line "{}"!'.format(len(orths), line)
+                        )
+                    source_orth, target_orth = orths
+                    if self.invert_mapping:
                         source_orth, target_orth = target_orth, source_orth
                     mapping[source_orth] = target_orth
-        print("\nA total of {} word mapping paris\n".format(len(mapping)))
+        num_mappings = len(mapping)
+        logging.info("A total of {} word mapping paris".format(num_mappings))
+
+        # compile mapping patterns from extra mapping_rules
+        mapping_patterns = []
+        if self.mapping_rules:
+            for sub_source, sub_target, pos in self.mapping_rules:
+                if pos not in ["leading", "trailing", "any"]:
+                    raise ValueError(
+                        "position of a mapping rule must be one of "
+                        "['leading', 'trailing', 'any'], got '{}' for rule "
+                        "{} ==> {}.".format(pos, sub_source, sub_target)
+                    )
+                if self.invert_mapping:
+                    sub_source, sub_target = sub_target, sub_source
+                pattern = re.escape(sub_source)
+                replacement = sub_target
+                if pos == "leading":
+                    pattern = r"^" + pattern + r"(\S{3,})$"
+                    replacement = r"{}\1".format(sub_target)
+                if pos == "trailing":
+                    pattern = r"^(\S{3,})" + pattern + r"$"
+                    replacement = r"\1{}".format(sub_target)
+                pattern = re.compile(pattern, re.IGNORECASE)
+                mapping_patterns.append((pattern, replacement))
 
         # load input lexicon and build "orth to lemma" dict
+        # extend mapping dict if extra mapping_rules were defined
         lex = lexicon.Lexicon()
-        lex.load(self.bliss_lexicon.get())
+        lex.load(self.bliss_lexicon.get_path())
         orth2lemma = {}
         for lemma in lex.lemmata:
             primary_orth = lemma.orth[0]
@@ -368,14 +425,38 @@ class SpellingConversionJob(Job):
                 raise ValueError(
                     "There shouldn't be two lemmata with the same primary "
                     "orth, apply LexiconUniqueOrthJob before doing spelling "
-                    "conversion"
+                    "conversion!"
                 )
             orth2lemma[primary_orth] = lemma
+            if primary_orth in mapping:
+                continue
+            for pattern, replacement in mapping_patterns:
+                if pattern.search(primary_orth):
+                    target_orth = pattern.sub(replacement, primary_orth)
+                    mapping[primary_orth] = target_orth
+                    logging.info(
+                        "added mapping pair through mapping rule: {} ==> "
+                        "{}".format(primary_orth, target_orth)
+                    )
+                    break
+        if len(mapping) > num_mappings:
+            logging.info(
+                "A total of {} mapping pairs added through extra mapping "
+                "rules".format(len(mapping) - num_mappings)
+            )
 
         # spelling conversion
         for source_orth, target_orth in mapping.items():
             target_lemma = orth2lemma.get(target_orth, None)
             source_lemma = orth2lemma.get(source_orth, None)
+            if target_lemma:
+                logging.info(self._lemma_to_str(target_lemma, "target lemma"))
+            else:
+                logging.info("No target lemma for: {}".format(target_orth))
+            if source_lemma:
+                logging.info(self._lemma_to_str(source_lemma, "source lemma"))
+            else:
+                logging.info("No source lemma for: {}".format(source_orth))
             if target_lemma:
                 if source_lemma:
                     for orth in source_lemma.orth:
@@ -397,9 +478,12 @@ class SpellingConversionJob(Job):
                 else:
                     if not target_lemma.synt:
                         target_lemma.synt = source_orth.split()
+                logging.info(self._lemma_to_str(target_lemma, "final lemma"))
             elif source_lemma:
                 source_lemma.orth.insert(0, target_orth)
                 if not source_lemma.synt:
                     source_lemma.synt = source_orth.split()
+                logging.info(self._lemma_to_str(source_lemma, "final lemma"))
+            logging.info("-" * 60)
 
         write_xml(self.out_bliss_lexicon.get_path(), lex.to_xml())
