@@ -352,9 +352,7 @@ class SpellingConversionJob(Job):
                     line = line.strip()
                     if not line or line.startswith("#"):
                         continue
-                    source_orth, target_orth = line.split(
-                        self.mapping_delimiter
-                    )
+                    source_orth, target_orth = line.split(self.mapping_delimiter)
                     if self.flip_mapping:
                         source_orth, target_orth = target_orth, source_orth
                     mapping[source_orth] = target_orth
@@ -405,5 +403,3 @@ class SpellingConversionJob(Job):
                     source_lemma.synt = source_orth.split()
 
         write_xml(self.out_bliss_lexicon.get_path(), lex.to_xml())
-
-
