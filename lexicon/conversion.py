@@ -350,10 +350,14 @@ class SpellingConversionJob(Job):
         yield Task("run", mini_task=True)
 
     @staticmethod
-    def _lemma_to_str(lemma, description: str):
-        """
+    def _lemma_to_str(lemma, description):
+        """Convert a lemma instance to a logging string
         :param Lemma lemma:
+            the lemma to be converted to str representation
+        :param str description:
+            extra description for this lemma
         :return:
+            str
         """
         xml_string = xml.dom.minidom.parseString(
             ET.tostring(lemma.to_xml())
