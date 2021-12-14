@@ -307,7 +307,7 @@ class SpellingConversionJob(Job):
         self,
         bliss_lexicon,
         orth_mapping_file,
-        mapping_delimiter=" ",
+        mapping_file_delimiter=" ",
         mapping_rules=None,
         invert_mapping=False,
     ):
@@ -320,8 +320,8 @@ class SpellingConversionJob(Job):
             in case of plain text file
                 one can adjust mapping_delimiter
                 a line starting with "#" is a comment line
-        :param str mapping_delimiter:
-            delimiter of source and target orths
+        :param str mapping_file_delimiter:
+            delimiter of source and target orths in the mapping file
             relevant only if mapping is provided with a plain text file
         :param Optional[List[Tuple[str, str, str]]] mapping_rules
             a list of mapping rules, each rule is represented by 3 strings
@@ -334,14 +334,14 @@ class SpellingConversionJob(Job):
             generate any kind of ambiguities
         :param bool invert_mapping:
             invert the input orth mapping
-            NOTE: this also affect the pairs which are inferred from mapping_rules
+            NOTE: this also affects the pairs which are inferred from mapping_rules
         """
         self.set_vis_name("Convert Between Regional Orth Spellings")
 
         self.bliss_lexicon = bliss_lexicon
         self.orth_mapping_file = orth_mapping_file
         self.invert_mapping = invert_mapping
-        self.mapping_delimiter = mapping_delimiter
+        self.mapping_file_delimiter = mapping_file_delimiter
         self.mapping_rules = mapping_rules
 
         self.out_bliss_lexicon = self.output_path("lexicon.xml.gz")
@@ -378,11 +378,12 @@ class SpellingConversionJob(Job):
                     line = line.strip()
                     if not line or line.startswith("#"):
                         continue
-                    orths = line.split(self.mapping_delimiter)
+                    orths = line.split(self.mapping_file_delimiter)
                     if len(orths) != 2:
                         raise ValueError(
                             "The selected mapping delimiter is not valid, it "
-                            'generates {} orths for line "{}"!'.format(len(orths), line)
+                            "generates {} orths for line "
+                            "'{}'!".format(len(orths), line)
                         )
                     source_orth, target_orth = orths
                     if self.invert_mapping:
@@ -468,21 +469,13 @@ class SpellingConversionJob(Job):
                     for eval in source_lemma.eval:
                         if eval not in target_lemma.eval:
                             target_lemma.eval.append(eval)
-                    if not target_lemma.synt:
-                        if source_lemma.synt:
-                            target_lemma.synt = source_lemma.synt
-                        else:
-                            target_lemma.synt = source_orth.split()
                     if source_lemma in lex.lemmata:
                         lex.lemmata.remove(source_lemma)
-                else:
-                    if not target_lemma.synt:
-                        target_lemma.synt = source_orth.split()
+                target_lemma.synt = source_orth.split()
                 logging.info(self._lemma_to_str(target_lemma, "final lemma"))
             elif source_lemma:
                 source_lemma.orth.insert(0, target_orth)
-                if not source_lemma.synt:
-                    source_lemma.synt = source_orth.split()
+                source_lemma.synt = source_orth.split()
                 logging.info(self._lemma_to_str(source_lemma, "final lemma"))
             logging.info("-" * 60)
 
