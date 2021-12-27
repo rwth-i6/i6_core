@@ -15,8 +15,6 @@ __all__ = [
     "select_features",
 ]
 
-import os
-
 import i6_core.rasr as rasr
 
 # -------------------- Helper -------------------
@@ -156,13 +154,12 @@ def samples_flow(
 
 
 def feature_extraction_cache_flow(
-    feature_net, port_name_mapping, one_dimensional_outputs=None, out_dir=None
+    feature_net, port_name_mapping, one_dimensional_outputs=None
 ):
     """
     :param rasr.FlowNetwork feature_net: feature flow to extract features from
     :param dict[str,str] port_name_mapping: maps output ports to names of the cache files
     :param set[str]|None one_dimensional_outputs: output ports that return one-dimensional features (e.g. energy)
-    :param Optional[str] out_dir: output folder for feature caches, if not set defaults to current working directory
     :rtype: rasr.FlowNetwork
     """
     if one_dimensional_outputs is None:
@@ -178,10 +175,9 @@ def feature_extraction_cache_flow(
     caches = []
     for port, name in port_name_mapping.items():
         node_name = "feature-cache-" + name
-        out_path = name + ".cache.$(TASK)"
-        if out_dir is not None:
-            out_path = os.path.join(out_dir, out_path)
-        fc = net.add_node("generic-cache", node_name, {"id": "$(id)", "path": out_path})
+        fc = net.add_node(
+            "generic-cache", node_name, {"id": "$(id)", "path": name + ".cache.$(TASK)"}
+        )
         for src in feature_net.get_output_links(port):
             net.link(node_mapping[src], fc)
 

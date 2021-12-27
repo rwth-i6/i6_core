@@ -46,7 +46,7 @@ class RasrCommand:
             f.write(repr(config))
 
     @staticmethod
-    def write_run_script(exe, config, filename="run.sh", extra_code=""):
+    def write_run_script(exe, config, filename="run.sh", extra_code="", extra_args=""):
         """
         :param str exe:
         :param str config:
@@ -76,9 +76,9 @@ fi
 
 %s
 
-%s --config=%s --*.TASK=$TASK --*.LOGFILE=$LOGFILE $@\
+%s --config=%s --*.TASK=$TASK --*.LOGFILE=$LOGFILE %s $@\
               """
-                % (extra_code, exe, config)
+                % (extra_code, exe, config, extra_args)
             )
             os.chmod(filename, 0o755)
 

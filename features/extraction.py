@@ -59,7 +59,6 @@ class FeatureExtractionJob(rasr.RasrCommand, Job):
             feature_flow,
             port_name_mapping,
             one_dimensional_outputs,
-            "$(OUTPUT-DIR)" if indirect_write else None,
         )
         self.exe = (
             crp.feature_extraction_exe
@@ -108,11 +107,46 @@ class FeatureExtractionJob(rasr.RasrCommand, Job):
             parallel=self.parallel,
         )
 
+    def create_files(self):
+        self.write_config(self.config, self.post_config, "feature-extraction.config")
+        self.cached_feature_flow.write_to_file("feature-extraction.flow")
+        for name in self.out_feature_bundle:
+            util.write_paths_to_file(
+                self.out_feature_bundle[name],
+                self.out_single_feature_caches[name].values(),
+            )
+
+        extra_code = []
+        extra_args = []
+        if self.indirect_write:
+            extra_code += [
+                "if [ $# -gt 0 ]; then",
+                "  OUTPUT_PATH=$1;",
+                "  shift;",
+                "else",
+                "  OUTPUT_PATH=.",
+                "fi",
+            ]
+            extra_args = [
+                "--feature-extraction.%s.path=${OUTPUT_PATH}/'%s'"
+                % (n, self.cached_feature_flow.nodes[n]["path"])
+                for n in self.cached_feature_flow.get_node_names_by_filter(
+                    "generic-cache"
+                )
+            ]
+
+        self.write_run_script(
+            self.exe,
+            "feature-extraction.config",
+            extra_code="\n".join(extra_code),
+            extra_args=" ".join(extra_args),
+        )
+
     def run(self, task_id):
         if self.indirect_write:
             tmp_dir = tempfile.TemporaryDirectory()
             out_dir = tmp_dir.name
-            args = ["--*.OUTPUT-DIR=%s" % out_dir]
+            args = [out_dir]
         else:
             tmp_dir = None
             out_dir = "."
@@ -133,16 +167,6 @@ class FeatureExtractionJob(rasr.RasrCommand, Job):
         for name in self.out_feature_bundle:
             util.delete_if_zero("%s.cache.%d" % (name, task_id))
 
-    def create_files(self):
-        self.write_config(self.config, self.post_config, "feature-extraction.config")
-        self.cached_feature_flow.write_to_file("feature-extraction.flow")
-        for name in self.out_feature_bundle:
-            util.write_paths_to_file(
-                self.out_feature_bundle[name],
-                self.out_single_feature_caches[name].values(),
-            )
-        self.write_run_script(self.exe, "feature-extraction.config")
-
     @classmethod
     def create_config(
         cls, crp, feature_flow, extra_config, extra_post_config, **kwargs
@@ -157,11 +181,6 @@ class FeatureExtractionJob(rasr.RasrCommand, Job):
         """
         config, post_config = rasr.build_config_from_mapping(
             crp, {"corpus": "extraction.corpus"}, parallelize=True
-        )
-        post_config[
-            "*"
-        ].OUTPUT_DIR = (
-            "."  # make path very unspecific to allow easy override via command-line
         )
         config.extraction.feature_extraction.file = "feature-extraction.flow"
         # this was a typo but we cannot remove it now without breaking a lot of hashes
