@@ -161,7 +161,7 @@ class FeatureExtractionJob(rasr.RasrCommand, Job):
         post_config[
             "*"
         ].OUTPUT_DIR = (
-            "./"  # make path very unspecific to allow easy override via command-line
+            "."  # make path very unspecific to allow easy override via command-line
         )
         config.extraction.feature_extraction.file = "feature-extraction.flow"
         # this was a typo but we cannot remove it now without breaking a lot of hashes
