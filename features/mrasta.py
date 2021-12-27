@@ -20,11 +20,6 @@ def MrastaJob(crp, mrasta_options=None, **kwargs):
 
     port_name_mapping = {"features-0": "high", "features-1": "low"}
 
-    if "rtf" not in kwargs:
-        kwargs["rtf"] = 0.1
-    if "mem" not in kwargs:
-        kwargs["mem"] = 2
-
     return FeatureExtractionJob(
         crp,
         feature_flow,

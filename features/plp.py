@@ -21,11 +21,6 @@ def PlpJob(crp, sampling_rate, plp_options=None, **kwargs):
 
     port_name_mapping = {"features": "plp"}
 
-    if "rtf" not in kwargs:
-        kwargs["rtf"] = 0.1
-    if "mem" not in kwargs:
-        kwargs["mem"] = 2
-
     return FeatureExtractionJob(
         crp,
         feature_flow,

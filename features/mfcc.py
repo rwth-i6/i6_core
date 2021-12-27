@@ -25,11 +25,6 @@ def MfccJob(crp, mfcc_options=None, **kwargs):
 
     port_name_mapping = {"features": "mfcc"}
 
-    if "rtf" not in kwargs:
-        kwargs["rtf"] = 0.1
-    if "mem" not in kwargs:
-        kwargs["mem"] = 2
-
     return FeatureExtractionJob(
         crp, feature_flow, port_name_mapping, job_name="MFCC", **kwargs
     )

@@ -19,11 +19,6 @@ def GammatoneJob(crp, gt_options=None, **kwargs):
 
     port_name_mapping = {"features": "gt"}
 
-    if "rtf" not in kwargs:
-        kwargs["rtf"] = 0.1
-    if "mem" not in kwargs:
-        kwargs["mem"] = 2
-
     return FeatureExtractionJob(
         crp,
         feature_flow,
