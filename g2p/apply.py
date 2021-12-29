@@ -54,8 +54,10 @@ class ApplyG2PModelJob(Job):
 
         self.out_g2p_lexicon = self.output_path("g2p.lexicon")
 
+        self.rqmt = {"cpu": 1, "mem": 1, "time": 2}
+
     def tasks(self):
-        yield Task("run")
+        yield Task("run", rqmt=self.rqmt)
 
     def run(self):
         with uopen(self.out_g2p_lexicon, "wt") as out:

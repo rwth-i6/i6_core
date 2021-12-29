@@ -8,9 +8,7 @@ from math import log, sqrt, floor
 import i6_core.rasr as rasr
 
 
-def PlpJob(
-    crp, sampling_rate, plp_options=None, extra_config=None, extra_post_config=None
-):
+def PlpJob(crp, sampling_rate, plp_options=None, **kwargs):
     if plp_options is None:
         plp_options = {}
     else:
@@ -28,10 +26,7 @@ def PlpJob(
         feature_flow,
         port_name_mapping,
         job_name="PLP",
-        rtf=0.1,
-        mem=2,
-        extra_config=extra_config,
-        extra_post_config=extra_post_config,
+        **kwargs,
     )
 
 

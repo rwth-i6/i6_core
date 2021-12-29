@@ -7,12 +7,10 @@ from .extraction import *
 import i6_core.rasr as rasr
 
 
-def MfccJob(crp, mfcc_options=None, extra_config=None, extra_post_config=None):
+def MfccJob(crp, mfcc_options=None, **kwargs):
     """
     :param rasr.crp.CommonRasrParameters crp:
     :param dict[str] mfcc_options:
-    :param rasr.config.RasrConfig|None extra_config:
-    :param rasr.config.RasrConfig|None extra_post_config:
     :rtype: FeatureExtractionJob
     """
     if mfcc_options is None:
@@ -28,14 +26,7 @@ def MfccJob(crp, mfcc_options=None, extra_config=None, extra_post_config=None):
     port_name_mapping = {"features": "mfcc"}
 
     return FeatureExtractionJob(
-        crp,
-        feature_flow,
-        port_name_mapping,
-        job_name="MFCC",
-        rtf=0.1,
-        mem=2,
-        extra_config=extra_config,
-        extra_post_config=extra_post_config,
+        crp, feature_flow, port_name_mapping, job_name="MFCC", **kwargs
     )
 
 

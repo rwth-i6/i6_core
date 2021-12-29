@@ -157,9 +157,9 @@ def feature_extraction_cache_flow(
     feature_net, port_name_mapping, one_dimensional_outputs=None
 ):
     """
-    :param rasr.FlowNetwork feature_net:
-    :param dict[str,str] port_name_mapping:
-    :param set[str]|None one_dimensional_outputs:
+    :param rasr.FlowNetwork feature_net: feature flow to extract features from
+    :param dict[str,str] port_name_mapping: maps output ports to names of the cache files
+    :param set[str]|None one_dimensional_outputs: output ports that return one-dimensional features (e.g. energy)
     :rtype: rasr.FlowNetwork
     """
     if one_dimensional_outputs is None:

@@ -7,7 +7,7 @@ from .extraction import *
 import i6_core.rasr as rasr
 
 
-def EnergyJob(crp, energy_options=None, extra_config=None, extra_post_config=None):
+def EnergyJob(crp, energy_options=None, **kwargs):
     if energy_options is None:
         energy_options = {}
     else:
@@ -24,10 +24,7 @@ def EnergyJob(crp, energy_options=None, extra_config=None, extra_post_config=Non
         feature_flow,
         port_name_mapping,
         job_name="Energy",
-        rtf=0.1,
-        mem=2,
-        extra_config=extra_config,
-        extra_post_config=extra_post_config,
+        **kwargs,
     )
 
 

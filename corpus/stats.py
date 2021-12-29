@@ -1,5 +1,6 @@
 __all__ = ["ExtractOovWordsFromCorpusJob", "CountCorpusWordFrequenciesJob"]
 
+import logging
 from collections import Counter
 import xml.etree.cElementTree as ET
 
@@ -16,13 +17,21 @@ class ExtractOovWordsFromCorpusJob(Job):
     Extracts the out of vocabulary words based on a given corpus and lexicon
     """
 
-    def __init__(self, bliss_corpus, bliss_lexicon):
+    __sis_hash_exclude__ = {
+        "casing": "upper",
+    }
+
+    def __init__(self, bliss_corpus, bliss_lexicon, casing="upper"):
         """
         :param Union[Path, str] bliss_corpus: path to corpus file
         :param Union[Path, str] bliss_lexicon: path to lexicon
+        :param str casing: changes the casing of the orthography (options: upper, lower, none)
+                                str.upper() is problematic for german since ß -> SS
+                                https://bugs.python.org/issue34928
         """
         self.bliss_corpus = bliss_corpus
         self.bliss_lexicon = bliss_lexicon
+        self.casing = casing
 
         self.out_oov_words = self.output_path("oov_words")
 
@@ -30,10 +39,27 @@ class ExtractOovWordsFromCorpusJob(Job):
         yield Task("run", mini_task=True)
 
     def run(self):
+        if self.casing != "none":
+            logging.warning(
+                "The orthography/lemma casing is changed. Is this what you want? Normally you should set this to 'none'. For legacy reasons this is set to 'upper'."
+            )
+
+        def change_casing(text_str):
+            if self.casing == "upper":
+                return text_str.upper()
+            elif self.casing == "lower":
+                return text_str.lower()
+            elif self.casing == "none":
+                return text_str
+            else:
+                raise NotImplementedError
+
         with uopen(self.bliss_lexicon, "rt", encoding="utf-8") as f:
             tree = ET.parse(f)
             iv_words = {
-                orth.text.upper() for orth in tree.findall(".//lemma/orth") if orth.text
+                change_casing(orth.text)
+                for orth in tree.findall(".//lemma/orth")
+                if orth.text
             }
 
         with uopen(self.bliss_corpus, "rt", encoding="utf-8") as f:
@@ -42,7 +68,7 @@ class ExtractOovWordsFromCorpusJob(Job):
                 w
                 for kw in tree.findall(".//recording/segment/orth")
                 for w in kw.text.strip().split()
-                if w.upper() not in iv_words
+                if change_casing(w) not in iv_words
             }
 
         with uopen(self.out_oov_words, "wt") as f:

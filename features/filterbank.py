@@ -9,14 +9,10 @@ from .extraction import *
 import i6_core.rasr as rasr
 
 
-def FilterbankJob(
-    crp, filterbank_options=None, extra_config=None, extra_post_config=None
-):
+def FilterbankJob(crp, filterbank_options=None, **kwargs):
     """
     :param rasr.crp.CommonRasrParameters crp:
     :param dict[str, Any]|None filterbank_options:
-    :param rasr.config.RasrConfig|None extra_config:
-    :param rasr.config.RasrConfig|None extra_post_config:
     :return: Feature extraction job with filterbank flow
     :rtype: FeatureExtractionJob
     """
@@ -37,10 +33,7 @@ def FilterbankJob(
         feature_flow,
         port_name_mapping,
         job_name="filterbank",
-        rtf=0.1,
-        mem=2,
-        extra_config=extra_config,
-        extra_post_config=extra_post_config,
+        **kwargs,
     )
 
 
@@ -137,7 +130,8 @@ def filter_width_from_channels(channels, warping_function="mel", f_max=8000, f_m
       number_of_filters = (maximumFrequency_ - minimumFrequency_ - filterWidth_) / spacing_ + 1));
     :param int channels: Number of channels of the filterbank
     :param str warping_function: Warping function used by the filterbank. ['mel', 'bark']
-    :param float f_max: Filters are placed only below this frequency in Hz
+    :param float f_max: Filters are placed only below this frequency in Hz.
+        The physical maximum is half of the audio sample rate, but lower values make possibly more sense.
     :param float f_min: Filters are placed only over this frequency in Hz
     :return: filter-width
     :rtype float
