@@ -7,7 +7,7 @@ from .extraction import *
 import i6_core.rasr as rasr
 
 
-def GammatoneJob(crp, gt_options=None, extra_config=None, extra_post_config=None):
+def GammatoneJob(crp, gt_options=None, **kwargs):
     if gt_options is None:
         gt_options = {}
     else:
@@ -24,10 +24,7 @@ def GammatoneJob(crp, gt_options=None, extra_config=None, extra_post_config=None
         feature_flow,
         port_name_mapping,
         job_name="Gammatone",
-        rtf=0.1,
-        mem=2,
-        extra_config=extra_config,
-        extra_post_config=extra_post_config,
+        **kwargs,
     )
 
 
