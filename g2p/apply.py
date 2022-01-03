@@ -53,6 +53,7 @@ class ApplyG2PModelJob(Job):
         self.word_list = word_list_file
 
         self.out_g2p_lexicon = self.output_path("g2p.lexicon")
+        self.out_g2p_untranslated = self.output_path("g2p.untranslated")
 
         self.rqmt = {"cpu": 1, "mem": 1, "time": 2}
 
@@ -61,20 +62,22 @@ class ApplyG2PModelJob(Job):
 
     def run(self):
         with uopen(self.out_g2p_lexicon, "wt") as out:
-            sp.check_call(
-                [
-                    str(self.g2p_python),
-                    str(self.g2p_path),
-                    "-e",
-                    "utf-8",
-                    "-V",
-                    str(self.variants_mass),
-                    "--variants-number",
-                    str(self.variants_number),
-                    "-m",
-                    self.g2p_model.get_path(),
-                    "-a",
-                    self.word_list.get_path(),
-                ],
-                stdout=out,
-            )
+            with uopen(self.out_g2p_untranslated, "wt") as err:
+                sp.check_call(
+                    [
+                        str(self.g2p_python),
+                        str(self.g2p_path),
+                        "-e",
+                        "utf-8",
+                        "-V",
+                        str(self.variants_mass),
+                        "--variants-number",
+                        str(self.variants_number),
+                        "-m",
+                        self.g2p_model.get_path(),
+                        "-a",
+                        self.word_list.get_path(),
+                    ],
+                    stdout=out,
+                    stderr=err,
+                )
