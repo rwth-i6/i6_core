@@ -1,4 +1,4 @@
-ame: hashes
+name: job_tests
 on:
   push:
     branches:
