@@ -332,7 +332,7 @@ class SearchBPEtoWordsJob(Job):
     def __init__(self, search_py_output):
         """
 
-        :param Path search_py_output: a search output file from RETURNN in python format
+        :param Path search_py_output: a search output file from RETURNN in python format (single or n-best)
         """
         self.search_py_output = search_py_output
         self.out_word_search_results = self.output_path("word_search_results.py")
@@ -341,23 +341,30 @@ class SearchBPEtoWordsJob(Job):
         yield Task("run", mini_task=True)
 
     def run(self):
-        d = eval(open(tk.uncached_path(self.search_py_output), "r").read())
+        d = eval(util.uopen(self.search_py_output, "r").read())
         assert isinstance(d, dict)  # seq_tag -> bpe string
-        assert not os.path.exists(tk.uncached_path(self.out_word_search_results))
-        with open(tk.uncached_path(self.out_word_search_results), "w") as out:
+        assert not os.path.exists(self.out_word_search_results.get_path())
+        with util.uopen(self.out_word_search_results, "w") as out:
             out.write("{\n")
-            for seq_tag, txt in sorted(d.items()):
+            for seq_tag, entry in sorted(d.items()):
                 if "#" in seq_tag:
                     tag_split = seq_tag.split("/")
                     recording_name, segment_name = tag_split[2].split("#")
                     seq_tag = tag_split[0] + "/" + recording_name + "/" + segment_name
-                out.write("%r: %r,\n" % (seq_tag, txt.replace("@@ ", "")))
+                if isinstance(entry, list):
+                    # n-best list as [(score, text), ...]
+                    out.write("%r: [\n" % (seq_tag))
+                    for score, text in entry:
+                        out.write("(%f, %r),\n" % (score, text.replace("@@ ", "")))
+                    out.write("],\n")
+                else:
+                    out.write("%r: %r,\n" % (seq_tag, entry.replace("@@ ", "")))
             out.write("}\n")
 
 
 class SearchWordsToCTMJob(Job):
     """
-    Convert RETURNN search output file into CTM format file
+    Convert RETURNN search output file into CTM format file (does not support n-best lists yet)
     """
 
     def __init__(self, recog_words_file, bliss_corpus, filter_tags=True):
@@ -394,6 +401,9 @@ class SearchWordsToCTMJob(Job):
                     seg_fullname
                 )
                 out.write(";; %s (%f-%f)\n" % (seg_fullname, seg_start, seg_end))
+                assert isinstance(
+                    d[seg_fullname], str
+                ), "no support for n-best lists yet"
                 words = d[seg_fullname].split()
                 # Just linearly interpolate the start/end of each word as time stamps are not given
                 avg_dur = (seg_end - seg_start) * 0.9 / max(len(words), 1)
@@ -425,8 +435,8 @@ class ReturnnComputeWERJob(Job):
     ):
         """
 
-        :param Path hypothesis: python-style search output from RETURNN
-        :param Path reference: python-style text dictionary (use e.g. BlissExtractTextDictionary)
+        :param Path hypothesis: python-style search output from RETURNN (e.g. SearchBPEtoWordsJob)
+        :param Path reference: python-style text dictionary (use e.g. i6_core.corpus.convert.CorpusToTextDictJob)
         :param str|Path returnn_python_exe: RETURNN python executable
         :param str|Path returnn_root: RETURNN source root
         """
