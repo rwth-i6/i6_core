@@ -10,6 +10,7 @@ jobs:
   test-hashes:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v2
         with:
           repository: "rwth-i6/i6_core"
           path: "i6_core"
