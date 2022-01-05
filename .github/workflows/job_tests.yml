@@ -30,6 +30,6 @@ jobs:
           pip install pytest
           pip install -r recipe/i6_core/requirements.txt
       - name: Test Jobs
-          run: |
-            set -e
-            pytest i6_core/tests/job_tests
+        run: |
+          set -e
+          pytest i6_core/tests/job_tests
