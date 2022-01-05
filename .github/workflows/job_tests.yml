@@ -28,7 +28,7 @@ jobs:
           python3 setup.py install
           cd ..
           pip install pytest
-          pip install -r recipe/i6_core/requirements.txt
+          pip install -r i6_core/requirements.txt
       - name: Test Jobs
         run: |
           set -e
