@@ -367,7 +367,7 @@ class ReturnnTrainingJob(Job):
         if returnn_config.post_config is not None:
             post_config.update(copy.deepcopy(returnn_config.post_config))
 
-        if "cleanup_old_models" in post_config and keep_epochs:
+        if keep_epochs:
             if isinstance(post_config["cleanup_old_models"], bool):
                 post_config["cleanup_old_models"] = {"keep": keep_epochs}
             elif isinstance(post_config["cleanup_old_models"], dict):
