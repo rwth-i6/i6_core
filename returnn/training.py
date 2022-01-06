@@ -250,16 +250,6 @@ class ReturnnTrainingJob(Job):
         lrf = self.returnn_config.get("learning_rate_file", "learning_rates")
         self._relink(lrf, self.out_learning_rates.get_path())
 
-        # cleanup
-        if hasattr(self, "keep_epochs"):
-            for e in os.scandir(self.out_model_dir.get_path()):
-                if e.is_file() and e.name.startswith("epoch."):
-                    s = e.name.split(".")
-                    idx = 2 if s[1] == "pretrain" else 1
-                    epoch = int(s[idx])
-                    if epoch not in self.keep_epochs:
-                        os.unlink(e.path)
-
     def plot(self):
         def EpochData(learningRate, error):
             return {"learning_rate": learningRate, "error": error}
