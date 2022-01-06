@@ -144,7 +144,7 @@ class FeatureExtractionJob(rasr.RasrCommand, Job):
 
     def run(self, task_id):
         if self.indirect_write:
-            tmp_dir = tempfile.TemporaryDirectory()
+            tmp_dir = tempfile.TemporaryDirectory(prefix=gs.TMP_PREFIX)
             out_dir = tmp_dir.name
             args = [out_dir]
         else:
