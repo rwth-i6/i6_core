@@ -348,6 +348,7 @@ class ReturnnTrainingJob(Job):
         device,
         num_epochs,
         save_interval,
+        keep_epochs,
         horovod_num_processes,
         **kwargs,
     ):
@@ -376,6 +377,16 @@ class ReturnnTrainingJob(Job):
         if returnn_config.post_config is not None:
             post_config.update(copy.deepcopy(returnn_config.post_config))
 
+        if "cleanup_old_models" in post_config and keep_epochs:
+            if isinstance(post_config["cleanup_old_models"], bool):
+                post_config["cleanup_old_models"] = {"keep": keep_epochs}
+            elif isinstance(post_config["cleanup_old_models"], dict):
+                post_config["cleanup_old_models"]["keep"] = keep_epochs
+            else:
+                assert False, "invalid type of cleanup_old_models: %s" % type(
+                    post_config["cleanup_old_models"]
+                )
+
         res.config = config
         res.post_config = post_config
         res.check_consistency()
@@ -400,6 +411,12 @@ class ReturnnTrainingJob(Job):
             assert returnn_config.get(key) is None, (
                 "please define %s only as parameter to ReturnnTrainingJob directly"
                 % key
+            )
+
+        config_blacklisted_keys = ["cleanup_old_models"]
+        for key in config_blacklisted_keys:
+            assert returnn_config.config.get(key) is None, (
+                "please define %s only as parameter in the post_config" % key
             )
 
     @classmethod
