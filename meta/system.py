@@ -661,65 +661,6 @@ class System:
             self.default_mixture_scorer(m) for m in j.selected_mixtures
         ]
 
-    def wcts(
-        self,
-        name,
-        corpus,
-        flow,
-        feature_scorer,
-        pronunciation_scale,
-        lm_scale,
-        pruning_params,
-        parallelize_conversion=False,
-        **kwargs,
-    ):
-        """
-        :param str name:
-        :param str corpus:
-        :param str flow:
-        :param str|list[str]|tuple[str]|rasr.FeatureScorer feature_scorer:
-        :param float pronunciation_scale:
-        :param float lm_scale:
-        :param pruning_params:
-        :param bool parallelize_conversion:
-        :param kwargs:
-        :return:
-        """
-        pruning_config = recog.pruning_config(**pruning_params)
-        pron_scale_config = rasr.RasrConfig()
-        pron_scale_config.pronunciation_scale = pronunciation_scale
-        self.crp[corpus].language_model_config.scale = lm_scale
-
-        rec = recog.WordConditionedTreeSearchJob(
-            crp=self.crp[corpus],
-            feature_flow=self.feature_flows[corpus][flow],
-            feature_scorer=select_element(self.feature_scorers, corpus, feature_scorer),
-            recognizer_config=pron_scale_config,
-            recognizer_config2=pruning_config,
-            **kwargs,
-        )
-        rec.set_vis_name("WCTS %s" % name)
-        name = "wcts_%s" % name
-        rec.add_alias(name)
-        self.jobs[corpus][name] = rec
-
-        self.jobs[corpus]["lat2ctm_%s" % name] = lat2ctm = recog.LatticeToCtmJob(
-            crp=self.crp[corpus],
-            lattice_cache=rec.lattice_path
-            if parallelize_conversion
-            else rec.lattice_bundle,
-            parallelize=parallelize_conversion,
-        )
-        lat2ctm.add_alias("ctm_%s" % name)
-        self.ctm_files[corpus][name] = lat2ctm.out_ctm_file
-
-        kwargs = copy.deepcopy(self.scorer_args[corpus])
-        kwargs[self.scorer_hyp_arg[corpus]] = lat2ctm.out_ctm_file
-        scorer = self.scorers[corpus](**kwargs)
-
-        self.jobs[corpus]["scorer_%s" % name] = scorer
-        tk.register_output("%s.reports" % name, scorer.out_report_dir)
-
     def recog(
         self,
         name,
