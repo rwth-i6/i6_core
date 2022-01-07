@@ -368,9 +368,17 @@ class ReturnnTrainingJob(Job):
             post_config.update(copy.deepcopy(returnn_config.post_config))
 
         if keep_epochs:
-            if isinstance(post_config["cleanup_old_models"], bool):
+            if not "cleanup_old_models" in post_config or isinstance(
+                post_config["cleanup_old_models"], bool
+            ):
+                assert (
+                    post_config.get("cleanup_old_models", True) == True
+                ), "'cleanup_old_models' can not be False if 'keep_epochs' is specified"
                 post_config["cleanup_old_models"] = {"keep": keep_epochs}
             elif isinstance(post_config["cleanup_old_models"], dict):
+                assert (
+                    "keep" not in post_config["cleanup_old_models"]
+                ), "you can only provide either 'keep_epochs' or 'cleanup_old_models/keep', but not both"
                 post_config["cleanup_old_models"]["keep"] = keep_epochs
             else:
                 assert False, "invalid type of cleanup_old_models: %s" % type(
