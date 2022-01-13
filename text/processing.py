@@ -162,7 +162,9 @@ class HeadJob(Job):
     Return the head of a text file, either absolute or as ratio (provide one)
     """
 
-    def __init__(self, text_file, num_lines=None, ratio=None):
+    __sis_hash_exclude__ = {"zip_output": True}
+
+    def __init__(self, text_file, num_lines=None, ratio=None, zip_output=True):
         """
         :param Path text_file: text file (gz or raw)
         :param int num_lines: number of lines to extract
@@ -176,6 +178,7 @@ class HeadJob(Job):
         self.text_file = text_file
         self.num_lines = num_lines
         self.ratio = ratio
+        self.zip_output = zip_output
 
         self.out = self.output_path("out.gz")
         self.length = self.output_var("length")
@@ -196,8 +199,13 @@ class HeadJob(Job):
             length = int(self.sh("zcat -f {text_file} | wc -l", True))
             self.lines = int(length * self.ratio)
 
+        pipeline = "zcat -f {text_file} | head -n {num_lines}"
+        if self.zip_output:
+            pipeline += " | gzip"
+        pipeline += " > {out}"
+
         self.sh(
-            "zcat -f {text_file} | head -n {num_lines} | gzip > {out}",
+            pipeline,
             except_return_codes=(141,),
         )
         self.length.set(self.num_lines)
