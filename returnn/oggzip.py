@@ -36,8 +36,15 @@ class BlissToOggZipJob(Job):
         """
         use RETURNN to dump data into an ogg zip file
 
+        The output zip archive can be created in a single run or in a parallel way using a MultiOutputPath for segments,
+        e.g.
+        > segments = SegmentCorpusJob(corpus, concurrent).out_segment_path
+        > ogg_zip_job = BlissToOggZipJob(corpus, segments=segments)
+
         :param str|Path bliss_corpus: bliss corpus file
         :param str|Path|MultiOutputPath segments: RASR segment file
+            If a MultiOutputPath object is given, a single zip archive is created for each segment list split and all
+            archives are merged at the end.
         :param str|Path rasr_cache: feature rasr cache
         :param int raw_sample_rate: raw audio sampling rate
         :param int feat_sample_rate: feature sampling rate
