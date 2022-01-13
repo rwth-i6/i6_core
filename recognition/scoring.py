@@ -123,7 +123,7 @@ class ScliteJob(Job):
         sp.check_call(args)
 
         if output_to_report_dir:  # run as real job
-            with open(f"{output_dir}/sclite.dtl", "rt") as f:
+            with open(f"{output_dir}/sclite.dtl", "rt", errors="ignore") as f:
                 for line in f:
                     s = line.split()
                     if line.startswith("Percent Total Error"):
@@ -158,7 +158,7 @@ class ScliteJob(Job):
             os.chdir(td)
             self.run(output_to_report_dir=False)
             dtl_file = "sclite.dtl"
-            with open(dtl_file, "rt") as f:
+            with open(dtl_file, "rt", errors="ignore") as f:
                 for line in f:
                     if line.startswith("Percent Total Error"):
                         errors = float("".join(line.split()[5:])[1:-1])
