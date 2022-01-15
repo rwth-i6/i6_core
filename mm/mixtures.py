@@ -10,7 +10,7 @@ import os
 import shutil
 import struct
 import tempfile
-
+import stat
 from sisyphus import *
 
 Path = setup_path(__package__)
@@ -117,6 +117,7 @@ class MergeMixturesJob(rasr.RasrCommand, Job):
             util.partition_into_tree(self.mixtures_to_combine, self.combine_per_step),
         )
         shutil.move(mixtures, self.out_mixtures.get_path())
+        os.chmod(self.out_mixtures.get_path, stat.S_IROTH)
 
     def cleanup_before_run(self, cmd, retry, *args):
         log = args[2][12:]
