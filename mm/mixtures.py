@@ -8,9 +8,10 @@ __all__ = [
 import logging
 import os
 import shutil
+import stat
 import struct
 import tempfile
-import stat
+
 from sisyphus import *
 
 Path = setup_path(__package__)
