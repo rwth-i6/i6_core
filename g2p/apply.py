@@ -2,6 +2,7 @@ __all__ = ["ApplyG2PModelJob"]
 
 import os
 import subprocess as sp
+from tempfile import mkstemp
 
 from sisyphus import *
 
@@ -54,11 +55,10 @@ class ApplyG2PModelJob(Job):
         self.variants_mass = variants_mass
         self.variants_number = variants_number
         self.word_list = word_list_file
+        self.filter_empty_words = filter_empty_words
 
         self.out_g2p_lexicon = self.output_path("g2p.lexicon")
         self.out_g2p_untranslated = self.output_path("g2p.untranslated")
-        if filter_empty_words:
-            self.out_g2p_lexicon_filtered = self.output_path("g2p.lexicon.filtered")
 
         self.rqmt = {"cpu": 1, "mem": 1, "time": 2}
 
@@ -87,10 +87,13 @@ class ApplyG2PModelJob(Job):
                     stderr=err,
                 )
 
-        if hasattr(self, "out_g2p_lexicon_filtered"):
-            with open(self.out_g2p_lexicon, "r") as lex, open(
-                self.out_g2p_lexicon_filtered, "w"
-            ) as filtered:
+        if self.filter_empty_words:
+            fd_out, tmp_path = mkstemp(dir=".")
+            with open(self.out_g2p_lexicon, "r") as lex:
                 for line in lex:
                     if len(line.strip().split("\t")) == 4:
-                        filtered.write(line)
+                        fd_out.write(line)
+            fd_out.close()
+
+            os.remove(self.out_g2p_lexicon)
+            os.rename(tmp_path, self.out_g2p_lexicon)
