@@ -18,14 +18,14 @@ class ApplyG2PModelJob(Job):
     __sis_hash_exclude__ = {"filter_empty_words": False}
 
     def __init__(
-            self,
-            g2p_model,
-            word_list_file,
-            variants_mass=1.0,
-            variants_number=1,
-            g2p_path=None,
-            g2p_python=None,
-            filter_empty_words=False,
+        self,
+        g2p_model,
+        word_list_file,
+        variants_mass=1.0,
+        variants_number=1,
+        g2p_path=None,
+        g2p_python=None,
+        filter_empty_words=False,
     ):
         """
         :param Path g2p_model:
@@ -88,8 +88,9 @@ class ApplyG2PModelJob(Job):
                 )
 
         if hasattr(self, "out_g2p_lexicon_filtered"):
-            with open(self.out_g2p_lexicon, "r") as lex, \
-                    open(self.out_g2p_lexicon_filtered, "w") as filtered:
+            with open(self.out_g2p_lexicon, "r") as lex, open(
+                self.out_g2p_lexicon_filtered, "w"
+            ) as filtered:
                 for line in lex:
                     if len(line.strip().split("\t")) == 4:
                         filtered.write(line)
