@@ -8,6 +8,7 @@ __all__ = [
 import logging
 import os
 import shutil
+import stat
 import struct
 import tempfile
 
@@ -117,6 +118,9 @@ class MergeMixturesJob(rasr.RasrCommand, Job):
             util.partition_into_tree(self.mixtures_to_combine, self.combine_per_step),
         )
         shutil.move(mixtures, self.out_mixtures.get_path())
+
+        update_mode = stat.S_IRUSR | stat.S_IWUSR | stat.S_IROTH | stat.S_IRGRP
+        os.chmod(self.out_mixtures.get_path(), update_mode)
 
     def cleanup_before_run(self, cmd, retry, *args):
         log = args[2][12:]
