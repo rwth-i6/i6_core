@@ -39,8 +39,8 @@ class CloneGitRepositoryJob(Job):
         repository_dir = self.out_repository.get_path()
         args += [repository_dir]
         logging.info("running command: %s" % " ".join(args))
-        sp.run(args)
+        sp.run(args, check=True)
         if self.commit is not None:
             args = ["git", "checkout", self.commit]
             logging.info("running command: %s" % " ".join(args))
-            sp.run(args, cwd=repository_dir)
+            sp.run(args, cwd=repository_dir, check=True)
