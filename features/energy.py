@@ -30,9 +30,9 @@ def EnergyJob(crp, energy_options=None, **kwargs):
 
 def energy_flow(
     without_samples=False,
-    normalization_type="divide-by-mean",
     samples_options={},
     fft_options={},
+    normalization_type="divide-by-mean",
 ):
     net = rasr.FlowNetwork()
 
