@@ -475,11 +475,16 @@ class SpellingConversionJob(Job):
                             target_lemma.eval.append(eval)
                     if source_lemma in lex.lemmata:
                         lex.lemmata.remove(source_lemma)
-                target_lemma.synt = source_orth.split()
+                if not target_lemma.synt:
+                    if source_lemma and source_lemma.synt:
+                        target_lemma.synt = source_lemma.synt
+                    else:
+                        target_lemma.synt = source_orth.split()
                 logging.info(self._lemma_to_str(target_lemma, "final lemma"))
             elif source_lemma:
                 source_lemma.orth.insert(0, target_orth)
-                source_lemma.synt = source_orth.split()
+                if not source_lemma.synt:
+                    source_lemma.synt = source_orth.split()
                 logging.info(self._lemma_to_str(source_lemma, "final lemma"))
             logging.info("-" * 60)
 
