@@ -1,6 +1,5 @@
 __all__ = ["ApplyG2PModelJob"]
 
-
 import os
 import subprocess as sp
 
@@ -16,14 +15,17 @@ class ApplyG2PModelJob(Job):
     Apply a trained G2P on a word list file
     """
 
+    __sis_hash_exclude__ = {"filter_empty_words": False}
+
     def __init__(
-        self,
-        g2p_model,
-        word_list_file,
-        variants_mass=1.0,
-        variants_number=1,
-        g2p_path=None,
-        g2p_python=None,
+            self,
+            g2p_model,
+            word_list_file,
+            variants_mass=1.0,
+            variants_number=1,
+            g2p_path=None,
+            g2p_python=None,
+            filter_empty_words=False,
     ):
         """
         :param Path g2p_model:
@@ -32,6 +34,7 @@ class ApplyG2PModelJob(Job):
         :param int variants_number:
         :param DelayedBase|str|None g2p_path:
         :param DelayedBase|str|None g2p_python:
+        :param bool filter_empty_words: if True, creates a new lexicon file with no empty translated words
         """
 
         if g2p_path is None:
@@ -54,6 +57,8 @@ class ApplyG2PModelJob(Job):
 
         self.out_g2p_lexicon = self.output_path("g2p.lexicon")
         self.out_g2p_untranslated = self.output_path("g2p.untranslated")
+        if filter_empty_words:
+            self.out_g2p_lexicon_filtered = self.output_path("g2p.lexicon.filtered")
 
         self.rqmt = {"cpu": 1, "mem": 1, "time": 2}
 
@@ -81,3 +86,10 @@ class ApplyG2PModelJob(Job):
                     stdout=out,
                     stderr=err,
                 )
+
+        if hasattr(self, "out_g2p_lexicon_filtered"):
+            with open(self.out_g2p_lexicon, "r") as lex, \
+                    open(self.out_g2p_lexicon_filtered, "w") as filtered:
+                for line in lex:
+                    if len(line.strip().split("\t")) == 4:
+                        filtered.write(line)
