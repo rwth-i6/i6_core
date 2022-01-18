@@ -90,8 +90,10 @@ class ApplyG2PModelJob(Job):
                 )
 
     def filter(self):
-        fd_out, tmp_path = mkstemp(dir=".", text=True)
-        with open(self.out_g2p_lexicon, "r") as lex:
+        handle, tmp_path = mkstemp(dir=".", text=True)
+        with uopen(self.out_g2p_lexicon, "rt") as lex, os.fdopen(
+            handle, "wt"
+        ) as fd_out:
             for line in lex:
                 if len(line.strip().split("\t")) == 4:
                     fd_out.write(line)
