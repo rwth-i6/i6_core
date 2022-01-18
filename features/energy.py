@@ -28,7 +28,12 @@ def EnergyJob(crp, energy_options=None, **kwargs):
     )
 
 
-def energy_flow(without_samples=False, samples_options={}, fft_options={}):
+def energy_flow(
+    without_samples=False,
+    samples_options={},
+    fft_options={},
+    normalization_type="divide-by-mean",
+):
     net = rasr.FlowNetwork()
 
     if without_samples:
@@ -51,17 +56,20 @@ def energy_flow(without_samples=False, samples_options={}, fft_options={}):
     )
     net.link(energy, convert_energy_to_vector)
 
-    energy_normalization = net.add_node(
-        "signal-normalization",
-        "energy-normalization",
-        {"type": "divide-by-mean", "length": "infinite", "right": "infinite"},
-    )
-    net.link(convert_energy_to_vector, energy_normalization)
-
     convert_energy_to_scalar = net.add_node(
         "generic-convert-vector-f32-to-f32", "convert-energy-vector-to-scalar"
     )
-    net.link(energy_normalization, convert_energy_to_scalar)
+    if normalization_type is not None:
+        energy_normalization = net.add_node(
+            "signal-normalization",
+            "energy-normalization",
+            {"type": normalization_type, "length": "infinite", "right": "infinite"},
+        )
+        net.link(convert_energy_to_vector, energy_normalization)
+        net.link(energy_normalization, convert_energy_to_scalar)
+    else:
+        net.link(convert_energy_to_vector, convert_energy_to_scalar)
+
     net.link(convert_energy_to_scalar, "network:energy")
 
     return net
