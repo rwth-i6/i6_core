@@ -64,6 +64,8 @@ class ApplyG2PModelJob(Job):
 
     def tasks(self):
         yield Task("run", rqmt=self.rqmt)
+        if self.filter_empty_words:
+            yield Task("filter", mini_task=True)
 
     def run(self):
         with uopen(self.out_g2p_lexicon, "wt") as out:
@@ -87,13 +89,13 @@ class ApplyG2PModelJob(Job):
                     stderr=err,
                 )
 
-        if self.filter_empty_words:
-            fd_out, tmp_path = mkstemp(dir=".")
-            with open(self.out_g2p_lexicon, "r") as lex:
-                for line in lex:
-                    if len(line.strip().split("\t")) == 4:
-                        fd_out.write(line)
-            fd_out.close()
+    def filter(self):
+        fd_out, tmp_path = mkstemp(dir=".", text=True)
+        with open(self.out_g2p_lexicon, "r") as lex:
+            for line in lex:
+                if len(line.strip().split("\t")) == 4:
+                    fd_out.write(line)
+        fd_out.close()
 
-            os.remove(self.out_g2p_lexicon)
-            os.rename(tmp_path, self.out_g2p_lexicon)
+        os.remove(self.out_g2p_lexicon)
+        os.rename(tmp_path, self.out_g2p_lexicon)
