@@ -22,6 +22,10 @@ Before contributing to `i6_core`, please have a close look at
 
 Code style: https://github.com/psf/black
 
+# Testing
+
+See [tests/README.md](https://github.com/rwth-i6/i6_core/blob/main/tests/README.md)
+
 # License
 
 All Source Code in this Project is subject to the terms of the Mozilla
