@@ -20,9 +20,7 @@ def test_search_bpe_to_words_single():
     job_dict = eval(
         open(bpe_to_words_job.out_word_search_results.get_path(), "rt").read()
     )
-
-    for key, string in reference_dict.items():
-        assert job_dict[key] == string
+    assert reference_dict == job_dict
 
 
 def test_search_bpe_to_words_nbest():
@@ -38,6 +36,4 @@ def test_search_bpe_to_words_nbest():
     job_dict = eval(
         open(bpe_to_words_job.out_word_search_results.get_path(), "rt").read()
     )
-
-    for key, string in reference_dict.items():
-        assert job_dict[key] == string
+    assert reference_dict == job_dict
