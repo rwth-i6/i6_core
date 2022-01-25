@@ -1,8 +1,8 @@
 __all__ = ["ApplyG2PModelJob"]
 
-
 import os
 import subprocess as sp
+from tempfile import mkstemp
 
 from sisyphus import *
 
@@ -16,6 +16,8 @@ class ApplyG2PModelJob(Job):
     Apply a trained G2P on a word list file
     """
 
+    __sis_hash_exclude__ = {"filter_empty_words": False}
+
     def __init__(
         self,
         g2p_model,
@@ -24,6 +26,7 @@ class ApplyG2PModelJob(Job):
         variants_number=1,
         g2p_path=None,
         g2p_python=None,
+        filter_empty_words=False,
     ):
         """
         :param Path g2p_model:
@@ -32,6 +35,7 @@ class ApplyG2PModelJob(Job):
         :param int variants_number:
         :param DelayedBase|str|None g2p_path:
         :param DelayedBase|str|None g2p_python:
+        :param bool filter_empty_words: if True, creates a new lexicon file with no empty translated words
         """
 
         if g2p_path is None:
@@ -51,6 +55,7 @@ class ApplyG2PModelJob(Job):
         self.variants_mass = variants_mass
         self.variants_number = variants_number
         self.word_list = word_list_file
+        self.filter_empty_words = filter_empty_words
 
         self.out_g2p_lexicon = self.output_path("g2p.lexicon")
         self.out_g2p_untranslated = self.output_path("g2p.untranslated")
@@ -59,6 +64,8 @@ class ApplyG2PModelJob(Job):
 
     def tasks(self):
         yield Task("run", rqmt=self.rqmt)
+        if self.filter_empty_words:
+            yield Task("filter", mini_task=True)
 
     def run(self):
         with uopen(self.out_g2p_lexicon, "wt") as out:
@@ -81,3 +88,16 @@ class ApplyG2PModelJob(Job):
                     stdout=out,
                     stderr=err,
                 )
+
+    def filter(self):
+        handle, tmp_path = mkstemp(dir=".", text=True)
+        with uopen(self.out_g2p_lexicon, "rt") as lex, os.fdopen(
+            handle, "wt"
+        ) as fd_out:
+            for line in lex:
+                if len(line.strip().split("\t")) == 4:
+                    fd_out.write(line)
+        fd_out.close()
+
+        os.remove(self.out_g2p_lexicon)
+        os.rename(tmp_path, self.out_g2p_lexicon)
