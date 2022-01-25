@@ -411,12 +411,6 @@ class ReturnnTrainingJob(Job):
                 % key
             )
 
-        config_blacklisted_keys = ["cleanup_old_models"]
-        for key in config_blacklisted_keys:
-            assert returnn_config.config.get(key) is None, (
-                "please define %s only as parameter in the post_config" % key
-            )
-
     @classmethod
     def hash(cls, kwargs):
         d = {
