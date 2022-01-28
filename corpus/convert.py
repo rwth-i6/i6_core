@@ -133,7 +133,9 @@ class CorpusToTxtJob(Job):
 
         with uopen(self.out_txt.get_path(), "wt") as f:
             for segment in c.segments():
-                if (not segments_whitelist) or (segment.fullname() in segments_whitelist):
+                if (not segments_whitelist) or (
+                    segment.fullname() in segments_whitelist
+                ):
                     f.write(segment.orth + "\n")
 
 
