@@ -2,7 +2,7 @@ __all__ = [
     "CorpusToStmJob",
     "CorpusToTxtJob",
     "CorpusReplaceOrthFromTxtJob",
-    "CorpusReplaceOrthFromTag",
+    "CorpusReplaceOrthFromReferenceCorpus",
 ]
 
 import gzip
