@@ -244,7 +244,6 @@ class CorpusToTextDictJob(Job):
 class CorpusReplaceOrthFromReferenceCorpus(Job):
     """
     Copies the orth tag from one corpus to another through matching segment names.
-    Only works for single segment recordings so far.
     """
 
     def __init__(self, bliss_corpus, reference_bliss_corpus):
@@ -266,18 +265,18 @@ class CorpusReplaceOrthFromReferenceCorpus(Job):
 
         orths = {}
         for r in orth_c.all_recordings():
-            assert len(r.segments) == 1, "needs to be a single segment recording"
-            orth = r.segments[0].orth
-            tag = r.segments[0].name
-            orths[tag] = orth
+            for i in range(len(r.segments)):
+                orth = r.segments[i].orth
+                tag = r.segments[i].name
+                orths[tag] = orth
 
         c = corpus.Corpus()
         c.load(tk.uncached_path(self.bliss_corpus))
 
         for r in c.all_recordings():
-            assert len(r.segments) == 1, "needs to be a single segment recording"
-            tag = r.segments[0].name
-            orth = orths[tag]
-            r.segments[0].orth = orth
+            for i in range(len(r.segments)):
+                tag = r.segments[i].name
+                orth = orths[tag]
+                r.segments[i].orth = orth
 
         c.dump(tk.uncached_path(self.out_corpus))
