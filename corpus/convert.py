@@ -168,7 +168,9 @@ class CorpusReplaceOrthFromTxtJob(Job):
                 segments_whitelist = set(
                     l.strip() for l in f.readlines() if len(l.strip()) > 0
                 )
-            segment_iterator = filter(lambda s: s.fullname() in segments_whitelist, c.segments())
+            segment_iterator = filter(
+                lambda s: s.fullname() in segments_whitelist, c.segments()
+            )
         else:
             segment_iterator = c.segments()
 
