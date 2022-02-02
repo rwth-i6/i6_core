@@ -1,4 +1,4 @@
-__all__ = ["CorpusToStmJob", "CorpusToTxtJob", "CorpusReplaceOrthFromTxtJob"]
+__all__ = ["CorpusToStmJob", "CorpusToTxtJob", "CorpusReplaceOrthFromTxtJob", "CorpusReplaceOrthFromTag"]
 
 import gzip
 import itertools
@@ -234,3 +234,45 @@ class CorpusToTextDictJob(Job):
         dictionary_string = pprint.pformat(dictionary, width=1000)
         with uopen(self.out_dictionary, "wt") as f:
             f.write(dictionary_string)
+
+
+class CorpusReplaceOrthFromReferenceCorpus(Job):
+  """
+  Copies the orth tag from one corpus to another through matching segment names.
+  Only works for single segment recordings so far.
+  """
+
+  def __init__(self, bliss_corpus, reference_bliss_corpus):
+    """
+    :param bliss_corpus: Corpus in which the orth tag is to be replaced
+    :param reference_bliss_corpus: Corpus from which the orth tag replacement is taken
+    """
+    self.bliss_corpus = bliss_corpus
+    self.reference_bliss_corpus = reference_bliss_corpus
+
+    self.out_corpus = self.output_path("corpus.xml.gz")
+
+  def tasks(self):
+    yield Task('run', mini_task=True)
+
+  def run(self):
+    orth_c = corpus.Corpus()
+    orth_c.load(tk.uncached_path(self.reference_bliss_corpus))
+
+    orths = {}
+    for r in orth_c.all_recordings():
+      assert len(r.segments) == 1, "needs to be a single segment recording"
+      orth = r.segments[0].orth
+      tag = r.segments[0].name
+      orths[tag] = orth
+
+    c = corpus.Corpus()
+    c.load(tk.uncached_path(self.bliss_corpus))
+
+    for r in c.all_recordings():
+      assert len(r.segments) == 1, "needs to be a single segment recording"
+      tag = r.segments[0].name
+      orth = orths[tag]
+      r.segments[0].orth = orth
+
+    c.dump(tk.uncached_path(self.out_corpus))
