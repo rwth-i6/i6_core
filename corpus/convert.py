@@ -267,7 +267,7 @@ class CorpusReplaceOrthFromReferenceCorpus(Job):
         for r in orth_c.all_recordings():
             for i in range(len(r.segments)):
                 orth = r.segments[i].orth
-                tag = r.segments[i].name
+                tag = r.segments[i].fullname()
                 orths[tag] = orth
 
         c = corpus.Corpus()
@@ -275,7 +275,7 @@ class CorpusReplaceOrthFromReferenceCorpus(Job):
 
         for r in c.all_recordings():
             for i in range(len(r.segments)):
-                tag = r.segments[i].name
+                tag = r.segments[i].fullname()
                 orth = orths[tag]
                 r.segments[i].orth = orth
 
