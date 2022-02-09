@@ -68,7 +68,7 @@ class CorpusReplaceOrthFromTxtJob(Job):
         """
         :param Path bliss_corpus: Bliss corpus
         :param Path text_file: a raw or gzipped text file
-        :param Path|None: only replace the segments as specified in the segment file
+        :param Path|None segment_file: only replace the segments as specified in the segment file
         """
         self.bliss_corpus = bliss_corpus
         self.text_file = text_file
