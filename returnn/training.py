@@ -103,6 +103,8 @@ class ReturnnTrainingJob(Job):
             Note that this value is NOT HASHED, so that this number can be increased to continue the training.
         :param int save_interval: save a checkpoint each n-th epoch
         :param list[int]|set[int]|None keep_epochs: specify which checkpoints are kept, use None for the RETURNN default
+            This will also limit the available output checkpoints to those defined. If you want to specify the keep
+            behavior without this limitation, provide `cleanup_old_models/keep` in the post-config and use `None` here.
         :param int|float time_rqmt:
         :param int|float mem_rqmt:
         :param int cpu_rqmt:
