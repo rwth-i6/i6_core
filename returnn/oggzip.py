@@ -30,6 +30,7 @@ class BlissToOggZipJob(Job):
         feat_sample_rate=None,
         no_conversion=False,
         no_audio=False,
+        ffmpeg_acodec=None,
         returnn_python_exe=None,
         returnn_root=None,
     ):
@@ -50,6 +51,7 @@ class BlissToOggZipJob(Job):
         :param int feat_sample_rate: feature sampling rate
         :param bool no_conversion: do not call the actual conversion, assume the audio files are already correct
         :param bool no_audio: do not add audio files
+        :param str ffmpeg_acodec: force audio codec for ffmpeg calls
         :param Path|str returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
         :param Path|str returnn_root: file path to the RETURNN repository root folder
         """
@@ -60,6 +62,7 @@ class BlissToOggZipJob(Job):
         self.feat_sample_rate = feat_sample_rate
         self.no_conversion = no_conversion
         self.no_audio = no_audio
+        self.ffmpeg_acodec = ffmpeg_acodec
         self.concurrent = (
             len(segments.hidden_paths) if isinstance(segments, MultiOutputPath) else 1
         )
@@ -124,6 +127,8 @@ class BlissToOggZipJob(Job):
             args.extend(["--no_ogg"])
         elif self.no_conversion:
             args.extend(["--no_conversion"])
+        elif self.ffmpeg_acodec:
+            args.extend(["--ffmpeg_acodec", self.ffmpeg_acodec])
         else:
             if self.rasr_cache is not None:
                 args.extend(["--sprint_cache", tk.uncached_path(self.rasr_cache)])
