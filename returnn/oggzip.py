@@ -19,7 +19,7 @@ class BlissToOggZipJob(Job):
 
     """
 
-    __sis_hash_exclude__ = {"no_audio": False}
+    __sis_hash_exclude__ = {"no_audio": False, "ffmpeg_acodec": None}
 
     def __init__(
         self,
