@@ -283,9 +283,9 @@ def check_file_sha256_checksum(filename, reference_checksum):
 
 def resolve_sis_paths_in_dict(dictionary):
     """
-    Iterates through a (nested) dict and replaces all Path instances 
+    Iterates through a (nested) dict and replaces all Path instances
     with the respective file paths. Only to be used in the Worker.
-    
+
     :param dict dictionary: a dict containing Path objects to be replaced
     """
     for k, v in dictionary.items():
