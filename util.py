@@ -280,6 +280,7 @@ def check_file_sha256_checksum(filename, reference_checksum):
     """
     assert compute_file_sha256_checksum(filename) == reference_checksum
 
+
 def resolve_sis_paths_in_dict(dictionary):
     for k, v in dictionary.items():
         if isinstance(v, dict):

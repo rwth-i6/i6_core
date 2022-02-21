@@ -33,7 +33,7 @@ class ReturnnDumpHDFJob(Job):
     ):
         """
 
-        :param dict|Path|str data: a string defining a RETURNN dataset
+        :param dict|Path|str data: a dict, path, or string defining a RETURNN dataset
         :param start_seq: first sequence to dump in the dataset
         :param end_seq: last sequence to dump in the dataset
         :param int epoch: epoch to dump
