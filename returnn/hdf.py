@@ -33,7 +33,7 @@ class ReturnnDumpHDFJob(Job):
     ):
         """
 
-        :param str data: a string defining a RETURNN dataset
+        :param dict|Path|str data: a string defining a RETURNN dataset
         :param start_seq: first sequence to dump in the dataset
         :param end_seq: last sequence to dump in the dataset
         :param int epoch: epoch to dump
@@ -71,10 +71,11 @@ class ReturnnDumpHDFJob(Job):
 
     def run(self):
         data = self.data
-        if isinstance(data, str):
+        if isinstance(data, dict):
+            resolve_sis_paths_in_dict(data)
             data = str(data)
-        else:
-            data = tk.uncached_path(data)
+        elif isinstance(data, tk.Path):
+            data = data.get_path()
 
         args = [
             tk.uncached_path(self.returnn_python_exe),

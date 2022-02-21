@@ -279,3 +279,10 @@ def check_file_sha256_checksum(filename, reference_checksum):
     :param str filename: a single file to be checked
     """
     assert compute_file_sha256_checksum(filename) == reference_checksum
+
+def resolve_sis_paths_in_dict(dictionary):
+    for k, v in dictionary.items():
+        if isinstance(v, dict):
+            resolve_sis_paths_in_dict(v)
+        elif isinstance(v, tk.Path):
+            dictionary[k] = v.get_path()
