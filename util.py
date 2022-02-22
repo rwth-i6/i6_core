@@ -7,6 +7,7 @@ import xml.dom.minidom
 import xml.etree.ElementTree as ET
 
 from sisyphus import *
+from sisyphus.delayed_ops import DelayedBase
 
 Path = setup_path(__package__)
 Variable = tk.Variable
