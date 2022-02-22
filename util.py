@@ -281,15 +281,22 @@ def check_file_sha256_checksum(filename, reference_checksum):
     assert compute_file_sha256_checksum(filename) == reference_checksum
 
 
-def resolve_sis_paths_in_dict(dictionary):
+def instanciate_delayed(o):
     """
-    Iterates through a (nested) dict and replaces all Path instances
-    with the respective file paths. Only to be used in the Worker.
+    Recursively traverses a structure and calls .get() on all
+    existing Delayed Operations, especially Variables in the structure
 
-    :param dict dictionary: a dict containing Path objects to be replaced
+    :param Any o: nested structure that may contain DelayedBase objects
+    :return:
     """
-    for k, v in dictionary.items():
-        if isinstance(v, dict):
-            resolve_sis_paths_in_dict(v)
-        elif isinstance(v, tk.Path):
-            dictionary[k] = v.get_path()
+    if isinstance(o, DelayedBase):
+        o = o.get()
+    elif isinstance(o, list):
+        for k in range(len(o)):
+            o[k] = instanciate_delayed(o[k])
+    elif isinstance(o, tuple):
+        o = tuple(instanciate_delayed(e) for e in o)
+    elif isinstance(o, dict):
+        for k in o:
+            o[k] = instanciate_delayed(o[k])
+    return o

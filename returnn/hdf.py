@@ -5,7 +5,7 @@ import subprocess as sp
 
 from .rasr_training import ReturnnRasrTrainingJob
 import i6_core.rasr as rasr
-from i6_core.util import relink
+from i6_core.util import relink, instanciate_delayed
 
 from sisyphus import *
 
@@ -72,7 +72,7 @@ class ReturnnDumpHDFJob(Job):
     def run(self):
         data = self.data
         if isinstance(data, dict):
-            resolve_sis_paths_in_dict(data)
+            instanciate_delayed(data)
             data = str(data)
         elif isinstance(data, tk.Path):
             data = data.get_path()
