@@ -53,7 +53,9 @@ class CorpusReplaceOrthFromReferenceCorpus(Job):
         for r in c.all_recordings():
             for i in range(len(r.segments)):
                 tag = r.segments[i].fullname()
-                assert tag in orths.keys(), "Segment %s not found in reference corpus" % s
+                assert tag in orths.keys(), (
+                    "Segment %s not found in reference corpus" % s
+                )
                 orth = orths[tag]
                 r.segments[i].orth = orth
 
