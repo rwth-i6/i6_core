@@ -85,7 +85,7 @@ class CorpusReplaceOrthFromTxtJob(Job):
         c.load(self.bliss_corpus.get_path())
 
         if self.segment_file:
-            with uopen(tk.uncached_path(self.segment_file), "rt") as f:
+            with uopen(self.segment_file.get_path(), "rt") as f:
                 segments_whitelist = set(
                     l.strip() for l in f.readlines() if len(l.strip()) > 0
                 )
