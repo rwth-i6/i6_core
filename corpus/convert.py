@@ -38,7 +38,7 @@ class CorpusReplaceOrthFromReferenceCorpus(Job):
 
     def run(self):
         orth_c = corpus.Corpus()
-        orth_c.load(tk.uncached_path(self.reference_bliss_corpus))
+        orth_c.load(self.reference_bliss_corpus.get_path())
 
         orths = {}
         for r in orth_c.all_recordings():
@@ -48,15 +48,16 @@ class CorpusReplaceOrthFromReferenceCorpus(Job):
                 orths[tag] = orth
 
         c = corpus.Corpus()
-        c.load(tk.uncached_path(self.bliss_corpus))
+        c.load(self.bliss_corpus.get_path())
 
         for r in c.all_recordings():
             for i in range(len(r.segments)):
                 tag = r.segments[i].fullname()
+                assert tag in orths.keys(), "Segment not found in Reference corpus"
                 orth = orths[tag]
                 r.segments[i].orth = orth
 
-        c.dump(tk.uncached_path(self.out_corpus))
+        c.dump(self.out_corpus.get_path())
 
 
 class CorpusReplaceOrthFromTxtJob(Job):
