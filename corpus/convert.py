@@ -9,6 +9,7 @@ __all__ = [
 import gzip
 import itertools
 import pprint
+import re
 
 from sisyphus import *
 
@@ -112,9 +113,11 @@ class CorpusToStmJob(Job):
     def __init__(
         self,
         bliss_corpus,
-        exclude_non_speech=True,
-        remove_punctuation=True,
-        fix_whitespace=True,
+        exclude_non_speech=False,
+        non_speech_tokens=(),
+        remove_punctuation=False,
+        punctuation_tokens=(),
+        fix_whitespace=False,
         name="",
         tag_mapping=(),
     ):
@@ -122,7 +125,9 @@ class CorpusToStmJob(Job):
 
         :param Path bliss_corpus: Bliss corpus
         :param bool exclude_non_speech:
+        :param tuple[str, ...] non_speech_tokens:
         :param bool remove_punctuation:
+        :param tuple[str, ...] punctuation_tokens:
         :param bool fix_whitespace:
         :param str name:
         :param tuple[str, dict[str, str]] tag_mapping:
@@ -131,7 +136,9 @@ class CorpusToStmJob(Job):
 
         self.bliss_corpus = bliss_corpus
         self.exclude_non_speech = exclude_non_speech
+        self.non_speech_tokens = non_speech_tokens
         self.remove_punctuation = remove_punctuation
+        self.punctuation_tokens = punctuation_tokens
         self.fix_whitespace = fix_whitespace
         self.tag_mapping = tag_mapping
         self.name = name
@@ -172,6 +179,29 @@ class CorpusToStmJob(Job):
                     else segment.recording.name
                 )
                 segment_track = segment.track + 1 if segment.track else 1
+
+                orth = f" {segment.orth.strip()} "
+
+                if self.exclude_non_speech:
+                    for nst in self.non_speech_tokens:
+                        def replace_recursive(orthography, token):
+                            pos = orthography.find(f" {token} ")
+                            if pos == -1:
+                                return orthography
+                            else:
+                                orthography = orthography.replace(f" {token} ", "   ")
+                                return replace_recursive(orthography, token)
+
+                        orth = replace_recursive(orth, nst)
+
+                if self.remove_punctuation:
+                    for pt in self.punctuation_tokens:
+                        orth = orth.replace(pt, "")
+
+                if self.fix_whitespace:
+                    orth = re.sub(" +", " ", orth)
+                    orth = orth.strip()
+
                 out.write(
                     "%s %d %s %5.2f %5.2f <%s> %s\n"
                     % (
@@ -181,7 +211,7 @@ class CorpusToStmJob(Job):
                         segment.start,
                         segment.end,
                         ",".join(tag_map[segment.fullname()]),
-                        segment.orth,
+                        orth,
                     )
                 )
             for tag in all_tags:
