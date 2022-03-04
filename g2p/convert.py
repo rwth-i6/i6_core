@@ -6,7 +6,8 @@ import xml.etree.ElementTree as ET
 
 from sisyphus import *
 
-from i6_core.util import uopen
+from i6_core.lib import lexicon
+from i6_core.util import uopen, write_xml
 
 Path = setup_path(__package__)
 
@@ -101,21 +102,19 @@ class G2POutputToBlissLexiconJob(Job):
                             )
                         )
 
-        with uopen(self.iv_bliss_lexicon, "rt") as f:
-            iv_lexicon = ET.parse(f)
+        iv_lexicon = lexicon.Lexicon()
+        iv_lexicon.load(self.iv_bliss_lexicon.get_path())
+
+        g2p_lexicon = lexicon.Lexicon()
+        # use phoneme inventory from existing lexicon
+        g2p_lexicon.phonemes = iv_lexicon.phonemes
 
         if self.merge:
-            root = iv_lexicon.getroot()
-        else:
-            root = ET.Element("lexicon")
-            root.append(iv_lexicon.find("phoneme-inventory"))
+            # when we merge also copy over all existing lemmata
+            g2p_lexicon.lemmata = iv_lexicon.lemmata
 
         for orth, prons in oov_words.items():
-            lemma = ET.SubElement(root, "lemma")
-            ET.SubElement(lemma, "orth").text = orth
-            for pron in prons:
-                ET.SubElement(lemma, "phon").text = pron
+            lemma = lexicon.Lemma(orth=[orth], phon=prons)
+            g2p_lexicon.add_lemma(lemma)
 
-        with uopen(self.out_oov_lexicon, "wt", encoding="utf-8") as f:
-            tree = ET.ElementTree(root)
-            tree.write(f, "unicode", True)
+        write_xml(self.out_oov_lexicon.get_path(), g2p_lexicon.to_xml())
