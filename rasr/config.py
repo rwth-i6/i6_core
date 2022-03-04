@@ -344,7 +344,7 @@ class StringWrapper:
         return self.string
 
 
-class WriteRasrConfigJob(Job, RasrCommand):
+class WriteRasrConfigJob(RasrCommand, Job):
     """
     Write a RasrConfig object into a .config file
     """
