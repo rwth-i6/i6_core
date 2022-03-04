@@ -287,13 +287,24 @@ class ReturnnConfig:
 
     def check_consistency(self):
         """
-        check that there is no config key overwritten by post_config
+        Check that there is no config key overwritten by post_config.
+        Also check for parameters that should never be hashed.
         """
         for key in self.config:
             assert key not in self.post_config, (
                 "%s in post_config would overwrite existing entry in config" % key
             )
         assert not (self.staged_network_dict and "network" in self.config)
+
+        # list of parameters that should never be hashed
+        disallowed_in_config = [
+            "cleanup_old_models",
+            "log_verbosity",
+        ]
+        for key in disallowed_in_config:
+            assert self.config.get(key) is None, (
+                "please define %s only as parameter in the post_config" % key
+            )
 
     def _sis_hash(self):
         h = {

@@ -103,6 +103,8 @@ class ReturnnTrainingJob(Job):
             Note that this value is NOT HASHED, so that this number can be increased to continue the training.
         :param int save_interval: save a checkpoint each n-th epoch
         :param list[int]|set[int]|None keep_epochs: specify which checkpoints are kept, use None for the RETURNN default
+            This will also limit the available output checkpoints to those defined. If you want to specify the keep
+            behavior without this limitation, provide `cleanup_old_models/keep` in the post-config and use `None` here.
         :param int|float time_rqmt:
         :param int|float mem_rqmt:
         :param int cpu_rqmt:
@@ -250,16 +252,6 @@ class ReturnnTrainingJob(Job):
         lrf = self.returnn_config.get("learning_rate_file", "learning_rates")
         self._relink(lrf, self.out_learning_rates.get_path())
 
-        # cleanup
-        if hasattr(self, "keep_epochs"):
-            for e in os.scandir(self.out_model_dir.get_path()):
-                if e.is_file() and e.name.startswith("epoch."):
-                    s = e.name.split(".")
-                    idx = 2 if s[1] == "pretrain" else 1
-                    epoch = int(s[idx])
-                    if epoch not in self.keep_epochs:
-                        os.unlink(e.path)
-
     def plot(self):
         def EpochData(learningRate, error):
             return {"learning_rate": learningRate, "error": error}
@@ -348,6 +340,7 @@ class ReturnnTrainingJob(Job):
         device,
         num_epochs,
         save_interval,
+        keep_epochs,
         horovod_num_processes,
         **kwargs,
     ):
@@ -375,6 +368,24 @@ class ReturnnTrainingJob(Job):
         config.update(copy.deepcopy(returnn_config.config))
         if returnn_config.post_config is not None:
             post_config.update(copy.deepcopy(returnn_config.post_config))
+
+        if keep_epochs is not None:
+            if not "cleanup_old_models" in post_config or isinstance(
+                post_config["cleanup_old_models"], bool
+            ):
+                assert (
+                    post_config.get("cleanup_old_models", True) == True
+                ), "'cleanup_old_models' can not be False if 'keep_epochs' is specified"
+                post_config["cleanup_old_models"] = {"keep": keep_epochs}
+            elif isinstance(post_config["cleanup_old_models"], dict):
+                assert (
+                    "keep" not in post_config["cleanup_old_models"]
+                ), "you can only provide either 'keep_epochs' or 'cleanup_old_models/keep', but not both"
+                post_config["cleanup_old_models"]["keep"] = keep_epochs
+            else:
+                assert False, "invalid type of cleanup_old_models: %s" % type(
+                    post_config["cleanup_old_models"]
+                )
 
         res.config = config
         res.post_config = post_config
