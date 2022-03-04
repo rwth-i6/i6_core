@@ -3,11 +3,15 @@ __all__ = [
     "build_config_from_mapping",
     "ConfigBuilder",
     "StringWrapper",
+    "WriteRasrConfigJob",
 ]
 
 import itertools as it
 
+from sisyphus import Job, Task
+
 from i6_core import util
+from i6_core.rasr.command import RasrCommand
 
 
 class RasrConfig:
@@ -338,3 +342,34 @@ class StringWrapper:
 
     def __str__(self):
         return self.string
+
+
+class WriteRasrConfigJob(RasrCommand, Job):
+    """
+    Write a RasrConfig object into a .config file
+    """
+
+    def __init__(self, config, post_config):
+        """
+        :param RasrConfig config: RASR config part that is hashed
+        :param RasrConfig post_config: RASR config part that is not hashed
+        """
+        self.config = config
+        self.post_config = post_config
+
+        self.out_config = self.output_path("rasr.config")
+
+    def tasks(self):
+        yield Task("run", mini_task=True)
+
+    def run(self):
+        self.write_config(
+            config=self.config,
+            post_config=self.post_config,
+            filename=self.out_config.get_path(),
+        )
+
+    @classmethod
+    def hash(cls, kwargs):
+        d = {"config": kwargs["config"]}
+        return super().hash(d)
