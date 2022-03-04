@@ -11,6 +11,7 @@ import itertools as it
 from sisyphus import Job, Task
 
 from i6_core import util
+from i6_core.rasr.command import RasrCommand
 
 
 class RasrConfig:
@@ -343,7 +344,7 @@ class StringWrapper:
         return self.string
 
 
-class WriteRasrConfigJob(Job):
+class WriteRasrConfigJob(Job, RasrCommand):
     """
     Write a RasrConfig object into a .config file
     """
@@ -362,9 +363,11 @@ class WriteRasrConfigJob(Job):
         yield Task("run", mini_task=True)
 
     def run(self):
-        self.config._update(self.post_config)
-        with util.uopen(self.out_config, "wt") as f:
-            f.write(repr(self.config))
+        self.write_config(
+            config=self.config,
+            post_config=self.post_config,
+            filename=self.out_config.get_path(),
+        )
 
     @classmethod
     def hash(cls, kwargs):
