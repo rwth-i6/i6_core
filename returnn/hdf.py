@@ -38,9 +38,9 @@ class ReturnnDumpHDFJob(Job):
         :param end_seq: last sequence to dump in the dataset
         :param int epoch: epoch to dump
         :param int cpu: number of CPU cores required
-        :param int mem: RAM required
-        :param int file_size: request file space on compute node
-        :param int time: compute time
+        :param int mem: RAM required in Gb
+        :param int file_size: request file space on compute node in Gb
+        :param int time: compute time in hours
         :param Path|str returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
         :param Path|str returnn_root: file path to the RETURNN repository root folder
         """
@@ -131,9 +131,9 @@ class ReturnnRasrDumpHDFJob(ReturnnDumpHDFJob):
         :param int num_classes:
         :param int buffer_size:
         :param int cpu: number of CPU cores required
-        :param int mem: RAM required
-        :param int file_size: request file space on compute node
-        :param int time: compute time
+        :param int mem: RAM required in Gb
+        :param int file_size: request file space on compute node in Gb
+        :param int time: compute time in hours
         :param Path|str returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
         :param Path|str returnn_root: file path to the RETURNN repository root folder
         """
