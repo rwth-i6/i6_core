@@ -2,6 +2,7 @@ __all__ = ["ReturnnDumpHDFJob", "ReturnnRasrDumpHDFJob"]
 
 import os
 import subprocess as sp
+import tempfile
 
 from .rasr_training import ReturnnRasrTrainingJob
 import i6_core.rasr as rasr
@@ -77,11 +78,14 @@ class ReturnnDumpHDFJob(Job):
         elif isinstance(data, tk.Path):
             data = data.get_path()
 
+        (fd, tmp_hdf_file) = tempfile.mkstemp(prefix=gs.TMP_PREFIX, suffix=".hdf")
+        fd.close()
+
         args = [
             tk.uncached_path(self.returnn_python_exe),
             os.path.join(tk.uncached_path(self.returnn_root), "tools/hdf_dump.py"),
             data,
-            "data.hdf",
+            tmp_hdf_file,
         ]
         if self.start_seq is not None:
             args.append(f"--start_seq {self.start_seq}")
@@ -91,7 +95,7 @@ class ReturnnDumpHDFJob(Job):
             args.append(f"--epoch {self.epoch}")
 
         sp.check_call(args)
-        relink("data.hdf", self.out_hdf.get_path())
+        relink(tmp_hdf_file, self.out_hdf.get_path())
 
     @classmethod
     def hash(cls, parsed_args):
