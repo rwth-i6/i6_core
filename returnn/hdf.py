@@ -78,7 +78,7 @@ class ReturnnDumpHDFJob(Job):
         elif isinstance(data, tk.Path):
             data = data.get_path()
 
-        (fd, tmp_hdf_file) = tempfile.mkstemp(suffix=".hdf")
+        (fd, tmp_hdf_file) = tempfile.mkstemp(prefix=gs.TMP_PREFIX, suffix=".hdf")
         fd.close()
 
         args = [
