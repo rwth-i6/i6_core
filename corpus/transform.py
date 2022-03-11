@@ -499,7 +499,7 @@ class LexiconStrategy(enum.Enum):
 
 class ApplyLexiconToTranscriptionsJob(Job):
     """
-    Use a bliss lexicon to convert all words in a bliss lexicon into their phoneme representation.
+    Use a bliss lexicon to convert all words in a bliss corpus into their phoneme representation.
 
     Currently only supports picking the first phoneme.
     """
@@ -514,7 +514,7 @@ class ApplyLexiconToTranscriptionsJob(Job):
         """
         :param bliss_corpus: path to a bliss corpus xml
         :param bliss_lexicon: path to a bliss lexicon file
-        :param str word_separation_orth: a default word separation lemma orth. The corresponding phoneme
+        :param str|None word_separation_orth: a default word separation lemma orth. The corresponding phoneme
             (or phonemes in some special cases) are inserted between each word.
             Usually it makes sense to use something like "[SILENCE]" or "[space]" or so).
         :param LexiconStrategy strategy: strategy to determine which representation is selected
@@ -544,9 +544,12 @@ class ApplyLexiconToTranscriptionsJob(Job):
                     if len(lemma.phon) > 0:
                         lookup_dict[orth] = lemma.phon[0]
 
-        word_separation_phon = lookup_dict[self.word_separation_orth]
-        print("using word separation symbold: %s" % word_separation_phon)
-        separator = " %s " % word_separation_phon
+        if self.word_separation_orth is not None:
+            word_separation_phon = lookup_dict[self.word_separation_orth]
+            print("using word separation symbold: %s" % word_separation_phon)
+            separator = " %s " % word_separation_phon
+        else:
+            separator = " "
 
         for segment in c.segments():
             try:
