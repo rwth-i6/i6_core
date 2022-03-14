@@ -6,6 +6,7 @@ __all__ = [
     "MergeStrategy",
     "MergeCorpusSegmentsAndAudioJob",
     "ShiftCorpusSegmentStartJob",
+    "ApplyLexiconToCorpusJob",
 ]
 
 import bisect
