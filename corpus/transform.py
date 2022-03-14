@@ -497,7 +497,7 @@ class LexiconStrategy(enum.Enum):
     PICK_FIRST = 0
 
 
-class ApplyLexiconToTranscriptionsJob(Job):
+class ApplyLexiconToCorpusJob(Job):
     """
     Use a bliss lexicon to convert all words in a bliss corpus into their phoneme representation.
 
