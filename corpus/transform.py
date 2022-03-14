@@ -530,9 +530,6 @@ class ApplyLexiconToCorpusJob(Job):
         yield Task("run", mini_task=True)
 
     def run(self):
-        c = corpus.Corpus()
-        c.load(self.bliss_corpus.get_path())
-
         lex = lexicon.Lexicon()
         lex.load(self.bliss_lexicon.get_path())
 
@@ -550,6 +547,9 @@ class ApplyLexiconToCorpusJob(Job):
             separator = " %s " % word_separation_phon
         else:
             separator = " "
+
+        c = corpus.Corpus()
+        c.load(self.bliss_corpus.get_path())
 
         for segment in c.segments():
             try:
