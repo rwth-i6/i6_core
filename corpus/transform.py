@@ -512,8 +512,8 @@ class ApplyLexiconToTranscriptionsJob(Job):
         strategy=LexiconStrategy.PICK_FIRST,
     ):
         """
-        :param bliss_corpus: path to a bliss corpus xml
-        :param bliss_lexicon: path to a bliss lexicon file
+        :param Path bliss_corpus: path to a bliss corpus xml
+        :param Path bliss_lexicon: path to a bliss lexicon file
         :param str|None word_separation_orth: a default word separation lemma orth. The corresponding phoneme
             (or phonemes in some special cases) are inserted between each word.
             Usually it makes sense to use something like "[SILENCE]" or "[space]" or so).
@@ -546,7 +546,7 @@ class ApplyLexiconToTranscriptionsJob(Job):
 
         if self.word_separation_orth is not None:
             word_separation_phon = lookup_dict[self.word_separation_orth]
-            print("using word separation symbold: %s" % word_separation_phon)
+            print("using word separation symbol: %s" % word_separation_phon)
             separator = " %s " % word_separation_phon
         else:
             separator = " "
