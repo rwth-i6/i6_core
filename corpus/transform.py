@@ -508,7 +508,7 @@ class ApplyLexiconToCorpusJob(Job):
         self,
         bliss_corpus,
         bliss_lexicon,
-        word_separation_orth,
+        word_separation_orth=None,
         strategy=LexiconStrategy.PICK_FIRST,
     ):
         """
