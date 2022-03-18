@@ -83,15 +83,28 @@ fi
             os.chmod(filename, 0o755)
 
     @classmethod
-    def default_exe(cls, exe_name):
+    def get_rasr_exe(cls, exe_name, rasr_root, rasr_arch):
         """
         :param str exe_name:
+        :param str rasr_root:
+        :param str rasr_arch:
+        :return: path to a rasr binary with the default path pattern inside the repsoitory
         :rtype: str
         """
         exe = os.path.join(
-            gs.RASR_ROOT, "arch", gs.RASR_ARCH, "%s.%s" % (exe_name, gs.RASR_ARCH)
+            rasr_root, "arch", rasr_arch, "%s.%s" % (exe_name, rasr_arch)
         )
         return exe
+
+    @classmethod
+    def default_exe(cls, exe_name):
+        """
+        Extract executable path from the global sisyphus settings
+
+        :param str exe_name:
+        :rtype: str
+        """
+        return cls.get_rasr_exe(exe_name, gs.RASR_ROOT, gs.RASR_ARCH)
 
     @classmethod
     def select_exe(cls, specific_exe, default_exe_name):
