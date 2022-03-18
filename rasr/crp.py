@@ -67,7 +67,7 @@ class CommonRasrParameters:
 
         Is (not yet) compatible with tk.Path inputs
 
-        :param str rasr_root: director path of a RASR repository
+        :param str rasr_root: path of a directory containing the RASR repository
         :param str rasr_arch: RASR architecture specifier
         """
         self.acoustic_model_trainer_exe = RasrCommand.get_rasr_exe(
