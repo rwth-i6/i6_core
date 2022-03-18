@@ -88,7 +88,8 @@ fi
         :param str exe_name:
         :param str rasr_root:
         :param str rasr_arch:
-        :return:
+        :return: path to a rasr binary with the default path pattern inside the repsoitory
+        :rtype: str
         """
         exe = os.path.join(
             rasr_root, "arch", rasr_arch, "%s.%s" % (exe_name, rasr_arch)
