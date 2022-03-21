@@ -21,7 +21,7 @@ class CompileTFGraphJob(Job):
 
     """
 
-    __sis_hash_exclude__ = {"device": "gpu"}
+    __sis_hash_exclude__ = {"device": "cpu"}
 
     def __init__(
         self,
@@ -30,7 +30,7 @@ class CompileTFGraphJob(Job):
         eval=0,
         search=0,
         verbosity=4,
-        device="gpu",
+        device="cpu",
         summaries_tensor_name=None,
         output_format="meta",
         returnn_python_exe=None,
