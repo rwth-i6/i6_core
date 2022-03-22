@@ -21,6 +21,8 @@ class CompileTFGraphJob(Job):
 
     """
 
+    __sis_hash_exclude__ = {"device": "cpu"}
+
     def __init__(
         self,
         returnn_config,
@@ -28,6 +30,7 @@ class CompileTFGraphJob(Job):
         eval=0,
         search=0,
         verbosity=4,
+        device="cpu",
         summaries_tensor_name=None,
         output_format="meta",
         returnn_python_exe=None,
@@ -40,6 +43,7 @@ class CompileTFGraphJob(Job):
         :param int eval:
         :param int search:
         :param int log_verbosity: RETURNN log verbosity from 1 (least verbose) to 5 (most verbose)
+        :param str device: optimize graph for cpu or gpu
         :param summaries_tensor_name:
         :param str output_format: graph output format, one of ["pb", "pbtxt", "meta", "metatxt"]
         :param Path|str returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
@@ -50,6 +54,7 @@ class CompileTFGraphJob(Job):
         self.eval = eval
         self.search = search
         self.verbosity = verbosity
+        self.device = device
         self.summaries_tensor_name = summaries_tensor_name
         self.returnn_python_exe = (
             returnn_python_exe
@@ -87,6 +92,7 @@ class CompileTFGraphJob(Job):
             "--train=%d" % self.train,
             "--eval=%d" % self.eval,
             "--search=%d" % self.search,
+            "--device=%s" % self.device,
             "--verbosity=%d" % self.verbosity,
             "--output_file=%s" % self.out_graph.get_path(),
             "--output_file_model_params_list=model_params",
