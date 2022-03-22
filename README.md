@@ -2,8 +2,9 @@
 containing jobs to build speech recognition, machine translation or text-to-speech pipelines using
  the toolkits [RETURNN](https://github.com/rwth-i6/returnn) and [RASR](https://github.com/rwth-i6/rasr).
 
+Status: stable
 
-Status: unstable
+Please note that some exotic Jobs, especially those under `adaptation` are not fully tested.
 
 # Installation
 
