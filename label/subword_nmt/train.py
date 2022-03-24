@@ -16,6 +16,11 @@ class TrainBPEModelJob(Job):
     """
     Create a bpe codes file using the official subword-nmt repo, either installed from pip
     or https://github.com/rsennrich/subword-nmt
+
+    This job is deprecated, to create BPE codes that are compatible with legacy (non-sisyphus) RETURNN setups
+    using e.g. language models from Kazuki, please use the `ReturnnTrainBpeJob`.
+
+    Otherwise, please consider using the `sentencepiece` implementation.
     """
 
     def __init__(
@@ -91,6 +96,8 @@ class ReturnnTrainBpeJob(Job):
     Create Bpe codes and vocab files compatible with RETURNN BytePairEncoding
     Repository:
         https://github.com/albertz/subword-nmt
+
+    This job can be used to produce BPE codes compatible to legacy (non-sisyphus) RETURNN setups.
     """
 
     def __init__(self, text_file, bpe_size, unk_label="UNK", subword_nmt_repo=None):

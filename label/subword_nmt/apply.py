@@ -1,6 +1,5 @@
 __all__ = ["ApplyBPEModelToLexiconJob", "ApplyBPEToTextJob"]
 
-import gzip
 import subprocess as sp
 import os
 import sys

@@ -1,13 +1,14 @@
 """
-This is an old location of bpe jobs kept for backwards compatibility, for new setups, please use i6_core.label.bpe
+This is an old location of bpe jobs kept for backwards compatibility, for new setups using the subword-nmt based BPE,
+please use i6_core.label.bpe, for other setups please switch to the sentencepiece implementation
 """
 __all__ = ["ApplyBPEModelToLexiconJob", "ApplyBPEToTextJob"]
 
 
-from i6_core.label.bpe.apply import (
+from i6_core.label.subword_nmt.apply import (
     ApplyBPEModelToLexiconJob as _ApplyBPEModelToLexiconJob,
 )
-from i6_core.label.bpe.apply import ApplyBPEToTextJob as _ApplyBPEToTextJob
+from i6_core.label.subword_nmt.apply import ApplyBPEToTextJob as _ApplyBPEToTextJob
 
 
 class ApplyBPEModelToLexiconJob(_ApplyBPEModelToLexiconJob):
