@@ -20,7 +20,12 @@ class TrainSentencePieceJob(Job):
     """
 
     def __init__(
-        self, training_text, vocab_size, model_type, character_coverage=1.0, **opts
+        self,
+        training_text,
+        vocab_size,
+        model_type,
+        character_coverage=1.0,
+        additional_options=None,
     ):
         """
 
@@ -28,14 +33,14 @@ class TrainSentencePieceJob(Job):
         :param int vocab_size: target vocabulary for the created model
         :param SentencePieceType model_type: which sentence model to use, use "UNIGRAM" for "typical" SPM
         :param float character_coverage: official default is 0.9995, but this caused the least used character to be dropped entirely
-        :param dict opts: additional trainer options, see `https://github.com/google/sentencepiece/blob/master/doc/options.md`_
+        :param dict|None additional_options: additional trainer options, see `https://github.com/google/sentencepiece/blob/master/doc/options.md`_
         """
 
         self.training_text = training_text
         self.vocab_size = vocab_size
         self.model_type = model_type
         self.character_coverage = character_coverage
-        self.opts = opts
+        self.additional_options = additional_options or {}
 
         self.out_model = self.output_path("spm_out.model")
         # there is no need to make a tk.Variable for this, as the vocab_size is exact
@@ -63,7 +68,7 @@ class TrainSentencePieceJob(Job):
             model_type=self.model_type.value,
             vocab_size=self.vocab_size,
             character_coverage=self.character_coverage,
-            **self.opts,
+            **self.additional_options,
         )
 
         shutil.move("spm_out.model", self.out_model.get_path())
