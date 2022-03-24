@@ -21,7 +21,7 @@ class CompileTFGraphJob(Job):
 
     """
 
-    __sis_hash_exclude__ = {"device": "cpu"}
+    __sis_hash_exclude__ = {"device": None}
 
     def __init__(
         self,
@@ -30,7 +30,7 @@ class CompileTFGraphJob(Job):
         eval=0,
         search=0,
         verbosity=4,
-        device="cpu",
+        device=None,
         summaries_tensor_name=None,
         output_format="meta",
         returnn_python_exe=None,
@@ -43,7 +43,9 @@ class CompileTFGraphJob(Job):
         :param int eval:
         :param int search:
         :param int log_verbosity: RETURNN log verbosity from 1 (least verbose) to 5 (most verbose)
-        :param str device: optimize graph for cpu or gpu
+        :param str|None device: optimize graph for cpu or gpu. If `None`, defaults to cpu for current RETURNN. 
+            For any RETURNN version before `cd4bc382`, the behavior will depend on the `device` entry in the
+            `returnn_conig`, or on the availability of a GPU on the execution host if not defined at all.
         :param summaries_tensor_name:
         :param str output_format: graph output format, one of ["pb", "pbtxt", "meta", "metatxt"]
         :param Path|str returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
@@ -92,12 +94,13 @@ class CompileTFGraphJob(Job):
             "--train=%d" % self.train,
             "--eval=%d" % self.eval,
             "--search=%d" % self.search,
-            "--device=%s" % self.device,
             "--verbosity=%d" % self.verbosity,
             "--output_file=%s" % self.out_graph.get_path(),
             "--output_file_model_params_list=model_params",
             "--output_file_state_vars_list=state_vars",
         ]
+        if self.device is not None:
+          args.extend(["--device=%s" % self.device])
         if self.summaries_tensor_name is not None:
             args.append("--summaries_tensor_name=%s" % self.summaries_tensor_name)
 
