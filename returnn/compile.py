@@ -43,7 +43,9 @@ class CompileTFGraphJob(Job):
         :param int eval:
         :param int search:
         :param int log_verbosity: RETURNN log verbosity from 1 (least verbose) to 5 (most verbose)
-        :param str|None device: optimize graph for cpu or gpu
+        :param str|None device: optimize graph for cpu or gpu. If `None`, defaults to cpu for current RETURNN. 
+            For any RETURNN version before `cd4bc382`, the behavior will depend on the `device` entry in the
+            `returnn_conig`, or on the availability of a GPU on the execution host if not defined at all.
         :param summaries_tensor_name:
         :param str output_format: graph output format, one of ["pb", "pbtxt", "meta", "metatxt"]
         :param Path|str returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
