@@ -1,6 +1,7 @@
 __all__ = ["ReturnnDumpHDFJob", "ReturnnRasrDumpHDFJob"]
 
 import os
+import shutil
 import subprocess as sp
 import tempfile
 
@@ -79,7 +80,7 @@ class ReturnnDumpHDFJob(Job):
             data = data.get_path()
 
         (fd, tmp_hdf_file) = tempfile.mkstemp(prefix=gs.TMP_PREFIX, suffix=".hdf")
-        fd.close()
+        os.close(fd)
 
         args = [
             tk.uncached_path(self.returnn_python_exe),
@@ -95,7 +96,7 @@ class ReturnnDumpHDFJob(Job):
             args.append(f"--epoch {self.epoch}")
 
         sp.check_call(args)
-        relink(tmp_hdf_file, self.out_hdf.get_path())
+        shutil.move(tmp_hdf_file, self.out_hdf.get_path())
 
     @classmethod
     def hash(cls, parsed_args):
