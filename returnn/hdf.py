@@ -7,7 +7,7 @@ import tempfile
 
 from .rasr_training import ReturnnRasrTrainingJob
 import i6_core.rasr as rasr
-from i6_core.util import relink, instanciate_delayed
+from i6_core.util import instanciate_delayed
 
 from sisyphus import *
 
