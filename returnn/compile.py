@@ -100,7 +100,7 @@ class CompileTFGraphJob(Job):
             "--output_file_state_vars_list=state_vars",
         ]
         if self.device is not None:
-          args.extend(["--device=%s" % self.device])
+            args.append("--device=%s" % self.device)
         if self.summaries_tensor_name is not None:
             args.append("--summaries_tensor_name=%s" % self.summaries_tensor_name)
 
