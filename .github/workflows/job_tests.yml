@@ -25,7 +25,7 @@ jobs:
         run: |
           pip install --user --upgrade pip setuptools wheel
           cd sisyphus
-          python3 setup.py install
+          pip install .
           cd ..
           pip install pytest
           pip install -r i6_core/requirements.txt
