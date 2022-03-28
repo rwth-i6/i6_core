@@ -15,4 +15,5 @@ jobs:
       with:
         python-version: 3.7
     - run: pip install black==21.4b2
+    - run: black --diff .
     - run: black --check .
