@@ -176,6 +176,8 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
         use_gpu=False,
         rtf=10,
         mem=4,
+        cpu=1,
+        lmgc_mem=12,
         model_combination_config=None,
         model_combination_post_config=None,
         extra_config=None,
@@ -210,7 +212,7 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
 
         self.rqmt = {
             "time": max(crp.corpus_duration * rtf / crp.concurrent, 0.5),
-            "cpu": 1,
+            "cpu": cpu,
             "gpu": 1 if self.use_gpu else 0,
             "mem": mem,
         }
@@ -274,6 +276,7 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
         eval_single_best,
         eval_best_in_lattice,
         mem,
+        lmgc_mem,
         model_combination_config,
         model_combination_post_config,
         extra_config,
@@ -283,7 +286,7 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
         lm_gc = AdvancedTreeSearchLmImageAndGlobalCacheJob(
             crp, feature_scorer, extra_config, extra_post_config
         )
-        lm_gc.rqmt["mem"] = mem
+        lm_gc.rqmt["mem"] = lmgc_mem
 
         search_parameters = cls.update_search_parameters(search_parameters)
 
