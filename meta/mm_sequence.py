@@ -48,7 +48,7 @@ class AlignSplitAccumulateSequence:
             - "align"
 
             An action can be written as e.g. "align!" to indicate that this alignment output
-            should not be marked as output, meaning it will stored in `self.selected_alignment`
+            should be marked as output, meaning it will stored in `self.selected_alignment`
             and get the keep_value for "selected" (or the Sisyphus default if not defined)
         :param FlowNetwork feature_flow:
         :param initial_mixtures:
