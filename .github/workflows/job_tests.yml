@@ -21,11 +21,12 @@ jobs:
       - uses: actions/setup-python@v2
         with:
           python-version: 3.7
+          cache: 'pip'
       - name: Setup Sisyphus environment
         run: |
           pip install --user --upgrade pip setuptools wheel
           cd sisyphus
-          python3 setup.py install
+          pip install .
           cd ..
           pip install pytest
           pip install -r i6_core/requirements.txt
