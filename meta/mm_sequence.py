@@ -201,6 +201,17 @@ class AlignSplitAccumulateSequence:
             else:
                 raise ValueError("Unknown action: %s" % action)
 
+    def get_alignment_score_report(self):
+        """
+        :return: report .txt file path containing the alignment scores in order of the job sequence
+        """
+
+        logs = []
+        for job, log in zip(self.all_jobs, self.all_logs):
+            if isinstance(job, AlignmentJob):
+                logs.append(log)
+        return AMScoresFromAlignmentLogJob(logs).out_report
+
 
 def align_then_split_and_accumulate_sequence(
     num_align, num_accumulate, mark_accumulate=True, mark_align=True
