@@ -43,9 +43,9 @@ class AlignSplitAccumulateSequence:
         """
         :param rasr.crp.CommonRasrParameters crp:
         :param list[str] action_sequence: a list actions which can be:
-            - split
-            - accumulate
-            - align
+            - "split"
+            - "accumulate"
+            - "align"
 
             An action can be written as e.g. "align!" to indicate that this alignment output
             should not be marked as output, meaning it will stored in `self.selected_alignment`
