@@ -6,13 +6,19 @@ __all__ = [
     "split_and_accumulate_sequence",
     "first_split_acc_then_align_split_acc",
 ]
+import os
 
-from i6_core.mm.alignment import AlignmentJob
+from i6_core.mm.alignment import AlignmentJob, AMScoresFromAlignmentLogJob
+from i6_core.mm.flow import FlowNetwork
 from i6_core.mm.mixtures import EstimateMixturesJob
 from i6_core.rasr import FlagDependentFlowAttribute, DiagonalMaximumScorer
 
 
 class AlignSplitAccumulateSequence:
+    """
+    Creates a sequence of AlignmentJobs and EstimateMixturesJobs to do HMM-GMM training.
+    """
+
     def __init__(
         self,
         crp,
@@ -32,11 +38,19 @@ class AlignSplitAccumulateSequence:
         split_keep_values=None,
         accumulate_keep_values=None,
         feature_scorer=DiagonalMaximumScorer,
+        alias_path=None,
     ):
         """
         :param rasr.crp.CommonRasrParameters crp:
-        :param list[str] action_sequence:
-        :param feature_flow:
+        :param list[str] action_sequence: a list actions which can be:
+            - split
+            - accumulate
+            - align
+
+            An action can be written as e.g. "align!" to indicate that this alignment output
+            should not be marked as output, meaning it will stored in `self.selected_alignment`
+            and get the keep_value for "selected" (or the Sisyphus default if not defined)
+        :param FlowNetwork feature_flow:
         :param initial_mixtures:
         :param initial_alignment:
         :param str parallelization:
@@ -48,9 +62,14 @@ class AlignSplitAccumulateSequence:
         :param dict[str] split_extra_rqmt:
         :param dict[str] accumulate_extra_rqmt:
         :param dict align_keep_values:
+            keep values for alignment jobs, which might be indexed by "default", "selected" or the action index number.
         :param dict split_keep_values:
+            keep values for split jobs, which might be indexed by "default", "selected" or the action index number.
         :param dict accumulate_keep_values:
+            keep values for accumulate jobs, which might be indexed by "default", "selected" or the action index number.
         :param feature_scorer:
+        :param str|None alias_path: adds an alias with the action name for each job in the sequence at the
+            given path
         """
         seq_extra_args = {} if seq_extra_args is None else seq_extra_args
         align_extra_args = {} if align_extra_args is None else align_extra_args
@@ -110,6 +129,8 @@ class AlignSplitAccumulateSequence:
 
                 job = AlignmentJob(**args)
                 update_rqmt(job.rqmt, align_extra_rqmt)
+                if alias_path is not None:
+                    job.add_alias(os.path.join(alias_path, "action_%i_align" % a_idx))
                 self.all_jobs.append(job)
                 self.all_logs.append(job.out_log_file)
 
@@ -151,6 +172,11 @@ class AlignSplitAccumulateSequence:
                     job.accumulate_rqmt,
                     split_extra_rqmt if split else accumulate_extra_rqmt,
                 )
+                if alias_path is not None:
+                    action_name = "split" if split else "accumulate"
+                    job.add_alias(
+                        os.path.join(alias_path, "action_%i_%s" % (a_idx, action_name))
+                    )
                 self.all_jobs.append(job)
                 self.all_logs.append(job.out_log_file)
 
