@@ -1,5 +1,5 @@
-black==21.4b2
 click==8.0.4
+black==21.4b2
 h5py
 matplotlib
 numpy
