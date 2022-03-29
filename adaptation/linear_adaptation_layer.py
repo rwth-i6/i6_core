@@ -1,5 +1,4 @@
 __all__ = [
-    "LinearAdaptationTrainingJob",
     "MetaLinearAdaptationJob",
     "WriteFileJob",
     "MergeFilesJob",
