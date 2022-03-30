@@ -182,7 +182,7 @@ class CorpusToStmJob(Job):
                     % (
                         segment.recording.name,
                         segment_track,
-                        speaker_name,
+                        "_".join(speaker_name.split()),
                         segment.start,
                         segment.end,
                         ",".join(tag_map[segment.fullname()]),
