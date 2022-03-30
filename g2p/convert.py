@@ -114,7 +114,8 @@ class G2POutputToBlissLexiconJob(Job):
             g2p_lexicon.lemmata = iv_lexicon.lemmata
 
         for orth, prons in oov_words.items():
-            lemma = lexicon.Lemma(orth=[orth], phon=prons)
-            g2p_lexicon.add_lemma(lemma)
+            if len(prons) > 0:
+                lemma = lexicon.Lemma(orth=[orth], phon=prons)
+                g2p_lexicon.add_lemma(lemma)
 
         write_xml(self.out_oov_lexicon.get_path(), g2p_lexicon.to_xml())
