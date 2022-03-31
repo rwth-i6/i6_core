@@ -207,14 +207,12 @@ class AlignSplitAccumulateSequence:
         """
         :return: report .txt file path containing the alignment scores in order of the job sequence
         """
-        if self.report_job is not None:
-            return self.report_job.out_report
-
-        logs = []
-        for job, log in zip(self.all_jobs, self.all_logs):
-            if isinstance(job, AlignmentJob):
-                logs.append(log)
-        self.report_job = AMScoresFromAlignmentLogJob(logs)
+        if self.report_job is None:
+            logs = []
+            for job, log in zip(self.all_jobs, self.all_logs):
+                if isinstance(job, AlignmentJob):
+                    logs.append(log)
+            self.report_job = AMScoresFromAlignmentLogJob(logs)
         return self.report_job.out_report
 
 
