@@ -113,6 +113,8 @@ class AlignSplitAccumulateSequence:
         self.selected_mixtures = []
         self.selected_alignments = []
 
+        self.report_job = None  # type: AMScoresFromAlignmentLogJob|None
+
         current_alignment = initial_alignment
         current_mixtures = initial_mixtures
 
@@ -205,12 +207,15 @@ class AlignSplitAccumulateSequence:
         """
         :return: report .txt file path containing the alignment scores in order of the job sequence
         """
+        if self.report_job is not None:
+            return self.report_job.out_report
 
         logs = []
         for job, log in zip(self.all_jobs, self.all_logs):
             if isinstance(job, AlignmentJob):
                 logs.append(log)
-        return AMScoresFromAlignmentLogJob(logs).out_report
+        self.report_job = AMScoresFromAlignmentLogJob(logs)
+        return self.report_job.out_report
 
 
 def align_then_split_and_accumulate_sequence(
