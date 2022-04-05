@@ -4,5 +4,4 @@ h5py
 matplotlib
 numpy
 soundfile
-sentencepiece
 
