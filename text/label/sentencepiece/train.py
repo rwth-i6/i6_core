@@ -44,7 +44,7 @@ class TrainSentencePieceJob(Job):
         """
 
         :param tk.Path training_text: raw text or gzipped text
-        :param int vocab_size: target vocabulary for the created model
+        :param int vocab_size: target vocabulary size for the created model
         :param SentencePieceType model_type: which sentence model to use, use "UNIGRAM" for "typical" SPM
         :param float character_coverage: official default is 0.9995, but this caused the least used character to be dropped entirely
         :param dict|None additional_options: additional trainer options, see `https://github.com/google/sentencepiece/blob/master/doc/options.md`_
@@ -57,9 +57,6 @@ class TrainSentencePieceJob(Job):
         self.additional_options = additional_options or {}
 
         self.out_model = self.output_path("spm_out.model")
-        # there is no need to make a tk.Variable for this, as the vocab_size is exact
-        # just pass through
-        self.out_vocab_size = vocab_size
 
         self.rqmt = {"cpu": 1, "mem": 2, "time": 4}
 
