@@ -227,6 +227,8 @@ class ReturnnConfig:
             return ""
         if isinstance(code, str):
             return code
+        if isinstance(code, DelayedBase):
+            return code.get()
         if isinstance(code, (tuple, list)):
             return "\n".join(self.__parse_python(c) for c in code)
         if isinstance(code, dict):
