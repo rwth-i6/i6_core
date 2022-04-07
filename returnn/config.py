@@ -11,6 +11,7 @@ import string
 import textwrap
 
 from sisyphus import *
+from sisyphus.delayed_ops import DelayedBase
 from sisyphus.hash import sis_hash_helper
 
 from i6_core.util import instanciate_delayed
