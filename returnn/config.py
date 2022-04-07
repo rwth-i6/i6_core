@@ -11,6 +11,7 @@ import string
 import textwrap
 
 from sisyphus import *
+from sisyphus.delayed_ops import DelayedBase
 from sisyphus.hash import sis_hash_helper
 
 from i6_core.util import instanciate_delayed
@@ -227,6 +228,8 @@ class ReturnnConfig:
             return ""
         if isinstance(code, str):
             return code
+        if isinstance(code, DelayedBase):
+            return self.__parse_python(code.get())
         if isinstance(code, (tuple, list)):
             return "\n".join(self.__parse_python(c) for c in code)
         if isinstance(code, dict):
