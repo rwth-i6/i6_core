@@ -2,6 +2,8 @@ __all__ = ["add_cmllr_transform", "segment_clustering_flow"]
 
 import os
 
+from sisyphus.delayed_ops import DelayedFormat
+
 from i6_core.features import add_linear_transform
 from i6_core.rasr import FlowNetwork
 
@@ -42,7 +44,13 @@ def add_cmllr_transform(
     multiply = net.add_node(
         "signal-matrix-multiplication-f32",
         "apply-cmllr-transform",
-        {"file": os.path.join(str(transform_dir), matrix_name)},
+        {
+            "file": DelayedFormat(
+                "{transform_dir}/{matrix_name}",
+                transform_dir=transform_dir,
+                matrix_name=matrix_name,
+            )
+        },
     )
     net.add_hidden_input(transform_dir)
     net.link(extend, multiply)
