@@ -75,7 +75,7 @@ class CreateLmImageJob(rasr.RasrCommand, Job):
 
         assert config.lm_util.lm.type == "ARPA"
 
-        if post_config.lm_util.lm.image:
+        if "image" in post_config.lm_util.lm:
             logging.warning(
                 "The LM image already exists, but a new one will be recreated."
             )
