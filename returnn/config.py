@@ -79,6 +79,7 @@ class ReturnnConfig:
         python_epilog="",
         python_epilog_hash=None,
         hash_full_python_code=False,
+        sort_dicts=True,
         pprint_kwargs=None,
         black_formatting=True,
     ):
@@ -96,6 +97,7 @@ class ReturnnConfig:
         :param str|None python_epilog_hash: sets a specific hash for the python_epilog
         :param bool hash_full_python_code: By default, function bodies are not hashed. If set to True, the full content
             of python pro-/epilog is parsed and hashed.
+        :param bool sort_dicts: If set to True, dictionaries are sorted by key
         :param dict|None pprint_kwargs: kwargs for pprint, e.g. {"sort_dicts": False} to print dicts in given order for
             python >= 3.8
         :param bool black_formatting: if true, the written config will be formatted with black
@@ -117,7 +119,9 @@ class ReturnnConfig:
                 self.python_epilog_hash = self.__parse_python(python_epilog)
             else:
                 self.python_epilog_hash = python_epilog
+        self.sort_dicts = sort_dicts
         self.pprint_kwargs = pprint_kwargs or {}
+        self.pprint_kwargs.setdefault("sort_dicts", sort_dicts)
         self.black_formatting = black_formatting
 
     def get(self, key, default=None):
@@ -187,7 +191,7 @@ class ReturnnConfig:
         pp = pprint.PrettyPrinter(indent=2, width=150, **self.pprint_kwargs)
         for k, v in (
             sorted(config.items())
-            if self.pprint_kwargs.get("sort_dicts", True)
+            if self.sort_dicts
             else config.items()
         ):
             if pprint.isreadable(v):
