@@ -30,8 +30,8 @@ class ExtractDatasetMeanStddevJob(Job):
         """
 
         :param ReturnnConfig returnn_config:
-        :param Path|None returnn_python_exe:
-        :param Path|None returnn_root:
+        :param Path|str|None returnn_python_exe:
+        :param Path|str|None returnn_root:
         """
 
         self.returnn_config = returnn_config
@@ -58,8 +58,8 @@ class ExtractDatasetMeanStddevJob(Job):
         self.returnn_config.write("returnn.config")
 
         command = [
-            self.returnn_python_exe.get(),
-            os.path.join(self.returnn_root.get(), "tools/dump-dataset.py"),
+            tk.uncached_path(self.returnn_python_exe),
+            os.path.join(tk.uncached_path(self.returnn_root), "tools/dump-dataset.py"),
             "returnn.config",
             "--endseq -1",
             "--stats",
