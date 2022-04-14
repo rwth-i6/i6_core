@@ -51,7 +51,7 @@ The check for black formating is a fixed test case that will automatically run f
 To prohibit errors before commiting,
 it is recommended to add a git hook that will automatically perform the check before submission.
 
-Create an executable `.git/hook/pre-commit` with:
+Create an executable `.git/hooks/pre-commit` with:
 
     #!/bin/bash
     set -eu
