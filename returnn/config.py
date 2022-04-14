@@ -185,7 +185,11 @@ class ReturnnConfig:
         unreadable_data = {}
 
         pp = pprint.PrettyPrinter(indent=2, width=150, **self.pprint_kwargs)
-        for k, v in sorted(config.items()):
+        for k, v in (
+            sorted(config.items())
+            if self.pprint_kwargs.get("sort_dicts", True)
+            else config.items()
+        ):
             if pprint.isreadable(v):
                 config_lines.append("%s = %s" % (k, pp.pformat(v)))
             else:
