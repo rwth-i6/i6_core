@@ -30,8 +30,8 @@ class ExtractDatasetMeanStddevJob(Job):
         """
 
         :param ReturnnConfig returnn_config:
-        :param Path|None returnn_python_exe:
-        :param Path|None returnn_root:
+        :param Path|str|None returnn_python_exe:
+        :param Path|str|None returnn_root:
         """
 
         self.returnn_config = returnn_config
