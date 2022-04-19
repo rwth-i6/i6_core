@@ -33,7 +33,6 @@ class DownloadAndPrepareHuggingFaceDatasetJob(Job):
         self.name = name
 
         self.out_cache_dir = self.output_path("cache_dir")
-        self.out_data_dir = self.output_path("data_dir")
 
     @classmethod
     def hash(cls, kwargs):
@@ -53,7 +52,6 @@ class DownloadAndPrepareHuggingFaceDatasetJob(Job):
         ds = datasets.load_dataset(
             self.path,
             self.name,
-            data_dir=self.out_data_dir.get(),
             cache_dir=self.out_cache_dir.get(),
         )
         print("Dataset:")
