@@ -2,7 +2,7 @@
 https://huggingface.co/docs/datasets/
 """
 
-from typing import Optional
+from typing import Optional, Any
 from sisyphus import *
 
 
@@ -12,6 +12,8 @@ class DownloadAndPrepareHuggingFaceDatasetJob(Job):
     https://huggingface.co/datasets
 
     pip install datasets
+
+    Basically wraps ``datasets.load_dataset(...).save_to_disk(out_dir)``.
 
     Example for Librispeech:
 
@@ -23,6 +25,7 @@ class DownloadAndPrepareHuggingFaceDatasetJob(Job):
         self,
         path: str,
         name: Optional[str] = None,
+        data_files: Optional[Any] = None,
     ):
         """
         :param dataset_name:
@@ -31,6 +34,7 @@ class DownloadAndPrepareHuggingFaceDatasetJob(Job):
         super().__init__()
         self.path = path
         self.name = name
+        self.data_files = data_files
 
         self.out_dir = self.output_path("dataset", directory=True)
 
@@ -40,6 +44,7 @@ class DownloadAndPrepareHuggingFaceDatasetJob(Job):
         d = {
             "path": kwargs["path"],
             "name": kwargs["name"],
+            "data_files": kwargs["data_files"],
         }
         return super().hash(d)
 
@@ -55,6 +60,7 @@ class DownloadAndPrepareHuggingFaceDatasetJob(Job):
             ds = datasets.load_dataset(
                 self.path,
                 self.name,
+                data_files=self.data_files,
                 cache_dir=tmp_dir,
             )
             print("Dataset:")
