@@ -49,9 +49,12 @@ class DownloadAndPrepareHuggingFaceDatasetJob(Job):
 
     def run(self):
         import datasets
+
         ds = datasets.load_dataset(
-            self.path, self.name,
+            self.path,
+            self.name,
             data_dir=self.out_data_dir.get(),
-            cache_dir=self.out_cache_dir.get())
+            cache_dir=self.out_cache_dir.get(),
+        )
         print("Dataset:")
         print(ds)
