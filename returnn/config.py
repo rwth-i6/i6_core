@@ -121,7 +121,6 @@ class ReturnnConfig:
                 self.python_epilog_hash = python_epilog
         self.sort_config = sort_config
         self.pprint_kwargs = pprint_kwargs or {}
-        self.pprint_kwargs.setdefault("sort_dicts", sort_config)
         self.black_formatting = black_formatting
 
     def get(self, key, default=None):
