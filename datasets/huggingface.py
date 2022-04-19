@@ -32,7 +32,7 @@ class DownloadAndPrepareHuggingFaceDatasetJob(Job):
         self.path = path
         self.name = name
 
-        self.out_dir = self.output_path("dataset")
+        self.out_dir = self.output_path("dataset", directory=True)
 
     @classmethod
     def hash(cls, kwargs):
