@@ -25,7 +25,9 @@ class DownloadAndPrepareHuggingFaceDatasetJob(Job):
         self,
         path: str,
         name: Optional[str] = None,
+        *,
         data_files: Optional[Any] = None,
+        revision: Optional[str] = None,
     ):
         """
         :param dataset_name:
@@ -35,6 +37,7 @@ class DownloadAndPrepareHuggingFaceDatasetJob(Job):
         self.path = path
         self.name = name
         self.data_files = data_files
+        self.revision = revision
 
         self.out_dir = self.output_path("dataset", directory=True)
 
@@ -45,6 +48,7 @@ class DownloadAndPrepareHuggingFaceDatasetJob(Job):
             "path": kwargs["path"],
             "name": kwargs["name"],
             "data_files": kwargs["data_files"],
+            "revision": kwargs["revision"],
         }
         return super().hash(d)
 
@@ -61,6 +65,7 @@ class DownloadAndPrepareHuggingFaceDatasetJob(Job):
                 self.path,
                 self.name,
                 data_files=self.data_files,
+                revision=self.revision,
                 cache_dir=tmp_dir,
             )
             print("Dataset:")
