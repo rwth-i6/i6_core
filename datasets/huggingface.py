@@ -32,7 +32,7 @@ class DownloadAndPrepareHuggingFaceDatasetJob(Job):
         self.path = path
         self.name = name
 
-        self.out_cache_dir = self.output_path("cache_dir")
+        self.out_dir = self.output_path("dataset")
 
     @classmethod
     def hash(cls, kwargs):
@@ -47,12 +47,20 @@ class DownloadAndPrepareHuggingFaceDatasetJob(Job):
         yield Task("run", resume="run", mini_task=True)
 
     def run(self):
+        import tempfile
         import datasets
 
-        ds = datasets.load_dataset(
-            self.path,
-            self.name,
-            cache_dir=self.out_cache_dir.get(),
-        )
-        print("Dataset:")
-        print(ds)
+        with tempfile.TemporaryDirectory(prefix=gs.TMP_PREFIX) as tmp_dir:
+
+            ds = datasets.load_dataset(
+                self.path,
+                self.name,
+                cache_dir=tmp_dir,
+            )
+            print("Dataset:")
+            print(ds)
+
+            print("Saving...")
+            ds.save_to_disk(self.out_dir.get())
+
+            print("Done.")
