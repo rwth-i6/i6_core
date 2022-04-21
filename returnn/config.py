@@ -8,6 +8,7 @@ import os
 import pickle
 import pprint
 import string
+import sys
 import textwrap
 
 from sisyphus import *
@@ -121,6 +122,8 @@ class ReturnnConfig:
                 self.python_epilog_hash = python_epilog
         self.sort_config = sort_config
         self.pprint_kwargs = pprint_kwargs or {}
+        if sys.version_info[:2] >= (3, 8):
+            self.pprint_kwargs.setdefault("sort_dicts", sort_config)
         self.black_formatting = black_formatting
 
     def get(self, key, default=None):
