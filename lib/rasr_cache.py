@@ -834,12 +834,13 @@ class MixtureSet:
         return a
 
     # write routines
-    def write_str(self, s):
+    def write_str(self, s, enc="ascii"):
         """
         :param str s:
+        :param str enc:
         :rtype: int
         """
-        return self.f.write(pack("%ds" % len(s), s.encode("ascii")))
+        return self.f.write(pack("%ds" % len(s), s.encode(enc)))
 
     def write_char(self, i):
         """
