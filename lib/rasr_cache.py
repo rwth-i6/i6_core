@@ -948,6 +948,7 @@ class MixtureSet:
         """
         :param str filename:
         """
+        self.f.close()
         self.f = open(filename, "wb")
         self.write_str(self.header + "t")
         self.write_u32(self.version)
