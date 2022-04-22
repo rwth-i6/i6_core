@@ -833,6 +833,58 @@ class MixtureSet:
         a.fromfile(self.f, size)
         return a
 
+    # write routines
+    def write_str(self, s):
+        """
+        :param str s:
+        :rtype: int
+        """
+        return self.f.write(pack("%ds" % len(s), s.encode("ascii")))
+
+    def write_char(self, i):
+        """
+        :param int i:
+        :rtype: int
+        """
+        return self.f.write(pack("b", i))
+
+    def write_u32(self, i):
+        """
+        :param int i:
+        :rtype: int
+        """
+        return self.f.write(pack("i", i))
+
+        # noinspection PyPep8Naming
+
+    def write_U32(self, i):
+        """
+        :param int i:
+        :rtype: int
+        """
+        return self.f.write(pack("I", i))
+
+    def write_u64(self, i):
+        """
+        :param int i:
+        :rtype: int
+        """
+        return self.f.write(pack("q", i))
+
+    def write_f32(self, i):
+        """
+        :param float i:
+        :rtype: int
+        """
+        return self.f.write(pack("f", i))
+
+    def write_f64(self, i):
+        """
+        :param float i:
+        :rtype: int
+        """
+        return self.f.write(pack("d", i))
+
     def __init__(self, filename):
         """
         :param str filename:
