@@ -60,7 +60,7 @@ class DownloadAndPrepareTfDatasetJob(Job):
         return super().hash(d)
 
     def tasks(self):
-        yield Task("run", resume="run", mini_task=True)
+        yield Task("run", mini_task=True)
 
     def run(self):
         import tensorflow_datasets as tfds
