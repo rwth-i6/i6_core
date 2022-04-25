@@ -49,7 +49,7 @@ class DownloadAndPrepareTfDatasetJob(Job):
         self.max_simultaneous_downloads = max_simultaneous_downloads
         self.max_workers = max_workers
 
-        self.out_data_dir = self.output_path("data_dir")
+        self.out_data_dir = self.output_path("data_dir", directory=True)
 
     @classmethod
     def hash(cls, kwargs):
