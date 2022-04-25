@@ -51,14 +51,6 @@ class DownloadAndPrepareTfDatasetJob(Job):
 
         self.out_data_dir = self.output_path("data_dir", directory=True)
 
-    @classmethod
-    def hash(cls, kwargs):
-        # All other options except dataset_name are ignored, as they should not have an influence on the result.
-        d = {
-            "dataset_name": kwargs["dataset_name"],
-        }
-        return super().hash(d)
-
     def tasks(self):
         yield Task("run", mini_task=True)
 
@@ -115,3 +107,11 @@ class DownloadAndPrepareTfDatasetJob(Job):
         print("Dataset take(1):")
         entry = ds.take(1)
         print(entry)
+
+    @classmethod
+    def hash(cls, kwargs):
+        # All other options except dataset_name are ignored, as they should not have an influence on the result.
+        d = {
+            "dataset_name": kwargs["dataset_name"],
+        }
+        return super().hash(d)
