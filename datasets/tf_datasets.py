@@ -11,8 +11,8 @@ from sisyphus import *
 class DownloadAndPrepareTfDatasetJob(Job):
     """
     This job downloads and prepares a TF dataset.
-    TF datasets are documented here:
-    https://www.tensorflow.org/datasets
+    The processed files are stored in a `data_dir` folder,
+    from where it can be loaded again (see https://www.tensorflow.org/datasets/overview#load_a_dataset)
 
     Install the dependencies:
 
@@ -40,14 +40,18 @@ class DownloadAndPrepareTfDatasetJob(Job):
         max_workers: Optional[int] = None,
     ):
         """
-        :param dataset_name: Name of the dataset to download.
+        :param dataset_name: Name of the dataset in the official TF catalog or community catalog.
             Available datasets can be found here:
             https://www.tensorflow.org/datasets/overview
             https://www.tensorflow.org/datasets/catalog/overview
             https://www.tensorflow.org/datasets/community_catalog/huggingface
-        :param max_simultaneous_downloads: max simultaneous downloads
+        :param max_simultaneous_downloads: simultaneous downloads for tfds.load,
+            some datasets might not work with the internal defaults,
+            so use e.g. 1 in the case of librispeech.
             (https://github.com/tensorflow/datasets/issues/3885)
-        :param max_workers: max workers, for download extractor and Apache Beam
+        :param max_workers: max workers for download extractor and Apache Beam,
+            the default (cpu core count) might cause high memory load,
+            so reduce this to a number smaller than the number of cores.
             (https://github.com/tensorflow/datasets/issues/3887)
         """
         super().__init__()
