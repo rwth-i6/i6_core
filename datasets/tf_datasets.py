@@ -1,4 +1,5 @@
 """
+This module adds jobs for TF datasets, as documented here:
 https://www.tensorflow.org/datasets
 """
 
@@ -9,7 +10,11 @@ from sisyphus import *
 
 class DownloadAndPrepareTfDatasetJob(Job):
     """
+    This job downloads and prepares a TF dataset.
+    TF datasets are documented here:
     https://www.tensorflow.org/datasets
+
+    Install the dependencies:
 
         pip install tensorflow-datasets
 
@@ -35,14 +40,15 @@ class DownloadAndPrepareTfDatasetJob(Job):
         max_workers: Optional[int] = None,
     ):
         """
-        :param dataset_name:
+        :param dataset_name: Name of the dataset to download. 
+            Available datasets can be found here:
             https://www.tensorflow.org/datasets/overview
             https://www.tensorflow.org/datasets/catalog/overview
             https://www.tensorflow.org/datasets/community_catalog/huggingface
-        :param max_simultaneous_downloads: https://github.com/tensorflow/datasets/issues/3885
-        :param max_workers:
-            For download extractor (https://github.com/tensorflow/datasets/issues/3887)
-            and Apache Beam.
+        :param max_simultaneous_downloads: max simultaneous downloads
+            (https://github.com/tensorflow/datasets/issues/3885)
+        :param max_workers: max workers, for download extractor and Apache Beam
+            (https://github.com/tensorflow/datasets/issues/3887)
         """
         super().__init__()
         self.dataset_name = dataset_name
