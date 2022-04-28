@@ -40,7 +40,7 @@ class DownloadAndPrepareTfDatasetJob(Job):
         max_workers: Optional[int] = None,
     ):
         """
-        :param dataset_name: Name of the dataset to download. 
+        :param dataset_name: Name of the dataset to download.
             Available datasets can be found here:
             https://www.tensorflow.org/datasets/overview
             https://www.tensorflow.org/datasets/catalog/overview
