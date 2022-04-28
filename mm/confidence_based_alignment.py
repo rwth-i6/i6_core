@@ -75,7 +75,7 @@ class ConfidenceBasedAlignmentJob(rasr.RasrCommand, Job):
         if isinstance(self.feature_scorer, rasr.GMMFeatureScorer):
             mixture_size = os.stat(
                 tk.uncached_path(self.feature_scorer.config["file"])
-            ).st_size / (1024.0 ** 2)
+            ).st_size / (1024.0**2)
             rqmt["mem"] += int(math.ceil((mixture_size - 200.0) / 750.0))
 
         yield Task("create_files", mini_task=True)
