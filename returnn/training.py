@@ -120,22 +120,16 @@ class ReturnnTrainingJob(Job):
             Currently only with Horovod,
             and horovod_num_processes should be set as well, usually to the same value.
             See https://returnn.readthedocs.io/en/latest/advanced/multi_gpu.html.
-        :param Path|str returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
-        :param Path|str returnn_root: file path to the RETURNN repository root folder
+        :param Optional[Path] returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
+        :param Optional[Path] returnn_root: file path to the RETURNN repository root folder
         """
         assert isinstance(returnn_config, ReturnnConfig)
         self.check_blacklisted_parameters(returnn_config)
         kwargs = locals()
         del kwargs["self"]
 
-        self.returnn_python_exe = (
-            returnn_python_exe
-            if returnn_python_exe is not None
-            else gs.RETURNN_PYTHON_EXE
-        )
-        self.returnn_root = (
-            returnn_root if returnn_root is not None else gs.RETURNN_ROOT
-        )
+        self.returnn_python_exe = util.get_returnn_python_exe(returnn_python_exe)
+        self.returnn_root = util.get_returnn_root(returnn_root)
         self.horovod_num_processes = horovod_num_processes
         self.multi_node_slots = multi_node_slots
         self.returnn_config = ReturnnTrainingJob.create_returnn_config(**kwargs)
@@ -205,8 +199,8 @@ class ReturnnTrainingJob(Job):
 
     def _get_run_cmd(self):
         run_cmd = [
-            tk.uncached_path(self.returnn_python_exe),
-            os.path.join(tk.uncached_path(self.returnn_root), "rnn.py"),
+            self.returnn_python_exe.get_path(),
+            self.returnn_root.join_right("rnn.py").get_path(),
             self.out_returnn_config_file.get_path(),
         ]
 
@@ -503,19 +497,12 @@ class ReturnnTrainingFromFileJob(Job):
         :param dict parameter_dict: provide external parameters to the rnn.py call
         :param int|str time_rqmt:
         :param int|str mem_rqmt:
-        :param Path|str returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
-        :param Path|str returnn_root: file path to the RETURNN repository root folder
+        :param Optional[Path] returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
+        :param Optional[Path] returnn_root: file path to the RETURNN repository root folder
         """
 
-        self.returnn_python_exe = (
-            returnn_python_exe
-            if returnn_python_exe is not None
-            else gs.RETURNN_PYTHON_EXE
-        )
-        self.returnn_root = (
-            returnn_root if returnn_root is not None else gs.RETURNN_ROOT
-        )
-
+        self.returnn_python_exe = util.get_returnn_python_exe(returnn_python_exe)
+        self.returnn_root = util.get_returnn_root(returnn_root)
         self.returnn_config_file_in = returnn_config_file
         self.parameter_dict = parameter_dict
         if self.parameter_dict is None:
@@ -592,8 +579,8 @@ class ReturnnTrainingFromFileJob(Job):
 
         parameter_list = self.get_parameter_list()
         cmd = [
-            tk.uncached_path(self.returnn_python_exe),
-            os.path.join(tk.uncached_path(self.returnn_root), "rnn.py"),
+            self.returnn_python_exe.get_path(),
+            self.returnn_root.join_right("rnn.py").get_path(),
             self.returnn_config_file.get_path(),
         ] + parameter_list
 

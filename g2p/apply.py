@@ -34,21 +34,23 @@ class ApplyG2PModelJob(Job):
         :param Path word_list_file: text file with a word each line
         :param float variants_mass:
         :param int variants_number:
-        :param DelayedBase|str|None g2p_path:
-        :param DelayedBase|str|None g2p_python:
+        :param Optional[Path] g2p_path:
+        :param Optional[Path] g2p_python:
         :param bool filter_empty_words: if True, creates a new lexicon file with no empty translated words
         :param int concurrent: split up word list file to parallelize job into this many instances
         """
 
         if g2p_path is None:
             g2p_path = (
-                tk.gs.G2P_PATH
-                if hasattr(tk.gs, "G2P_PATH")
-                else os.path.join(os.path.dirname(gs.SIS_COMMAND[0]), "g2p.py")
+                tk.Path(gs.G2P_PATH)
+                if hasattr(gs, "G2P_PATH")
+                else tk.Path(os.path.join(os.path.dirname(gs.SIS_COMMAND[0]), "g2p.py"))
             )
         if g2p_python is None:
             g2p_python = (
-                tk.gs.G2P_PYTHON if hasattr(tk.gs, "G2P_PYTHON") else gs.SIS_COMMAND[0]
+                tk.Path(gs.G2P_PYTHON)
+                if hasattr(gs, "G2P_PYTHON")
+                else tk.Path(gs.SIS_COMMAND[0])
             )
 
         self.g2p_model = g2p_model
@@ -95,8 +97,8 @@ class ApplyG2PModelJob(Job):
             with uopen(g2p_untranslated_path, "wt") as err:
                 sp.check_call(
                     [
-                        str(self.g2p_python),
-                        str(self.g2p_path),
+                        self.g2p_python.get_path(),
+                        self.g2p_path.get_path(),
                         "-e",
                         "utf-8",
                         "-V",

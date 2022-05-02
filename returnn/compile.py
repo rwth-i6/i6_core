@@ -50,8 +50,8 @@ class CompileTFGraphJob(Job):
             `returnn_conig`, or on the availability of a GPU on the execution host if not defined at all.
         :param summaries_tensor_name:
         :param str output_format: graph output format, one of ["pb", "pbtxt", "meta", "metatxt"]
-        :param Path|str returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
-        :param Path|str returnn_root: file path to the RETURNN repository root folder
+        :param Optional[Path] returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
+        :param Optional[Path] returnn_root: file path to the RETURNN repository root folder
         """
         self.returnn_config = returnn_config
         self.train = train
@@ -64,10 +64,10 @@ class CompileTFGraphJob(Job):
         self.returnn_python_exe = (
             returnn_python_exe
             if returnn_python_exe is not None
-            else gs.RETURNN_PYTHON_EXE
+            else tk.Path(gs.RETURNN_PYTHON_EXE)
         )
         self.returnn_root = (
-            returnn_root if returnn_root is not None else gs.RETURNN_ROOT
+            returnn_root if returnn_root is not None else tk.Path(gs.RETURNN_ROOT)
         )
 
         self.out_graph = self.output_path("graph.%s" % output_format)
@@ -97,10 +97,8 @@ class CompileTFGraphJob(Job):
             shutil.copy(self.returnn_config, self.out_returnn_config.get_path())
 
         args = [
-            tk.uncached_path(self.returnn_python_exe),
-            os.path.join(
-                tk.uncached_path(self.returnn_root), "tools/compile_tf_graph.py"
-            ),
+            self.returnn_python_exe.get_path(),
+            self.returnn_root.join_right("tools/compile_tf_graph.py").get_path(),
             returnn_config_path,
             "--train=%d" % self.train,
             "--eval=%d" % self.eval,
@@ -152,8 +150,8 @@ class CompileNativeOpJob(Job):
     ):
         """
         :param str native_op: Name of the native op to compile (e.g. NativeLstm2)
-        :param Path|str returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
-        :param Path|str returnn_root: file path to the RETURNN repository root folder
+        :param Optional[Path] returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
+        :param Optional[Path] returnn_root: file path to the RETURNN repository root folder
         :param bool search_numpy_blas: search for blas lib in numpy's .libs folder
         :param Path|str blas_lib: explicit path to the blas library to use
         """
@@ -161,10 +159,10 @@ class CompileNativeOpJob(Job):
         self.returnn_python_exe = (
             returnn_python_exe
             if returnn_python_exe is not None
-            else gs.RETURNN_PYTHON_EXE
+            else tk.Path(gs.RETURNN_PYTHON_EXE)
         )
         self.returnn_root = (
-            returnn_root if returnn_root is not None else gs.RETURNN_ROOT
+            returnn_root if returnn_root is not None else tk.Path(gs.RETURNN_ROOT)
         )
         self.search_numpy_blas = search_numpy_blas
         self.blas_lib = blas_lib
@@ -182,10 +180,8 @@ class CompileNativeOpJob(Job):
 
     def run(self):
         cmd = [
-            tk.uncached_path(self.returnn_python_exe),
-            os.path.join(
-                tk.uncached_path(self.returnn_root), "tools/compile_native_op.py"
-            ),
+            self.returnn_python_exe.get_path(),
+            self.returnn_root.join_right("tools/compile_native_op.py").get_path(),
             "--native_op",
             self.native_op,
             "--output_file",

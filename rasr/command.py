@@ -48,7 +48,7 @@ class RasrCommand:
     @staticmethod
     def write_run_script(exe, config, filename="run.sh", extra_code="", extra_args=""):
         """
-        :param str exe:
+        :param Path exe:
         :param str config:
         :param str filename:
         :param str extra_code:
@@ -78,7 +78,7 @@ fi
 
 %s --config=%s --*.TASK=$TASK --*.LOGFILE=$LOGFILE %s $@\
               """
-                % (extra_code, exe, config, extra_args)
+                % (extra_code, exe.get_path(), config, extra_args)
             )
             os.chmod(filename, 0o755)
 
@@ -86,13 +86,15 @@ fi
     def get_rasr_exe(cls, exe_name, rasr_root, rasr_arch):
         """
         :param str exe_name:
-        :param str rasr_root:
+        :param Path rasr_root:
         :param str rasr_arch:
         :return: path to a rasr binary with the default path pattern inside the repsoitory
-        :rtype: str
+        :rtype: Path
         """
-        exe = os.path.join(
-            rasr_root, "arch", rasr_arch, "%s.%s" % (exe_name, rasr_arch)
+        exe = (
+            rasr_root.join_right("arch")
+            .join_right(rasr_arch)
+            .join_right(f"{exe_name}.{rasr_arch}")
         )
         return exe
 
@@ -102,17 +104,17 @@ fi
         Extract executable path from the global sisyphus settings
 
         :param str exe_name:
-        :rtype: str
+        :rtype: Path
         """
-        return cls.get_rasr_exe(exe_name, gs.RASR_ROOT, gs.RASR_ARCH)
+        return cls.get_rasr_exe(exe_name, tk.Path(gs.RASR_ROOT), gs.RASR_ARCH)
 
     @classmethod
     def select_exe(cls, specific_exe, default_exe_name):
         """
-        :param str|None specific_exe:
+        :param Optional[Path] specific_exe:
         :param str default_exe_name:
         :return: path to exe
-        :rtype: str
+        :rtype: Path
         """
         if specific_exe is None:
             return cls.default_exe(default_exe_name)

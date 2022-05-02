@@ -38,7 +38,7 @@ class TrainBPEModelJob(Job):
         :param int min_frequency:
         :param bool dict_input:
         :param bool total_symbols:
-        :param Path|str|None subword_nmt_repo:
+        :param Optional[Path] subword_nmt_repo:
         """
         self.text_corpus = text_corpus
         self.symbols = symbols
@@ -47,7 +47,9 @@ class TrainBPEModelJob(Job):
         self.total_symbols = total_symbols
 
         self.subword_nmt_repo = (
-            subword_nmt_repo if subword_nmt_repo is not None else gs.SUBWORD_NMT_PATH
+            subword_nmt_repo
+            if subword_nmt_repo is not None
+            else tk.Path(gs.SUBWORD_NMT_PATH)
         )
 
         self.out_code_file = self.output_path("codes")
@@ -58,12 +60,10 @@ class TrainBPEModelJob(Job):
         yield Task("run", resume="run", rqmt=self.rqmt)
 
     def run(self):
-        train_binary = os.path.join(
-            tk.uncached_path(self.subword_nmt_repo), "subword_nmt/learn_bpe.py"
-        )
+        train_binary = self.subword_nmt_repo.join_right("subword_nmt/learn_bpe.py")
         args = [
             sys.executable,
-            train_binary,
+            train_binary.get_path(),
             "-o",
             self.out_code_file.get_path(),
             "-s",
@@ -105,12 +105,14 @@ class ReturnnTrainBpeJob(Job):
         :param Path text_file: corpus text file
         :param int bpe_size: number of BPE merge operations
         :param str unk_label: unknown label
-        :param Path|str|None subword_nmt_repo: subword nmt repository path. see also `CloneGitRepositoryJob`
+        :param Optional[Path] subword_nmt_repo: subword nmt repository path. see also `CloneGitRepositoryJob`
         """
         self.text_file = text_file
         self.bpe_size = bpe_size
         self.subword_nmt_repo = (
-            subword_nmt_repo if subword_nmt_repo is not None else gs.SUBWORD_NMT_PATH
+            subword_nmt_repo
+            if subword_nmt_repo is not None
+            else tk.Path(gs.SUBWORD_NMT_PATH)
         )
         self.unk_label = unk_label
 
@@ -121,7 +123,7 @@ class ReturnnTrainBpeJob(Job):
     def run(self):
         bpe_codes_cmd = [
             sys.executable,
-            os.path.join(tk.uncached_path(self.subword_nmt_repo), "learn_bpe.py"),
+            self.subword_nmt_repo.join_right("subword_nmt/learn_bpe.py").get_path(),
             "--output",
             self.out_bpe_codes.get_path(),
             "--symbols",
@@ -145,7 +147,9 @@ class ReturnnTrainBpeJob(Job):
 
         bpe_vocab_cmd = [
             sys.executable,
-            os.path.join(tk.uncached_path(self.subword_nmt_repo), "create-py-vocab.py"),
+            self.subword_nmt_repo.join_right(
+                "subword_nmt/create-py-vocab.py"
+            ).get_path(),
             "--txt",
             self.text_file.get_path(),
             "--bpe",

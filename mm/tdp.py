@@ -11,6 +11,7 @@ Path = setup_path(__package__)
 
 from .alignment import AlignmentJob
 import i6_core.util as util
+import i6_core.rasr as rasr
 
 
 class ViterbiTdpTuningJob(Job):
@@ -86,7 +87,7 @@ class ViterbiTdpTuningJob(Job):
         self.cur_iter += 1
 
 
-class TdpFromAlignmentJob(Job):
+class TdpFromAlignmentJob(rasr.RasrCommand, Job):
     """
     Alignments look like when views in archiver:
     time=  7  emission=  17420  allophone=  w{#+iy}@i  index=  17420  state=  0
@@ -118,12 +119,7 @@ class TdpFromAlignmentJob(Job):
     def run(self, task_id):
         alignment_path = self.alignment.out_single_alignment_caches[task_id].get_path()
         segment_path = self.crp.segment_path.hidden_paths[task_id].get_path()
-        exe = os.path.join(
-            gs.RASR_ROOT,
-            "arch",
-            gs.RASR_ARCH,
-            "%s.%s" % ("archiver", gs.RASR_ARCH),
-        )
+        exe = self.select_exe(crp.flf_tool_exe, "archiver")
 
         trans_dict = {"phon": {0: 0, 1: 0, 2: 0}, "si": {0: 0, 1: 0, 2: 0}}
 
@@ -131,7 +127,7 @@ class TdpFromAlignmentJob(Job):
             for seg in segment_file:
                 seg = seg.strip("\n")
                 args = [
-                    exe,
+                    exe.get_path(),
                     "--allophone-file",
                     self.allophones.get_path(),
                     "--mode",

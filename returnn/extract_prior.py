@@ -112,11 +112,11 @@ class ReturnnComputePriorJob(Job):
         self.returnn_python_exe = (
             returnn_python_exe
             if returnn_python_exe is not None
-            else gs.RETURNN_PYTHON_EXE
+            else tk.Path(gs.RETURNN_PYTHON_EXE)
         )
 
         self.returnn_root = (
-            returnn_root if returnn_root is not None else gs.RETURNN_ROOT
+            returnn_root if returnn_root is not None else tk.Path(gs.RETURNN_ROOT)
         )
 
         self.returnn_config = ReturnnComputePriorJob.create_returnn_config(**kwargs)
@@ -186,8 +186,8 @@ class ReturnnComputePriorJob(Job):
 
     def _get_run_cmd(self):
         return [
-            tk.uncached_path(self.returnn_python_exe),
-            os.path.join(tk.uncached_path(self.returnn_root), "rnn.py"),
+            self.returnn_python_exe.get_path(),
+            self.returnn_root.join_right("rnn.py").get_path(),
             self.out_returnn_config_file.get_path(),
         ]
 
@@ -291,8 +291,8 @@ class ReturnnRasrComputePriorJob(ReturnnComputePriorJob, ReturnnRasrTrainingJob)
         :param float|int time_rqmt: job time requirement in hours
         :param float|int mem_rqmt: job memory requirement in GB
         :param float|int cpu_rqmt: job cpu requirement in GB
-        :param tk.Path|str|None returnn_python_exe: path to the RETURNN executable (python binary or launch script)
-        :param tk.Path|str|None returnn_root: path to the RETURNN src folder
+        :param Optional[tk.Path] returnn_python_exe: path to the RETURNN executable (python binary or launch script)
+        :param Optional[tk.Path] returnn_root: path to the RETURNN src folder
         :param int num_classes:
         :param disregarded_classes:
         :param class_label_file:
