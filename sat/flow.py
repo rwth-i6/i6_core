@@ -1,16 +1,24 @@
 __all__ = ["add_cmllr_transform", "segment_clustering_flow"]
 
-import os
+from sisyphus import tk
 
-from sisyphus.delayed_ops import DelayedFormat
-
-from i6_core.features import add_linear_transform
 from i6_core.rasr import FlowNetwork
 
 
 def add_cmllr_transform(
-    feature_net, map_file, transform_dir, matrix_name="$input(corpus-key).matrix"
-):
+    feature_net: FlowNetwork,
+    map_file: tk.Path,
+    transform_dir: tk.Path,
+    matrix_name: str = "$input(corpus-key).matrix",
+) -> FlowNetwork:
+    """
+
+    :param feature_net: flow network for feature extraction, e.g. one from i6_core.features
+    :param map_file: RASR corpus-key-map file, e.g. out_cluster_map_file from SegmentCorpusBySpeakerJob
+    :param transform_dir: Directory containing the transformation matrix files, e.g. EstimateCMLLRJob.out_transforms
+    :param matrix_name: Name pattern for the matrix files in the transform_dir
+    :return: A new flow network with the CMLLR transformation added
+    """
     net = FlowNetwork()
     net.add_param(["id", "start-time", "end-time"])
     net.add_output("features")
@@ -45,11 +53,7 @@ def add_cmllr_transform(
         "signal-matrix-multiplication-f32",
         "apply-cmllr-transform",
         {
-            "file": DelayedFormat(
-                "{transform_dir}/{matrix_name}",
-                transform_dir=transform_dir,
-                matrix_name=matrix_name,
-            )
+            "file": transform_dir.join_right(matrix_name),
         },
     )
     net.add_hidden_input(transform_dir)
