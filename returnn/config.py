@@ -131,6 +131,58 @@ class ReturnnConfig:
             return self.post_config[key]
         return self.config.get(key, default)
 
+    def update(self, other):
+        """
+        updates a ReturnnConfig with an other ReturnnConfig
+
+        :param ReturnnConfig other:
+        """
+        self.config.update(other.config)
+        self.post_config.update(other.post_config)
+        if other.staged_network_dict is not None:
+            self.staged_network_dict = other.staged_network_dict
+
+        if self.python_prolog is None:
+            self.python_prolog = other.python_prolog
+        elif isinstance(self.python_prolog, "str") and isinstance(
+            other.python_prolog, "str"
+        ):
+            self.python_prolog += other.python_prolog
+        else:
+            self.python_prolog = [self.python_prolog, other.python_prolog]
+        if self.python_prolog_hash is None:
+            self.python_prolog_hash = other.python_prolog_hash
+        if isinstance(self.python_prolog_hash, "str") and isinstance(
+            other.python_prolog_hash, "str"
+        ):
+            self.python_prolog_hash += other.python_prolog_hash
+        else:
+            self.python_prolog_hash = [
+                self.python_prolog_hash,
+                other.python_prolog_hash,
+            ]
+
+        if isinstance(self.python_epilog, "str") and isinstance(
+            other.python_epilog, "str"
+        ):
+            self.python_epilog += other.python_epilog
+        else:
+            self.python_epilog = [self.python_epilog, other.python_epilog]
+        if isinstance(self.python_epilog_hash, "str") and isinstance(
+            other.python_epilog_hash, "str"
+        ):
+            self.python_epilog_hash += other.python_epilog_hash
+        else:
+            self.python_epilog_hash = [
+                self.python_epilog_hash,
+                other.python_epilog_hash,
+            ]
+
+        self.sort_config = other.sort_config
+        self.pprint_kwargs.update(other.pprint_kwargs)
+        self.black_formatting = other.black_formatting
+        self.check_consistency()
+
     def _write_to_file(self, content, file_path):
         """
         write with optional black formatting
