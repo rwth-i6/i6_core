@@ -246,7 +246,7 @@ class EstimateWarpingMixturesJob(mm.MergeMixturesJob):
         rqmt = self.accumulate_rqmt.copy()
         try:
             mixture_size = os.stat(tk.uncached_path(self._old_mixtures)).st_size / (
-                1024.0 ** 2
+                1024.0**2
             )
             rqmt["mem"] += 2 if mixture_size > 500.0 else 0
         except OSError as e:

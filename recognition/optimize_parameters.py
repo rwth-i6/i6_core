@@ -119,8 +119,8 @@ class OptimizeAMandLMScaleJob(rasr.RasrCommand, Job):
             func=calc_wer,
             x0=x0,
             maxiter=self.maxiter,
-            xtol=10 ** -self.precision,
-            ftol=10 ** -self.precision,
+            xtol=10**-self.precision,
+            ftol=10**-self.precision,
             full_output=True,
         )
 
