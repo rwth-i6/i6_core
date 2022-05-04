@@ -142,41 +142,23 @@ class ReturnnConfig:
         if other.staged_network_dict is not None:
             self.staged_network_dict = other.staged_network_dict
 
-        if self.python_prolog is None:
-            self.python_prolog = other.python_prolog
-        elif isinstance(self.python_prolog, "str") and isinstance(
-            other.python_prolog, "str"
-        ):
-            self.python_prolog += other.python_prolog
-        else:
-            self.python_prolog = [self.python_prolog, other.python_prolog]
-        if self.python_prolog_hash is None:
-            self.python_prolog_hash = other.python_prolog_hash
-        if isinstance(self.python_prolog_hash, "str") and isinstance(
-            other.python_prolog_hash, "str"
-        ):
-            self.python_prolog_hash += other.python_prolog_hash
-        else:
-            self.python_prolog_hash = [
-                self.python_prolog_hash,
-                other.python_prolog_hash,
-            ]
+        def join_code(my_code, other_code):
+            if my_code is None or my_code == "":
+                return other_code
+            if other_code is None or other_code == "":
+                return my_code
+            if isinstance(my_code, "str") and isinstance(other_code, "str"):
+                return my_code + "\n" + other_code
+            return [my_code, other_code]
 
-        if isinstance(self.python_epilog, "str") and isinstance(
-            other.python_epilog, "str"
-        ):
-            self.python_epilog += other.python_epilog
-        else:
-            self.python_epilog = [self.python_epilog, other.python_epilog]
-        if isinstance(self.python_epilog_hash, "str") and isinstance(
-            other.python_epilog_hash, "str"
-        ):
-            self.python_epilog_hash += other.python_epilog_hash
-        else:
-            self.python_epilog_hash = [
-                self.python_epilog_hash,
-                other.python_epilog_hash,
-            ]
+        self.python_prolog = join_code(self.python_prolog, other.python_prolog)
+        self.python_prolog_hash = join_code(
+            self.python_prolog_hash, other.python_prolog_hash
+        )
+        self.python_epilog = join_code(self.python_epilog, other.python_epilog)
+        self.python_epilog_hash = join_code(
+            self.python_epilog_hash, other.python_epilog_hash
+        )
 
         self.sort_config = other.sort_config
         self.pprint_kwargs.update(other.pprint_kwargs)
