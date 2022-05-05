@@ -133,7 +133,10 @@ class ReturnnConfig:
 
     def update(self, other):
         """
-        updates a ReturnnConfig with an other ReturnnConfig
+        updates a ReturnnConfig with an other ReturnnConfig:
+          * config, post_config, and pprint_kwargs use dict.update
+          * prolog, epilog, and hashes are concatenated
+          * staged_network_dict, sort_config, and black_formatting are overwritten
 
         :param ReturnnConfig other:
         """
