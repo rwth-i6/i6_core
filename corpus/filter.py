@@ -82,19 +82,20 @@ class FilterSegmentsByListJob(Job):
 
 class FilterSegmentsByAlignmentConfidenceJob(Job):
     def __init__(
-        self, alignment_logs, percentile, crp, plot=True, absolute_threshold=None
+        self, alignment_logs, percentile, crp=None, plot=True, absolute_threshold=None
     ):
         """
-        :param dict[int,str] alignment_logs: alignment_job.out_log_file; task_id -> log_file
-        :param float|int percentile: in range [0,100]. for :func:`np.percentile`
-        :param float absolute_threshold:
-        :param rasr.crp.CommonRasrParameters crp:
-        :param bool plot:
+        :param dict[int,Path] alignment_logs: alignment_job.out_log_file; task_id -> log_file
+        :param float percentile: percent of alignment segments to keep. should be in (0,100]. for :func:`np.percentile`
+        :param float absolute_threshold: alignments with score above this number are discarded
+        :param Optional[rasr.crp.CommonRasrParameters] crp: used to set the number of output segments.
+            if none, number of alignment log files is used instead.
+        :param bool plot: plot the distribution of alignment scores
         """
         self.alignment_logs = alignment_logs  # alignment_job.log_file
         self.percentile = percentile
         self.absolute_threshold = absolute_threshold
-        self.num_segments = crp.concurrent
+        self.num_segments = len(alignment_logs) if crp is None else crp.concurrent
         self.plot = plot
 
         self.out_single_segment_files = dict(
