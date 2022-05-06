@@ -120,6 +120,7 @@ class ReturnnConfig:
                 self.python_epilog_hash = self.__parse_python(python_epilog)
             else:
                 self.python_epilog_hash = python_epilog
+        self.hash_full_python_code = hash_full_python_code
         self.sort_config = sort_config
         self.pprint_kwargs = pprint_kwargs or {}
         if sys.version_info[:2] >= (3, 8):
@@ -235,6 +236,10 @@ class ReturnnConfig:
         if isinstance(code, str):
             return code
         if isinstance(code, DelayedBase):
+            assert self.hash_full_python_code is False, (
+                "DelayedBase object can not be passed if `hash_full_python_code` is set, "
+                "as this will cause breaking hashes"
+            )
             return self.__parse_python(code.get())
         if isinstance(code, (tuple, list)):
             return "\n".join(self.__parse_python(c) for c in code)
