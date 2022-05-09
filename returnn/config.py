@@ -131,6 +131,43 @@ class ReturnnConfig:
             return self.post_config[key]
         return self.config.get(key, default)
 
+    def update(self, other):
+        """
+        updates a ReturnnConfig with an other ReturnnConfig:
+          * config, post_config, and pprint_kwargs use dict.update
+          * prolog, epilog, and hashes are concatenated
+          * staged_network_dict, sort_config, and black_formatting are overwritten
+
+        :param ReturnnConfig other:
+        """
+        self.config.update(other.config)
+        self.post_config.update(other.post_config)
+        if other.staged_network_dict is not None:
+            self.staged_network_dict = other.staged_network_dict
+
+        def join_code(my_code, other_code):
+            if my_code is None or my_code == "":
+                return other_code
+            if other_code is None or other_code == "":
+                return my_code
+            if isinstance(my_code, "str") and isinstance(other_code, "str"):
+                return my_code + "\n" + other_code
+            return [my_code, other_code]
+
+        self.python_prolog = join_code(self.python_prolog, other.python_prolog)
+        self.python_prolog_hash = join_code(
+            self.python_prolog_hash, other.python_prolog_hash
+        )
+        self.python_epilog = join_code(self.python_epilog, other.python_epilog)
+        self.python_epilog_hash = join_code(
+            self.python_epilog_hash, other.python_epilog_hash
+        )
+
+        self.sort_config = other.sort_config
+        self.pprint_kwargs.update(other.pprint_kwargs)
+        self.black_formatting = other.black_formatting
+        self.check_consistency()
+
     def _write_to_file(self, content, file_path):
         """
         write with optional black formatting
