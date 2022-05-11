@@ -150,7 +150,7 @@ class ReturnnConfig:
                 return other_code
             if other_code is None or other_code == "":
                 return my_code
-            if isinstance(my_code, "str") and isinstance(other_code, "str"):
+            if isinstance(my_code, str) and isinstance(other_code, str):
                 return my_code + "\n" + other_code
             return [my_code, other_code]
 
