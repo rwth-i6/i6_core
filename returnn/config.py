@@ -93,10 +93,12 @@ class ReturnnConfig:
             By enabling this, an additional "networks" folder will be created next to the config location
         :param None|str|Callable|Class|tuple|list|dict python_prolog: str or structure containing str/callables/classes
             that should be pasted as code at the beginning of the config file
-        :param None|Any python_prolog_hash: sets a specific hash for the python_prolog
+        :param None|Any python_prolog_hash: set a specific hash (str) or any type of hashable objects
+            to overwrite the default hashing for python_prolog
         :param None|str|Callable|Class|tuple|list|dict python_epilog: str or structure containing
             str/callables/classes that should be pasted as code at the end of the config file
-        :param None|Any python_epilog_hash: sets a specific hash for the python_epilog
+        :param None|Any python_epilog_hash: set a specific hash (str) or any type of hashable objects
+            to overwrite the default hashing for python_epilog
         :param bool hash_full_python_code: By default, function bodies are not hashed. If set to True, the full content
             of python pro-/epilog is parsed and hashed.
         :param bool sort_config: If set to True, the dictionary part of the config is sorted by key
