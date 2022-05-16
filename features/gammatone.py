@@ -47,8 +47,11 @@ def gammatone_flow(
     without_samples=False,
     samples_options={},
     normalization_options={},
+    add_features_output=False,
 ):
     net = rasr.FlowNetwork()
+    if add_features_output:
+        net.add_output("features")
 
     if without_samples:
         net.add_input("samples")
