@@ -20,6 +20,7 @@ class MakeJob(Job):
         self,
         folder: tk.Path,
         make_sequence: Optional[List[str]] = None,
+        run_configure: bool = False,
         num_processes: int = 1,
         output_folder_name: str = "repository",
     ):
@@ -28,11 +29,13 @@ class MakeJob(Job):
         :param folder: folder in which the make commands are executed
         :param make_sequence: list of options that are given to the make calls.
             defaults to ["all"] i.e. "make all" is executed
+        :param run_configure: runs ./configure before make
         :param num_processes: number of parallel running make processes
         :param output_folder_name: name of the output path folder
         """
         self.folder = folder
         self.make_sequence = make_sequence if make_sequence is not None else ["all"]
+        self.run_configure = run_configure
         self.num_processes = num_processes
 
         self.rqmt = {"cpu": num_processes}
@@ -46,6 +49,9 @@ class MakeJob(Job):
         with TemporaryDirectory(prefix=gs.TMP_PREFIX) as temp_dir:
             shutil.rmtree(temp_dir)
             shutil.copytree(self.folder.get_path(), temp_dir, symlinks=True)
+
+            if self.run_configure:
+                sp.run(["./configure"], cwd=temp_dir, check=True)
 
             for command in self.make_sequence:
                 args = ["make"]
