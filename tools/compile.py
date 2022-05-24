@@ -28,13 +28,17 @@ class MakeJob(Job):
     ):
         """
 
-        :param folder: folder in which the make commands are executed
+        :param folder: folder in which the make commands are executed,
+            e.g. a GitCloneRepositoryJob output
         :param make_sequence: list of options that are given to the make calls.
             defaults to ["all"] i.e. "make all" is executed
         :param configure_opts: if given, runs ./configure with these options before make
         :param num_processes: number of parallel running make processes
         :param output_folder_name: name of the output path folder, if None,
             the repo is not copied as output
+        :param link_outputs: provide "output_name": "local/repo/file_folder" pairs to
+            link (or copy if output_folder_name=None) files or directories as output.
+            This can be used to access single binaries or a binary folder instead of the whole repository.
         """
         self.folder = folder
         self.make_sequence = make_sequence if make_sequence is not None else ["all"]
@@ -81,7 +85,7 @@ class MakeJob(Job):
                     sp.run(args, cwd=temp_dir, check=True)
 
                 if self.output_folder_name:
-                    shutil.rmtree(self.out_repository.get_path())
+                    shutil.rmtree(self.out_repository.get_path(), ignore_errors=True)
                     shutil.copytree(
                         temp_dir, self.out_repository.get_path(), symlinks=True
                     )
@@ -94,6 +98,7 @@ class MakeJob(Job):
                         else:
                             src = os.path.join(temp_dir, path)
                             if os.path.isdir(src):
+                                shutil.rmtree(trg, ignore_errors=True)
                                 shutil.copytree(src, trg)
                             else:
                                 shutil.copy(src, trg)
