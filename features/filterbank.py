@@ -60,7 +60,7 @@ def filterbank_flow(
     :param dict[str, Any]|None fft_options: parameter dict for :func:`fft_flow`
     :param bool apply_log: adds a logarithm before normalization
     :param bool add_epsilon: if a logarithm should be applied, add a small epsilon to prohibit zeros
-    :param bool add_features_output: Add the output port "features" when normalize is True. This should be set to True,
+    :param bool add_features_output: Add the output port "features". This should be set to True,
         default is False to not break existing hash.
     :return: filterbank flow network
     :rtype: rasr.FlowNetwork
