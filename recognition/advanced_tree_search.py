@@ -274,6 +274,7 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
         eval_single_best,
         eval_best_in_lattice,
         mem,
+        cpu,
         lmgc_mem,
         model_combination_config,
         model_combination_post_config,
@@ -446,8 +447,8 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
         post_config.flf_lattice_tool.network.sink.warn_on_empty_lattice = True
         post_config.flf_lattice_tool.network.sink.error_on_empty_lattice = False
 
-        post_config["*"].intra_op_parallelism_threads = kwargs["cpu"]
-        post_config["*"].inter_op_parallelism_threads = 1
+        post_config["*"].session.intra_op_parallelism_threads = cpu
+        post_config["*"].session.inter_op_parallelism_threads = 1
 
         config._update(extra_config)
         post_config._update(extra_post_config)
