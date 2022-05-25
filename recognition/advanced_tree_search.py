@@ -10,6 +10,7 @@ from sisyphus import *
 
 Path = setup_path(__package__)
 
+import math
 import os
 import shutil
 
@@ -209,7 +210,7 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
         self.out_lattice_path = util.MultiOutputPath(
             self, "lattice.cache.$(TASK)", self.out_single_lattice_caches, cached=True
         )
-
+        self.cpu = cpu
         self.rqmt = {
             "time": max(crp.corpus_duration * rtf / crp.concurrent, 0.5),
             "cpu": cpu,
@@ -229,11 +230,8 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
         util.write_paths_to_file(
             self.out_lattice_bundle, self.out_single_lattice_caches.values()
         )
-        extra_code = (
-            ":${{THEANO_FLAGS:="
-            "}}\n"
-            'export THEANO_FLAGS="$THEANO_FLAGS,device={0},force_device=True"\n'
-            'export TF_DEVICE="{0}"'.format("gpu" if self.use_gpu else "cpu")
+        extra_code = "export OMP_NUM_THREADS={0}\nexport TF_DEVICE='{1}'".format(
+            math.ceil(self.cpu / 2), "gpu" if self.use_gpu else "cpu"
         )
         self.write_run_script(self.exe, "recognition.config", extra_code=extra_code)
 
@@ -447,6 +445,9 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
         config.flf_lattice_tool.network.sink.type = "sink"
         post_config.flf_lattice_tool.network.sink.warn_on_empty_lattice = True
         post_config.flf_lattice_tool.network.sink.error_on_empty_lattice = False
+
+        post_config["*"].intra_op_parallelism_threads = kwargs["cpu"]
+        post_config["*"].inter_op_parallelism_threads = 1
 
         config._update(extra_config)
         post_config._update(extra_post_config)
