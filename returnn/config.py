@@ -22,6 +22,10 @@ Variable = tk.Variable
 
 
 class CodeWrapper:
+    """
+    Can be used to insert direct "code" (not as quoted string) into the config dict
+    """
+
     def __init__(self, code):
         self.code = code
 
@@ -41,6 +45,7 @@ class ReturnnConfig:
     PYTHON_CODE = textwrap.dedent(
         """\
         #!rnn.py
+
         ${SUPPORT_CODE}
 
         ${PROLOG}
@@ -88,9 +93,12 @@ class ReturnnConfig:
 
         :param dict config: dictionary of the RETURNN config variables that are hashed
         :param dict post_config: dictionary of the RETURNN config variables that are not hashed
-        :param None|dict[int, dict[str, Any]] staged_network_dict: dictionary of network dictionaries,
+        :param None|dict[int, str|dict[str, Any]] staged_network_dict:
+            dictionary of network dictionaries or
+            any string that defines a network with `network = ...`
+            (e.g. the return variable of get_ext_net_dict_py_code_str() from returnn_common),
             indexed by the desired starting epoch of the network stage.
-            By enabling this, an additional "networks" folder will be created next to the config location
+            By enabling this, an additional "networks" folder will be created next to the config location.
         :param None|str|Callable|Class|tuple|list|dict python_prolog: str or structure containing str/callables/classes
             that should be pasted as code at the beginning of the config file
         :param None|Any python_prolog_hash: set a specific hash (str) or any type of hashable objects
@@ -203,7 +211,16 @@ class ReturnnConfig:
         for epoch in self.staged_network_dict.keys():
             network_path = os.path.join(network_dir, "network_%i.py" % epoch)
             pp = pprint.PrettyPrinter(indent=2, width=150, **self.pprint_kwargs)
-            content = "\nnetwork = %s" % pp.pformat(self.staged_network_dict[epoch])
+            network_definition = self.staged_network_dict[epoch]
+            if isinstance(network_definition, dict):
+                content = "\nnetwork = %s" % pp.pformat(network_definition)
+            elif isinstance(network_definition, str):
+                content = network_definition
+            else:
+                assert False, (
+                    "Invalid entry type in staged_network_dict: %s, use str or dict"
+                    % type(network_definition)
+                )
             with open(network_path, "wt", encoding="utf-8") as f:
                 if self.black_formatting:
                     content = black.format_str(content, mode=black.Mode())
