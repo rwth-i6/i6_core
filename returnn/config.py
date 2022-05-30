@@ -22,6 +22,10 @@ Variable = tk.Variable
 
 
 class CodeWrapper:
+    """
+    Can be used to insert direct "code" (not as quoted string) into the config dict
+    """
+
     def __init__(self, code):
         self.code = code
 
@@ -41,6 +45,7 @@ class ReturnnConfig:
     PYTHON_CODE = textwrap.dedent(
         """\
         #!rnn.py
+
         ${SUPPORT_CODE}
 
         ${PROLOG}
