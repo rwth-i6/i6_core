@@ -95,7 +95,8 @@ class ReturnnConfig:
         :param dict post_config: dictionary of the RETURNN config variables that are not hashed
         :param None|dict[int, str|dict[str, Any]] staged_network_dict:
             dictionary of network dictionaries or
-            returnn_common generated strings (as str variable from get_ext_net_dict_py_code_str),
+            any string that defines a network with `network = ...`
+            (e.g. the return variable of get_ext_net_dict_py_code_str() from returnn_common),
             indexed by the desired starting epoch of the network stage.
             By enabling this, an additional "networks" folder will be created next to the config location.
         :param None|str|Callable|Class|tuple|list|dict python_prolog: str or structure containing str/callables/classes
