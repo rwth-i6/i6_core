@@ -28,7 +28,7 @@ class ReturnnVocabFromBlissLexiconJob(Job):
         self.bliss_lexicon = bliss_lexicon
 
         self.out_vocab = self.output_path("vocab.pkl")
-        self.out_vocab_size = self.output_var("vocab_length")
+        self.out_vocab_size = self.output_var("vocab_size")
 
     def tasks(self):
         yield Task("run", mini_task=True)
