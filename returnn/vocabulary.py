@@ -6,7 +6,7 @@ from i6_core.lib import lexicon
 from i6_core.util import uopen
 
 
-class ReturnnVocabFromBlissLexiconJob(Job):
+class ReturnnVocabFromPhonemeInventory(Job):
     """
     Create a pickled vocab for RETURNN based on the phoneme-inventory of a bliss lexicon
 
@@ -21,9 +21,9 @@ class ReturnnVocabFromBlissLexiconJob(Job):
     tk.Variable out_vocab_size: integer variable containing the vocabulary size (``vocab_size``)
     """
 
-    def __init__(self, bliss_lexicon):
+    def __init__(self, bliss_lexicon: tk.Path):
         """
-        :param tk.Path bliss_lexicon: a bliss lexicon xml file
+        :param bliss_lexicon: a bliss lexicon xml file containg a phoneme inventory
         """
         self.bliss_lexicon = bliss_lexicon
 
