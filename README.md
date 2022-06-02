@@ -23,6 +23,11 @@ Before contributing to `i6_core`, please have a close look at
 
 Code style: https://github.com/psf/black
 
+Please coordinate large changes with the maintainers, which are:
+ - Nick Rossenbach [@JackTemaki](https://github.com/JackTemaki)
+ - Wilfried Michel [@michelwi](https://github.com/michelwi)
+ - Eugen Beck [@curufinwe](https://github.com/curufinwe)
+
 # Testing
 
 See [tests/README.md](https://github.com/rwth-i6/i6_core/blob/main/tests/README.md)
