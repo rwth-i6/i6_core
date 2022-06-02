@@ -18,7 +18,7 @@ class ReturnnVocabFromBlissLexiconJob(Job):
     Outputs:
 
     tk.Path out_vocab: path to the pickled returnn vocabulary (``vocab.pkl``)
-    tk.Variable out_vocab_size: integer variable containing the vocabulary size (``vocab_length``)
+    tk.Variable out_vocab_size: integer variable containing the vocabulary size (``vocab_size``)
     """
 
     def __init__(self, bliss_lexicon):
