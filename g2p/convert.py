@@ -17,14 +17,18 @@ class BlissLexiconToG2PLexiconJob(Job):
     Convert a bliss lexicon into a g2p compatible lexicon for training
     """
 
-    __sis_hash_exclude = {"include_pronunciation_variants": False}
+    __sis_hash_exclude = {
+        "include_orthography_variants": False,
+        "include_pronunciation_variants": False
+    }
 
-    def __init__(self, bliss_lexicon, include_pronunciation_variants=False):
+    def __init__(self, bliss_lexicon, include_orthography_variants=False, include_pronunciation_variants=False):
         """
         :param Path bliss_lexicon:
         :param bool include_pronunciation_variants: In case of multiple phoneme representations for one lemma, when this is false it outputs only the first phoneme
         """
         self.bliss_lexicon = bliss_lexicon
+        self.include_orthography_variants = include_orthography_variants
         self.include_pronunciation_variants = include_pronunciation_variants
 
         self.out_g2p_lexicon = self.output_path("g2p.lexicon")
@@ -45,19 +49,23 @@ class BlissLexiconToG2PLexiconJob(Job):
                 if lemma.get("special") is not None:
                     continue
 
-                orth = lemma.find("orth").text.strip()
-
-                if self.include_pronunciation_variants:
-                    phons = lemma.findall("phon")
-                    phon_single = []
-                    for phon in phons:
-                        p = phon.text.strip()
-                        if p not in phon_single:
-                            phon_single.append(p)
-                            out.write("%s %s\n" % (orth, p))
+                if self.include_orthography_variants:
+                    orths = [o.text.strip() for o in lemma.findall("orth")]
                 else:
-                    phon = lemma.find("phon").text.strip()
-                    out.write("%s %s\n" % (orth, phon))
+                    orths = [lemma.find("orth").text.strip()]
+
+                for orth in orths:
+                    if self.include_pronunciation_variants:
+                        phons = lemma.findall("phon")
+                        phon_single = []
+                        for phon in phons:
+                            p = phon.text.strip()
+                            if p not in phon_single:
+                                phon_single.append(p)
+                                out.write("%s %s\n" % (orth, p))
+                    else:
+                        phon = lemma.find("phon").text.strip()
+                        out.write("%s %s\n" % (orth, phon))
 
 
 class G2POutputToBlissLexiconJob(Job):
