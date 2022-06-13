@@ -30,6 +30,7 @@ class BlissLexiconToG2PLexiconJob(Job):
     ):
         """
         :param Path bliss_lexicon:
+        :param bool include_orthography_variants: In case of multiple orthographic representations for one lemma, when this is false it outputs only the first orth
         :param bool include_pronunciation_variants: In case of multiple phoneme representations for one lemma, when this is false it outputs only the first phoneme
         """
         self.bliss_lexicon = bliss_lexicon
