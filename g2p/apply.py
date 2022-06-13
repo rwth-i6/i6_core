@@ -69,7 +69,6 @@ class ApplyG2PModelJob(Job):
 
         self.out_g2p_lexicon = self.output_path("g2p.lexicon")
         self.out_g2p_untranslated = self.output_path("g2p.untranslated")
-        print(self.concurrent)
 
         if self.concurrent > 1:
             self.out_g2p_lexicon_parts = [
@@ -85,7 +84,7 @@ class ApplyG2PModelJob(Job):
                 f"words.{i:0{num_digits}d}" for i in range(1, self.concurrent + 1)
             ]
 
-        self.rqmt = {"cpu": 1, "mem": 4, "time": 24}
+        self.rqmt = {"cpu": 1, "mem": 1, "time": 2}
 
     def tasks(self):
         if self.concurrent == 1:
@@ -93,7 +92,7 @@ class ApplyG2PModelJob(Job):
         else:
             yield Task("create_files", mini_task=True)
             yield Task(
-                "run", resume="run", rqmt=self.rqmt, args=range(1, self.concurrent + 1)
+                "run", rqmt=self.rqmt, args=range(1, self.concurrent + 1)
             )
             yield Task("merge", mini_task=True)
         if self.filter_empty_words:
