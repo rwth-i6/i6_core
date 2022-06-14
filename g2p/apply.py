@@ -69,11 +69,11 @@ class ApplyG2PModelJob(Job):
 
         if self.concurrent > 1:
             self.out_g2p_lexicon_parts = [
-                self.output_path(f"g2p.lexicon.{i}")
+                f"g2p.lexicon.{i}"
                 for i in range(1, self.concurrent + 1)
             ]
             self.out_g2p_untranslated_parts = [
-                self.output_path(f"g2p.untranslated.{i}")
+                f"g2p.untranslated.{i}"
                 for i in range(1, self.concurrent + 1)
             ]
             num_digits = len(str(self.concurrent))
@@ -105,10 +105,8 @@ class ApplyG2PModelJob(Job):
         g2p_untranslated_path = self.out_g2p_untranslated.get_path()
         word_list_path = self.word_list.get_path()
         if task_id:
-            g2p_lexicon_path = self.out_g2p_lexicon_parts[task_id - 1].get_path()
-            g2p_untranslated_path = self.out_g2p_untranslated_parts[
-                task_id - 1
-            ].get_path()
+            g2p_lexicon_path = self.out_g2p_lexicon_parts[task_id - 1]
+            g2p_untranslated_path = self.out_g2p_untranslated_parts[task_id - 1]
             word_list_path = self.word_list_parts[task_id - 1]
 
         with uopen(g2p_lexicon_path, "wt") as out:
