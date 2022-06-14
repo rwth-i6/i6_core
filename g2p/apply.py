@@ -68,12 +68,10 @@ class ApplyG2PModelJob(Job):
         self.out_g2p_untranslated = self.output_path("g2p.untranslated")
 
         self.out_g2p_lexicon_parts = [
-            f"g2p.lexicon.{i}"
-            for i in range(1, self.concurrent + 1)
+            f"g2p.lexicon.{i}" for i in range(1, self.concurrent + 1)
         ]
         self.out_g2p_untranslated_parts = [
-            f"g2p.untranslated.{i}"
-            for i in range(1, self.concurrent + 1)
+            f"g2p.untranslated.{i}" for i in range(1, self.concurrent + 1)
         ]
         num_digits = len(str(self.concurrent))
         self.word_list_parts = [
@@ -84,9 +82,7 @@ class ApplyG2PModelJob(Job):
 
     def tasks(self):
         yield Task("split_word_list", mini_task=True)
-        yield Task(
-            "run", rqmt=self.rqmt, args=range(1, self.concurrent + 1)
-        )
+        yield Task("run", rqmt=self.rqmt, args=range(1, self.concurrent + 1))
         yield Task("merge", mini_task=True)
         if self.filter_empty_words:
             yield Task("filter", mini_task=True)
@@ -134,7 +130,6 @@ class ApplyG2PModelJob(Job):
 
         with uopen(self.out_g2p_untranslated, "wt") as f:
             sp.check_call(["cat"] + self.out_g2p_untranslated_parts, stdout=f)
-                
 
     def filter(self):
         handle, tmp_path = mkstemp(dir=".", text=True)
@@ -155,4 +150,3 @@ class ApplyG2PModelJob(Job):
         if "concurrent" in kwargs_copy:
             del kwargs_copy["concurrent"]
         return super().hash(kwargs_copy)
-
