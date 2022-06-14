@@ -92,8 +92,14 @@ class ApplyG2PModelJob(Job):
             yield Task("filter", mini_task=True)
 
     def split_word_list(self):
-        self.sh(
-            f"split --number=l/{self.concurrent} --numeric-suffixes=1 {self.word_list.get_path()} words."
+        sp.check_call(
+            [
+                "split",
+                f"--number=l/{self.concurrent}",
+                "--numeric-suffixes=1",
+                self.word_list.get_path(),
+                "words.",
+            ]
         )
 
     def run(self, task_id):
@@ -123,14 +129,12 @@ class ApplyG2PModelJob(Job):
                 )
 
     def merge(self):
-        g2p_lex_file_list = " ".join(map(tk.uncached_path, self.out_g2p_lexicon_parts))
-        self.sh(f"cat {g2p_lex_file_list} > {tk.uncached_path(self.out_g2p_lexicon)}")
-        g2p_untranslated_file_list = " ".join(
-            map(tk.uncached_path, self.out_g2p_untranslated_parts)
-        )
-        self.sh(
-            f"cat {g2p_untranslated_file_list} > {tk.uncached_path(self.out_g2p_untranslated)}"
-        )
+        with uopen(self.out_g2p_lexicon, "wt") as f:
+            sp.check_call(["cat"] + self.out_g2p_lexicon_parts, stdout=f)
+
+        with uopen(self.out_g2p_untranslated, "wt") as f:
+            sp.check_call(["cat"] + self.out_g2p_untranslated_parts, stdout=f)
+                
 
     def filter(self):
         handle, tmp_path = mkstemp(dir=".", text=True)
