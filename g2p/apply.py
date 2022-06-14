@@ -67,47 +67,39 @@ class ApplyG2PModelJob(Job):
         self.out_g2p_lexicon = self.output_path("g2p.lexicon")
         self.out_g2p_untranslated = self.output_path("g2p.untranslated")
 
-        if self.concurrent > 1:
-            self.out_g2p_lexicon_parts = [
-                f"g2p.lexicon.{i}"
-                for i in range(1, self.concurrent + 1)
-            ]
-            self.out_g2p_untranslated_parts = [
-                f"g2p.untranslated.{i}"
-                for i in range(1, self.concurrent + 1)
-            ]
-            num_digits = len(str(self.concurrent))
-            self.word_list_parts = [
-                f"words.{i:0{num_digits}d}" for i in range(1, self.concurrent + 1)
-            ]
+        self.out_g2p_lexicon_parts = [
+            f"g2p.lexicon.{i}"
+            for i in range(1, self.concurrent + 1)
+        ]
+        self.out_g2p_untranslated_parts = [
+            f"g2p.untranslated.{i}"
+            for i in range(1, self.concurrent + 1)
+        ]
+        num_digits = len(str(self.concurrent))
+        self.word_list_parts = [
+            f"words.{i:0{num_digits}d}" for i in range(1, self.concurrent + 1)
+        ]
 
         self.rqmt = {"cpu": 1, "mem": 1, "time": 2}
 
     def tasks(self):
-        if self.concurrent == 1:
-            yield Task("run", rqmt=self.rqmt)
-        else:
-            yield Task("create_files", mini_task=True)
-            yield Task(
-                "run", rqmt=self.rqmt, args=range(1, self.concurrent + 1)
-            )
-            yield Task("merge", mini_task=True)
+        yield Task("split_word_list", mini_task=True)
+        yield Task(
+            "run", rqmt=self.rqmt, args=range(1, self.concurrent + 1)
+        )
+        yield Task("merge", mini_task=True)
         if self.filter_empty_words:
             yield Task("filter", mini_task=True)
 
-    def create_files(self):
+    def split_word_list(self):
         self.sh(
             f"split --number=l/{self.concurrent} --numeric-suffixes=1 {self.word_list.get_path()} words."
         )
 
-    def run(self, task_id=None):
-        g2p_lexicon_path = self.out_g2p_lexicon.get_path()
-        g2p_untranslated_path = self.out_g2p_untranslated.get_path()
-        word_list_path = self.word_list.get_path()
-        if task_id:
-            g2p_lexicon_path = self.out_g2p_lexicon_parts[task_id - 1]
-            g2p_untranslated_path = self.out_g2p_untranslated_parts[task_id - 1]
-            word_list_path = self.word_list_parts[task_id - 1]
+    def run(self, task_id):
+        g2p_lexicon_path = self.out_g2p_lexicon_parts[task_id - 1]
+        g2p_untranslated_path = self.out_g2p_untranslated_parts[task_id - 1]
+        word_list_path = self.word_list_parts[task_id - 1]
 
         with uopen(g2p_lexicon_path, "wt") as out:
             with uopen(g2p_untranslated_path, "wt") as err:
