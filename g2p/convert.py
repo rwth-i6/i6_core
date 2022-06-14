@@ -18,24 +18,24 @@ class BlissLexiconToG2PLexiconJob(Job):
     """
 
     __sis_hash_exclude = {
-        "include_orthography_variants": False,
         "include_pronunciation_variants": False,
+        "include_orthography_variants": False,
     }
 
     def __init__(
         self,
         bliss_lexicon,
-        include_orthography_variants=False,
         include_pronunciation_variants=False,
+        include_orthography_variants=False,
     ):
         """
         :param Path bliss_lexicon:
-        :param bool include_orthography_variants: In case of multiple orthographic representations for one lemma, when this is false it outputs only the first orth
         :param bool include_pronunciation_variants: In case of multiple phoneme representations for one lemma, when this is false it outputs only the first phoneme
+        :param bool include_orthography_variants: In case of multiple orthographic representations for one lemma, when this is false it outputs only the first orth
         """
         self.bliss_lexicon = bliss_lexicon
-        self.include_orthography_variants = include_orthography_variants
         self.include_pronunciation_variants = include_pronunciation_variants
+        self.include_orthography_variants = include_orthography_variants
 
         self.out_g2p_lexicon = self.output_path("g2p.lexicon")
 
