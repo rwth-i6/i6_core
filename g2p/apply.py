@@ -16,10 +16,7 @@ class ApplyG2PModelJob(Job):
     Apply a trained G2P on a word list file
     """
 
-    __sis_hash_exclude__ = {
-        "filter_empty_words": False,
-        "concurrent": 1,
-    }
+    __sis_hash_exclude__ = {"filter_empty_words": False}
 
     def __init__(
         self,
@@ -157,3 +154,11 @@ class ApplyG2PModelJob(Job):
 
         os.remove(self.out_g2p_lexicon)
         os.rename(tmp_path, self.out_g2p_lexicon)
+
+    @classmethod
+    def hash(cls, kwargs):
+        kwargs_copy = dict(**kwargs)
+        if "concurrent" in kwargs_copy:
+            del kwargs_copy["concurrent"]
+        return super().hash(kwargs_copy)
+
