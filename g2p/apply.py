@@ -60,17 +60,17 @@ class ApplyG2PModelJob(Job):
         self.filter_empty_words = filter_empty_words
         self.concurrent = concurrent
 
-        self.out_g2p_lexicon_parts = None
-        self.out_g2p_untranslated_parts = None
+        self._g2p_lexicon_parts = None
+        self._g2p_untranslated_parts = None
         self.word_list_parts = None
 
         self.out_g2p_lexicon = self.output_path("g2p.lexicon")
         self.out_g2p_untranslated = self.output_path("g2p.untranslated")
 
-        self.out_g2p_lexicon_parts = [
+        self._g2p_lexicon_parts = [
             f"g2p.lexicon.{i}" for i in range(1, self.concurrent + 1)
         ]
-        self.out_g2p_untranslated_parts = [
+        self._g2p_untranslated_parts = [
             f"g2p.untranslated.{i}" for i in range(1, self.concurrent + 1)
         ]
         num_digits = len(str(self.concurrent))
@@ -99,8 +99,8 @@ class ApplyG2PModelJob(Job):
         )
 
     def run(self, task_id):
-        g2p_lexicon_path = self.out_g2p_lexicon_parts[task_id - 1]
-        g2p_untranslated_path = self.out_g2p_untranslated_parts[task_id - 1]
+        g2p_lexicon_path = self._g2p_lexicon_parts[task_id - 1]
+        g2p_untranslated_path = self._g2p_untranslated_parts[task_id - 1]
         word_list_path = self.word_list_parts[task_id - 1]
 
         with uopen(g2p_lexicon_path, "wt") as out:
@@ -126,10 +126,10 @@ class ApplyG2PModelJob(Job):
 
     def merge(self):
         with uopen(self.out_g2p_lexicon, "wt") as f:
-            sp.check_call(["cat"] + self.out_g2p_lexicon_parts, stdout=f)
+            sp.check_call(["cat"] + self._g2p_lexicon_parts, stdout=f)
 
         with uopen(self.out_g2p_untranslated, "wt") as f:
-            sp.check_call(["cat"] + self.out_g2p_untranslated_parts, stdout=f)
+            sp.check_call(["cat"] + self._g2p_untranslated_parts, stdout=f)
 
     def filter(self):
         handle, tmp_path = mkstemp(dir=".", text=True)
