@@ -147,6 +147,5 @@ class ApplyG2PModelJob(Job):
     @classmethod
     def hash(cls, kwargs):
         kwargs_copy = dict(**kwargs)
-        if "concurrent" in kwargs_copy:
-            del kwargs_copy["concurrent"]
+        kwargs_copy.pop("concurrent", None)
         return super().hash(kwargs_copy)
