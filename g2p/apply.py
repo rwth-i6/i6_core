@@ -60,13 +60,6 @@ class ApplyG2PModelJob(Job):
         self.filter_empty_words = filter_empty_words
         self.concurrent = concurrent
 
-        self._g2p_lexicon_parts = None
-        self._g2p_untranslated_parts = None
-        self.word_list_parts = None
-
-        self.out_g2p_lexicon = self.output_path("g2p.lexicon")
-        self.out_g2p_untranslated = self.output_path("g2p.untranslated")
-
         self._g2p_lexicon_parts = [
             f"g2p.lexicon.{i}" for i in range(1, self.concurrent + 1)
         ]
@@ -77,6 +70,9 @@ class ApplyG2PModelJob(Job):
         self.word_list_parts = [
             f"words.{i:0{num_digits}d}" for i in range(1, self.concurrent + 1)
         ]
+
+        self.out_g2p_lexicon = self.output_path("g2p.lexicon")
+        self.out_g2p_untranslated = self.output_path("g2p.untranslated")
 
         self.rqmt = {"cpu": 1, "mem": 1, "time": 2}
 
