@@ -66,10 +66,6 @@ class ApplyG2PModelJob(Job):
         self._g2p_untranslated_parts = [
             f"g2p.untranslated.{i}" for i in range(1, self.concurrent + 1)
         ]
-        num_digits = len(str(self.concurrent))
-        self.word_list_parts = [
-            f"words.{i:0{num_digits}d}" for i in range(1, self.concurrent + 1)
-        ]
 
         self.out_g2p_lexicon = self.output_path("g2p.lexicon")
         self.out_g2p_untranslated = self.output_path("g2p.untranslated")
@@ -97,7 +93,8 @@ class ApplyG2PModelJob(Job):
     def run(self, task_id):
         g2p_lexicon_path = self._g2p_lexicon_parts[task_id - 1]
         g2p_untranslated_path = self._g2p_untranslated_parts[task_id - 1]
-        word_list_path = self.word_list_parts[task_id - 1]
+        num_digits = len(str(self.concurrent))
+        word_list_path = f"words.{task_id:0{num_digits}d}"
 
         with uopen(g2p_lexicon_path, "wt") as out:
             with uopen(g2p_untranslated_path, "wt") as err:
