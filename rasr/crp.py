@@ -73,22 +73,26 @@ class CommonRasrParameters:
         """
         assert isinstance(rasr_binary_path, tk.Path)
         self.acoustic_model_trainer_exe = (
-            rasr_binary_path + f"acoustic-model-trainer.{rasr_arch}"
+            rasr_binary_path + f"/acoustic-model-trainer.{rasr_arch}"
         )
-        self.allophone_tool_exe = rasr_binary_path + f"allophone-tool.{rasr_arch}"
-        self.costa_exe = rasr_binary_path + f"costa.{rasr_arch}"
+        self.allophone_tool_exe = rasr_binary_path + f"/allophone-tool.{rasr_arch}"
+        self.costa_exe = rasr_binary_path + f"/costa.{rasr_arch}"
         self.feature_extraction_exe = (
-            rasr_binary_path + f"feature-extraction.{rasr_arch}"
+            rasr_binary_path + f"/feature-extraction.{rasr_arch}"
         )
         self.feature_statistics_exe = (
-            rasr_binary_path + f"feature-statistics.{rasr_arch}"
+            rasr_binary_path + f"/feature-statistics.{rasr_arch}"
         )
-        self.flf_tool_exe = rasr_binary_path + f"flf-tool.{rasr_arch}"
-        self.kws_tool_exe = rasr_binary_path + None  # does not exist
-        self.lattice_processor_exe = rasr_binary_path + f"lattice-processor.{rasr_arch}"
-        self.lm_util_exe = rasr_binary_path + f"lm-util.{rasr_arch}"
-        self.nn_trainer_exe = rasr_binary_path + f"nn-trainer.{rasr_arch}"
-        self.speech_recognizer_exe = rasr_binary_path + f"speech-recognizer.{rasr_arch}"
+        self.flf_tool_exe = rasr_binary_path + f"/flf-tool.{rasr_arch}"
+        self.kws_tool_exe = None  # does not exist
+        self.lattice_processor_exe = (
+            rasr_binary_path + f"/lattice-processor.{rasr_arch}"
+        )
+        self.lm_util_exe = rasr_binary_path + f"/lm-util.{rasr_arch}"
+        self.nn_trainer_exe = rasr_binary_path + f"/nn-trainer.{rasr_arch}"
+        self.speech_recognizer_exe = (
+            rasr_binary_path + f"/speech-recognizer.{rasr_arch}"
+        )
         # sanity check
         assert isinstance(self.acoustic_model_trainer_exe, DelayedAdd)
 
