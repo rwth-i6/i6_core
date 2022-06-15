@@ -1,4 +1,6 @@
 from sisyphus.http_server import object_to_html
+from sisyphus import tk
+from sisyphus.delayed_ops import DelayedAdd
 
 from .command import RasrCommand
 from .config import RasrConfig
@@ -61,40 +63,34 @@ class CommonRasrParameters:
     def html(self):
         return object_to_html(self.__dict__)
 
-    def set_executables(self, rasr_root, rasr_arch="linux-x86_64-standard"):
+    def set_executables(self, rasr_binary_path, rasr_arch="linux-x86_64-standard"):
         """
-        Set all executables to a single RASR path
+        Set all executables to a specific binary folder path
 
-        Is (not yet) compatible with tk.Path inputs
-
-        :param str rasr_root: path of a directory containing the RASR repository
-        :param str rasr_arch: RASR architecture specifier
+        :param tk.Path rasr_binary_path: path to the rasr binary folder
+        :param str rasr_arch: RASR compile architecture suffix
+        :return:
         """
-        self.acoustic_model_trainer_exe = RasrCommand.get_rasr_exe(
-            "acoustic-model-trainer", rasr_root, rasr_arch
+        assert isinstance(rasr_binary_path, tk.Path)
+        self.acoustic_model_trainer_exe = (
+            rasr_binary_path + f"acoustic-model-trainer.{rasr_arch}"
         )
-        self.allophone_tool_exe = RasrCommand.get_rasr_exe(
-            "allophone-tool", rasr_root, rasr_arch
+        self.allophone_tool_exe = rasr_binary_path + f"allophone-tool.{rasr_arch}"
+        self.costa_exe = rasr_binary_path + f"costa.{rasr_arch}"
+        self.feature_extraction_exe = (
+            rasr_binary_path + f"feature-extraction.{rasr_arch}"
         )
-        self.costa_exe = RasrCommand.get_rasr_exe("costa", rasr_root, rasr_arch)
-        self.feature_extraction_exe = RasrCommand.get_rasr_exe(
-            "feature-extraction", rasr_root, rasr_arch
+        self.feature_statistics_exe = (
+            rasr_binary_path + f"feature-statistics.{rasr_arch}"
         )
-        self.feature_statistics_exe = RasrCommand.get_rasr_exe(
-            "feature-statistics", rasr_root, rasr_arch
-        )
-        self.flf_tool_exe = RasrCommand.get_rasr_exe("flf-tool", rasr_root, rasr_arch)
-        self.kws_tool_exe = None  # does not exist
-        self.lattice_processor_exe = RasrCommand.get_rasr_exe(
-            "lattice-processor", rasr_root, rasr_arch
-        )
-        self.lm_util_exe = RasrCommand.get_rasr_exe("lm-util", rasr_root, rasr_arch)
-        self.nn_trainer_exe = RasrCommand.get_rasr_exe(
-            "nn-trainer", rasr_root, rasr_arch
-        )
-        self.speech_recognizer_exe = RasrCommand.get_rasr_exe(
-            "speech-rcognizer", rasr_root, rasr_arch
-        )
+        self.flf_tool_exe = rasr_binary_path + f"flf-tool.{rasr_arch}"
+        self.kws_tool_exe = rasr_binary_path + None  # does not exist
+        self.lattice_processor_exe = rasr_binary_path + f"lattice-processor.{rasr_arch}"
+        self.lm_util_exe = rasr_binary_path + f"lm-util.{rasr_arch}"
+        self.nn_trainer_exe = rasr_binary_path + f"nn-trainer.{rasr_arch}"
+        self.speech_recognizer_exe = rasr_binary_path + f"speech-recognizer.{rasr_arch}"
+        # sanity check
+        assert isinstance(self.acoustic_model_trainer_exe, DelayedAdd)
 
 
 def crp_add_default_output(
