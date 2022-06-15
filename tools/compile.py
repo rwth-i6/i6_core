@@ -47,7 +47,7 @@ class MakeJob(Job):
         self.output_folder_name = output_folder_name
         self.link_outputs = link_outputs
 
-        self.rqmt = {"cpu": num_processes}
+        self.rqmt = {"cpu": num_processes, "mem": 4}
 
         assert (
             output_folder_name or link_outputs
