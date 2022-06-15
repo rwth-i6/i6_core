@@ -54,7 +54,7 @@ class MakeJob(Job):
         ), "please provide either output_folder_name or link_outputs, otherwise the output will be empty"
 
         if output_folder_name:
-            self.out_repository = self.output_path(output_folder_name, True)
+            self.out_repository = self.output_path(output_folder_name)
 
         if link_outputs:
             self.out_links = {}
@@ -85,7 +85,6 @@ class MakeJob(Job):
                     sp.run(args, cwd=temp_dir, check=True)
 
                 if self.output_folder_name:
-                    shutil.rmtree(self.out_repository.get_path(), ignore_errors=True)
                     shutil.copytree(
                         temp_dir, self.out_repository.get_path(), symlinks=True
                     )
