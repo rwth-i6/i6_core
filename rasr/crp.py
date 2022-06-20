@@ -1,6 +1,5 @@
 from sisyphus.http_server import object_to_html
 from sisyphus import tk
-from sisyphus.delayed_ops import DelayedAdd
 
 from .command import RasrCommand
 from .config import RasrConfig
