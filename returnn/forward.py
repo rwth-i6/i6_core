@@ -33,6 +33,8 @@ class ReturnnForwardJob(Job):
         self,
         model_checkpoint,
         returnn_config,
+        returnn_python_exe,
+        returnn_root,
         hdf_outputs=None,
         eval_mode=False,
         *,  # args below are keyword only
@@ -41,8 +43,6 @@ class ReturnnForwardJob(Job):
         time_rqmt=4,
         mem_rqmt=4,
         cpu_rqmt=2,
-        returnn_python_exe=None,
-        returnn_root=None,
     ):
         """
 
@@ -56,20 +56,13 @@ class ReturnnForwardJob(Job):
         :param int time_rqmt: job time requirement
         :param int mem_rqmt: job memory requirement
         :param int cpu_rqmt: job cpu requirement
-        :param Path|None returnn_python_exe: path to the RETURNN executable (python binary or launch script)
-        :param Path|None returnn_root: path to the RETURNN src folder
+        :param Path returnn_python_exe: path to the RETURNN executable (python binary or launch script)
+        :param Path returnn_root: path to the RETURNN src folder
         """
-        self.returnn_python_exe = (
-            returnn_python_exe
-            if returnn_python_exe is not None
-            else gs.RETURNN_PYTHON_EXE
-        )
-        self.returnn_root = (
-            returnn_root if returnn_root is not None else gs.RETURNN_ROOT
-        )
-
-        self.model_checkpoint = model_checkpoint
         self.returnn_config = returnn_config
+        self.model_checkpoint = model_checkpoint
+        self.returnn_python_exe = returnn_python_exe
+        self.returnn_root = returnn_root
         self.eval_mode = eval_mode
         self.log_verbosity = log_verbosity
         self.device = device
@@ -106,8 +99,8 @@ class ReturnnForwardJob(Job):
         config.write(self.out_returnn_config_file.get_path())
 
         cmd = [
-            tk.uncached_path(self.returnn_python_exe),
-            os.path.join(tk.uncached_path(self.returnn_root), "rnn.py"),
+            self.returnn_python_exe.get_path(),
+            os.path.join(self.returnn_root.get_path(), "rnn.py"),
             self.out_returnn_config_file.get_path(),
         ]
         util.create_executable("rnn.sh", cmd)
@@ -122,8 +115,8 @@ class ReturnnForwardJob(Job):
         with tempfile.TemporaryDirectory(prefix=gs.TMP_PREFIX) as d:
             print("using temp-dir: %s" % d)
             call = [
-                tk.uncached_path(self.returnn_python_exe),
-                os.path.join(tk.uncached_path(self.returnn_root), "rnn.py"),
+                self.returnn_python_exe.get_path(),
+                os.path.join(self.returnn_root.get_path(), "rnn.py"),
                 self.out_returnn_config_file.get_path(),
             ]
 
@@ -166,6 +159,7 @@ class ReturnnForwardJob(Job):
         assert device in ["gpu", "cpu"]
         assert "task" not in returnn_config.config
         assert "load" not in returnn_config.config
+        assert "model" not in returnn_config.config
 
         res = copy.deepcopy(returnn_config)
 
