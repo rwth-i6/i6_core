@@ -165,7 +165,7 @@ class ReturnnForwardJob(Job):
         """
         assert device in ["gpu", "cpu"]
         assert "task" not in returnn_config.config
-        assert "task" not in returnn_config.post_config
+        assert "load" not in returnn_config.config
 
         res = copy.deepcopy(returnn_config)
 
