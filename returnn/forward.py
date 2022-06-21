@@ -40,7 +40,7 @@ class ReturnnForwardJob(Job):
         device="gpu",
         time_rqmt=4,
         mem_rqmt=4,
-        cpu_rqmt=4,
+        cpu_rqmt=2,
         returnn_python_exe=None,
         returnn_root=None,
     ):
@@ -48,7 +48,6 @@ class ReturnnForwardJob(Job):
 
         :param Checkpoint model_checkpoint: Checkpoint object pointing to a stored RETURNN Tensorflow model
         :param ReturnnConfig returnn_config: RETURNN config dict
-        :param dict returnn_post_config: RETURNN config dict (no hashing)
         :param list[str] hdf_outputs: list of additional hdf output layer file names that the network generates (e.g. attention.hdf);
           The hdf outputs have to be a valid subset or be equal to the hdf_dump_layers in the config.
         :param bool eval_mode: run forward in eval mode, the default hdf is not available in this case and no search will be done.
@@ -57,8 +56,8 @@ class ReturnnForwardJob(Job):
         :param int time_rqmt: job time requirement
         :param int mem_rqmt: job memory requirement
         :param int cpu_rqmt: job cpu requirement
-        :param Path|str returnn_python_exe: path to the RETURNN executable (python binary or launch script)
-        :param Path|str returnn_root: path to the RETURNN src folder
+        :param Path|None returnn_python_exe: path to the RETURNN executable (python binary or launch script)
+        :param Path|None returnn_root: path to the RETURNN src folder
         """
         self.returnn_python_exe = (
             returnn_python_exe
@@ -69,11 +68,11 @@ class ReturnnForwardJob(Job):
             returnn_root if returnn_root is not None else gs.RETURNN_ROOT
         )
 
-        self._model_checkpoint = model_checkpoint
-        self._returnn_config = returnn_config
-        self._eval_mode = eval_mode
-        self._log_verbosity = log_verbosity
-        self._device = device
+        self.model_checkpoint = model_checkpoint
+        self.returnn_config = returnn_config
+        self.eval_mode = eval_mode
+        self.log_verbosity = log_verbosity
+        self.device = device
 
         self.out_returnn_config_file = self.output_path("returnn.config")
 
@@ -98,11 +97,11 @@ class ReturnnForwardJob(Job):
 
     def create_files(self):
         config = self.create_returnn_config(
-            model_checkpoint=self._model_checkpoint,
-            returnn_config=self._returnn_config,
-            eval_mode=self._eval_mode,
-            log_verbosity=self._log_verbosity,
-            device=self._device,
+            model_checkpoint=self.model_checkpoint,
+            returnn_config=self.returnn_config,
+            eval_mode=self.eval_mode,
+            log_verbosity=self.log_verbosity,
+            device=self.device,
         )
         config.write(self.out_returnn_config_file.get_path())
 
@@ -115,12 +114,12 @@ class ReturnnForwardJob(Job):
 
         # check here if model actually exists
         assert os.path.exists(
-            self._model_checkpoint.index_path.get_path()
-        ), "Provided model does not exists: %s" % str(self._model_checkpoint)
+            self.model_checkpoint.index_path.get_path()
+        ), "Provided model does not exists: %s" % str(self.model_checkpoint)
 
     def run(self):
         # run everything in a TempDir as writing HDFs can cause heavy load
-        with tempfile.TemporaryDirectory(prefix="work_") as d:
+        with tempfile.TemporaryDirectory(prefix=gs.TMP_PREFIX) as d:
             print("using temp-dir: %s" % d)
             call = [
                 tk.uncached_path(self.returnn_python_exe),
@@ -128,14 +127,12 @@ class ReturnnForwardJob(Job):
                 self.out_returnn_config_file.get_path(),
             ]
 
-            # stash a possible exception until we finished copying files from the temp work to the actual
-            # work folder to be able to examine the files
-            error = None
             try:
                 sp.check_call(call, cwd=d)
             except Exception as e:
-                print("Run crashed - copy temporary work folder")
-                error = e
+                print("Run crashed - copy temporary work folder as 'crash_dir'")
+                shutil.copytree(d, "crash_dir")
+                raise e
 
             # move log and tensorboard
             shutil.move(os.path.join(d, "returnn.log"), "returnn.log")
@@ -145,16 +142,7 @@ class ReturnnForwardJob(Job):
 
             # move hdf outputs to output folder
             for k, v in self.out_hdf_files.items():
-                try:
-                    shutil.move(os.path.join(d, k), v.get_path())
-                except Exception as e:
-                    if error is None:
-                        # if we had an error before it is expected to have missing hdf files
-                        # so we do not need to raise anything here then
-                        raise e
-
-            if error:
-                raise error
+                shutil.move(os.path.join(d, k), v.get_path())
 
     @classmethod
     def create_returnn_config(
@@ -176,17 +164,20 @@ class ReturnnForwardJob(Job):
         :return:
         """
         assert device in ["gpu", "cpu"]
-        assert "network" in returnn_config.config
+        assert "task" not in returnn_config.config
+        assert "task" not in returnn_config.post_config
 
         res = copy.deepcopy(returnn_config)
 
-        config = {"load": model_checkpoint}
+        config = {
+            "load": model_checkpoint,
+            "task": "eval" if eval_mode else "forward",
+        }
 
         post_config = {
             "device": device,
             "log": ["./returnn.log"],
             "log_verbosity": log_verbosity,
-            "task": "eval" if eval_mode else "forward",
         }
 
         if not eval_mode:
