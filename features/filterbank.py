@@ -47,6 +47,7 @@ def filterbank_flow(
     fft_options=None,
     apply_log=False,
     add_epsilon=False,
+    add_features_output=False,
 ):
     """
 
@@ -59,6 +60,8 @@ def filterbank_flow(
     :param dict[str, Any]|None fft_options: parameter dict for :func:`fft_flow`
     :param bool apply_log: adds a logarithm before normalization
     :param bool add_epsilon: if a logarithm should be applied, add a small epsilon to prohibit zeros
+    :param bool add_features_output: Add the output port "features". This should be set to True,
+        default is False to not break existing hash.
     :return: filterbank flow network
     :rtype: rasr.FlowNetwork
     """
@@ -70,6 +73,8 @@ def filterbank_flow(
         fft_options = {}
 
     net = rasr.FlowNetwork()
+    if add_features_output:
+        net.add_output("features")
 
     if without_samples:
         net.add_input("samples")
@@ -119,7 +124,7 @@ def filterbank_flow(
         net.link(filterbank_out, normalization)
         net.link(normalization, "network:features")
     else:
-        net.link(filterbank_out, {"out": "features"})
+        net.link(filterbank_out, "network:features")
 
     return net
 

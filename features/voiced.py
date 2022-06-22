@@ -33,8 +33,11 @@ def voiced_flow(
     max_pos=0.0167,
     without_samples=False,
     samples_options={},
+    add_voiced_output=False,
 ):
     net = rasr.FlowNetwork()
+    if add_voiced_output:
+        net.add_output("voiced")
 
     if without_samples:
         net.add_input("samples")
