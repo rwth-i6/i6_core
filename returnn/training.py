@@ -22,7 +22,7 @@ class ReturnnModel:
     """
     Defines a RETURNN model as config, checkpoint meta file and epoch
 
-    This is deprecated, used Checkpoint instead.
+    This is deprecated, use Checkpoint instead.
     """
 
     def __init__(self, returnn_config_file, model, epoch):
