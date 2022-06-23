@@ -11,7 +11,6 @@ import shutil
 import subprocess as sp
 
 from sisyphus import *
-from sisyphus.delayed_ops import DelayedSlice
 
 import i6_core.util as util
 from .config import ReturnnConfig
