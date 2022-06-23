@@ -113,6 +113,13 @@ class RemapSegmentsWithBundlesJob(Job):
 
 
 class ClusterMapToSegmentListJob(Job):
+    """
+    Creates segment files in relation to a speaker cluster map
+
+    WARNING: This job has broken (non-portable) hashes and is not really useful anyway,
+             please use this only for existing pipelines
+    """
+
     def __init__(self, cluster_map, filename="cluster.$(TASK)"):
         self.cluster_map = cluster_map
 

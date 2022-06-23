@@ -104,6 +104,8 @@ class CompileTFGraphJob(Job):
         if self.summaries_tensor_name is not None:
             args.append("--summaries_tensor_name=%s" % self.summaries_tensor_name)
 
+        util.create_executable("run.sh", args)
+
         sp.check_call(args)
 
         with open("model_params", "rt") as input:
