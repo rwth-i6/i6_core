@@ -9,20 +9,25 @@ __all__ = [
 import copy
 import logging
 import os
-import stat
 import shutil
 import subprocess as sp
 
 from sisyphus import *
 
+from i6_core.deprecated.returnn_search import ReturnnSearchJob as _ReturnnSearchJob
 from i6_core.lib.corpus import Corpus
 import i6_core.util as util
+
 from .config import ReturnnConfig
 
 Path = setup_path(__package__)
 
 
-class ReturnnSearchJob(Job):
+class ReturnnSearchJob(_ReturnnSearchJob):
+    pass
+
+
+class ReturnnSearchJobV2(Job):
     """
     Given a model checkpoint, run search task with RETURNN
     """
@@ -32,6 +37,8 @@ class ReturnnSearchJob(Job):
         search_data,
         model_checkpoint,
         returnn_config,
+        returnn_python_exe,
+        returnn_root,
         *,
         output_mode="py",
         log_verbosity=3,
@@ -39,43 +46,34 @@ class ReturnnSearchJob(Job):
         time_rqmt=4,
         mem_rqmt=4,
         cpu_rqmt=2,
-        returnn_python_exe=None,
-        returnn_root=None,
     ):
         """
         :param dict[str] search_data: dataset used for search
         :param Checkpoint model_checkpoint:  TF model checkpoint. see `ReturnnTrainingJob`.
         :param ReturnnConfig returnn_config: object representing RETURNN config
+        :param tk.Path returnn_python_exe: path to the RETURNN executable (python binary or launch script)
+        :param tk.Path returnn_root: path to the RETURNN src folder
         :param str output_mode: "txt" or "py"
         :param int log_verbosity: RETURNN log verbosity
         :param str device: RETURNN device, cpu or gpu
         :param float|int time_rqmt: job time requirement in hours
         :param float|int mem_rqmt: job memory requirement in GB
         :param float|int cpu_rqmt: job cpu requirement in GB
-        :param tk.Path|str|None returnn_python_exe: path to the RETURNN executable (python binary or launch script)
-        :param tk.Path|str|None returnn_root: path to the RETURNN src folder
+
         """
         assert isinstance(returnn_config, ReturnnConfig)
         kwargs = locals()
         del kwargs["self"]
 
         self.model_checkpoint = model_checkpoint
-
-        self.returnn_python_exe = (
-            returnn_python_exe
-            if returnn_python_exe is not None
-            else gs.RETURNN_PYTHON_EXE
-        )
-
-        self.returnn_root = (
-            returnn_root if returnn_root is not None else gs.RETURNN_ROOT
-        )
+        self.returnn_python_exe = returnn_python_exe
+        self.returnn_root = returnn_root
 
         self.out_returnn_config_file = self.output_path("returnn.config")
 
         self.out_search_file = self.output_path("search_out")
 
-        self.returnn_config = ReturnnSearchJob.create_returnn_config(**kwargs)
+        self.returnn_config = ReturnnSearchJobV2.create_returnn_config(**kwargs)
         self.returnn_config.post_config["search_output_file"] = self.out_search_file
 
         self.rqmt = {
@@ -94,8 +92,8 @@ class ReturnnSearchJob(Job):
         config.write(self.out_returnn_config_file.get_path())
 
         cmd = [
-            tk.uncached_path(self.returnn_python_exe),
-            os.path.join(tk.uncached_path(self.returnn_root), "rnn.py"),
+            self.returnn_python_exe.get_path(),
+            os.path.join(self.returnn_root.get_path(), "rnn.py"),
             self.out_returnn_config_file.get_path(),
         ]
 
@@ -103,13 +101,13 @@ class ReturnnSearchJob(Job):
 
         # check here if model actually exists
         assert os.path.exists(
-            tk.uncached_path(self.model_checkpoint.index_path)
+            self.model_checkpoint.index_path.get_path()
         ), "Provided model does not exists: %s" % str(self.model_checkpoint)
 
     def run(self):
         call = [
-            tk.uncached_path(self.returnn_python_exe),
-            os.path.join(tk.uncached_path(self.returnn_root), "rnn.py"),
+            self.returnn_python_exe.get_path(),
+            os.path.join(self.returnn_root.get_path(), "rnn.py"),
             self.out_returnn_config_file.get_path(),
         ]
         sp.check_call(call)
@@ -137,17 +135,18 @@ class ReturnnSearchJob(Job):
         """
         assert device in ["gpu", "cpu"]
         original_config = returnn_config.config
+        res = copy.deepcopy(returnn_config)
         assert "network" in original_config
         assert output_mode in ["py", "txt"]
 
         config = {
-            "load": model_checkpoint.ckpt_path,
+            "load": model_checkpoint,
             "search_output_file_format": output_mode,
             "need_data": False,
             "search_do_eval": 0,
         }
 
-        config.update(copy.deepcopy(original_config))  # update with the original config
+        config.update(res.config)  # update with the copy
 
         # override always
         config["task"] = "search"
@@ -167,9 +166,8 @@ class ReturnnSearchJob(Job):
             "log_verbosity": log_verbosity,
         }
 
-        post_config.update(copy.deepcopy(returnn_config.post_config))
+        post_config.update(res.post_config)
 
-        res = copy.deepcopy(returnn_config)
         res.config = config
         res.post_config = post_config
         res.check_consistency()
@@ -179,7 +177,7 @@ class ReturnnSearchJob(Job):
     @classmethod
     def hash(cls, kwargs):
         d = {
-            "returnn_config": ReturnnSearchJob.create_returnn_config(**kwargs),
+            "returnn_config": ReturnnSearchJobV2.create_returnn_config(**kwargs),
             "returnn_python_exe": kwargs["returnn_python_exe"],
             "returnn_root": kwargs["returnn_root"],
         }
