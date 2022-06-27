@@ -1,5 +1,5 @@
 __all__ = [
-    "CorpusReplaceOrthFromReferenceCorpus",
+    "CorpusReplaceOrthFromReferenceCorpusJob",
     "CorpusReplaceOrthFromTxtJob",
     "CorpusToStmJob",
     "CorpusToTextDictJob",
@@ -18,12 +18,12 @@ from i6_core.util import uopen
 Path = setup_path(__package__)
 
 
-class CorpusReplaceOrthFromReferenceCorpus(Job):
+class CorpusReplaceOrthFromReferenceCorpusJob(Job):
     """
     Copies the orth tag from one corpus to another through matching segment names.
     """
 
-    def __init__(self, bliss_corpus, reference_bliss_corpus):
+    def __init__(self, bliss_corpus: Path, reference_bliss_corpus: Path):
         """
         :param bliss_corpus: Corpus in which the orth tag is to be replaced
         :param reference_bliss_corpus: Corpus from which the orth tag replacement is taken
@@ -41,23 +41,20 @@ class CorpusReplaceOrthFromReferenceCorpus(Job):
         orth_c.load(self.reference_bliss_corpus.get_path())
 
         orths = {}
-        for r in orth_c.all_recordings():
-            for i in range(len(r.segments)):
-                orth = r.segments[i].orth
-                tag = r.segments[i].fullname()
-                orths[tag] = orth
+        for s in orth_c.segments():
+            orth = s.orth
+            tag = s.fullname()
+            orths[tag] = name
 
         c = corpus.Corpus()
         c.load(self.bliss_corpus.get_path())
 
-        for r in c.all_recordings():
-            for i in range(len(r.segments)):
-                tag = r.segments[i].fullname()
-                assert tag in orths.keys(), (
-                    "Segment %s not found in reference corpus" % s
-                )
-                orth = orths[tag]
-                r.segments[i].orth = orth
+        for s in c.segments():
+            tag in s.fullname()
+            assert tag in orths.keys(), (
+                    "Segment %s not found in reference corpus" % tag
+                    )
+            s.orth = orths[tag]
 
         c.dump(self.out_corpus.get_path())
 
