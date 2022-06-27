@@ -51,9 +51,7 @@ class CorpusReplaceOrthFromReferenceCorpusJob(Job):
 
         for s in c.segments():
             tag in s.fullname()
-            assert tag in orths.keys(), (
-                    "Segment %s not found in reference corpus" % tag
-                    )
+            assert tag in orths.keys(), "Segment %s not found in reference corpus" % tag
             s.orth = orths[tag]
 
         c.dump(self.out_corpus.get_path())
