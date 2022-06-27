@@ -2,6 +2,7 @@ __all__ = [
     "CorpusReplaceOrthFromReferenceCorpus",
     "CorpusReplaceOrthFromTxtJob",
     "CorpusToStmJob",
+    "CorpusToStmJobV2",
     "CorpusToTextDictJob",
     "CorpusToTxtJob",
 ]
@@ -11,8 +12,11 @@ import itertools
 import pprint
 import re
 
+from typing import Dict, Tuple
+
 from sisyphus import *
 
+from i6_core.deprecated.corpus_convert import CorpusToStmJob as _CorpusToStmJob
 from i6_core.lib import corpus
 from i6_core.util import uopen
 
@@ -105,21 +109,25 @@ class CorpusReplaceOrthFromTxtJob(Job):
         c.dump(self.out_corpus.get_path())
 
 
-class CorpusToStmJob(Job):
+class CorpusToStmJob(_CorpusToStmJob):
+    pass
+
+
+class CorpusToStmJobV2(Job):
     """
     Convert a Bliss corpus into a .stm file
     """
 
     def __init__(
         self,
-        bliss_corpus,
-        exclude_non_speech=False,
-        non_speech_tokens=(),
-        remove_punctuation=False,
-        punctuation_tokens=(),
-        fix_whitespace=False,
-        name="",
-        tag_mapping=(),
+        bliss_corpus: Path,
+        exclude_non_speech: bool = False,
+        non_speech_tokens: Tuple[str, ...] = (),
+        remove_punctuation: bool = False,
+        punctuation_tokens: Tuple[str, ...] = (),
+        fix_whitespace: bool = False,
+        name: str = "",
+        tag_mapping: Tuple[str, Dict[str, str]] = (),
     ):
         """
 
@@ -184,6 +192,7 @@ class CorpusToStmJob(Job):
 
                 if self.exclude_non_speech:
                     for nst in self.non_speech_tokens:
+
                         def replace_recursive(orthography, token):
                             pos = orthography.find(f" {token} ")
                             if pos == -1:
