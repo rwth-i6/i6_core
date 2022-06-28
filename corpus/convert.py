@@ -44,7 +44,7 @@ class CorpusReplaceOrthFromReferenceCorpusJob(Job):
         for s in orth_c.segments():
             orth = s.orth
             tag = s.fullname()
-            orths[tag] = name
+            orths[tag] = orth
 
         c = corpus.Corpus()
         c.load(self.bliss_corpus.get_path())
