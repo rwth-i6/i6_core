@@ -40,6 +40,7 @@ def plp_flow(
     without_samples=False,
     samples_options=None,
     fft_options=None,
+    add_features_output=False,
 ):
     if normalization_options is None:
         normalization_options = {}
@@ -49,6 +50,8 @@ def plp_flow(
         fft_options = {}
 
     net = rasr.FlowNetwork()
+    if add_features_output:
+        net.add_output("features")
 
     if without_samples:
         net.add_input("samples")

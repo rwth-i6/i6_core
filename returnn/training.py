@@ -21,6 +21,8 @@ Path = setup_path(__package__)
 class ReturnnModel:
     """
     Defines a RETURNN model as config, checkpoint meta file and epoch
+
+    This is deprecated, use :class:`Checkpoint` instead.
     """
 
     def __init__(self, returnn_config_file, model, epoch):
@@ -39,6 +41,9 @@ class Checkpoint:
     """
     Checkpoint object which holds the (Tensorflow) index file path as tk.Path,
     and will return the checkpoint path as common prefix of the .index/.meta/.data[...]
+
+    A checkpoint object should directly assigned to a RasrConfig entry (do not call `.ckpt_path`)
+    so that the hash will resolve correctly
     """
 
     def __init__(self, index_path):
