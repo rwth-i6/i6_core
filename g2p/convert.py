@@ -17,8 +17,7 @@ class BlissLexiconToG2PLexiconJob(Job):
     Convert a bliss lexicon into a g2p compatible lexicon for training
     """
 
-    __sis_hash_exclude = {
-        "include_pronunciation_variants": False,
+    __sis_hash_exclude__ = {
         "include_orthography_variants": False,
     }
 
