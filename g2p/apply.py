@@ -112,10 +112,17 @@ class ApplyG2PModelJob(Job):
 
     def merge(self):
         with uopen(self.out_g2p_lexicon, "wt") as f:
-            sp.check_call(["cat"] + [f"g2p.lexicon.{i}" for i in range(1, self.concurrent + 1)], stdout=f)
+            sp.check_call(
+                ["cat"] + [f"g2p.lexicon.{i}" for i in range(1, self.concurrent + 1)],
+                stdout=f,
+            )
 
         with uopen(self.out_g2p_untranslated, "wt") as f:
-            sp.check_call(["cat"] + [f"g2p.untranslated.{i}" for i in range(1, self.concurrent + 1)], stdout=f)
+            sp.check_call(
+                ["cat"]
+                + [f"g2p.untranslated.{i}" for i in range(1, self.concurrent + 1)],
+                stdout=f,
+            )
 
     def filter(self):
         handle, tmp_path = mkstemp(dir=".", text=True)
