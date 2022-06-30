@@ -8,6 +8,7 @@ import os
 import shutil
 import subprocess as sp
 import tempfile
+from typing import List, Optional
 
 from i6_core.returnn.config import ReturnnConfig
 from i6_core.returnn.training import Checkpoint
@@ -31,33 +32,33 @@ class ReturnnForwardJob(Job):
 
     def __init__(
         self,
-        model_checkpoint,
-        returnn_config,
-        returnn_python_exe,
-        returnn_root,
-        hdf_outputs=None,
-        eval_mode=False,
+        model_checkpoint: Checkpoint,
+        returnn_config: ReturnnConfig,
+        returnn_python_exe: tk.Path,
+        returnn_root: tk.Path,
+        hdf_outputs: Optional[List[str]] = None,
+        eval_mode: bool = False,
         *,  # args below are keyword only
-        log_verbosity=3,
-        device="gpu",
-        time_rqmt=4,
-        mem_rqmt=4,
-        cpu_rqmt=2,
+        log_verbosity: int = 5,
+        device: str = "gpu",
+        time_rqmt: float = 4,
+        mem_rqmt: float = 4,
+        cpu_rqmt: int = 2,
     ):
         """
 
-        :param Checkpoint model_checkpoint: Checkpoint object pointing to a stored RETURNN Tensorflow model
-        :param ReturnnConfig returnn_config: RETURNN config dict
-        :param list[str] hdf_outputs: list of additional hdf output layer file names that the network generates (e.g. attention.hdf);
+        :param model_checkpoint: Checkpoint object pointing to a stored RETURNN Tensorflow model
+        :param returnn_config: RETURNN config object
+        :param returnn_python_exe: path to the RETURNN executable (python binary or launch script)
+        :param returnn_root: path to the RETURNN src folder
+        :param hdf_outputs: list of additional hdf output layer file names that the network generates (e.g. attention.hdf);
           The hdf outputs have to be a valid subset or be equal to the hdf_dump_layers in the config.
-        :param bool eval_mode: run forward in eval mode, the default hdf is not available in this case and no search will be done.
-        :param int log_verbosity: RETURNN log verbosity
-        :param str device: RETURNN device, cpu or gpu
-        :param int time_rqmt: job time requirement
-        :param int mem_rqmt: job memory requirement
-        :param int cpu_rqmt: job cpu requirement
-        :param Path returnn_python_exe: path to the RETURNN executable (python binary or launch script)
-        :param Path returnn_root: path to the RETURNN src folder
+        :param eval_mode: run forward in eval mode, the default hdf is not available in this case and no search will be done.
+        :param log_verbosity: RETURNN log verbosity
+        :param device: RETURNN device, cpu or gpu
+        :param time_rqmt: job time requirement in hours
+        :param mem_rqmt: job memory requirement in GB
+        :param cpu_rqmt: job cpu requirement
         """
         self.returnn_config = returnn_config
         self.model_checkpoint = model_checkpoint
@@ -140,19 +141,21 @@ class ReturnnForwardJob(Job):
     @classmethod
     def create_returnn_config(
         cls,
-        model_checkpoint,
-        returnn_config,
-        eval_mode,
-        log_verbosity,
-        device,
+        model_checkpoint: Checkpoint,
+        returnn_config: ReturnnConfig,
+        eval_mode: bool,
+        log_verbosity: int,
+        device: str,
         **kwargs,
     ):
         """
+        Update the config locally to make it ready for the forward/eval task.
+        The resulting config will be used for hashing.
 
-        :param Checkpoint model_checkpoint:
-        :param ReturnnConfig returnn_config:
-        :param int log_verbosity:
-        :param str device:
+        :param model_checkpoint:
+        :param returnn_config:
+        :param log_verbosity:
+        :param device:
         :param kwargs:
         :return:
         """
