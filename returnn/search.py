@@ -11,6 +11,7 @@ import logging
 import os
 import shutil
 import subprocess as sp
+from typing import Any, Dict
 
 from sisyphus import *
 
@@ -18,48 +19,60 @@ from i6_core.deprecated.returnn_search import ReturnnSearchJob as _ReturnnSearch
 from i6_core.lib.corpus import Corpus
 import i6_core.util as util
 
-from .config import ReturnnConfig
+from i6_core.returnn.config import ReturnnConfig
+from i6_core.returnn.training import Checkpoint
 
 Path = setup_path(__package__)
 
 
 class ReturnnSearchJob(_ReturnnSearchJob):
+    """
+    This Job was deprecated because absolute paths are hashed.
+
+    See https://github.com/rwth-i6/i6_core/issues/274 for more details.
+    """
+
     pass
 
 
 class ReturnnSearchJobV2(Job):
     """
     Given a model checkpoint, run search task with RETURNN
+
+    The outputs provided are:
+
+     - out_search_file: Path to the Return search output in the provided format, which is "txt" (line based)
+                        or "py" (python dictionary with seq_name to text mapping)
+
     """
 
     def __init__(
         self,
-        search_data,
-        model_checkpoint,
-        returnn_config,
-        returnn_python_exe,
-        returnn_root,
+        search_data: Dict[str, Any],
+        model_checkpoint: Checkpoint,
+        returnn_config: ReturnnConfig,
+        returnn_python_exe: tk.Path,
+        returnn_root: tk.Path,
         *,
-        output_mode="py",
-        log_verbosity=3,
-        device="gpu",
-        time_rqmt=4,
-        mem_rqmt=4,
-        cpu_rqmt=2,
+        output_mode: str = "py",
+        log_verbosity: int = 3,
+        device: str = "gpu",
+        time_rqmt: float = 4,
+        mem_rqmt: float = 4,
+        cpu_rqmt: int = 2,
     ):
         """
-        :param dict[str] search_data: dataset used for search
-        :param Checkpoint model_checkpoint:  TF model checkpoint. see `ReturnnTrainingJob`.
+        :param search_data: Returnn Dataset definition in dictionary form to be used for search
+        :param model_checkpoint:  TF model checkpoint. see `ReturnnTrainingJob`.
         :param ReturnnConfig returnn_config: object representing RETURNN config
         :param tk.Path returnn_python_exe: path to the RETURNN executable (python binary or launch script)
         :param tk.Path returnn_root: path to the RETURNN src folder
         :param str output_mode: "txt" or "py"
         :param int log_verbosity: RETURNN log verbosity
         :param str device: RETURNN device, cpu or gpu
-        :param float|int time_rqmt: job time requirement in hours
-        :param float|int mem_rqmt: job memory requirement in GB
-        :param float|int cpu_rqmt: job cpu requirement in GB
-
+        :param time_rqmt: job time requirement in hours
+        :param mem_rqmt: job memory requirement in GB
+        :param cpu_rqmt: job cpu requirement in number of cores
         """
         assert isinstance(returnn_config, ReturnnConfig)
         kwargs = locals()
@@ -136,7 +149,6 @@ class ReturnnSearchJobV2(Job):
         assert device in ["gpu", "cpu"]
         original_config = returnn_config.config
         res = copy.deepcopy(returnn_config)
-        assert "network" in original_config
         assert output_mode in ["py", "txt"]
 
         config = {
