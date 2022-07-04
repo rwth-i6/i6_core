@@ -73,11 +73,13 @@ class ApplyG2PModelJob(Job):
             yield Task("filter", mini_task=True)
 
     def split_word_list(self):
+        num_digits = len(str(self.concurrent))
         sp.check_call(
             [
                 "split",
                 f"--number=l/{self.concurrent}",
                 "--numeric-suffixes=1",
+                f"--suffix-length={num_digits}",
                 self.word_list.get_path(),
                 "words.",
             ]
