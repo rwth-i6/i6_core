@@ -36,7 +36,7 @@ def gammatone_flow(
     minfreq: int = 100,
     maxfreq: int = 7500,
     channels: int = 68,
-    warp_freqbreak=None,
+    warp_freqbreak: Optional[int] = None,
     tempint_type: str = "hanning",
     tempint_shift: float = 0.01,
     tempint_length: float = 0.025,
