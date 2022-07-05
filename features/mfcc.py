@@ -1,17 +1,20 @@
 __all__ = ["MfccJob", "mfcc_flow"]
 
 import copy
+from typing import Any, Dict, Optional
 
-from .common import *
-from .extraction import *
-import i6_core.rasr as rasr
+from i6_core.features.common import cepstrum_flow, fft_flow, samples_flow
+from i6_core.features.extraction import FeatureExtractionJob
+from i6_core.rasr import FlowNetwork
+from i6_core.rasr.crp import CommonRasrParameters
 
 
-def MfccJob(crp, mfcc_options=None, **kwargs):
+def MfccJob(
+    crp: CommonRasrParameters, mfcc_options: Optional[Dict[str, Any]] = None, **kwargs
+) -> FeatureExtractionJob:
     """
-    :param rasr.crp.CommonRasrParameters crp:
-    :param dict[str] mfcc_options:
-    :rtype: FeatureExtractionJob
+    :param crp:
+    :param mfcc_options: Nested parameters for :func:`mfcc_flow`
     """
     if mfcc_options is None:
         mfcc_options = {}
@@ -31,25 +34,26 @@ def MfccJob(crp, mfcc_options=None, **kwargs):
 
 
 def mfcc_flow(
-    warping_function="mel",
-    filter_width=268.258,
-    normalize=True,
-    normalization_options=None,
-    without_samples=False,
-    samples_options=None,
-    fft_options=None,
-    cepstrum_options=None,
-    add_features_output=False,
-):
+    warping_function: str = "mel",
+    filter_width: float = 268.258,
+    normalize: bool = True,
+    normalization_options: Optional[Dict[str, Any]] = None,
+    without_samples: bool = False,
+    samples_options: Optional[Dict[str, Any]] = None,
+    fft_options: Optional[Dict[str, Any]] = None,
+    cepstrum_options: Optional[Dict[str, Any]] = None,
+    add_features_output: bool = False,
+) -> FlowNetwork:
     """
-    :param warping_function str:
-    :param filter_width float:
-    :param normalize bool: whether to add or not a normalization layer
-    :param without_samples bool:
-    :param samples_options dict: arguments to :func:`~features.common.sample_flow`
-    :param fft_options dict: arguments to :func:`~features.common.fft_flow`
-    :param cepstrum_options dict: arguments to :func:`~features.common.cepstrum_flow`
-    :param add_features_output bool: Add the output port "features" when normalize is True. This should be set to True,
+    :param warping_function:
+    :param filter_width:
+    :param normalize: whether to add or not a normalization layer
+    :param normalization_options:
+    :param without_samples:
+    :param samples_options: arguments to :func:`~features.common.sample_flow`
+    :param fft_options: arguments to :func:`~features.common.fft_flow`
+    :param cepstrum_options: arguments to :func:`~features.common.cepstrum_flow`
+    :param add_features_output: Add the output port "features" when normalize is True. This should be set to True,
         default is False to not break existing hash.
     """
     if normalization_options is None:
@@ -64,7 +68,7 @@ def mfcc_flow(
     if normalize and "normalize" not in cepstrum_options:
         cepstrum_options["normalize"] = False
 
-    net = rasr.FlowNetwork()
+    net = FlowNetwork()
 
     if without_samples:
         net.add_input("samples")
