@@ -1,13 +1,17 @@
 __all__ = ["GammatoneJob", "gammatone_flow"]
 
 import copy
+from typing import Any, Dict, Optional
 
-from .common import *
-from .extraction import *
-import i6_core.rasr as rasr
+from i6_core.features.common import samples_flow
+from i6_core.features.extraction import FeatureExtractionJob
+from i6_core.rasr import FlowNetwork
+from i6_core.rasr.crp import CommonRasrParameters
 
 
-def GammatoneJob(crp, gt_options=None, **kwargs):
+def GammatoneJob(
+    crp: CommonRasrParameters, gt_options: Optional[Dict[str, Any]] = None, **kwargs
+) -> FeatureExtractionJob:
     if gt_options is None:
         gt_options = {}
     else:
@@ -29,27 +33,53 @@ def GammatoneJob(crp, gt_options=None, **kwargs):
 
 
 def gammatone_flow(
-    minfreq=100,
-    maxfreq=7500,
-    channels=68,
-    warp_freqbreak=None,
-    tempint_type="hanning",
-    tempint_shift=0.01,
-    tempint_length=0.025,
-    flush_before_gap=True,
-    do_specint=True,
-    specint_type="hanning",
-    specint_shift=4,
-    specint_length=9,
-    normalize=True,
-    preemphasis=True,
-    legacy_scaling=False,
-    without_samples=False,
-    samples_options={},
-    normalization_options={},
-    add_features_output=False,
-):
-    net = rasr.FlowNetwork()
+    minfreq: int = 100,
+    maxfreq: int = 7500,
+    channels: int = 68,
+    warp_freqbreak: Optional[int] = None,
+    tempint_type: str = "hanning",
+    tempint_shift: float = 0.01,
+    tempint_length: float = 0.025,
+    flush_before_gap: bool = True,
+    do_specint: bool = True,
+    specint_type: str = "hanning",
+    specint_shift: int = 4,
+    specint_length: int = 9,
+    normalize: bool = True,
+    preemphasis: bool = True,
+    legacy_scaling: bool = False,
+    without_samples: bool = False,
+    samples_options: Optional[Dict[str, Any]] = None,
+    normalization_options: Optional[Dict[str, Any]] = None,
+    add_features_output: bool = False,
+) -> FlowNetwork:
+    """
+    :param minfreq:
+    :param maxfreq:
+    :param channels:
+    :param warp_freqbreak:
+    :param tempint_type:
+    :param tempint_shift:
+    :param tempint_length:
+    :param flush_before_gap:
+    :param do_specint:
+    :param specint_type:
+    :param specint_shift:
+    :param specint_length:
+    :param normalize:
+    :param preemphasis:
+    :param legacy_scaling:
+    :param without_samples:
+    :param samples_options: arguments to :func:`~features.common.sample_flow`
+    :param normalization_options:
+    :param add_features_output:
+    """
+    if normalization_options is None:
+        normalization_options = {}
+    if samples_options is None:
+        samples_options = {}
+
+    net = FlowNetwork()
     if add_features_output:
         net.add_output("features")
 

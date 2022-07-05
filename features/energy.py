@@ -1,13 +1,17 @@
 __all__ = ["EnergyJob", "energy_flow"]
 
 import copy
+from typing import Any, Dict, Optional
 
-from .common import *
-from .extraction import *
-import i6_core.rasr as rasr
+from i6_core.features.common import fft_flow, samples_flow
+from i6_core.features.extraction import FeatureExtractionJob
+from i6_core.rasr import FlowNetwork
+from i6_core.rasr.crp import CommonRasrParameters
 
 
-def EnergyJob(crp, energy_options=None, **kwargs):
+def EnergyJob(
+    crp: CommonRasrParameters, energy_options: Optional[Dict[str, Any]] = None, **kwargs
+) -> FeatureExtractionJob:
     if energy_options is None:
         energy_options = {}
     else:
@@ -29,12 +33,23 @@ def EnergyJob(crp, energy_options=None, **kwargs):
 
 
 def energy_flow(
-    without_samples=False,
-    samples_options={},
-    fft_options={},
-    normalization_type="divide-by-mean",
-):
-    net = rasr.FlowNetwork()
+    without_samples: bool = False,
+    samples_options: Optional[Dict[str, Any]] = None,
+    fft_options: Optional[Dict[str, Any]] = None,
+    normalization_type: str = "divide-by-mean",
+) -> FlowNetwork:
+    """
+    :param without_samples:
+    :param samples_options: arguments to :func:`~features.common.sample_flow`
+    :param fft_options: arguments to :func:`~features.common.fft_flow`
+    :param str normalization_type:
+    """
+    if samples_options is None:
+        samples_options = {}
+    if fft_options is None:
+        fft_options = {}
+
+    net = FlowNetwork()
 
     if without_samples:
         net.add_input("samples")
