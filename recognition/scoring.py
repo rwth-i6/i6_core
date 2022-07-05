@@ -53,6 +53,8 @@ class ScliteJob(Job):
         - out_*: the job also outputs many variables, please look in the init code for a list
     """
 
+    __sis_hash_exclude__ = {"sctk_binary_path": None}
+
     def __init__(
         self,
         ref: tk.Path,
@@ -61,7 +63,6 @@ class ScliteJob(Job):
         sort_files: bool = False,
         additional_args: Optional[List[str]] = None,
         sctk_binary_path: Optional[tk.Path] = None,
-        hash_binary_path: bool = False,
     ):
         """
         :param ref: reference stm text file
@@ -80,7 +81,6 @@ class ScliteJob(Job):
         self.sort_files = sort_files
         self.additional_args = additional_args
         self.sctk_binary_path = sctk_binary_path
-        self.hash_binary_path = hash_binary_path
 
         self.out_report_dir = self.output_path("reports", True)
 
@@ -200,14 +200,6 @@ class ScliteJob(Job):
         os.chdir(old_dir)
 
         return wer
-
-    @classmethod
-    def hash(cls, parsed_args):
-        d = parsed_args.copy()
-        hash_binary = d.pop("hash_binary_path")
-        if not hash_binary:
-            d.pop("sctk_binary_path")
-        return super().hash(d)
 
 
 class Hub5ScoreJob(Job):
