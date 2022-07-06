@@ -1,5 +1,5 @@
 __all__ = [
-    "CorpusReplaceOrthFromReferenceCorpusJob",
+    "CorpusReplaceOrthFromReferenceCorpus",
     "CorpusReplaceOrthFromTxtJob",
     "CorpusToStmJob",
     "CorpusToTextDictJob",
