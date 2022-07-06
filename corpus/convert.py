@@ -18,7 +18,7 @@ from i6_core.util import uopen
 Path = setup_path(__package__)
 
 
-class CorpusReplaceOrthFromReferenceCorpusJob(Job):
+class CorpusReplaceOrthFromReferenceCorpus(Job):
     """
     Copies the orth tag from one corpus to another through matching segment names.
     """
