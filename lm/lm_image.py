@@ -79,6 +79,7 @@ class CreateLmImageJob(rasr.RasrCommand, Job):
             logging.warning(
                 "The LM image already exists, but a new one will be recreated."
             )
+            del post_config.lm_util.lm.image
 
         config.lm_util.action = "load-lm"
         config.lm_util.lm.image = "lm.image"
