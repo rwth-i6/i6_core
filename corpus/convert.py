@@ -11,7 +11,7 @@ import itertools
 import pprint
 import re
 
-from typing import Dict, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from sisyphus import *
 
@@ -112,14 +112,16 @@ class CorpusToStmJob(Job):
     Convert a Bliss corpus into a .stm file
     """
 
+    __sis_hash_exclude__ = {"non_speech_tokens": None, "punctuation_tokens": None}
+
     def __init__(
         self,
         bliss_corpus: Path,
-        exclude_non_speech: bool = False,
-        non_speech_tokens: Tuple[str, ...] = (),
-        remove_punctuation: bool = False,
-        punctuation_tokens: Tuple[str, ...] = (),
-        fix_whitespace: bool = False,
+        exclude_non_speech: bool = True,
+        non_speech_tokens: Optional[List[str, ...]] = None,
+        remove_punctuation: bool = True,
+        punctuation_tokens: Optional[List[str, ...]] = None,
+        fix_whitespace: bool = True,
         name: str = "",
         tag_mapping: Tuple[str, Dict[str, str]] = (),
     ):
@@ -138,9 +140,9 @@ class CorpusToStmJob(Job):
 
         self.bliss_corpus = bliss_corpus
         self.exclude_non_speech = exclude_non_speech
-        self.non_speech_tokens = non_speech_tokens
+        self.non_speech_tokens = non_speech_tokens if non_speech_tokens is not None else []
         self.remove_punctuation = remove_punctuation
-        self.punctuation_tokens = punctuation_tokens
+        self.punctuation_tokens = punctuation_tokens if punctuation_tokens is not None else []
         self.fix_whitespace = fix_whitespace
         self.tag_mapping = tag_mapping
         self.name = name
