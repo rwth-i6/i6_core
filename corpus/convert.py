@@ -2,7 +2,6 @@ __all__ = [
     "CorpusReplaceOrthFromReferenceCorpus",
     "CorpusReplaceOrthFromTxtJob",
     "CorpusToStmJob",
-    "CorpusToStmJobV2",
     "CorpusToTextDictJob",
     "CorpusToTxtJob",
 ]
@@ -16,7 +15,6 @@ from typing import Dict, Tuple
 
 from sisyphus import *
 
-from i6_core.deprecated.corpus_convert import CorpusToStmJob as _CorpusToStmJob
 from i6_core.lib import corpus
 from i6_core.util import uopen
 
@@ -109,11 +107,7 @@ class CorpusReplaceOrthFromTxtJob(Job):
         c.dump(self.out_corpus.get_path())
 
 
-class CorpusToStmJob(_CorpusToStmJob):
-    pass
-
-
-class CorpusToStmJobV2(Job):
+class CorpusToStmJob(Job):
     """
     Convert a Bliss corpus into a .stm file
     """
