@@ -118,12 +118,12 @@ class CorpusToStmJob(Job):
         self,
         bliss_corpus: Path,
         exclude_non_speech: bool = True,
-        non_speech_tokens: Optional[List[str, ...]] = None,
+        non_speech_tokens: Optional[List[str]] = None,
         remove_punctuation: bool = True,
-        punctuation_tokens: Optional[Union[str, List[str, ...]]] = None,
+        punctuation_tokens: Optional[Union[str, List[str]]] = None,
         fix_whitespace: bool = True,
         name: str = "",
-        tag_mapping: Tuple[str, Dict[str, str]] = (),
+        tag_mapping: Union[Tuple[()], Tuple[str, Dict[str, str]]] = (),
     ):
         """
 
