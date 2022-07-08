@@ -140,9 +140,13 @@ class CorpusToStmJob(Job):
 
         self.bliss_corpus = bliss_corpus
         self.exclude_non_speech = exclude_non_speech
-        self.non_speech_tokens = non_speech_tokens if non_speech_tokens is not None else []
+        self.non_speech_tokens = (
+            non_speech_tokens if non_speech_tokens is not None else []
+        )
         self.remove_punctuation = remove_punctuation
-        self.punctuation_tokens = punctuation_tokens if punctuation_tokens is not None else []
+        self.punctuation_tokens = (
+            punctuation_tokens if punctuation_tokens is not None else []
+        )
         self.fix_whitespace = fix_whitespace
         self.tag_mapping = tag_mapping
         self.name = name
@@ -205,7 +209,8 @@ class CorpusToStmJob(Job):
 
                 if self.fix_whitespace:
                     orth = re.sub(" +", " ", orth)
-                    orth = orth.strip()
+
+                orth = orth.strip()
 
                 out.write(
                     "%s %d %s %5.2f %5.2f <%s> %s\n"
