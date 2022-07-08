@@ -11,7 +11,7 @@ import itertools
 import pprint
 import re
 
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 from sisyphus import *
 
@@ -120,21 +120,21 @@ class CorpusToStmJob(Job):
         exclude_non_speech: bool = True,
         non_speech_tokens: Optional[List[str, ...]] = None,
         remove_punctuation: bool = True,
-        punctuation_tokens: Optional[List[str, ...]] = None,
+        punctuation_tokens: Optional[Union[str, List[str, ...]]] = None,
         fix_whitespace: bool = True,
         name: str = "",
         tag_mapping: Tuple[str, Dict[str, str]] = (),
     ):
         """
 
-        :param Path bliss_corpus: Bliss corpus
-        :param bool exclude_non_speech:
-        :param tuple[str, ...] non_speech_tokens:
-        :param bool remove_punctuation:
-        :param tuple[str, ...] punctuation_tokens:
-        :param bool fix_whitespace:
-        :param str name:
-        :param tuple[str, dict[str, str]] tag_mapping:
+        :param bliss_corpus: Path to Bliss corpus
+        :param exclude_non_speech: non speech tokens should be removed
+        :param non_speech_tokens: defines the list of non speech tokens
+        :param remove_punctuation: should punctuation be removed
+        :param punctuation_tokens: defines list/string of punctuation tokens
+        :param fix_whitespace: should white space be fixed
+        :param name: new corpus name
+        :param tag_mapping:
         """
         self.set_vis_name("Extract STM from Corpus")
 
