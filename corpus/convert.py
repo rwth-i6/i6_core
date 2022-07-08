@@ -198,7 +198,7 @@ class CorpusToStmJob(Job):
                             if pos == -1:
                                 return orthography
                             else:
-                                orthography = orthography.replace(f" {token} ", "   ")
+                                orthography = orthography.replace(f" {token} ", " ")
                                 return replace_recursive(orthography, token)
 
                         orth = replace_recursive(orth, nst)
