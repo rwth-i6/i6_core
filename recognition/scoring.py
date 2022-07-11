@@ -71,7 +71,6 @@ class ScliteJob(Job):
         :param sort_files: sort ctm and stm before scoring
         :param additional_args: additional command line arguments passed to the Sclite binary call
         :param sctk_binary_path: set an explicit binary path.
-        :param hash_binary_path: if the binary path should influence the hash
         """
         self.set_vis_name("Sclite - %s" % ("CER" if cer else "WER"))
 
