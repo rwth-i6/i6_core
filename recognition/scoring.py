@@ -12,6 +12,7 @@ import subprocess as sp
 import tempfile
 import collections
 import re
+from typing import List, Optional
 
 from sisyphus import *
 from i6_core.lib.corpus import *
@@ -44,7 +45,33 @@ class AnalogJob(Job):
 
 
 class ScliteJob(Job):
-    def __init__(self, ref, hyp, cer=False, sort_files=False, additional_args=None):
+    """
+    Run the Sclite scorer from the SCTK toolkit
+
+    Outputs:
+        - out_report_dir: contains the report files with detailed scoring information
+        - out_*: the job also outputs many variables, please look in the init code for a list
+    """
+
+    __sis_hash_exclude__ = {"sctk_binary_path": None}
+
+    def __init__(
+        self,
+        ref: tk.Path,
+        hyp: tk.Path,
+        cer: bool = False,
+        sort_files: bool = False,
+        additional_args: Optional[List[str]] = None,
+        sctk_binary_path: Optional[tk.Path] = None,
+    ):
+        """
+        :param ref: reference stm text file
+        :param hyp: hypothesis ctm text file
+        :param cer: compute character error rate
+        :param sort_files: sort ctm and stm before scoring
+        :param additional_args: additional command line arguments passed to the Sclite binary call
+        :param sctk_binary_path: set an explicit binary path.
+        """
         self.set_vis_name("Sclite - %s" % ("CER" if cer else "WER"))
 
         self.ref = ref
@@ -52,6 +79,7 @@ class ScliteJob(Job):
         self.cer = cer
         self.sort_files = sort_files
         self.additional_args = additional_args
+        self.sctk_binary_path = sctk_binary_path
 
         self.out_report_dir = self.output_path("reports", True)
 
@@ -75,26 +103,29 @@ class ScliteJob(Job):
 
     def run(self, output_to_report_dir=True):
         if self.sort_files:
-            sort_stm_args = ["sort", "-k1,1", "-k4,4n", tk.uncached_path(self.ref)]
+            sort_stm_args = ["sort", "-k1,1", "-k4,4n", self.ref.get_path()]
             (fd_stm, tmp_stm_file) = tempfile.mkstemp(suffix=".stm")
             res = sp.run(sort_stm_args, stdout=sp.PIPE)
             os.write(fd_stm, res.stdout)
             os.close(fd_stm)
 
-            sort_ctm_args = ["sort", "-k1,1", "-k3,3n", tk.uncached_path(self.hyp)]
+            sort_ctm_args = ["sort", "-k1,1", "-k3,3n", self.hyp.get_path()]
             (fd_ctm, tmp_ctm_file) = tempfile.mkstemp(suffix=".ctm")
             res = sp.run(sort_ctm_args, stdout=sp.PIPE)
             os.write(fd_ctm, res.stdout)
             os.close(fd_ctm)
 
-        sclite_path = (
-            os.path.join(gs.SCTK_PATH, "sclite")
-            if hasattr(gs, "SCTK_PATH")
-            else "sclite"
-        )
+        if self.sctk_binary_path:
+            sclite_path = os.path.join(self.sctk_binary_path.get_path(), "sclite")
+        else:
+            sclite_path = (
+                os.path.join(gs.SCTK_PATH, "sclite")
+                if hasattr(gs, "SCTK_PATH")
+                else "sclite"
+            )
         output_dir = self.out_report_dir.get_path() if output_to_report_dir else "."
-        stm_file = tmp_stm_file if self.sort_files else tk.uncached_path(self.ref)
-        ctm_file = tmp_ctm_file if self.sort_files else tk.uncached_path(self.hyp)
+        stm_file = tmp_stm_file if self.sort_files else self.ref.get_path()
+        ctm_file = tmp_ctm_file if self.sort_files else self.hyp.get_path()
 
         args = [
             sclite_path,

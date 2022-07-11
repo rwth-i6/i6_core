@@ -97,7 +97,9 @@ class OptimizeAMandLMScaleJob(rasr.RasrCommand, Job):
                 )
 
             scorer_kwargs = dict(**self.scorer_kwargs)
-            scorer_kwargs[self.scorer_hyp_param_name] = os.path.abspath(ctm_file)
+            scorer_kwargs[self.scorer_hyp_param_name] = tk.Path(
+                os.path.abspath(ctm_file)
+            )
             scorer = self.scorer_cls(**scorer_kwargs)
             wer = scorer.calc_wer()
 
