@@ -194,16 +194,7 @@ class CorpusToStmJob(Job):
 
                 if self.exclude_non_speech:
                     for nst in self.non_speech_tokens:
-
-                        def replace_recursive(orthography, token):
-                            pos = orthography.find(f" {token} ")
-                            if pos == -1:
-                                return orthography
-                            else:
-                                orthography = orthography.replace(f" {token} ", " ")
-                                return replace_recursive(orthography, token)
-
-                        orth = replace_recursive(orth, nst)
+                        orth = orth.replace(f" {nst} ", " ")
 
                 if self.remove_punctuation:
                     for pt in self.punctuation_tokens:
