@@ -134,7 +134,9 @@ class CorpusToStmJob(Job):
         :param punctuation_tokens: defines list/string of punctuation tokens
         :param fix_whitespace: should white space be fixed
         :param name: new corpus name
-        :param tag_mapping:
+        :param tag_mapping: 3-string tuple contains ("short name", "long name", "description") of each tag.
+            and the Dict[int, tk.Path] is e.g. the output of a FilterSegments*Jobs
+            https://github.com/rwth-i6/i6_core/blob/f267011280fe60c8ae23929eb6db77019ac59a1e/corpus/filter.py#L40-L43
         """
         self.set_vis_name("Extract STM from Corpus")
 
