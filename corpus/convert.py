@@ -123,7 +123,7 @@ class CorpusToStmJob(Job):
         punctuation_tokens: Optional[Union[str, List[str]]] = None,
         fix_whitespace: bool = True,
         name: str = "",
-        tag_mapping: Union[Tuple[()], Tuple[str, Dict[str, str]]] = (),
+        tag_mapping: List[Tuple[Tuple[str, str, str], Dict[int, tk.Path]]] = (),
     ):
         """
 
