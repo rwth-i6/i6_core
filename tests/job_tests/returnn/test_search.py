@@ -1,5 +1,6 @@
 import os
 import tempfile
+import filecmp
 from sisyphus import setup_path
 
 from i6_core.returnn.search import SearchBPEtoWordsJob
@@ -43,3 +44,16 @@ def test_search_bpe_to_words_nbest():
             open(bpe_to_words_job.out_word_search_results.get_path(), "rt").read()
         )
         assert reference_dict == job_dict
+
+
+def test_corpus_replace_orth_from_reference():
+  from i6_core.corpus.convert import CorpusReplaceOrthFromReferenceCorpus
+  with tempfile.TemporaryDirectory() as tmpdir:
+    reference_corpus = Path("files/test_job.corpus.xml")
+    bliss_corpus_corrupt = Path("files/test_job.corrupt.corpus.xml")
+
+    replace_job = CorpusReplaceOrthFromReferenceCorpus(bliss_corpus=bliss_corpus_corrupt, reference_bliss_corpus=reference_corpus)
+    replace_job.out_corpus = Path(os.path.join(tmpdir, "replaced.corpus.xml"))
+    replace_job.run()
+
+    assert filecmp.cmp(replace_job.out_corpus, reference_corpus, shallow=False)
