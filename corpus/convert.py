@@ -117,6 +117,7 @@ class CorpusToStmJob(Job):
     def __init__(
         self,
         bliss_corpus: Path,
+        *,
         exclude_non_speech: bool = True,
         non_speech_tokens: Optional[List[str]] = None,
         remove_punctuation: bool = True,
