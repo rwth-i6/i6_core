@@ -193,7 +193,21 @@ class CorpusToStmJob(Job):
 
                 if self.exclude_non_speech:
                     for nst in self.non_speech_tokens:
-                        orth = orth.replace(f" {nst} ", " ")
+
+                        def replace_recursive(orthography, token):
+                            """
+                            recursion is required to find repeated tokens
+                            string.replace is not sufficient
+                            some other solution might also work
+                            """
+                            pos = orthography.find(f" {token} ")
+                            if pos == -1:
+                                return orthography
+                            else:
+                                orthography = orthography.replace(f" {token} ", " ")
+                                return replace_recursive(orthography, token)
+
+                        orth = replace_recursive(orth, nst)
 
                 if self.remove_punctuation:
                     for pt in self.punctuation_tokens:
