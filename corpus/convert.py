@@ -50,7 +50,7 @@ class CorpusReplaceOrthFromReferenceCorpus(Job):
         c.load(self.bliss_corpus.get_path())
 
         for s in c.segments():
-            tag in s.fullname()
+            tag = s.fullname()
             assert tag in orths.keys(), "Segment %s not found in reference corpus" % tag
             s.orth = orths[tag]
 
