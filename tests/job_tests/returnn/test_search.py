@@ -1,6 +1,5 @@
 import os
 import tempfile
-
 from sisyphus import setup_path
 
 from i6_core.returnn.search import SearchBPEtoWordsJob
