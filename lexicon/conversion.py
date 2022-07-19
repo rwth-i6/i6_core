@@ -70,7 +70,7 @@ class FilterLexiconByWordListJob(Job):
         for lemma in old_lexicon.findall("lemma"):
             if any(
                 transform(orth.text) in words
-                or lemma.findall("special") is not None
+                or "special" in lemma.attrib
                 or (orth.text is not None and orth.text.startswith("["))
                 for orth in lemma.findall("orth")
             ):
