@@ -12,7 +12,7 @@ import subprocess as sp
 import tempfile
 import collections
 import re
-from typing import List, Optional, Union
+from typing import List, Optional
 
 from sisyphus import *
 from i6_core.lib.corpus import *
