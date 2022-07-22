@@ -211,6 +211,12 @@ class Hub5ScoreJob(Job):
         hyp: tk.Path,
         sctk_binary_path: Optional[tk.Path] = None,
     ):
+        """
+        :param ref: reference stm text file
+        :param glm: text file containing mapping rules for scoring
+        :param hyp: hypothesis ctm text file
+        :param sctk_binary_path: set an explicit binary path.
+        """
         self.set_vis_name("HubScore")
 
         self.glm = glm
