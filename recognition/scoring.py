@@ -263,20 +263,20 @@ class Hub5ScoreJob(Job):
 
         ref = self.ref
         try:
-            ref = shutil.copy(tk.uncached_path(ref), ".")
+            ref = shutil.copy(ref.get_path(), ".")
         except shutil.SameFileError:
             pass
 
         hyp = self.hyp
         try:
-            hyp = shutil.copy(tk.uncached_path(hyp), ".")
+            hyp = shutil.copy(hyp.get_path(), ".")
         except shutil.SameFileError:
             pass
 
         sp.check_call(
             [hubscr_path, "-V", "-l", "english", "-h", "hub5"]
             + sctk_opt
-            + ["-g", tk.uncached_path(self.glm), "-r", ref, hyp]
+            + ["-g", self.glm.get_path(), "-r", ref, hyp]
         )
 
         if move_files:  # run as real job
