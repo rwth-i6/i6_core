@@ -206,9 +206,9 @@ class Hub5ScoreJob(Job):
 
     def __init__(
         self,
-        ref: Union[tk.Path, str],
-        glm: Union[tk.Path, str],
-        hyp: Union[tk.Path, str],
+        ref: tk.Path,
+        glm: tk.Path,
+        hyp: tk.Path,
         sctk_binary_path: Optional[tk.Path] = None,
     ):
         self.set_vis_name("HubScore")
