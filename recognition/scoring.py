@@ -203,6 +203,7 @@ class ScliteJob(Job):
 
 class Hub5ScoreJob(Job):
     __sis_hash_exclude__ = {"sctk_binary_path": None}
+
     def __init__(
         self,
         ref: Union[tk.Path, str],
@@ -243,13 +244,14 @@ class Hub5ScoreJob(Job):
         yield Task("run", mini_task=True)
 
     def run(self, move_files=True):
-
         sctk_path = ""
         if self.sctk_binary_path is not None:
             sctk_path = self.sctk_binary_path.get_path()
         elif hasattr(gs, "SCTK_PATH"):
             sctk_path = gs.SCTK_PATH
-        hubscr_path = os.path.join(sctk_path, "hubscr.pl") # evaluates to just "hubscr.pl" if sctk_path is empty
+        hubscr_path = os.path.join(
+            sctk_path, "hubscr.pl"
+        )  # evaluates to just "hubscr.pl" if sctk_path is empty
 
         sctk_opt = ["-p", sctk_path] if sctk_path else []
 
