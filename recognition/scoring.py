@@ -12,7 +12,7 @@ import subprocess as sp
 import tempfile
 import collections
 import re
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from sisyphus import *
 from i6_core.lib.corpus import *
@@ -202,12 +202,20 @@ class ScliteJob(Job):
 
 
 class Hub5ScoreJob(Job):
-    def __init__(self, ref, glm, hyp):
+    __sis_hash_exclude__ = {"sctk_binary_path": None}
+    def __init__(
+        self,
+        ref: Union[tk.Path, str],
+        glm: Union[tk.Path, str],
+        hyp: Union[tk.Path, str],
+        sctk_binary_path: Optional[tk.Path] = None,
+    ):
         self.set_vis_name("HubScore")
 
         self.glm = glm
         self.hyp = hyp
         self.ref = ref
+        self.sctk_binary_path = sctk_binary_path
 
         self.out_report_dir = self.output_path("reports", True)
 
@@ -235,12 +243,15 @@ class Hub5ScoreJob(Job):
         yield Task("run", mini_task=True)
 
     def run(self, move_files=True):
-        hubscr_path = (
-            os.path.join(gs.SCTK_PATH, "hubscr.pl")
-            if hasattr(gs, "SCTK_PATH")
-            else "hubscr.pl"
-        )
-        sctk_opt = ["-p", gs.SCTK_PATH] if hasattr(gs, "SCTK_PATH") else []
+
+        sctk_path = ""
+        if self.sctk_binary_path is not None:
+            sctk_path = self.sctk_binary_path.get_path()
+        elif hasattr(gs, "SCTK_PATH"):
+            sctk_path = gs.SCTK_PATH
+        hubscr_path = os.path.join(sctk_path, "hubscr.pl") # evaluates to just "hubscr.pl" if sctk_path is empty
+
+        sctk_opt = ["-p", sctk_path] if sctk_path else []
 
         ref = self.ref
         try:
