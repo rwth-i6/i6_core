@@ -1,4 +1,11 @@
-__all__ = ["PipelineJob", "ConcatenateJob", "HeadJob", "TailJob", "SetDifferenceJob"]
+__all__ = [
+    "PipelineJob",
+    "ConcatenateJob",
+    "HeadJob",
+    "TailJob",
+    "SetDifferenceJob",
+    "WriteToFileJob",
+]
 
 import os
 from sisyphus import Job, Task, Path, global_settings as gs
@@ -256,3 +263,28 @@ class SetDifferenceJob(Job):
             file_set2 = set(fin.read().split("\n"))
         with util.uopen(self.out_file, "wt") as fout:
             fout.write("\n".join(sorted(file_set1.difference(file_set2))))
+
+
+class WriteToFileJob(Job):
+    """
+    Write a given list[str] into a text file, one entry per line
+    """
+
+    def __init__(
+        self,
+        list_to_dump,
+    ):
+        """
+        :param list[str] list_to_dump: input list of str which will be written into a text file
+        """
+        self.list_to_dump = list_to_dump
+
+        self.out_list = self.output_path("list.txt")
+
+    def tasks(self):
+        yield Task("run", mini_task=True)
+
+    def run(self):
+        with open(self.out_list.get_path(), "w") as f:
+            for line in self.list_to_dump:
+                f.write(line + "\n")
