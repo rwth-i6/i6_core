@@ -1,5 +1,5 @@
 import pickle
-from typing import Iterable, Optional, Union
+from typing import Set, Optional, Union
 
 from sisyphus import Job, Task, tk
 
@@ -27,11 +27,11 @@ class ReturnnVocabFromPhonemeInventory(Job):
     def __init__(
         self,
         bliss_lexicon: tk.Path,
-        blacklist: Optional[Union[Iterable, tk.Path]] = None,
+        blacklist: Optional[Union[Set, tk.Path]] = None,
     ):
         """
         :param bliss_lexicon: a bliss lexicon xml file containg a phoneme inventory
-        :param blacklist: Exclude phonemes in blacklist from vocab
+        :param blacklist: Exclude phonemes in blacklist from vocab, one phoneme per line if as file.
         """
         self.bliss_lexicon = bliss_lexicon
         self.blacklist = blacklist
