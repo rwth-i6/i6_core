@@ -5,10 +5,11 @@ from sisyphus import *
 import os
 import shutil
 import subprocess
+from typing import Any, Dict, List
 
 import numpy
 
-from i6_core.returnn.config import ReturnnConfig
+from i6_core.returnn import ReturnnConfig, ReturnnForwardJob, Checkpoint
 from i6_core.util import create_executable
 
 
@@ -90,3 +91,35 @@ class ExtractDatasetMeanStddevJob(Job):
 
             self.out_mean.set(total_mean)
             self.out_std_dev.set(numpy.sqrt(total_var))
+
+
+def get_returnn_length_hdfs(
+    dataset_dict: Dict[str, Any],
+    data_dim: int,
+    dataset_keys: List,
+    returnn_exe: tk.Path,
+    returnn_root: tk.Path,
+):
+    post_config = {"use_tensorflow": True}
+    config = {
+        "eval": dataset_dict,
+        "network": {
+            "output": {"class": "length", "axis": "T", "from": f"data:{dataset_keys[0]}"},
+            f"length_{idx}": {"class": "length", "axis": "T", "from": f"data:{key}"} for idx, key in enumerate(dataset_keys)
+            f"dump_{idx}": {"class": "hdf_dump", "filename": f"{key}.hdf", "from": f"length_data_{idx}"} for idx, key in enumerate(dataset_keys)
+        },
+        "extern_data": {data_key: {"available_for_inference": True, "dim": data_dim, "shape": (None, data_dim)}}
+    }
+    for idx, key in enumerate(dataset_keys):
+        config["network"][f"length_{idx}"] = {"class": "length", "axis": "T", "from": f"data:{key}"}
+        config["network"][f"dump_{idx}"] = {"class": "hdf_dump", "filename": f"{key}.hdf", "from": f"length_data_{idx}"}
+
+    config = ReturnnConfig(config=config, post_config=post_config)
+    forward_job = ReturnnForwardJob(
+        model_checkpoint=None,
+        returnn_config=config,
+        returnn_python_exe=returnn_exe,
+        returnn_root=returnn_root,
+        hdf_outputs=dataset_keys,
+    )
+    return forward_job.out_hdf_files
