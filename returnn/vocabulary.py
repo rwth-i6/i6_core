@@ -1,5 +1,5 @@
 import pickle
-from typing import Iterable, Optional
+from typing import Iterable, Optional, Union
 
 from sisyphus import Job, Task, tk
 
@@ -24,7 +24,7 @@ class ReturnnVocabFromPhonemeInventory(Job):
 
     __sis_hash_exclude__ = {"blacklist": None}
 
-    def __init__(self, bliss_lexicon: tk.Path, blacklist: Optional[Iterable] = None):
+    def __init__(self, bliss_lexicon: tk.Path, blacklist: Optional[Union[Iterable, tk.Path]] = None):
         """
         :param bliss_lexicon: a bliss lexicon xml file containg a phoneme inventory
         :param blacklist: Exclude phonemes in blacklist from vocab
@@ -41,9 +41,12 @@ class ReturnnVocabFromPhonemeInventory(Job):
     def run(self):
         lex = lexicon.Lexicon()
         lex.load(self.bliss_lexicon.get_path())
-
+        if isinstance(self.blacklist, tk.Path):
+            blacklist = uopen(self.blacklist.get_path())
+        else:
+            blacklist = self.blacklist
         vocab = {
-            k: v for v, k in enumerate(lex.phonemes.keys()) if k not in (self.blacklist or [])
+            k: v for v, k in enumerate(lex.phonemes.keys()) if k not in (blacklist or [])
         }
         pickle.dump(vocab, uopen(self.out_vocab, "wb"))
 

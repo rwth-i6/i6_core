@@ -45,3 +45,22 @@ def test_returnn_vocab_from_phoneme_inventory_blacklist():
       vocab = pkl.load(f)
     assert reference_vocab == vocab
     assert vocab_job.out_vocab_size.get() == 43
+
+
+def test_returnn_vocab_from_phoneme_inventory_blacklist():
+
+  with tempfile.TemporaryDirectory() as tmpdir:
+    lexicon = Path("files/test_lexicon.xml.gz")
+
+    vocab_job = ReturnnVocabFromPhonemeInventory(bliss_lexicon=lexicon, blacklist={"[SILENCE]"})
+    vocab_job.out_vocab = Path(os.path.join(tmpdir, "vocab.pkl"))
+    vocab_job.out_vocab_size = tk.Variable(os.path.join(tmpdir, "vocab_size"))
+    vocab_job.run()
+
+    vocab_path = Path("files/blacklist_vocab.pkl")
+    with open(vocab_path.get_path(), "rb") as f:
+      reference_vocab = pkl.load(f)
+    with open(os.path.join(tmpdir, "vocab.pkl"), "rb") as f:
+      vocab = pkl.load(f)
+    assert reference_vocab == vocab
+    assert vocab_job.out_vocab_size.get() == 43
