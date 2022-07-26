@@ -221,8 +221,8 @@ class CorpusToStmJob(Job):
             for tag in all_tags:
                 out.write(';; LABEL "%s" "%s" "%s"\n' % tag)
 
-    @staticmethod
-    def replace_recursive(orthography, token):
+    @classmethod
+    def replace_recursive(cls, orthography, token):
         """
         recursion is required to find repeated tokens
         string.replace is not sufficient
@@ -233,7 +233,7 @@ class CorpusToStmJob(Job):
             return orthography
         else:
             orthography = orthography.replace(f" {token} ", " ")
-            return replace_recursive(orthography, token)
+            return cls.replace_recursive(orthography, token)
 
 
 class CorpusToTextDictJob(Job):
