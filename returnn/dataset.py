@@ -148,7 +148,7 @@ def get_returnn_length_hdfs(
     if job_alias is not None:
         forward_job.add_alias(job_alias)
     # remove .hdf extension and map default output to first dataset key
-    hdf_dict = {k[:-4]: v for k, v in forward_job.out_hdf_files}
+    hdf_dict = {k[:-4]: v for k, v in forward_job.out_hdf_files.items()}
     hdf_dict[dataset_keys[0]] = hdf_dict["output"]
     del hdf_dict["output"]
     return hdf_dict
