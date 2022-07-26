@@ -133,7 +133,7 @@ class CorpusToStmJob(Job):
         :param non_speech_tokens: defines the list of non speech tokens
         :param remove_punctuation: should punctuation be removed
         :param punctuation_tokens: defines list/string of punctuation tokens
-        :param fix_whitespace: should white space be fixed
+        :param fix_whitespace: should white space be fixed. !!!be aware that the corpus loading already fixes white space!!!
         :param name: new corpus name
         :param tag_mapping: 3-string tuple contains ("short name", "long name", "description") of each tag.
             and the Dict[int, tk.Path] is e.g. the out_single_segment_files of a FilterSegments*Jobs
