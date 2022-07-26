@@ -4,7 +4,7 @@ __all__ = [
     "HeadJob",
     "TailJob",
     "SetDifferenceJob",
-    "WriteToFileJob",
+    "WriteToTextFileJob",
 ]
 
 import os
@@ -265,26 +265,26 @@ class SetDifferenceJob(Job):
             fout.write("\n".join(sorted(file_set1.difference(file_set2))))
 
 
-class WriteToFileJob(Job):
+class WriteToTextFileJob(Job):
     """
-    Write a given list[str] into a text file, one entry per line
+    Write a given content into a text file, one entry per line
     """
 
     def __init__(
         self,
-        list_to_dump,
+        content,
     ):
         """
-        :param list[str] list_to_dump: input list of str which will be written into a text file
+        :param list|str content: input which will be written into a text file
         """
-        self.list_to_dump = list_to_dump
+        self.content = content
 
-        self.out_list = self.output_path("list.txt")
+        self.out_file = self.output_path("file.txt")
 
     def tasks(self):
         yield Task("run", mini_task=True)
 
     def run(self):
-        with open(self.out_list.get_path(), "w") as f:
-            for line in self.list_to_dump:
+        with open(self.out_file.get_path(), "w") as f:
+            for line in self.content:
                 f.write(line + "\n")
