@@ -194,8 +194,7 @@ class CorpusToStmJob(Job):
 
                 if self.exclude_non_speech:
                     for nst in self.non_speech_tokens:
-
-                        orth = replace_recursive(orth, nst)
+                        orth = self.replace_recursive(orth, nst)
 
                 if self.remove_punctuation:
                     for pt in self.punctuation_tokens:
