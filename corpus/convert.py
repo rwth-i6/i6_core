@@ -9,6 +9,9 @@ __all__ = [
 import gzip
 import itertools
 import pprint
+import re
+
+from typing import Dict, List, Optional, Tuple, Union
 
 from sisyphus import *
 
@@ -109,29 +112,43 @@ class CorpusToStmJob(Job):
     Convert a Bliss corpus into a .stm file
     """
 
+    __sis_hash_exclude__ = {"non_speech_tokens": None, "punctuation_tokens": None}
+
     def __init__(
         self,
-        bliss_corpus,
-        exclude_non_speech=True,
-        remove_punctuation=True,
-        fix_whitespace=True,
-        name="",
-        tag_mapping=(),
+        bliss_corpus: Path,
+        *,
+        exclude_non_speech: bool = True,
+        non_speech_tokens: Optional[List[str]] = None,
+        remove_punctuation: bool = True,
+        punctuation_tokens: Optional[Union[str, List[str]]] = None,
+        fix_whitespace: bool = True,
+        name: str = "",
+        tag_mapping: List[Tuple[Tuple[str, str, str], Dict[int, tk.Path]]] = (),
     ):
         """
 
-        :param Path bliss_corpus: Bliss corpus
-        :param bool exclude_non_speech:
-        :param bool remove_punctuation:
-        :param bool fix_whitespace:
-        :param str name:
-        :param tuple[str, dict[str, str]] tag_mapping:
+        :param bliss_corpus: Path to Bliss corpus
+        :param exclude_non_speech: non speech tokens should be removed
+        :param non_speech_tokens: defines the list of non speech tokens
+        :param remove_punctuation: should punctuation be removed
+        :param punctuation_tokens: defines list/string of punctuation tokens
+        :param fix_whitespace: should white space be fixed. !!!be aware that the corpus loading already fixes white space!!!
+        :param name: new corpus name
+        :param tag_mapping: 3-string tuple contains ("short name", "long name", "description") of each tag.
+            and the Dict[int, tk.Path] is e.g. the out_single_segment_files of a FilterSegments*Jobs
         """
         self.set_vis_name("Extract STM from Corpus")
 
         self.bliss_corpus = bliss_corpus
         self.exclude_non_speech = exclude_non_speech
+        self.non_speech_tokens = (
+            non_speech_tokens if non_speech_tokens is not None else []
+        )
         self.remove_punctuation = remove_punctuation
+        self.punctuation_tokens = (
+            punctuation_tokens if punctuation_tokens is not None else []
+        )
         self.fix_whitespace = fix_whitespace
         self.tag_mapping = tag_mapping
         self.name = name
@@ -172,6 +189,22 @@ class CorpusToStmJob(Job):
                     else segment.recording.name
                 )
                 segment_track = segment.track + 1 if segment.track else 1
+
+                orth = f" {segment.orth.strip()} "
+
+                if self.exclude_non_speech:
+                    for nst in self.non_speech_tokens:
+                        orth = self.replace_recursive(orth, nst)
+
+                if self.remove_punctuation:
+                    for pt in self.punctuation_tokens:
+                        orth = orth.replace(pt, "")
+
+                if self.fix_whitespace:
+                    orth = re.sub(" +", " ", orth)
+
+                orth = orth.strip()
+
                 out.write(
                     "%s %d %s %5.2f %5.2f <%s> %s\n"
                     % (
@@ -181,11 +214,25 @@ class CorpusToStmJob(Job):
                         segment.start,
                         segment.end,
                         ",".join(tag_map[segment.fullname()]),
-                        segment.orth,
+                        orth,
                     )
                 )
             for tag in all_tags:
                 out.write(';; LABEL "%s" "%s" "%s"\n' % tag)
+
+    @classmethod
+    def replace_recursive(cls, orthography, token):
+        """
+        recursion is required to find repeated tokens
+        string.replace is not sufficient
+        some other solution might also work
+        """
+        pos = orthography.find(f" {token} ")
+        if pos == -1:
+            return orthography
+        else:
+            orthography = orthography.replace(f" {token} ", " ")
+            return cls.replace_recursive(orthography, token)
 
 
 class CorpusToTextDictJob(Job):
