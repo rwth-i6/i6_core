@@ -95,7 +95,7 @@ def test_corpus_to_stm_whitespace():
 def test_corpus_to_stm_none():
     with tempfile.TemporaryDirectory() as tmpdir:
         bliss_corpus = Path("files/test_job.corpus.xml")
-        stm_ref = Path("files/test_job.non_speech.corpus.stm")
+        stm_ref = Path("files/test_job.none.corpus.stm")
 
         bliss_to_stm_job = CorpusToStmJob(
             bliss_corpus=bliss_corpus,
