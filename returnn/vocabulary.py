@@ -43,7 +43,7 @@ class ReturnnVocabFromPhonemeInventory(Job):
         lex.load(self.bliss_lexicon.get_path())
 
         vocab = {
-            k: v for v, k in enumerate(lex.phonemes.keys()) if k not in self.blacklist
+            k: v for v, k in enumerate(lex.phonemes.keys()) if k not in (self.blacklist or [])
         }
         pickle.dump(vocab, uopen(self.out_vocab, "wb"))
 
