@@ -1,4 +1,5 @@
 import pickle
+from typing import Iterable, Optional
 
 from sisyphus import Job, Task, tk
 
@@ -21,11 +22,15 @@ class ReturnnVocabFromPhonemeInventory(Job):
     tk.Variable out_vocab_size: integer variable containing the vocabulary size (``vocab_size``)
     """
 
-    def __init__(self, bliss_lexicon: tk.Path):
+    __sis_hash_exclude__ = {"blacklist": None}
+
+    def __init__(self, bliss_lexicon: tk.Path, blacklist: Optional[Iterable] = None):
         """
         :param bliss_lexicon: a bliss lexicon xml file containg a phoneme inventory
+        :param blacklist: Exclude phonemes in blacklist from vocab
         """
         self.bliss_lexicon = bliss_lexicon
+        self.blacklist = blacklist
 
         self.out_vocab = self.output_path("vocab.pkl")
         self.out_vocab_size = self.output_var("vocab_size")
@@ -37,7 +42,9 @@ class ReturnnVocabFromPhonemeInventory(Job):
         lex = lexicon.Lexicon()
         lex.load(self.bliss_lexicon.get_path())
 
-        vocab = {k: v for v, k in enumerate(lex.phonemes.keys())}
+        vocab = {
+            k: v for v, k in enumerate(lex.phonemes.keys()) if k not in self.blacklist
+        }
         pickle.dump(vocab, uopen(self.out_vocab, "wb"))
 
-        self.out_vocab_size.set(len(lex.phonemes))
+        self.out_vocab_size.set(len(vocab))
