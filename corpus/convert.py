@@ -195,19 +195,6 @@ class CorpusToStmJob(Job):
                 if self.exclude_non_speech:
                     for nst in self.non_speech_tokens:
 
-                        def replace_recursive(orthography, token):
-                            """
-                            recursion is required to find repeated tokens
-                            string.replace is not sufficient
-                            some other solution might also work
-                            """
-                            pos = orthography.find(f" {token} ")
-                            if pos == -1:
-                                return orthography
-                            else:
-                                orthography = orthography.replace(f" {token} ", " ")
-                                return replace_recursive(orthography, token)
-
                         orth = replace_recursive(orth, nst)
 
                 if self.remove_punctuation:
@@ -233,6 +220,20 @@ class CorpusToStmJob(Job):
                 )
             for tag in all_tags:
                 out.write(';; LABEL "%s" "%s" "%s"\n' % tag)
+
+    @staticmethod
+    def replace_recursive(orthography, token):
+        """
+        recursion is required to find repeated tokens
+        string.replace is not sufficient
+        some other solution might also work
+        """
+        pos = orthography.find(f" {token} ")
+        if pos == -1:
+            return orthography
+        else:
+            orthography = orthography.replace(f" {token} ", " ")
+            return replace_recursive(orthography, token)
 
 
 class CorpusToTextDictJob(Job):
