@@ -149,7 +149,7 @@ def get_returnn_length_hdfs(
         returnn_root=returnn_root,
         hdf_outputs=hdf_outputs,
         mem_rqmt=mem_rqmt,
-        time_rqmt=time_rqmt
+        time_rqmt=time_rqmt,
     )
     if job_alias is not None:
         forward_job.add_alias(job_alias)
