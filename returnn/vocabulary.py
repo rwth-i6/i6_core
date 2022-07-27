@@ -47,7 +47,7 @@ class ReturnnVocabFromPhonemeInventory(Job):
         lex.load(self.bliss_lexicon.get_path())
         if isinstance(self.blacklist, tk.Path):
             blacklist = uopen(self.blacklist.get_path()).readlines()
-            blacklist = [phoneme.strip() for phoneme in blacklist]
+            blacklist = {phoneme.strip() for phoneme in blacklist}
         elif isinstance(self.blacklist, Set):
             blacklist = self.blacklist
         else:
