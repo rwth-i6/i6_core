@@ -100,6 +100,8 @@ def get_returnn_length_hdfs(
     returnn_exe: tk.Path,
     returnn_root: tk.Path,
     job_alias: Optional[str] = None,
+    mem_rqmt: float = 4,
+    time_rqmt: float = 4,
 ) -> Dict[str, tk.Path]:
     """
     Uses returnn to extract the length of sequences in the datasets after feature extraction, returns a separate hdf
@@ -110,6 +112,8 @@ def get_returnn_length_hdfs(
     :param returnn_exe:
     :param returnn_root:
     :param job_alias: full alias of the forward job
+    :param mem_rqmt: job memory requirement in GB
+    :param time_rqmt: job time requirement in hours
     :return:
     """
     post_config = {"use_tensorflow": True}
@@ -144,6 +148,8 @@ def get_returnn_length_hdfs(
         returnn_python_exe=returnn_exe,
         returnn_root=returnn_root,
         hdf_outputs=hdf_outputs,
+        mem_rqmt=mem_rqmt,
+        time_rqmt=time_rqmt
     )
     if job_alias is not None:
         forward_job.add_alias(job_alias)
