@@ -127,6 +127,7 @@ def get_returnn_length_hdfs(
             },
         },
         "extern_data": extern_data,
+        "max_seqs": 50
     }
     for idx, key in enumerate(dataset_keys[1:]):
         config["network"][f"length_{idx}"] = {
