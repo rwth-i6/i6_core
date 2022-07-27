@@ -8,6 +8,8 @@ __all__ = [
 ]
 
 import os
+from collections.abc import Iterable
+
 from sisyphus import Job, Task, Path, global_settings as gs
 from sisyphus.delayed_ops import DelayedBase
 
@@ -275,7 +277,7 @@ class WriteToTextFileJob(Job):
         content,
     ):
         """
-        :param list|str content: input which will be written into a text file
+        :param list|dict|str content: input which will be written into a text file
         """
         self.content = content
 
@@ -286,5 +288,13 @@ class WriteToTextFileJob(Job):
 
     def run(self):
         with open(self.out_file.get_path(), "w") as f:
-            for line in self.content:
-                f.write(line + "\n")
+            if isinstance(self.content, str):
+                f.write(self.content)
+            elif isinstance(self.content, dict):
+                for key, val in self.content.items():
+                    f.write(f"{key}: {val}\n")
+            elif isinstance(self.content, Iterable):
+                for line in self.content:
+                    f.write(f"{line}\n")
+            else:
+                raise NotImplementedError
