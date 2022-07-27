@@ -51,7 +51,7 @@ class ReturnnVocabFromPhonemeInventory(Job):
         elif isinstance(self.blacklist, Set):
             blacklist = self.blacklist
         else:
-            blacklist = []
+            blacklist = set()
         vocab = {k: v for v, k in enumerate(lex.phonemes.keys()) if k not in blacklist}
         pickle.dump(vocab, uopen(self.out_vocab, "wb"))
 
