@@ -1,4 +1,4 @@
-__all__ = ["ExtractDatasetMeanStddevJob"]
+__all__ = ["ExtractDatasetMeanStddevJob", "get_returnn_length_hdfs"]
 
 from sisyphus import *
 
@@ -127,7 +127,7 @@ def get_returnn_length_hdfs(
             },
         },
         "extern_data": extern_data,
-        "max_seqs": 50
+        "max_seqs": 50,
     }
     for idx, key in enumerate(dataset_keys[1:]):
         config["network"][f"length_{idx}"] = {
@@ -141,7 +141,7 @@ def get_returnn_length_hdfs(
             "from": f"length_data_{idx}",
         }
 
-    hdf_outputs = [k + ".hdf" for k in dataset_keys]
+    hdf_outputs = [k + ".hdf" for k in dataset_keys[1:]]
     config = ReturnnConfig(config=config, post_config=post_config)
     forward_job = ReturnnForwardJob(
         model_checkpoint=None,
