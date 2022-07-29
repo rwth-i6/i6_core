@@ -140,7 +140,7 @@ def crp_add_default_output(
 def crp_set_corpus(crp, corpus):
     """
     :param CommonRasrParameters crp:
-    :param meta.Corpus corpus: object with corpus_file, audio_dir, audio_format, duration
+    :param meta.CorpusObject corpus: object with corpus_file, audio_dir, audio_format, duration
     """
     config = RasrConfig()
     config.file = corpus.corpus_file
