@@ -80,10 +80,15 @@ class CompileTFGraphJob(Job):
             yield Task("run", resume="run", mini_task=True)
 
     def run(self):
-        returnn_config_path = self.returnn_config
-        if isinstance(self.returnn_config, ReturnnConfig):
+        if isinstance(self.returnn_config, tk.Path):
+            returnn_config_path = self.returnn_config.get_path()
+
+        elif isinstance(self.returnn_config, ReturnnConfig):
             returnn_config_path = "returnn.config"
             self.returnn_config.write(returnn_config_path)
+
+        else:
+            returnn_config_path = self.returnn_config
 
         args = [
             tk.uncached_path(self.returnn_python_exe),
