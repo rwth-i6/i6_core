@@ -42,12 +42,26 @@ class LexiconToWordListJob(Job):
 
 
 class FilterLexiconByWordListJob(Job):
-    def __init__(self, bliss_lexicon, word_list, case_sensitive=False):
+    """
+    Filter lemmata to given word list.
+    Warning: case_sensitive parameter does the opposite. Kept for backwards-compatibility.
+    """
+
+    def __init__(
+        self, bliss_lexicon, word_list, case_sensitive=False, check_synt_tok=False
+    ):
+        """
+        :param tk.Path bliss_lexicon: lexicon file to be handeled
+        :param tk.Path word_list: filter lexicon by this word list
+        :param bool case_sensitive: filter lemmata case-sensitive. Warning: parameter does the opposite.
+        :param bool check_synt_tok: keep also lemmata where the syntactic token matches word_list
+        """
         self.set_vis_name("Filter Lexicon by Word List")
 
         self.bliss_lexicon = bliss_lexicon
         self.word_list = word_list
         self.case_sensitive = case_sensitive
+        self.check_synt_tok = check_synt_tok
 
         self.out_bliss_lexicon = self.output_path(
             os.path.basename(tk.uncached_path(bliss_lexicon)), cached=True
@@ -72,6 +86,10 @@ class FilterLexiconByWordListJob(Job):
                 transform(orth.text) in words
                 or "special" in lemma.attrib
                 or (orth.text is not None and orth.text.startswith("["))
+                or (
+                    self.check_synt_tok
+                    and transform(lemma.find("./synt/tok").text) in words
+                )
                 for orth in lemma.findall("orth")
             ):
                 root.append(lemma)
