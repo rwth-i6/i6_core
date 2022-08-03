@@ -47,6 +47,8 @@ class FilterLexiconByWordListJob(Job):
     Warning: case_sensitive parameter does the opposite. Kept for backwards-compatibility.
     """
 
+    __sis_hash_exclude__ = {"check_synt_tok": False}
+
     def __init__(
         self, bliss_lexicon, word_list, case_sensitive=False, check_synt_tok=False
     ):
@@ -86,11 +88,15 @@ class FilterLexiconByWordListJob(Job):
                 transform(orth.text) in words
                 or "special" in lemma.attrib
                 or (orth.text is not None and orth.text.startswith("["))
-                or (
-                    self.check_synt_tok
-                    and transform(lemma.find("./synt/tok").text) in words
-                )
                 for orth in lemma.findall("orth")
+            ) or (
+                self.check_synt_tok
+                and all(
+                    [
+                        transform(tok.text) in words
+                        for tok in lemma.findall("./synt/tok")
+                    ]
+                )
             ):
                 root.append(lemma)
 
