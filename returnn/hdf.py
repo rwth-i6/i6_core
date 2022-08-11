@@ -89,11 +89,11 @@ class ReturnnDumpHDFJob(Job):
             tmp_hdf_file,
         ]
         if self.start_seq is not None:
-            args.append(f"--start_seq {self.start_seq}")
+            args += ["--start_seq", f"{self.start_seq}"]
         if self.end_seq is not None:
-            args.append(f"--end_seq {self.end_seq}")
+            args += ["--end_seq", f"{self.end_seq}"]
         if self.epoch is not None:
-            args.append(f"--epoch {self.epoch}")
+            args += ["--epoch", f"{self.epoch}"]
 
         sp.check_call(args)
         shutil.move(tmp_hdf_file, self.out_hdf.get_path())
