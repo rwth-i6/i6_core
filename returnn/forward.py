@@ -48,7 +48,7 @@ class ReturnnForwardJob(Job):
         """
 
         :param model_checkpoint: Checkpoint object pointing to a stored RETURNN Tensorflow model or None if network has
-          no parameters
+          no parameters or should be randomly initialized
         :param returnn_config: RETURNN config object
         :param returnn_python_exe: path to the RETURNN executable (python binary or launch script)
         :param returnn_root: path to the RETURNN src folder
