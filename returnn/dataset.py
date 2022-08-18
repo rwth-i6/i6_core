@@ -8,7 +8,7 @@ import subprocess
 
 import numpy
 
-from i6_core.returnn import ReturnnConfig
+from i6_core.returnn.config import ReturnnConfig
 from i6_core.util import create_executable
 
 
