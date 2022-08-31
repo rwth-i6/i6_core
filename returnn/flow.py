@@ -1,5 +1,6 @@
 from sisyphus import tk
-from typing import Optional, List
+from sisyphus.delayed_ops import DelayedJoin
+from typing import Optional, List, Union
 
 from i6_core import rasr
 from i6_core.returnn.training import Checkpoint
@@ -83,7 +84,10 @@ def make_precomputed_hybrid_tf_feature_flow(
     tf_flow.config[tf_fwd].loader.meta_graph_file = tf_graph
     tf_flow.config[tf_fwd].loader.saved_model_file = tf_checkpoint
     if native_ops is not None:
-        tf_flow.config[tf_fwd].loader.required_libraries = native_ops
+        if isinstance(native_ops, list):
+            tf_flow.config[tf_fwd].loader.required_libraries = DelayedJoin(native_ops, ";")
+        else:
+            tf_flow.config[tf_fwd].loader.required_libraries = native_ops
 
     return tf_flow
 
