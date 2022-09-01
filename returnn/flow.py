@@ -20,6 +20,7 @@ def make_precomputed_hybrid_tf_feature_flow(
 
     The resulting flow is a trivial:
 
+        <link from="<tf_fwd_input_name>" to="tf-fwd:input"/>
         <node name="tf-fwd" id="$(id)" filter="tensorflow-forward"/>
         <link from="tf-fwd:log-posteriors" to="network:features"/>
 
@@ -47,7 +48,7 @@ def make_precomputed_hybrid_tf_feature_flow(
     :param feature_tensor_name: name of the extern data ebtry to feed the features to
     :param output_tensor_name: the name of the output tensor, it is expected that "<name>/output_batch_major" exists
     :param native_ops: list of native op ".so" files to link
-    :param tf_fwd_input_name: Naming for the tf network input, usually no need to be changed
+    :param tf_fwd_input_name: naming for the tf network input, usually no need to be changed
     :return: tensorflow-forward node flow with output link and related config
     """
 
@@ -91,9 +92,9 @@ def add_tf_flow_to_base_flow(
     base_flow: rasr.FlowNetwork,
     tf_flow: rasr.FlowNetwork,
     tf_fwd_input_name: str = "tf-fwd-input",
-):
+) -> rasr.FlowNetwork:
     """
-    Integrate tf-fwd node into the regular flow network, passing the features into the input of the tf-flow net
+    Integrate tf-fwd node into the regular flow network, passing the features into the input of the tf-flow net.
 
     :param FlowNetwork base_flow:
     :param FlowNetwork tf_flow:
