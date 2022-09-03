@@ -157,8 +157,8 @@ class ReturnnComputePriorJobV2(Job):
 
         # check here if model actually exists
         assert os.path.exists(
-            tk.uncached_path(self.model_checkpoint.index_path)
-        ), "Provided model does not exists: %s" % str(self.model_checkpoint)
+            self.model_checkpoint.index_path.get_path()
+        ), "Provided model does not exists: %s" % self.model_checkpoint
 
     def run(self):
         cmd = self._get_run_cmd()
@@ -193,8 +193,8 @@ class ReturnnComputePriorJobV2(Job):
 
     def _get_run_cmd(self):
         return [
-            tk.uncached_path(self.returnn_python_exe),
-            os.path.join(tk.uncached_path(self.returnn_root), "rnn.py"),
+            self.returnn_python_exe.get_path(),
+            self.returnn_root.join_right("rnn.py"),
             self.out_returnn_config_file.get_path(),
         ]
 
