@@ -192,7 +192,7 @@ class ReturnnComputePriorJobV2(Job):
     def _get_run_cmd(self):
         return [
             self.returnn_python_exe.get_path(),
-            self.returnn_root.join_right("rnn.py"),
+            self.returnn_root.join_right("rnn.py").get_path(),
             self.out_returnn_config_file.get_path(),
         ]
 
