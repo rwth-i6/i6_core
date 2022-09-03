@@ -164,8 +164,7 @@ class ReturnnComputePriorJobV2(Job):
         cmd = self._get_run_cmd()
         sp.check_call(cmd)
 
-        with open(self.out_prior_txt_file.get_path(), "rt") as f_out:
-            merged_scores = np.loadtxt(f_out, delimiter=" ")
+        merged_scores = np.loadtxt(self.out_prior_txt_file.get_path(), delimiter=" ")
 
         with open(self.out_prior_xml_file.get_path(), "wt") as f_out:
             f_out.write(
@@ -181,8 +180,7 @@ class ReturnnComputePriorJobV2(Job):
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
 
-        with open(self.out_prior_txt_file.get_path(), "rt") as f_out:
-            merged_scores = np.loadtxt(f_out, delimiter=" ")
+        merged_scores = np.loadtxt(self.out_prior_txt_file.get_path(), delimiter=" ")
 
         xdata = range(len(merged_scores))
         plt.semilogy(xdata, np.exp(merged_scores))
