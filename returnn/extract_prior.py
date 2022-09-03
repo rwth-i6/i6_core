@@ -21,7 +21,7 @@ import i6_core.util as util
 from i6_core.deprecated.returnn_extract_prior import ReturnnComputePriorJob as _ReturnnComputePriorJob
 from i6_core.returnn.config import ReturnnConfig
 from i6_core.returnn.rasr_training import ReturnnRasrTrainingJob
-from i6_core.returnn.training import Checkpoint, ReturnnTrainingJob
+from i6_core.returnn.training import Checkpoint
 
 Path = setup_path(__package__)
 
@@ -171,16 +171,16 @@ class ReturnnComputePriorJobV2(Job):
         cmd = self._get_run_cmd()
         sp.check_call(cmd)
 
-        with open(self.out_prior_txt_file.get_path(), "rt") as f:
-            merged_scores = np.loadtxt(f, delimiter=" ")
+        with open(self.out_prior_txt_file.get_path(), "rt") as f_out:
+            merged_scores = np.loadtxt(f_out, delimiter=" ")
 
-        with open(self.out_prior_xml_file.get_path(), "wt") as f:
-            f.write(
+        with open(self.out_prior_xml_file.get_path(), "wt") as f_out:
+            f_out.write(
                 '<?xml version="1.0" encoding="UTF-8"?>\n<vector-f32 size="%d">\n'
                 % len(merged_scores)
             )
-            f.write(" ".join("%.20e" % s for s in merged_scores) + "\n")
-            f.write("</vector-f32>")
+            f_out.write(" ".join("%.20e" % s for s in merged_scores) + "\n")
+            f_out.write("</vector-f32>")
 
     def plot(self):
         import matplotlib
@@ -188,8 +188,8 @@ class ReturnnComputePriorJobV2(Job):
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
 
-        with open(self.out_prior_txt_file.get_path(), "rt") as f:
-            merged_scores = np.loadtxt(f, delimiter=" ")
+        with open(self.out_prior_txt_file.get_path(), "rt") as f_out:
+            merged_scores = np.loadtxt(f_out, delimiter=" ")
 
         xdata = range(len(merged_scores))
         plt.semilogy(xdata, np.exp(merged_scores))
