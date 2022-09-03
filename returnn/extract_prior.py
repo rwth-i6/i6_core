@@ -1,23 +1,27 @@
 __all__ = [
     "ExtractPriorFromHDF5Job",
     "ReturnnComputePriorJob",
+    "ReturnnComputePriorJobV2",
     "ReturnnRasrComputePriorJob",
 ]
 
 import copy
+import h5py
 import math
+import numpy as np
 import os
 import subprocess as sp
 
-import h5py
-import numpy as np
+from typing import Any, Dict, Optional, Union
 from sisyphus import *
 
 import i6_core.rasr as rasr
 import i6_core.util as util
+
+from i6_core.deprecated.returnn_extract_prior import ReturnnComputePriorJob as _ReturnnComputePriorJob
 from i6_core.returnn.config import ReturnnConfig
 from i6_core.returnn.rasr_training import ReturnnRasrTrainingJob
-from i6_core.returnn.training import ReturnnTrainingJob
+from i6_core.returnn.training import Checkpoint, ReturnnTrainingJob
 
 Path = setup_path(__package__)
 
@@ -72,36 +76,46 @@ class ExtractPriorFromHDF5Job(Job):
             plt.savefig(self.out_prior_plot.get_path())
 
 
-class ReturnnComputePriorJob(Job):
+class ReturnnComputePriorJob(_ReturnnComputePriorJob):
+    """
+    This Job was deprecated because absolute paths are hashed.
+
+    See https://github.com/rwth-i6/i6_core/issues/306 for more details.
+    """
+
+    pass
+
+
+class ReturnnComputePriorJobV2(Job):
     """
     Given a model checkpoint, run compute_prior task with RETURNN
     """
 
     def __init__(
         self,
-        model_checkpoint,
-        returnn_config,
-        prior_data=None,
+        model_checkpoint: Checkpoint,
+        returnn_config: ReturnnConfig,
+        prior_data: Optional[Dict[str, Any]] = None,
         *,
-        log_verbosity=3,
-        device="gpu",
-        time_rqmt=4,
-        mem_rqmt=4,
-        cpu_rqmt=2,
-        returnn_python_exe=None,
-        returnn_root=None,
+        log_verbosity: int = 3,
+        device: str = "gpu",
+        time_rqmt: Union[float, int] = 4,
+        mem_rqmt: Union[float, int] = 4,
+        cpu_rqmt: Union[float, int] = 2,
+        returnn_python_exe: Optional[tk.Path] = None,
+        returnn_root: Optional[tk.Path] = None,
     ):
         """
-        :param Checkpoint model_checkpoint:  TF model checkpoint. see `ReturnnTrainingJob`.
-        :param ReturnnConfig returnn_config: object representing RETURNN config
-        :param dict[str]|None prior_data: dataset used to compute prior (None = use one train epoch)
-        :param int log_verbosity: RETURNN log verbosity
-        :param str device: RETURNN device, cpu or gpu
-        :param float|int time_rqmt: job time requirement in hours
-        :param float|int mem_rqmt: job memory requirement in GB
-        :param float|int cpu_rqmt: job cpu requirement in GB
-        :param tk.Path|str|None returnn_python_exe: path to the RETURNN executable (python binary or launch script)
-        :param tk.Path|str|None returnn_root: path to the RETURNN src folder
+        :param model_checkpoint:  TF model checkpoint. see `ReturnnTrainingJob`.
+        :param returnn_config: object representing RETURNN config
+        :param prior_data: dataset used to compute prior (None = use one train epoch)
+        :param log_verbosity: RETURNN log verbosity
+        :param device: RETURNN device, cpu or gpu
+        :param time_rqmt: job time requirement in hours
+        :param mem_rqmt: job memory requirement in GB
+        :param cpu_rqmt: job cpu requirement in GB
+        :param returnn_python_exe: path to the RETURNN executable (python binary or launch script)
+        :param returnn_root: path to the RETURNN src folder
         """
         assert isinstance(returnn_config, ReturnnConfig)
         kwargs = locals()
@@ -194,20 +208,20 @@ class ReturnnComputePriorJob(Job):
     @classmethod
     def create_returnn_config(
         cls,
-        model_checkpoint,
-        returnn_config,
-        prior_data,
-        log_verbosity,
-        device,
+        model_checkpoint: Checkpoint,
+        returnn_config: ReturnnConfig,
+        prior_data: Optional[Dict[str, Any]],
+        log_verbosity: int,
+        device: str,
         **kwargs,
     ):
         """
         Creates compute_prior RETURNN config
-        :param Checkpoint model_checkpoint:  TF model checkpoint. see `ReturnnTrainingJob`.
-        :param ReturnnConfig returnn_config: object representing RETURNN config
-        :param dict[str]|None prior_data: dataset used to compute prior (None = use one train epoch)
-        :param int log_verbosity: RETURNN log verbosity
-        :param str device: RETURNN device, cpu or gpu
+        :param model_checkpoint:  TF model checkpoint. see `ReturnnTrainingJob`.
+        :param returnn_config: object representing RETURNN config
+        :param prior_data: dataset used to compute prior (None = use one train epoch)
+        :param log_verbosity: RETURNN log verbosity
+        :param device: RETURNN device, cpu or gpu
         :rtype: ReturnnConfig
         """
         assert device in ["gpu", "cpu"]
@@ -215,7 +229,7 @@ class ReturnnComputePriorJob(Job):
         assert "network" in original_config
 
         config = copy.deepcopy(original_config)
-        config["load"] = model_checkpoint.ckpt_path
+        config["load"] = model_checkpoint
         config["task"] = "compute_priors"
 
         if prior_data is not None:
