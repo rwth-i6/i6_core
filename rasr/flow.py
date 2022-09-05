@@ -329,7 +329,7 @@ class FlowNetwork:
                 dependencies[to_node].add(from_node)
 
         while len(missing_nodes) > 0:
-            for n in missing_nodes:
+            for n in sorted(missing_nodes):
                 if all(dep in added_nodes for dep in dependencies[n]):
                     result.append(n)
                     added_nodes.add(n)
@@ -337,7 +337,8 @@ class FlowNetwork:
                     break
             else:
                 # no node added => contains loops => add one node regardless of dependencies
-                n = missing_nodes.pop()
+                n = list(sorted(missing_nodes))[0]
+                missing_nodes.remove(n)
                 result.append(n)
                 added_nodes.add(n)
 
