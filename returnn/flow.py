@@ -9,7 +9,7 @@ def make_precomputed_hybrid_tf_feature_flow(
     tf_graph: tk.Path,
     tf_checkpoint: Checkpoint,
     output_type: str = "log-posteriors",
-    feature_tensor_name="data",
+    feature_tensor_name: str = "data",
     output_tensor_name: str = "output",
     native_ops: Optional[List] = None,
     tf_fwd_input_name: str = "tf-fwd-input",
@@ -45,7 +45,7 @@ def make_precomputed_hybrid_tf_feature_flow(
     :param tf_graph: usually the output of a CompileTFGraphJob
     :param tf_checkpoint: the checkpoint to load the model from, e.g. a ReturnnTrainingJob or similar
     :param output_type: type of the returned values, see RASR documentation for possible types
-    :param feature_tensor_name: name of the extern data ebtry to feed the features to
+    :param feature_tensor_name: name of the extern data entry to feed the features to
     :param output_tensor_name: the name of the output tensor, it is expected that "<name>/output_batch_major" exists
     :param native_ops: list of native op ".so" files to link
     :param tf_fwd_input_name: naming for the tf network input, usually no need to be changed
