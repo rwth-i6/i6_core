@@ -358,16 +358,15 @@ class FlowNetwork:
 
         for name in self.__compute_node_order():
             attr = self.nodes[name]
-            nstr = {"name": name}
-            for k, v in attr.items():
+            n = ET.SubElement(root, "node", {"name": name})
+
+            for k, v in sorted(attr.items()):
                 while isinstance(v, FlowAttribute):
                     v = v.get(self)
                 if type(v) == bool:
-                    nstr[k] = str(v).lower()
+                    n.attrib[k] = str(v).lower()
                 else:
-                    nstr[k] = str(v)
-
-            ET.SubElement(root, "node", nstr)
+                    n.attrib[k] = str(v)
 
             if name in links_by_target_node:
                 for link in links_by_target_node[name]:
