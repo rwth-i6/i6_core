@@ -357,8 +357,9 @@ class FlowNetwork:
                 ET.SubElement(root, node, name=n)
 
         for name in self.__compute_node_order():
-            attr = self.nodes[name]
-            n = ET.SubElement(root, "node", {"name": name})
+            attr = dict(**self.nodes[name])
+            attr["name"] = name
+            n = ET.SubElement(root, "node", {})
 
             for k, v in sorted(attr.items()):
                 while isinstance(v, FlowAttribute):

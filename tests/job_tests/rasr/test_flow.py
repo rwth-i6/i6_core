@@ -13,12 +13,12 @@ def test_deterministic_flow_serialization():
     ref_net = """\
 <?xml version="1.0" ?>
 <network name="network">
-  <node name="{0}" filter="a"/>
-  <node name="{1}" filter="b"/>
+  <node filter="a" name="{0}"/>
+  <node filter="b" name="{1}"/>
   <link from="{0}" to="{1}"/>
-  <node name="{2}" filter="c"/>
+  <node filter="c" name="{2}"/>
   <link from="{0}" to="{2}"/>
-  <node name="{3}" filter="d"/>
+  <node filter="d" name="{3}"/>
   <link from="{1}" to="{3}"/>
   <link from="{2}" to="{3}"/>
 </network>
