@@ -329,7 +329,7 @@ class FlowNetwork:
                 dependencies[to_node].add(from_node)
 
         while len(missing_nodes) > 0:
-            for n in missing_nodes:
+            for n in sorted(missing_nodes):
                 if all(dep in added_nodes for dep in dependencies[n]):
                     result.append(n)
                     added_nodes.add(n)
@@ -337,7 +337,8 @@ class FlowNetwork:
                     break
             else:
                 # no node added => contains loops => add one node regardless of dependencies
-                n = missing_nodes.pop()
+                n = list(sorted(missing_nodes))[0]
+                missing_nodes.remove(n)
                 result.append(n)
                 added_nodes.add(n)
 
@@ -356,17 +357,17 @@ class FlowNetwork:
                 ET.SubElement(root, node, name=n)
 
         for name in self.__compute_node_order():
-            attr = self.nodes[name]
-            nstr = {"name": name}
-            for k, v in attr.items():
+            attr = dict(**self.nodes[name])
+            attr["name"] = name
+            n = ET.SubElement(root, "node", {})
+
+            for k, v in sorted(attr.items()):
                 while isinstance(v, FlowAttribute):
                     v = v.get(self)
                 if type(v) == bool:
-                    nstr[k] = str(v).lower()
+                    n.attrib[k] = str(v).lower()
                 else:
-                    nstr[k] = str(v)
-
-            ET.SubElement(root, "node", nstr)
+                    n.attrib[k] = str(v)
 
             if name in links_by_target_node:
                 for link in links_by_target_node[name]:
