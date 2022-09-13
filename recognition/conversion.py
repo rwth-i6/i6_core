@@ -69,7 +69,9 @@ class LatticeToCtmJob(rasr.RasrCommand, Job):
     def merge(self):
         with open(self.out_ctm_file.get_path(), "wt") as out:
             for t in range(1, self.concurrent + 1):
-                assert (os.path.getsize("lattice.ctm.%d" % t) > 0), "Empty File lattice.ctm.%d, maybe restart merge" % t
+                assert os.path.getsize("lattice.ctm.%d" % t) > 0, (
+                    "Empty File lattice.ctm.%d, maybe restart merge" % t
+                )
                 with open("lattice.ctm.%d" % t, "rt") as ctm:
                     shutil.copyfileobj(ctm, out)
 
