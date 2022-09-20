@@ -1,6 +1,7 @@
 __all__ = ["LatticeToCtmJob"]
 
 import shutil
+import os
 
 from sisyphus import *
 
@@ -51,7 +52,7 @@ class LatticeToCtmJob(rasr.RasrCommand, Job):
             "run", resume="run", rqmt=self.rqmt, args=range(1, self.concurrent + 1)
         )
         if self.concurrent > 1:
-            yield Task("merge", mini_task=True)
+            yield Task("merge", mini_task=True, tries=2)
 
     def create_files(self):
         self.write_config(self.config, self.post_config, "lattice_to_ctm.config")
@@ -68,6 +69,9 @@ class LatticeToCtmJob(rasr.RasrCommand, Job):
     def merge(self):
         with open(self.out_ctm_file.get_path(), "wt") as out:
             for t in range(1, self.concurrent + 1):
+                assert os.path.getsize("lattice.ctm.%d" % t) > 0, (
+                    "Empty File lattice.ctm.%d, maybe restart merge" % t
+                )
                 with open("lattice.ctm.%d" % t, "rt") as ctm:
                     shutil.copyfileobj(ctm, out)
 
