@@ -5,16 +5,17 @@ import os
 import getpass
 import pprint
 import gzip
+from typing import Dict
 
 
-class ReportFinishedOutput(Job):
+class SimpleReportJob(Job):
     def __init__(
         self,
         name: str,
-        output: tk.Path,
+        results: Dict[str, tk.Variable],
     ):
         self.name = name
-        self.output = output
+        self.results = results
         self.out = self.output_path("report.gz")
 
         if hasattr(global_settings, "GLOBAL_SETTINGS_FILE"):
@@ -30,8 +31,10 @@ class ReportFinishedOutput(Job):
 
     def run(self):
         user = getpass.getuser()
+        for var in self.results:
+            self.results[var] = self.results[var].get()
         report = {
-            "output": self.output.get_path(),
+            "output": self.results,
             "user": user,
             "name": self.name,
             "sis_command_line": self.sis_command_line,

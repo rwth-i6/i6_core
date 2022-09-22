@@ -1,1 +1,1 @@
-from .report import ReportFinishedOutput
+from .report import SimpleReportJob
