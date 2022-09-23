@@ -1,1 +1,1 @@
-from .report import SimpleReportJob
+from .report import *
