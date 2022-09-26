@@ -140,7 +140,7 @@ class SpeakerLabelHDFFromBlissJob(Job):
             for segment in recording.segments:
                 speaker_name = segment.speaker_name or recording.speaker_name
                 speaker_index = index_by_speaker[speaker_name]
-                segment_name = "/".join([bliss.name, recording.name, segment.name])
+                segment_name = segment.fullname()
                 hdf_writer.insert_batch(
                     numpy.asarray([[speaker_index]], dtype="int32"), [1], [segment_name]
                 )
