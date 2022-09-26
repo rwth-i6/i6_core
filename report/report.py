@@ -84,7 +84,6 @@ class ReportResultsJob(Job):
         report["sis_command_line"] = self.sis_command_line
         report["cwd"] = self.cwd
 
-        # report = eval(repr(report))
         if self.report_format is None:
             self.report_format = pprint.pformat
 
