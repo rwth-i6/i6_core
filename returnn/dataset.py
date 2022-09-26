@@ -6,6 +6,7 @@ import os
 import pickle
 import shutil
 import subprocess
+from typing import Optional
 
 import numpy
 
@@ -101,7 +102,7 @@ class SpeakerLabelHDFFromBlissJob(Job):
     matching the speaker entry in the corpus speakers for each segment
     """
 
-    def __init__(self, bliss_corpus, returnn_root=None):
+    def __init__(self, bliss_corpus: tk.Path, returnn_root: Optional[tk.Path] = None):
         """
         :param bliss_corpus: bliss XML corpus where the speakers and segments are taken from
         :param returnn_root: used to import SimpleHDFWriter from a specific path if not installed in the worker env
