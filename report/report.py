@@ -113,7 +113,7 @@ class ReportResultsJob(Job):
 
 def gmm_example_report_format(report: Dict[str, tk.Variable]) -> str:
     """
-    Example report format for a GMM evaluated on dev-clean and dev-other
+    Example report format for a GMM evaluated on dev-clean and dev-other of the LibrSpeech dataset
     :param report:
     :return:
     """
