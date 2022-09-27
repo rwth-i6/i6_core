@@ -70,6 +70,7 @@ class CompileTFGraphJob(Job):
         self.out_graph = self.output_path("graph.%s" % output_format)
         self.out_model_params = self.output_var("model_params.pickle", pickle=True)
         self.out_state_vars = self.output_var("state_vars.pickle", pickle=True)
+        self.out_returnn_config = self.output_path("returnn.config")
 
         self.rqmt = None
 
@@ -82,13 +83,15 @@ class CompileTFGraphJob(Job):
     def run(self):
         if isinstance(self.returnn_config, tk.Path):
             returnn_config_path = self.returnn_config.get_path()
+            shutil.copy(returnn_config_path, self.out_returnn_config.get_path())
 
         elif isinstance(self.returnn_config, ReturnnConfig):
-            returnn_config_path = "returnn.config"
+            returnn_config_path = self.out_returnn_config.get_path()
             self.returnn_config.write(returnn_config_path)
 
         else:
             returnn_config_path = self.returnn_config
+            shutil.copy(self.returnn_config, self.out_returnn_config.get_path())
 
         args = [
             tk.uncached_path(self.returnn_python_exe),
