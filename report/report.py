@@ -1,14 +1,12 @@
 from sisyphus import *
-import sys
-import os
-import getpass
-import pprint
-import gzip
-from typing import Dict, Union, Callable
-import time
-import json
 
-_Report_Type = Dict[str, Union[tk.Path, any]]
+import sys
+import getpass
+import gzip
+from datetime import datetime
+from typing import Dict, Union, Callable
+
+_Report_Type = Dict[str, Union[tk.AbstractPath, str]]
 
 
 class ReportResultsJob(Job):
@@ -20,91 +18,57 @@ class ReportResultsJob(Job):
         self,
         name: str,
         report: _Report_Type,
-        report_dir: tk.Path = None,
-        report_format: Callable[[_Report_Type], str] = None,
-        recipe_path=Path("."),
+        report_format: Callable[[_Report_Type, any], str],
+        compress: bool = True,
+        **report_format_kwargs,
     ):
         """
 
-        :param name:
-        :param dict report: dictionary containing the report files
-        :param report_dir:
-        :param (report: dict) -> List[str] report_format:
-        :param recipe_path:
+        :param name: Name of the report
+        :param report: Dictionary containing the report files
+        :param report_format: Function that converts the report dictionary to a string
+        :param report_format_kwargs: Addtional kwargs for the report format function
+        :param compress: Whether to compress the report or not
         """
         self.name = name
         self.report = report
-        self.report_dir = report_dir
         self.report_format = report_format
-        self.recipe_path = recipe_path
-
-        self.out_report = self.output_path("report.gz")
+        self.report_format_kwargs = report_format_kwargs
+        self.compress = compress
 
         self.sis_command_line = sys.argv
-        self.cwd = os.path.abspath(".")
+        self.mail_address = getattr(gs, "MAIL_ADDRESS", None)
         self.config_path = tk.config_manager.current_config
         assert self.config_path is not None, "Could not find config path"
-        try:
-            with open(self.config_path) as f:
-                self.config = f.read()
-        except IOError as e:
-            if e.errno != 2:
-                raise e
-            else:
-                self.config = self.config_path
 
-        with open(gs.GLOBAL_SETTINGS_FILE) as f:
-            self.settings = f.read()
-
-        for i in [
-            "recipe_hash",
-            "recipe_date",
-            "date",
-            "user",
-            "name",
-            "config",
-            "config_path",
-            "config_line",
-            "settings",
-            "cwd",
-            "sis_command_line",
-        ]:
+        for i in ["date", "user", "name", "config_path", "sis_command_line"]:
             assert i not in report, "%s will be set automatically"
+
+        self.out_report = self.output_path("report.gz")
 
     def run(self):
         user = getpass.getuser()
         report = self.report.copy()
 
-        report["date"] = time.time()
+        report["date"] = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
         report["user"] = user
         report["name"] = self.name
         report["config_path"] = self.config_path
-        report["config"] = self.config
-        report["settings"] = self.settings
-        report["sis_command_line"] = self.sis_command_line
-        report["cwd"] = self.cwd
+        report["sis_command_line"] = str(self.sis_command_line)
 
-        if self.report_format is None:
-            self.report_format = pprint.pformat
+        if self.compress:
+            with gzip.open(self.out_report.get_path(), "w") as f:
+                f.write(
+                    self.report_format(report, **self.report_format_kwargs).encode()
+                    + b"\n"
+                )
+        else:
+            with open(self.out_report.get_path(), "w") as f:
+                f.write(self.report_format(report, **self.report_format_kwargs) + "\n")
 
-        with gzip.open(str(self.out_report), "w") as f:
-            f.write(self.report_format(report).encode() + b"\n")
-
-        if self.report_dir:
-            report_file_name = "%s.%s.%s.gz" % (
-                user,
-                self.config_path.replace("/", "_"),
-                self.name,
-            )
-            report_path = os.path.join(self.report_dir, report_file_name)
-            print("Write report to %s" % report_path)
-            with gzip.open(report_path, "w") as f:
-                f.write(json.dumps(report).encode() + b"\n")
-
-        self.mail_address = getattr(gs, "MAIL_ADDRESS", None)
         if self.mail_address:
             self.sh(
-                "zcat {out_report} | mail -s 'Report finished: {name} {config_path}' {mail_address}"
+                "zcat -f {out_report} | mail -s 'Report finished: {name} {config_path}' {mail_address}"
             )
 
     def tasks(self):
@@ -160,6 +124,7 @@ def gmm_example_report_format(report: Dict[str, tk.Variable]) -> str:
         f"""Name: {report["name"]}
           Path: {report["config_path"]}
           Date: {report["date"]}
+          Sis Command: {report["sis_command_line"]}
 
           Results:"""
     )
