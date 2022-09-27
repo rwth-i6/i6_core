@@ -4,9 +4,60 @@ import sys
 import getpass
 import gzip
 from datetime import datetime
-from typing import Dict, Union, Callable
+from typing import Dict, Union, Callable, Optional, Iterable
 
 _Report_Type = Dict[str, Union[tk.AbstractPath, str]]
+
+
+class MailJob(Job):
+    """
+    Job that sends a mail
+    """
+
+    def __init__(
+        self,
+        subject: str,
+        content: str,
+        mail_address: str = getpass.getuser(),
+        wait_on: Optional[Union[Iterable[tk.AbstractPath], tk.AbstractPath]] = None,
+        compress: bool = True,
+    ):
+        """
+
+        :param subject: Subject of the mail
+        :param mail_address: Mail address of the user
+        :param content:
+        :param wait_on:
+        """
+        self.subject = subject
+        self.mail_address = mail_address
+        self.content = content
+        self.compress = compress
+
+        if wait_on is not None:
+            if isinstance(wait_on, tk.AbstractPath):
+                self.add_input(wait_on)
+            elif isinstance(wait_on, Iterable):
+                for wait in wait_on:
+                    self.add_input(wait)
+            else:
+                assert False, "Wrong wait_on input!"
+
+        self.out_content = self.output_path("content")
+
+    def tasks(self):
+        yield Task("run", mini_task=True)
+
+    def run(self):
+
+        if self.compress:
+            with gzip.open(self.out_content.get_path(), "w") as f:
+                f.write(self.content.encode() + b"\n")
+        else:
+            with open(self.out_content.get_path(), "w") as f:
+                f.write(self.content)
+
+        self.sh("zcat -f {out_content} | mail -s '{subject}' {mail_address}")
 
 
 class ReportResultsJob(Job):
