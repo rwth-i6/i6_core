@@ -91,6 +91,7 @@ class CompileTFGraphJob(Job):
 
         else:
             returnn_config_path = self.returnn_config
+            shutil.copy(self.returnn_config, self.out_returnn_config.get_path())
 
         args = [
             tk.uncached_path(self.returnn_python_exe),
