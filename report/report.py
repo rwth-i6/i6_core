@@ -98,12 +98,12 @@ def gmm_example_report_format(report: _Report_Type) -> str:
         },
     }
     for step_name, score in report.items():
+        if not step_name.startswith("scorer"):
+            continue
         if "dev-clean" in step_name:
             set = "dev-clean"
         else:
             set = "dev-other"
-        if not step_name.startswith("scorer"):
-            continue
         if "mono" in step_name:
             step = "Monophone"
         elif "tri" in step_name:
