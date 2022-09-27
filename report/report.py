@@ -5,7 +5,6 @@ import getpass
 import gzip
 from datetime import datetime
 from typing import Dict, Union, Callable
-
 _Report_Type = Dict[str, Union[tk.AbstractPath, str]]
 
 
@@ -20,7 +19,7 @@ class ReportResultsJob(Job):
         report: _Report_Type,
         report_format: Callable[[_Report_Type, any], str],
         compress: bool = True,
-        **report_format_kwargs,
+        **report_format_kwargs
     ):
         """
 
@@ -42,7 +41,7 @@ class ReportResultsJob(Job):
         assert self.config_path is not None, "Could not find config path"
 
         for i in ["date", "user", "name", "config_path", "sis_command_line"]:
-            assert i not in report, "%s will be set automatically"
+          assert i not in report, "%s will be set automatically"
 
         self.out_report = self.output_path("report.gz")
 
@@ -57,14 +56,11 @@ class ReportResultsJob(Job):
         report["sis_command_line"] = str(self.sis_command_line)
 
         if self.compress:
-            with gzip.open(self.out_report.get_path(), "w") as f:
-                f.write(
-                    self.report_format(report, **self.report_format_kwargs).encode()
-                    + b"\n"
-                )
+          with gzip.open(self.out_report.get_path(), "w") as f:
+              f.write(self.report_format(report, **self.report_format_kwargs).encode() + b"\n")
         else:
-            with open(self.out_report.get_path(), "w") as f:
-                f.write(self.report_format(report, **self.report_format_kwargs) + "\n")
+          with open(self.out_report.get_path(), "w") as f:
+              f.write(self.report_format(report, **self.report_format_kwargs) + "\n")
 
         if self.mail_address:
             self.sh(
@@ -75,9 +71,9 @@ class ReportResultsJob(Job):
         yield Task("run", mini_task=True)
 
 
-def gmm_example_report_format(report: Dict[str, tk.Variable]) -> str:
+def gmm_example_report_format(report: _Report_Type) -> str:
     """
-    Example report format for a GMM evaluated on dev-clean and dev-other of the LibrSpeech dataset
+    Example report format for a GMM evaluated on dev-clean and dev-other
     :param report:
     :return:
     """
