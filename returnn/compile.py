@@ -43,7 +43,7 @@ class CompileTFGraphJob(Job):
         :param int train:
         :param int eval:
         :param int search:
-        :param int epoch:
+        :param int|None epoch: compile a specific epoch for networks that might change with every epoch
         :param int log_verbosity: RETURNN log verbosity from 1 (least verbose) to 5 (most verbose)
         :param str|None device: optimize graph for cpu or gpu. If `None`, defaults to cpu for current RETURNN.
             For any RETURNN version before `cd4bc382`, the behavior will depend on the `device` entry in the
