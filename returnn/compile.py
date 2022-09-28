@@ -21,7 +21,7 @@ class CompileTFGraphJob(Job):
 
     """
 
-    __sis_hash_exclude__ = {"device": None}
+    __sis_hash_exclude__ = {"device": None, "epoch": None}
 
     def __init__(
         self,
@@ -29,6 +29,7 @@ class CompileTFGraphJob(Job):
         train=0,
         eval=0,
         search=0,
+        epoch=None,
         verbosity=4,
         device=None,
         summaries_tensor_name=None,
@@ -42,6 +43,7 @@ class CompileTFGraphJob(Job):
         :param int train:
         :param int eval:
         :param int search:
+        :param int epoch:
         :param int log_verbosity: RETURNN log verbosity from 1 (least verbose) to 5 (most verbose)
         :param str|None device: optimize graph for cpu or gpu. If `None`, defaults to cpu for current RETURNN.
             For any RETURNN version before `cd4bc382`, the behavior will depend on the `device` entry in the
@@ -55,6 +57,7 @@ class CompileTFGraphJob(Job):
         self.train = train
         self.eval = eval
         self.search = search
+        self.epoch = epoch
         self.verbosity = verbosity
         self.device = device
         self.summaries_tensor_name = summaries_tensor_name
@@ -109,6 +112,8 @@ class CompileTFGraphJob(Job):
         ]
         if self.device is not None:
             args.append("--device=%s" % self.device)
+        if self.epoch is not None:
+            args.append("--epoch=%d" % self.epoch)
         if self.summaries_tensor_name is not None:
             args.append("--summaries_tensor_name=%s" % self.summaries_tensor_name)
 
