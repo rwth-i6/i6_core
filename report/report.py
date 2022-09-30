@@ -29,7 +29,7 @@ class GenerateReportStringJob(Job):
         self.report_template = report_template
         self.compress = compress
 
-        self.out_report = self.output_path("report.gz" if self.compress else "report")
+        self.out_report = self.output_path("report.txt.gz" if self.compress else "report.txt")
 
     def tasks(self):
         yield Task("run", mini_task=True)
