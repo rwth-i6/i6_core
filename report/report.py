@@ -15,7 +15,7 @@ class GenerateReportStringJob(Job):
 
     def __init__(
         self,
-        report_values: _Report_Type,
+        report_values: Union[_Report_Type, Callable],
         report_template: Optional[Callable[[_Report_Type], str]] = None,
         compress: bool = True,
     ):
@@ -29,7 +29,9 @@ class GenerateReportStringJob(Job):
         self.report_template = report_template
         self.compress = compress
 
-        self.out_report = self.output_path("report.txt.gz" if self.compress else "report.txt")
+        self.out_report = self.output_path(
+            "report.txt.gz" if self.compress else "report.txt"
+        )
 
     def tasks(self):
         yield Task("run", mini_task=True)
@@ -43,12 +45,9 @@ class GenerateReportStringJob(Job):
         else:
             report = pprint.pformat(self.report_values, width=140)
 
-        if self.compress:
-            with gzip.open(self.out_report.get_path(), "wt") as f:
-                f.write(report)
-        else:
-            with open(self.out_report.get_path(), "wt") as f:
-                f.write(report)
+        fopen = gzip.open if self.compress else open
+        with fopen(self.out_report.get_path(), "wt") as f:
+            f.write(report)
 
 
 class MailJob(Job):
