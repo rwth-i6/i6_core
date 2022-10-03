@@ -18,7 +18,9 @@ from sisyphus import *
 import i6_core.rasr as rasr
 import i6_core.util as util
 
-from i6_core.deprecated.returnn_extract_prior import ReturnnComputePriorJob as _ReturnnComputePriorJob
+from i6_core.deprecated.returnn_extract_prior import (
+    ReturnnComputePriorJob as _ReturnnComputePriorJob,
+)
 from i6_core.returnn.config import ReturnnConfig
 from i6_core.returnn.rasr_training import ReturnnRasrTrainingJob
 from i6_core.returnn.training import Checkpoint
@@ -156,9 +158,9 @@ class ReturnnComputePriorJobV2(Job):
         util.create_executable("rnn.sh", cmd)
 
         # check here if model actually exists
-        assert os.path.exists(
-            self.model_checkpoint.index_path.get_path()
-        ), "Provided model does not exists: %s" % self.model_checkpoint
+        assert os.path.exists(self.model_checkpoint.index_path.get_path()), (
+            "Provided model does not exists: %s" % self.model_checkpoint
+        )
 
     def run(self):
         cmd = self._get_run_cmd()
