@@ -11,7 +11,7 @@ def make_precomputed_hybrid_tf_feature_flow(
     output_type: str = "log-posteriors",
     feature_tensor_name: str = "data",
     output_tensor_name: str = "output",
-    native_ops: Optional[List] = None,
+    native_ops: Optional[Union[tk.Path, List[tk.Path]]] = None,
     tf_fwd_input_name: str = "tf-fwd-input",
 ) -> rasr.FlowNetwork:
     """
