@@ -16,7 +16,7 @@ class GenerateReportStringJob(Job):
     def __init__(
         self,
         report_values: Union[_Report_Type, Callable],
-        report_template: Optional[Callable[[_Report_Type], str]] = None,
+        report_template: Optional[Union[Callable[[_Report_Type], str], str]] = None,
         compress: bool = True,
     ):
         """
@@ -39,7 +39,10 @@ class GenerateReportStringJob(Job):
     def run(self):
 
         if self.report_template:
-            report = self.report_template(self.report_values)
+            if isinstance(self.report_template, str):
+                report = self.report_template.format(**self.report_values)
+            else:
+                report = self.report_template(self.report_values)
         elif callable(self.report_values):
             report = str(self.report_values())
         else:
