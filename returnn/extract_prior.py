@@ -128,7 +128,7 @@ class ReturnnComputePriorJobV2(Job):
         self.returnn_python_exe = returnn_python_exe
         self.returnn_root = returnn_root
 
-        self.returnn_config = ReturnnComputePriorJob.create_returnn_config(**kwargs)
+        self.returnn_config = ReturnnComputePriorJobV2.create_returnn_config(**kwargs)
 
         self.out_returnn_config_file = self.output_path("returnn.config")
 
