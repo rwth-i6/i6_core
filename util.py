@@ -1,3 +1,4 @@
+from typing import Optional
 import gzip
 import os
 import shutil
@@ -301,3 +302,36 @@ def instanciate_delayed(o):
         for k in o:
             o[k] = instanciate_delayed(o[k])
     return o
+
+
+class GroupJob(Job):
+    """
+    Like `tf.group`. Depends on `inputs`.
+    It is itself a no-op.
+    Because Sisyphus needs an output, it creates a dummy output.
+    Alternatively, you can also specify the output, which is then symlinked.
+    Thus, it is also like `tf.identity` with `control_dependencies`.
+    """
+
+    def __init__(self, inputs, *, output: Optional[tk.Path] = None):
+        """
+        :param inputs: any dependencies. can be any nested structure. should contain some other paths
+        :param output: if given, this path is symlinked to the output
+        """
+        super(GroupJob, self).__init__()
+        self.inputs = inputs
+        self._output = output
+        self.output = self.output_path(
+            os.path.basename(output.path) if output else "dummy.txt"
+        )
+
+    def tasks(self):
+        """tasks"""
+        yield Task("run", resume="run", mini_task=True)
+
+    def run(self):
+        """run"""
+        if self._output:
+            os.symlink(self._output.get_path(), self.output.get_path())
+        else:
+            open(self.output.get_path(), "wt").close()
