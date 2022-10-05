@@ -12,7 +12,7 @@ import logging
 import os
 import shutil
 import subprocess as sp
-from typing import Any, Dict
+from typing import Any, Union, Set, Dict
 
 from sisyphus import *
 
@@ -516,12 +516,15 @@ class SearchRemoveLabelJob(Job):
     Remove some labels from the search output, e.g. "<blank>".
     """
 
-    def __init__(self, search_py_output: tk.Path, *, remove_label: str):
+    def __init__(self, search_py_output: tk.Path, *, remove_label: Union[str, Set[str]]):
         """
         :param search_py_output: a search output file from RETURNN in python format (single or n-best)
-        :param remove_label: label to remove from the output, e.g. "<blank>"
+        :param remove_label: label(s) to remove from the output, e.g. "<blank>"
         """
         self.search_py_output = search_py_output
+        if isinstance(remove_label, str):
+            remove_label = {remove_label}
+        assert isinstance(remove_label, set)
         self.remove_label = remove_label
         self.out_search_results = self.output_path("search_results.py")
 
@@ -549,7 +552,7 @@ class SearchRemoveLabelJob(Job):
 
     def _filter(self, txt: str) -> str:
         tokens = txt.split(" ")
-        tokens = [t for t in tokens if t != self.remove_label]
+        tokens = [t for t in tokens if t not in self.remove_label]
         return " ".join(tokens)
 
 
