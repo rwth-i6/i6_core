@@ -516,7 +516,9 @@ class SearchRemoveLabelJob(Job):
     Remove some labels from the search output, e.g. "<blank>".
     """
 
-    def __init__(self, search_py_output: tk.Path, *, remove_label: Union[str, Set[str]]):
+    def __init__(
+        self, search_py_output: tk.Path, *, remove_label: Union[str, Set[str]]
+    ):
         """
         :param search_py_output: a search output file from RETURNN in python format (single or n-best)
         :param remove_label: label(s) to remove from the output, e.g. "<blank>"
