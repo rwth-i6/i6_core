@@ -85,7 +85,9 @@ def make_precomputed_hybrid_tf_feature_flow(
     tf_flow.config[tf_fwd].loader.saved_model_file = tf_checkpoint
     if native_ops is not None:
         if isinstance(native_ops, list):
-            tf_flow.config[tf_fwd].loader.required_libraries = DelayedJoin(native_ops, ";")
+            tf_flow.config[tf_fwd].loader.required_libraries = DelayedJoin(
+                native_ops, ";"
+            )
         else:
             tf_flow.config[tf_fwd].loader.required_libraries = native_ops
 
