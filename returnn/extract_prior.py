@@ -102,8 +102,8 @@ class ReturnnComputePriorJobV2(Job):
         log_verbosity: int = 3,
         device: str = "gpu",
         time_rqmt: float = 4,
-        mem_rqmt: Union[float, int] = 4,
-        cpu_rqmt: Union[float, int] = 2,
+        mem_rqmt: float = 4,
+        cpu_rqmt: int = 2,
         returnn_python_exe: Optional[tk.Path] = None,
         returnn_root: Optional[tk.Path] = None,
     ):
