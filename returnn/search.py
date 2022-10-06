@@ -5,6 +5,9 @@ __all__ = [
     "SearchBPEtoWordsJob",
     "SearchWordsToCTMJob",
     "ReturnnComputeWERJob",
+    "SearchRemoveLabelJob",
+    "SearchBeamJoinScoresJob",
+    "SearchTakeBestJob",
 ]
 
 import copy
