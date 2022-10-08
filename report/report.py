@@ -4,6 +4,7 @@ import getpass
 import gzip
 from typing import Dict, Union, Callable, Optional
 import pprint
+import subprocess
 
 _Report_Type = Dict[str, Union[tk.AbstractPath, str]]
 
@@ -90,12 +91,8 @@ class MailJob(Job):
             subject = self.subject
 
         if self.send_contents:
-            value = self.sh(
-                f"zcat -f {self.result.get_path()} | mail -s '{subject}' {self.mail_address}"
-            )
+            p1 = subprocess.Popen(["zcat", "-f", self.result.get_path()], stdout=subprocess.PIPE)
+            value = subprocess.check_output(["mail", "-s", subject, self.mail_address], stdin=p1.stdout)
         else:
-            value = self.sh(
-                f"echo '{subject}' | mail -s '{subject}' {self.mail_address}"
-            )
-
+            value = subprocess.check_output(["mail", "-s", subject, self.mail_address])
         self.out_status.set(value)
