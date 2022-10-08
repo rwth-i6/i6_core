@@ -65,9 +65,13 @@ class ExtractDatasetMeanStddevJob(Job):
             tk.uncached_path(self.returnn_python_exe),
             os.path.join(tk.uncached_path(self.returnn_root), "tools/dump-dataset.py"),
             "returnn.config",
-            "--endseq -1",
+            "--endseq",
+            "-1",
+            "--type",
+            "null",
             "--stats",
-            "--dump_stats stats",
+            "--dump_stats",
+            "stats",
         ]
 
         create_executable("rnn.sh", command)
