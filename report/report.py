@@ -1,3 +1,4 @@
+__all__ = ["GenerateReportStringJob", "MailJob"]
 from sisyphus import *
 
 import getpass
@@ -91,8 +92,14 @@ class MailJob(Job):
             subject = self.subject
 
         if self.send_contents:
-            p1 = subprocess.Popen(["zcat", "-f", self.result.get_path()], stdout=subprocess.PIPE)
-            value = subprocess.check_output(["mail", "-s", subject, self.mail_address], stdin=p1.stdout)
+            p1 = subprocess.Popen(
+                ["zcat", "-f", self.result.get_path()], stdout=subprocess.PIPE
+            )
+            value = subprocess.check_output(
+                ["mail", "-s", subject, self.mail_address], stdin=p1.stdout
+            )
         else:
-            value = subprocess.check_output(["mail", "-s", subject, self.mail_address])
+            value = subprocess.check_output(
+                ["mail", "-s", subject, self.mail_address], stdin=[""]
+            )
         self.out_status.set(value)
