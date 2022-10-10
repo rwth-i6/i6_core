@@ -9,7 +9,7 @@ from i6_core.returnn.training import Checkpoint
 def make_precomputed_hybrid_tf_feature_flow(
     tf_graph: tk.Path,
     tf_checkpoint: Checkpoint,
-    feature_tensor_name: str = "data",
+    extern_data_name: str = "data",
     output_layer_name: str = "output",
     native_ops: Optional[Union[tk.Path, List[tk.Path]]] = None,
     tf_fwd_input_name: str = "tf-fwd-input",
@@ -44,8 +44,8 @@ def make_precomputed_hybrid_tf_feature_flow(
 
     :param tf_graph: usually the output of a CompileTFGraphJob
     :param tf_checkpoint: the checkpoint to load the model from, e.g. from a ReturnnTrainingJob or similar
-    :param feature_tensor_name: name of the extern data entry to feed the features to
-    :param output_layer_name: the name of the output layer, it is expected that 
+    :param extern_data_name: name of the extern data entry to feed the features to
+    :param output_layer_name: the name of the output layer, it is expected that
         "<name>/output_batch_major" exists and returns log-probs.
     :param native_ops: list of native op ".so" files to link
     :param tf_fwd_input_name: naming for the tf network input, usually no need to be changed
@@ -67,11 +67,10 @@ def make_precomputed_hybrid_tf_feature_flow(
     tf_flow.config[
         tf_fwd
     ].input_map.info_0.tensor_name = (
-        f"extern_data/placeholders/{feature_tensor_name}/{feature_tensor_name}"
+        f"extern_data/placeholders/{extern_data_name}/{extern_data_name}"
     )
     tf_flow.config[tf_fwd].input_map.info_0.seq_length_tensor_name = (
-        f"extern_data/placeholders/"
-        f"{feature_tensor_name}/{feature_tensor_name}_dim0_size"
+        f"extern_data/placeholders/" f"{extern_data_name}/{extern_data_name}_dim0_size"
     )
 
     tf_flow.config[tf_fwd].output_map.info_0.param_name = "log-posteriors"
