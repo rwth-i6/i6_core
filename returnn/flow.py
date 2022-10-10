@@ -9,9 +9,8 @@ from i6_core.returnn.training import Checkpoint
 def make_precomputed_hybrid_tf_feature_flow(
     tf_graph: tk.Path,
     tf_checkpoint: Checkpoint,
-    output_type: str = "log-posteriors",
     feature_tensor_name: str = "data",
-    output_tensor_name: str = "output",
+    output_layer_name: str = "output",
     native_ops: Optional[Union[tk.Path, List[tk.Path]]] = None,
     tf_fwd_input_name: str = "tf-fwd-input",
 ) -> rasr.FlowNetwork:
@@ -44,10 +43,10 @@ def make_precomputed_hybrid_tf_feature_flow(
 
 
     :param tf_graph: usually the output of a CompileTFGraphJob
-    :param tf_checkpoint: the checkpoint to load the model from, e.g. a ReturnnTrainingJob or similar
-    :param output_type: type of the returned values, see RASR documentation for possible types
+    :param tf_checkpoint: the checkpoint to load the model from, e.g. from a ReturnnTrainingJob or similar
     :param feature_tensor_name: name of the extern data entry to feed the features to
-    :param output_tensor_name: the name of the output tensor, it is expected that "<name>/output_batch_major" exists
+    :param output_layer_name: the name of the output layer containg log-probs,
+        it is expected that "<name>/output_batch_major" exists
     :param native_ops: list of native op ".so" files to link
     :param tf_fwd_input_name: naming for the tf network input, usually no need to be changed
     :return: tensorflow-forward node flow with output link and related config
@@ -61,7 +60,7 @@ def make_precomputed_hybrid_tf_feature_flow(
 
     tf_fwd = tf_flow.add_node("tensorflow-forward", "tf-fwd", {"id": "$(id)"})
     tf_flow.link(f"network:{tf_fwd_input_name}", tf_fwd + ":input")
-    tf_flow.link(tf_fwd + ":" + output_type, "network:features")
+    tf_flow.link(tf_fwd + ":log-posteriors", "network:features")
 
     tf_flow.config = rasr.RasrConfig()
     tf_flow.config[tf_fwd].input_map.info_0.param_name = "input"
@@ -75,10 +74,10 @@ def make_precomputed_hybrid_tf_feature_flow(
         f"{feature_tensor_name}/{feature_tensor_name}_dim0_size"
     )
 
-    tf_flow.config[tf_fwd].output_map.info_0.param_name = output_type
+    tf_flow.config[tf_fwd].output_map.info_0.param_name = "log-posteriors"
     tf_flow.config[
         tf_fwd
-    ].output_map.info_0.tensor_name = f"{output_tensor_name}/output_batch_major"
+    ].output_map.info_0.tensor_name = f"{output_layer_name}/output_batch_major"
 
     tf_flow.config[tf_fwd].loader.type = "meta"
     tf_flow.config[tf_fwd].loader.meta_graph_file = tf_graph
