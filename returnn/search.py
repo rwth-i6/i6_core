@@ -59,6 +59,7 @@ class ReturnnSearchJobV2(Job):
         returnn_root: tk.Path,
         *,
         output_mode: str = "py",
+        output_gzip: bool = False,
         log_verbosity: int = 3,
         device: str = "gpu",
         time_rqmt: float = 4,
@@ -72,6 +73,7 @@ class ReturnnSearchJobV2(Job):
         :param tk.Path returnn_python_exe: path to the RETURNN executable (python binary or launch script)
         :param tk.Path returnn_root: path to the RETURNN src folder
         :param str output_mode: "txt" or "py"
+        :param bool output_gzip: if true, gzip the output file
         :param int log_verbosity: RETURNN log verbosity
         :param str device: RETURNN device, cpu or gpu
         :param time_rqmt: job time requirement in hours
@@ -88,7 +90,9 @@ class ReturnnSearchJobV2(Job):
 
         self.out_returnn_config_file = self.output_path("returnn.config")
 
-        self.out_search_file = self.output_path("search_out")
+        self.out_search_file = self.output_path(
+            f"search_out.{output_mode}." + (".gz" if output_gzip else "")
+        )
 
         self.returnn_config = ReturnnSearchJobV2.create_returnn_config(**kwargs)
         self.returnn_config.post_config["search_output_file"] = self.out_search_file
