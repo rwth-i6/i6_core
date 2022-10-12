@@ -91,7 +91,7 @@ class ReturnnSearchJobV2(Job):
         self.out_returnn_config_file = self.output_path("returnn.config")
 
         self.out_search_file = self.output_path(
-            f"search_out" + (f".{output_mode}.gz" if output_gzip else "")
+            "search_out" + (f".{output_mode}.gz" if output_gzip else "")
         )
 
         self.returnn_config = ReturnnSearchJobV2.create_returnn_config(**kwargs)
