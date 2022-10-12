@@ -201,6 +201,8 @@ class ReturnnSearchJobV2(Job):
             "returnn_python_exe": kwargs["returnn_python_exe"],
             "returnn_root": kwargs["returnn_root"],
         }
+        if kwargs.get("output_gzip", False) is not False:
+            d["output_gzip"] = kwargs["output_gzip"]
         return super().hash(d)
 
 
