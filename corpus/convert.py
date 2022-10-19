@@ -4,18 +4,22 @@ __all__ = [
     "CorpusToStmJob",
     "CorpusToTextDictJob",
     "CorpusToTxtJob",
+    "CorpusToRawWavHDFJob",
 ]
 
 import gzip
 import itertools
+import numpy
 import pprint
 import re
+import wave
 
 from typing import Dict, List, Optional, Tuple, Union
 
 from sisyphus import *
 
 from i6_core.lib import corpus
+from i6_core.lib.hdf import get_returnn_simple_hdf_writer
 from i6_core.util import uopen
 
 Path = setup_path(__package__)
@@ -326,3 +330,69 @@ class CorpusToTxtJob(Job):
                     segment.fullname() in segments_whitelist
                 ):
                     f.write(segment.orth + "\n")
+
+
+class CorpusToRawWavHDFJob(Job):
+    """
+    Gets audio files from a Bliss corpus and stores them as HDF file
+    compatible with the returnn HDFDataset
+    """
+
+    def __init__(
+        self,
+        bliss_corpus: tk.Path,
+        segment_file: Optional[tk.Path] = None,
+        returnn_root: Optional[tk.Path] = None,
+    ):
+        """
+
+        :param bliss_corpus: Bliss corpus to read segments and audio files from
+        :param segment_file: segment file that lists allowed segments
+        :param returnn_root: returnn repository
+        """
+        self.set_vis_name("Dump audio to HDF")
+
+        self.bliss_corpus = bliss_corpus
+        self.segment_file = segment_file
+        self.returnn_root = returnn_root
+
+        self.out_hdf = self.output_path("audio.hdf")
+
+    def tasks(self):
+        yield Task("run", mini_task=True)
+
+    def run(self):
+        SimpleHDFWriter = get_returnn_simple_hdf_writer(self.returnn_root.get_path())
+
+        c = corpus.Corpus()
+        c.load(self.bliss_corpus.get_path())
+
+        if self.segment_file:
+            with uopen(self.segment_file, "rt") as f:
+                segments_whitelist = set(
+                    l.strip() for l in f.readlines() if len(l.strip()) > 0
+                )
+        else:
+            segments_whitelist = None
+
+        out_hdf = SimpleHDFWriter(filename=self.out_hdf, dim=1)
+
+        for segment in c.segments():
+            if (not segments_whitelist) or (segment.fullname() in segments_whitelist):
+                audio_file = segment.recording.audio
+                audio = wave.open(audio_file)
+                audio.setpos(int(segment.start * audio.getframerate()))
+                data = audio.readframes(
+                    int((segment.end - segment.start) * audio.getframerate())
+                )
+                audio.close()
+                data_s16 = numpy.frombuffer(data, dtype=numpy.int16)
+                data_f32 = data_s16.astype(numpy.float32)
+
+                out_hdf.insert_batch(
+                    inputs=data_f32.reshape(1, -1, 1),
+                    seq_len=[data_f32.shape[0]],
+                    seq_tag=[segment.fullname()],
+                )
+
+        out_hdf.close()
