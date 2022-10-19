@@ -99,8 +99,6 @@ class MailJob(Job):
                 ["mail", "-s", subject, self.mail_address], stdin=p1.stdout
             )
         else:
-            p1 = subprocess.run(stdin="", stdout=subprocess.PIPE)
-            value = subprocess.check_output(
-                ["mail", "-s", subject, self.mail_address], stdin=p1.stdout
-            )
+            out = subprocess.run(["mail", "-s", subject, self.mail_address], input="", check=True)
+            value = out.returncode
         self.out_status.set(value)
