@@ -1,13 +1,17 @@
-__all__ = ["ReturnnDumpHDFJob", "ReturnnRasrDumpHDFJob"]
+__all__ = ["ReturnnDumpHDFJob", "ReturnnRasrDumpHDFJob", "BlissToPcmHDFJob"]
 
 import os
 import shutil
+import soundfile as sf
 import subprocess as sp
 import tempfile
+from typing import Optional
 
 from .rasr_training import ReturnnRasrTrainingJob
+from i6_core.lib import corpus
+from i6_core.lib.hdf import get_returnn_simple_hdf_writer
 import i6_core.rasr as rasr
-from i6_core.util import instanciate_delayed
+from i6_core.util import instanciate_delayed, uopen
 
 from sisyphus import *
 
@@ -195,3 +199,79 @@ class ReturnnRasrDumpHDFJob(ReturnnDumpHDFJob):
             f.write(
                 '<?xml version="1.0" ?>\n<network><out name="features" /></network>'
             )
+
+
+class BlissToPcmHDFJob(Job):
+    """
+    Gets audio files from a Bliss corpus and stores them as HDF file
+    compatible with the returnn HDFDataset
+    """
+
+    def __init__(
+        self,
+        bliss_corpus: tk.Path,
+        segment_file: Optional[tk.Path] = None,
+        output_dtype: str = "int16",
+        returnn_root: Optional[tk.Path] = None,
+    ):
+        """
+
+        :param bliss_corpus: Bliss corpus to read segments and audio files from
+        :param segment_file: segment file that lists allowed segments
+        :param output_dtype: dtype that should be written in the hdf (supports float64, float32, int32, int16)
+        :param returnn_root: returnn repository
+        """
+        self.set_vis_name("Dump audio to HDF")
+
+        self.bliss_corpus = bliss_corpus
+        self.segment_file = segment_file
+        assert output_dtype in ["float64", "float32", "int32", "int16"]
+        self.output_dtype = output_dtype
+        self.returnn_root = returnn_root
+
+        self.out_hdf = self.output_path("audio.hdf")
+
+    def tasks(self):
+        yield Task("run", mini_task=True)
+
+    def run(self):
+        returnn_root = (
+            None if self.returnn_root is None else self.returnn_root.get_path()
+        )
+        SimpleHDFWriter = get_returnn_simple_hdf_writer(returnn_root)
+
+        c = corpus.Corpus()
+        c.load(self.bliss_corpus.get_path())
+
+        if self.segment_file:
+            with uopen(self.segment_file, "rt") as f:
+                segments_whitelist = set(
+                    l.strip() for l in f.readlines() if len(l.strip()) > 0
+                )
+        else:
+            segments_whitelist = None
+
+        out_hdf = SimpleHDFWriter(filename=self.out_hdf, dim=1)
+
+        for recording in c.all_recordings():
+            audio_file = recording.audio
+            audio = sf.SoundFile(audio_file)
+
+            for segment in recording.segments:
+                if (not segments_whitelist) or (
+                    segment.fullname() in segments_whitelist
+                ):
+                    audio.seek(int(segment.start * audio.samplerate))
+                    data = audio.read(
+                        int((segment.end - segment.start) * audio.samplerate),
+                        dtype=self.output_dtype,
+                    )
+                    out_hdf.insert_batch(
+                        inputs=data.reshape(1, -1, 1),
+                        seq_len=[data.shape[0]],
+                        seq_tag=[segment.fullname()],
+                    )
+
+            audio.close()
+
+        out_hdf.close()
