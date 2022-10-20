@@ -7,6 +7,8 @@ from typing import Dict, Union, Callable, Optional
 import pprint
 import subprocess
 
+from i6_core.util import uopen
+
 _Report_Type = Dict[str, Union[tk.AbstractPath, str]]
 
 
@@ -23,10 +25,12 @@ class GenerateReportStringJob(Job):
     ):
         """
 
-        :param report_values:
-        :param report_template:
-        :param compress:
+        :param report_values: Can be either directly callable or a dict which then is handled by report_template
+        :param report_template: Function to handle report_values of type _Report_Type
+        :param compress: Whether to zip the report
         """
+        if report_template is not None:
+            assert not isinstance(report_values, Callable)
         self.report_values = report_values
         self.report_template = report_template
         self.compress = compress
@@ -50,8 +54,7 @@ class GenerateReportStringJob(Job):
         else:
             report = pprint.pformat(self.report_values, width=140)
 
-        fopen = gzip.open if self.compress else open
-        with fopen(self.out_report.get_path(), "wt") as f:
+        with uopen(self.out_report.get_path(), "wt") as f:
             f.write(report)
 
 
@@ -100,7 +103,7 @@ class MailJob(Job):
             )
         else:
             out = subprocess.run(
-                ["mail", "-s", subject, self.mail_address], input="", check=True
+                ["mail", "-s", subject, self.mail_address], input=subject, check=True
             )
             value = out.returncode
         self.out_status.set(value)
