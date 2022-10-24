@@ -256,6 +256,7 @@ class BlissToPcmHDFJob(Job):
         for recording in c.all_recordings():
             audio_file = recording.audio
             audio = sf.SoundFile(audio_file)
+            assert audio.channels == 1, "Multichannel audio not yet implemented"
 
             for segment in recording.segments:
                 if (not segments_whitelist) or (
