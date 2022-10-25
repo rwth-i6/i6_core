@@ -204,7 +204,7 @@ class ReturnnRasrDumpHDFJob(ReturnnDumpHDFJob):
 class BlissToPcmHDFJob(Job):
     """
     Gets audio files from a Bliss corpus and stores them as HDF file
-    compatible with the returnn HDFDataset
+    compatible with the RETURNN HDFDataset
     """
 
     def __init__(
@@ -219,7 +219,7 @@ class BlissToPcmHDFJob(Job):
         :param bliss_corpus: Bliss corpus to read segments and audio files from
         :param segment_file: segment file that lists allowed segments
         :param output_dtype: dtype that should be written in the hdf (supports float64, float32, int32, int16)
-        :param returnn_root: returnn repository
+        :param returnn_root: RETURNN repository
         """
         self.set_vis_name("Dump audio to HDF")
 
