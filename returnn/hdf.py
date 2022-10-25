@@ -222,17 +222,18 @@ class BlissToPcmHDFJob(Job):
         :param returnn_root: RETURNN repository
         """
         self.set_vis_name("Dump audio to HDF")
+        assert output_dtype in ["float64", "float32", "int32", "int16"]
 
         self.bliss_corpus = bliss_corpus
         self.segment_file = segment_file
-        assert output_dtype in ["float64", "float32", "int32", "int16"]
         self.output_dtype = output_dtype
         self.returnn_root = returnn_root
+        self.rqmt = {}
 
         self.out_hdf = self.output_path("audio.hdf")
 
     def tasks(self):
-        yield Task("run", mini_task=True)
+        yield Task("run", rqmt=self.rqmt)
 
     def run(self):
         returnn_root = (
