@@ -52,7 +52,7 @@ class LatticeToCtmJob(rasr.RasrCommand, Job):
             "run", resume="run", rqmt=self.rqmt, args=range(1, self.concurrent + 1)
         )
         if self.concurrent > 1:
-            yield Task("merge", mini_task=True, tries=2)  # 2 tries to prevent fs problems crashing the job
+            yield Task("merge", mini_task=True, tries=2)  # 2 tries to catch fs problems crashing the job
 
     def create_files(self):
         self.write_config(self.config, self.post_config, "lattice_to_ctm.config")
