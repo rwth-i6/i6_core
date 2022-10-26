@@ -66,6 +66,15 @@ class Checkpoint:
         return "'%s'" % self.ckpt_path
 
 
+class PyTorchCheckpoint(Checkpoint):
+    def __init__(self, checkpoint_path):
+        super().__init__(index_path=checkpoint_path)
+
+    @property
+    def ckpt_path(self):
+        return self.index_path.get_path()
+
+
 class ReturnnTrainingJob(Job):
     """
     Train a RETURNN model using the rnn.py entry point.
@@ -142,27 +151,36 @@ class ReturnnTrainingJob(Job):
         else:
             self.keep_epochs = set(keep_epochs)
 
-        suffix = ".meta" if self.returnn_config.get("use_tensorflow", False) else ""
-
         self.out_returnn_config_file = self.output_path("returnn.config")
         self.out_learning_rates = self.output_path("learning_rates")
         self.out_model_dir = self.output_path("models", directory=True)
+
+        # deprecated output
         self.out_models = {
             k: ReturnnModel(
                 self.out_returnn_config_file,
-                self.output_path("models/epoch.%.3d%s" % (k, suffix)),
+                self.output_path("models/epoch.%.3d.meta" % k),
                 k,
             )
             for k in stored_epochs
             if k in self.keep_epochs
         }
-        if self.returnn_config.get("use_tensorflow", False):
+
+        if self.returnn_config.get("backend") == "pytorch":
+            self.out_checkpoints = {
+                k: PyTorchCheckpoint(index_path)
+                for k in stored_epochs
+                if k in self.keep_epochs
+                for index_path in [self.output_path("models/epoch.%.3d.pt" % k)]
+            }
+        else:
             self.out_checkpoints = {
                 k: Checkpoint(index_path)
                 for k in stored_epochs
                 if k in self.keep_epochs
                 for index_path in [self.output_path("models/epoch.%.3d.index" % k)]
             }
+
         self.out_plot_se = self.output_path("score_and_error.png")
         self.out_plot_lr = self.output_path("learning_rate.png")
 
