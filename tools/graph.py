@@ -29,7 +29,8 @@ class MultiJobCleanupJob(Job):
         """
         :param job_output_list: Job outputs to delete (one output is sufficient to clean the whole job
             unless you use the `output_file_only` mode)
-        :param trigger: trigger Path
+        :param trigger: trigger Path, this should be the path that causes the MultiCleanUpJob to run
+            All the outputs/jobs to be deleted should be dependencies.
         :param mode: what kind of deletion to perform
         """
         self.job_output_list = job_output_list
