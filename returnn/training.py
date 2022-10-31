@@ -578,8 +578,8 @@ class ReturnnTrainingFromFileJob(Job):
 class GetBestEpochJob(Job):
     """
     Provided a RETURNN model directory and a score key, finds the best epoch.
-    The sorting is lower=better, so to acces the model with the highest values use negative index values (e.g. -1 for
-    the model with the highest score)
+    The sorting is lower=better, so to access the model with the highest values use negative index values (e.g. -1 for
+    the model with the highest score, error or "loss")
 
     """
 
@@ -591,7 +591,7 @@ class GetBestEpochJob(Job):
         :param learning_rates: learning_rates output from a RETURNNTrainingJob
         :param key: a key from the learning rate file that is used to sort the models,
             e.g. "dev_score_output/output_prob"
-        :param index: index of the sorted list to access, 0 for the lowest, -1 for the highest score
+        :param index: index of the sorted list to access, 0 for the lowest, -1 for the highest score/error/loss
         """
         self.model_dir = model_dir
         self.learning_rates = learning_rates
@@ -655,9 +655,8 @@ class GetBestTFCheckpointJob(GetBestEpochJob):
         super().__init__(model_dir, learning_rates, key, index)
         self._out_model_dir = self.output_path("model", directory=True)
 
-        # Note: checkpoint.index (without epoch number) is only allowed because we are symlinking
-        # to a file that contains an epoch number, as RETURNN will resolve symlinks automatically and
-        # then check for the epoch number
+        # Note: checkpoint.index (without epoch number) is only a symlink which is possibly resolved by RETURNN
+        # See also https://github.com/rwth-i6/returnn/issues/1194 for the current behavior
         self.out_checkpoint = Checkpoint(self.output_path("model/checkpoint.index"))
 
     def tasks(self):
