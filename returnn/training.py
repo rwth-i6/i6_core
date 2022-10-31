@@ -573,3 +573,177 @@ class ReturnnTrainingFromFileJob(Job):
         }
 
         return super().hash(d)
+
+
+class GetBestEpochJob(Job):
+    """
+    Provided a RETURNN model directory and a score key, finds the best epoch.
+    The sorting is lower=better, so to acces the model with the highest values use negative index values (e.g. -1 for
+    the model with the highest score)
+
+    """
+
+    def __init__(
+        self, model_dir: tk.Path, learning_rates: tk.Path, key: str, index: int = 0
+    ):
+        """
+        :param model_dir: model_dir output from a RETURNNTrainingJob
+        :param learning_rates: learning_rates output from a RETURNNTrainingJob
+        :param key: a key from the learning rate file that is used to sort the models,
+            e.g. "dev_score_output/output_prob"
+        :param index: index of the sorted list to access, 0 for the lowest, -1 for the highest score
+        """
+        self.model_dir = model_dir
+        self.learning_rates = learning_rates
+        self.index = index
+        self.out_epoch = self.output_var("epoch")
+        self.key = key
+
+    def run(self):
+        # this has to be defined in order for "eval" to work
+        def EpochData(learningRate, error):
+            return {"learning_rate": learningRate, "error": error}
+
+        with open(self.learning_rates.get_path(), "rt") as f:
+            text = f.read()
+
+        data = eval(text, {"inf": 1e99, "EpochData": EpochData})
+
+        epochs = list(sorted(data.keys()))
+
+        # some epochs might not have all keys, we require that the last entry has the key, other epochs which
+        # do not have it might be ignored
+        available_keys = data[epochs[-1]]["error"]
+        if self.key not in available_keys:
+            raise KeyError(
+                f"{self.key} is not available in the provided learning_rates file f{self.learning_rates.get_path()}"
+            )
+
+        scores = [
+            (epoch, data[epoch]["error"][self.key])
+            for epoch in epochs
+            if self.key in data[epoch]["error"]
+        ]
+        sorted_scores = list(sorted(scores, key=lambda x: x[1]))
+
+        self.out_epoch.set(sorted_scores[self.index][0])
+
+    def tasks(self):
+        yield Task("run", mini_task=True)
+
+
+class GetBestTFCheckpointJob(GetBestEpochJob):
+    """
+    Returns the best checkpoint given a training model dir and a learning-rates file
+    The best checkpoint will be HARD-linked if possible, so that no space is wasted but also the model not
+    deleted in case that the training folder is removed.
+    """
+
+    def __init__(
+        self, model_dir: tk.Path, learning_rates: tk.Path, key: str, index: int = 0
+    ):
+        """
+
+        :param Path model_dir: model_dir output from a RETURNNTrainingJob
+        :param Path learning_rates: learning_rates output from a RETURNNTrainingJob
+        :param int index: index of the sorted list to access, 0 for the lowest, -1 for the highest score
+        :param str key: a key from the learning rate file that is used to sort the models
+            e.g. "dev_score_output/output_prob"
+        """
+        super().__init__(model_dir, learning_rates, key, index)
+        self._out_model_dir = self.output_path("model", directory=True)
+
+        # Note: checkpoint.index (without epoch number) is only allowed be cause we are symlinking
+        # to a file that contains an epoch number, as RETURNN will resolve symlinks automatically and
+        # then check for the epoch number
+        self.out_checkpoint = Checkpoint(self.output_path("model/checkpoint.index"))
+
+    def tasks(self):
+        yield Task("run", mini_task=True)
+
+    def run(self):
+        super().run()
+
+        try:
+            os.link(
+                os.path.join(
+                    self.model_dir.get_path(), "epoch.%.3d.index" % self.out_epoch.get()
+                ),
+                os.path.join(
+                    self._out_model_dir.get_path(),
+                    "epoch.%.3d.index" % self.out_epoch.get(),
+                ),
+            )
+            os.link(
+                os.path.join(
+                    self.model_dir.get_path(), "epoch.%.3d.meta" % self.out_epoch.get()
+                ),
+                os.path.join(
+                    self._out_model_dir.get_path(),
+                    "epoch.%.3d.meta" % self.out_epoch.get(),
+                ),
+            )
+            os.link(
+                os.path.join(
+                    self.model_dir.get_path(),
+                    "epoch.%.3d.data-00000-of-00001" % self.out_epoch.get(),
+                ),
+                os.path.join(
+                    self._out_model_dir.get_path(),
+                    "epoch.%.3d.data-00000-of-00001" % self.out_epoch.get(),
+                ),
+            )
+        except OSError:
+            # the hardlink will fail when there was an imported job on a different filesystem,
+            # thus do a copy instead then
+            shutil.copy(
+                os.path.join(
+                    self.model_dir.get_path(), "epoch.%.3d.index" % self.out_epoch.get()
+                ),
+                os.path.join(
+                    self._out_model_dir.get_path(),
+                    "epoch.%.3d.index" % self.out_epoch.get(),
+                ),
+            )
+            shutil.copy(
+                os.path.join(
+                    self.model_dir.get_path(), "epoch.%.3d.meta" % self.out_epoch.get()
+                ),
+                os.path.join(
+                    self._out_model_dir.get_path(),
+                    "epoch.%.3d.meta" % self.out_epoch.get(),
+                ),
+            )
+            shutil.copy(
+                os.path.join(
+                    self.model_dir.get_path(),
+                    "epoch.%.3d.data-00000-of-00001" % self.out_epoch.get(),
+                ),
+                os.path.join(
+                    self._out_model_dir.get_path(),
+                    "epoch.%.3d.data-00000-of-00001" % self.out_epoch.get(),
+                ),
+            )
+
+        os.symlink(
+            os.path.join(
+                self._out_model_dir.get_path(),
+                "epoch.%.3d.index" % self.out_epoch.get(),
+            ),
+            os.path.join(self._out_model_dir.get_path(), "checkpoint.index"),
+        )
+        os.symlink(
+            os.path.join(
+                self._out_model_dir.get_path(), "epoch.%.3d.meta" % self.out_epoch.get()
+            ),
+            os.path.join(self._out_model_dir.get_path(), "checkpoint.meta"),
+        )
+        os.symlink(
+            os.path.join(
+                self._out_model_dir.get_path(),
+                "epoch.%.3d.data-00000-of-00001" % self.out_epoch.get(),
+            ),
+            os.path.join(
+                self._out_model_dir.get_path(), "checkpoint.data-00000-of-00001"
+            ),
+        )
