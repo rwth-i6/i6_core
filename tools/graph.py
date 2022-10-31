@@ -18,23 +18,28 @@ class MultiJobCleanupJob(Job):
 
     class CleanupMode(enum.Enum):
         full_job = 1
-        work_only = 2
-        output_only = 3
-        work_and_output = 4
+        work_folder_only = 2
+        output_folder_only = 3
+        work_and_output_folder = 4
+        output_file_only = 5
 
-    def __init__(self, job_list: List[Job], trigger: tk.Path, mode: CleanupMode):
+    def __init__(
+        self, job_output_list: List[tk.Path], trigger: tk.Path, mode: CleanupMode
+    ):
         """
-        :param job_list: Job(s) to delete
+        :param job_output_list: Job outputs to delete (one output is sufficient to clean the whole job
+            unless you use the `output_file_only` mode)
         :param trigger: trigger Path
         :param mode: what kind of deletion to perform
         """
-        self.job_list = job_list
+        self.job_output_list = job_output_list
         self.trigger = trigger
         self.mode = mode
         self.out = self.output_path(os.path.basename(trigger.path))
 
-        # check that the trigger does not appear in any of the Jobs that are deleted
-        assert trigger.creator not in self.job_list
+        # check that the trigger does not share a common job with the job outputs to delete
+        for job_output in job_output_list:
+            assert trigger.creator is not job_output.creator
 
     def tasks(self):
         yield Task("run", mini_task=True)
@@ -42,24 +47,32 @@ class MultiJobCleanupJob(Job):
     def run(self):
         import shutil
 
-        for job in self.job_list:
-            print("remove %s" % str(job))
+        for job_output in self.job_output_list:
+            print("remove %s" % str(job_output))
             try:
-                if self.mode is not self.CleanupMode.full_job:
+                if self.mode is self.CleanupMode.output_file_only:
+                    shutil.rmtree(job_output.get_path())
+                elif self.mode is self.CleanupMode.full_job:
+                    shutil.rmtree(job_output.creator._sis_path(abspath=True))
+                else:
                     if (
-                        self.mode is self.CleanupMode.work_only
-                        or self.mode is self.CleanupMode.work_and_output
-                    ):
-                        shutil.rmtree(os.path.join(job._sis_path(abspath=True), "work"))
-                    if (
-                        self.mode is self.CleanupMode.output_only
-                        or self.mode is self.CleanupMode.work_and_output
+                        self.mode is self.CleanupMode.work_folder_only
+                        or self.mode is self.CleanupMode.work_and_output_folder
                     ):
                         shutil.rmtree(
-                            os.path.join(job._sis_path(abspath=True), "output")
+                            os.path.join(
+                                job_output.creator._sis_path(abspath=True), "work"
+                            )
                         )
-                else:
-                    shutil.rmtree(job._sis_path(abspath=True))
+                    if (
+                        self.mode is self.CleanupMode.output_folder_only
+                        or self.mode is self.CleanupMode.work_and_output_folder
+                    ):
+                        shutil.rmtree(
+                            os.path.join(
+                                job_output.creator._sis_path(abspath=True), "output"
+                            )
+                        )
             except Exception as e:
                 print("Deletion not possible with:")
                 print(e)
