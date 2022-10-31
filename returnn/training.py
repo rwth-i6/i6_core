@@ -648,14 +648,14 @@ class GetBestTFCheckpointJob(GetBestEpochJob):
 
         :param Path model_dir: model_dir output from a RETURNNTrainingJob
         :param Path learning_rates: learning_rates output from a RETURNNTrainingJob
-        :param int index: index of the sorted list to access, 0 for the lowest, -1 for the highest score
         :param str key: a key from the learning rate file that is used to sort the models
             e.g. "dev_score_output/output_prob"
+        :param int index: index of the sorted list to access, 0 for the lowest, -1 for the highest score
         """
         super().__init__(model_dir, learning_rates, key, index)
         self._out_model_dir = self.output_path("model", directory=True)
 
-        # Note: checkpoint.index (without epoch number) is only allowed be cause we are symlinking
+        # Note: checkpoint.index (without epoch number) is only allowed because we are symlinking
         # to a file that contains an epoch number, as RETURNN will resolve symlinks automatically and
         # then check for the epoch number
         self.out_checkpoint = Checkpoint(self.output_path("model/checkpoint.index"))
