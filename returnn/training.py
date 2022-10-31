@@ -607,7 +607,9 @@ class GetBestEpochJob(Job):
         with open(self.learning_rates.get_path(), "rt") as f:
             text = f.read()
 
-        data = eval(text, {"inf": 1e99, "EpochData": EpochData})
+        data = eval(
+            text, {"nan": float("nan"), "inf": float("inf"), "EpochData": EpochData}
+        )
 
         epochs = list(sorted(data.keys()))
 
