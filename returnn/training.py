@@ -185,16 +185,25 @@ class ReturnnTrainingJob(Job):
         }
 
         if self.pe_num_processes:
-            assert self.horovod_num_processes and self.horovod_num_processes >= self.pe_num_processes
+            assert self.horovod_num_processes
+            assert self.horovod_num_processes >= self.pe_num_processes
             assert self.horovod_num_processes % self.pe_num_processes == 0
         if (self.horovod_num_processes or 1) > (self.pe_num_processes or 1):
             assert self.horovod_num_processes % (self.pe_num_processes or 1) == 0
-            self.rqmt["cpu"] *= self.horovod_num_processes // (self.pe_num_processes or 1)
-            self.rqmt["gpu"] *= self.horovod_num_processes // (self.pe_num_processes or 1)
-            self.rqmt["mem"] *= self.horovod_num_processes // (self.pe_num_processes or 1)
+            self.rqmt["cpu"] *= self.horovod_num_processes // (
+                self.pe_num_processes or 1
+            )
+            self.rqmt["gpu"] *= self.horovod_num_processes // (
+                self.pe_num_processes or 1
+            )
+            self.rqmt["mem"] *= self.horovod_num_processes // (
+                self.pe_num_processes or 1
+            )
 
         if self.pe_num_processes:
-            self.rqmt.setdefault("qsub_args", []).extend(["-pe", "mpi", str(self.pe_num_processes)])
+            self.rqmt.setdefault("qsub_args", []).extend(
+                ["-pe", "mpi", str(self.pe_num_processes)]
+            )
 
     def _get_run_cmd(self):
         run_cmd = [
