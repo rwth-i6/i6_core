@@ -96,6 +96,7 @@ class ReturnnTrainingJob(Job):
         mem_rqmt=4,
         cpu_rqmt=2,
         horovod_num_processes=None,
+        pe_num_processes=None,
         returnn_python_exe=None,
         returnn_root=None,
     ):
@@ -114,6 +115,7 @@ class ReturnnTrainingJob(Job):
         :param int|float mem_rqmt:
         :param int cpu_rqmt:
         :param int horovod_num_processes:
+        :param int pe_num_processes:
         :param Path|str returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
         :param Path|str returnn_root: file path to the RETURNN repository root folder
         """
@@ -132,6 +134,7 @@ class ReturnnTrainingJob(Job):
         )
         self.use_horovod = True if (horovod_num_processes is not None) else False
         self.horovod_num_processes = horovod_num_processes
+        self.pe_num_processes = pe_num_processes
         self.returnn_config = ReturnnTrainingJob.create_returnn_config(**kwargs)
 
         stored_epochs = list(range(save_interval, num_epochs, save_interval)) + [
@@ -177,10 +180,14 @@ class ReturnnTrainingJob(Job):
             "time": time_rqmt,
         }
 
-        if self.use_horovod:
-            self.rqmt["cpu"] *= self.horovod_num_processes
-            self.rqmt["gpu"] *= self.horovod_num_processes
-            self.rqmt["mem"] *= self.horovod_num_processes
+        if (self.horovod_num_processes or 1) > (self.pe_num_processes or 1):
+            assert self.horovod_num_processes % (self.pe_num_processes or 1) == 0
+            self.rqmt["cpu"] *= self.horovod_num_processes // (self.pe_num_processes or 1)
+            self.rqmt["gpu"] *= self.horovod_num_processes // (self.pe_num_processes or 1)
+            self.rqmt["mem"] *= self.horovod_num_processes // (self.pe_num_processes or 1)
+
+        if self.pe_num_processes:
+            self.rqmt.setdefault("qsub_args", []).extend(["-pe", "mpi", str(self.pe_num_processes)])
 
     def _get_run_cmd(self):
         run_cmd = [
@@ -189,7 +196,7 @@ class ReturnnTrainingJob(Job):
             self.out_returnn_config_file.get_path(),
         ]
 
-        if self.use_horovod:
+        if self.horovod_num_processes:
             run_cmd = [
                 "mpirun",
                 "-np",
@@ -428,6 +435,9 @@ class ReturnnTrainingJob(Job):
 
         if kwargs["horovod_num_processes"] is not None:
             d["horovod_num_processes"] = kwargs["horovod_num_processes"]
+
+        if kwargs["pe_num_processes"] is not None:
+            d["pe_num_processes"] = kwargs["pe_num_processes"]
 
         return super().hash(d)
 
