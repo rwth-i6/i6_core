@@ -87,7 +87,7 @@ class ReturnnScorer(FeatureScorer):
         self.config.pymod_path = (
             returnn_root
             if returnn_root is not None
-            else os.path.join(gs.RETURNN_ROOT, "..")
+            else tk.Path(gs.RETURNN_ROOT).join_right("..")
         )
         self.config.pymod_config = StringWrapper(
             "epoch:%d,action:forward,configfile:%s"
