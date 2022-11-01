@@ -6,6 +6,7 @@ __all__ = [
 ]
 
 import copy
+import sys
 import os
 import shutil
 import subprocess as sp
@@ -114,8 +115,11 @@ class ReturnnTrainingJob(Job):
         :param int|float time_rqmt:
         :param int|float mem_rqmt:
         :param int cpu_rqmt:
-        :param int horovod_num_processes:
-        :param int pe_num_processes:
+        :param int horovod_num_processes: If used without pe_num_processes, then single node, otherwise multi node.
+        :param int pe_num_processes: enables SGE parallel environment, i.e. adds `-pe mpi N` to the `qsub` args.
+            Currently only with Horovod,
+            and horovod_num_processes should be set as well, usually to the same value.
+            See https://returnn.readthedocs.io/en/latest/advanced/multi_gpu.html.
         :param Path|str returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
         :param Path|str returnn_root: file path to the RETURNN repository root folder
         """
@@ -180,6 +184,9 @@ class ReturnnTrainingJob(Job):
             "time": time_rqmt,
         }
 
+        if self.pe_num_processes:
+            assert self.horovod_num_processes and self.horovod_num_processes >= self.pe_num_processes
+            assert self.horovod_num_processes % self.pe_num_processes == 0
         if (self.horovod_num_processes or 1) > (self.pe_num_processes or 1):
             assert self.horovod_num_processes % (self.pe_num_processes or 1) == 0
             self.rqmt["cpu"] *= self.horovod_num_processes // (self.pe_num_processes or 1)
@@ -259,6 +266,19 @@ class ReturnnTrainingJob(Job):
         os.link(src, dst)
 
     def run(self):
+        if self.pe_num_processes:
+            # Some useful debugging:
+            if "PE_HOSTFILE" in os.environ:
+                print("PE_HOSTFILE =", os.environ["PE_HOSTFILE"])
+                if os.environ["PE_HOSTFILE"]:
+                    try:
+                        print("Content:")
+                        with open(os.environ["PE_HOSTFILE"]) as f:
+                            print(f.read())
+                    except Exception as exc:
+                        print("Cannot read:", exc)
+            sys.stdout.flush()
+
         sp.check_call(self._get_run_cmd())
 
         lrf = self.returnn_config.get("learning_rate_file", "learning_rates")
