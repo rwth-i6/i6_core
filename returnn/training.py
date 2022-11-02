@@ -184,22 +184,18 @@ class ReturnnTrainingJob(Job):
         }
 
         if self.parallel_tasks:
-            assert self.horovod_num_processes, "parallel_tasks only supported together with Horovod currently"
+            assert (
+                self.horovod_num_processes
+            ), "parallel_tasks only supported together with Horovod currently"
             assert self.horovod_num_processes >= self.parallel_tasks
             assert self.horovod_num_processes % self.parallel_tasks == 0
             self.rqmt["parallel_tasks"] = self.parallel_tasks
 
         if (self.horovod_num_processes or 1) > (self.parallel_tasks or 1):
             assert self.horovod_num_processes % (self.parallel_tasks or 1) == 0
-            self.rqmt["cpu"] *= self.horovod_num_processes // (
-                    self.parallel_tasks or 1
-            )
-            self.rqmt["gpu"] *= self.horovod_num_processes // (
-                    self.parallel_tasks or 1
-            )
-            self.rqmt["mem"] *= self.horovod_num_processes // (
-                    self.parallel_tasks or 1
-            )
+            self.rqmt["cpu"] *= self.horovod_num_processes // (self.parallel_tasks or 1)
+            self.rqmt["gpu"] *= self.horovod_num_processes // (self.parallel_tasks or 1)
+            self.rqmt["mem"] *= self.horovod_num_processes // (self.parallel_tasks or 1)
 
     def _get_run_cmd(self):
         run_cmd = [
