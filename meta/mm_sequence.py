@@ -7,6 +7,7 @@ __all__ = [
     "first_split_acc_then_align_split_acc",
 ]
 import os
+from typing import Optional, Dict, List
 
 from i6_core.mm.alignment import AlignmentJob, AMScoresFromAlignmentLogJob
 from i6_core.mm.flow import FlowNetwork
@@ -228,20 +229,34 @@ def align_then_split_and_accumulate_sequence(
 
 
 def align_and_accumulate_sequence(
-    num_align, num_accumulate, mark_accumulate=True, mark_align=True
+    num_align: int,
+    num_accumulate: int,
+    mark_accumulate: bool = True,
+    mark_align: bool = True,
+    keep_steps: Optional[List[int]] = None,
 ):
     """
-    :param int num_align:
-    :param int num_accumulate:
-    :param bool mark_accumulate:
-    :param bool mark_align:
+    :param int num_align: number full iterations (defined by number of aligns)
+    :param int num_accumulate: number of accumulates per align
+    :param bool mark_accumulate: mark all accumulates as selected
+    :param bool mark_align: mark all aligns as selected
+    :param dict keep_steps: 0 indexed list to mark speical steps
     :return: action sequence
     :rtype: list[str]
     """
     assert num_align > 0 and num_accumulate > 0
     acc_str = "accumulate" + ("!" if mark_accumulate else "")
     align_str = "align" + ("!" if mark_align else "")
-    return ([align_str] + ["accumulate"] * (num_accumulate - 1) + [acc_str]) * num_align
+    sequence_list = (
+        [align_str] + ["accumulate"] * (num_accumulate - 1) + [acc_str]
+    ) * num_align
+
+    if keep_steps is not None:
+        for mark in keep_steps:
+            if not sequence_list[mark].endswith("!"):
+                sequence_list[mark] = sequence_list[mark] + "!"
+
+    return sequence_list
 
 
 def multiple_aligns_per_split_sequence(
