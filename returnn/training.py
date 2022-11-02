@@ -212,6 +212,9 @@ class ReturnnTrainingJob(Job):
         ]
 
         if self.horovod_num_processes:
+            # Normally, if the engine (e.g. SGE or Slurm) is configured correctly,
+            # it automatically provides the information on multiple nodes to mpirun,
+            # so it is not needed to explicitly pass on any hostnames here.
             run_cmd = [
                 "mpirun",
                 "-np",
