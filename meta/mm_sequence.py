@@ -252,6 +252,9 @@ def align_and_accumulate_sequence(
     ) * num_align
 
     if keep_steps is not None:
+        assert max(keep_steps) < len(
+            sequence_list
+        ), "Keep Steps List index out of range"
         for mark in keep_steps:
             if not sequence_list[mark].endswith("!"):
                 sequence_list[mark] = sequence_list[mark] + "!"
