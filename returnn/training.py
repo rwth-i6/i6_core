@@ -136,7 +136,6 @@ class ReturnnTrainingJob(Job):
         self.returnn_root = (
             returnn_root if returnn_root is not None else gs.RETURNN_ROOT
         )
-        self.use_horovod = True if (horovod_num_processes is not None) else False
         self.horovod_num_processes = horovod_num_processes
         self.pe_num_processes = pe_num_processes
         self.returnn_config = ReturnnTrainingJob.create_returnn_config(**kwargs)
