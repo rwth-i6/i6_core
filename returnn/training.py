@@ -275,7 +275,7 @@ class ReturnnTrainingJob(Job):
 
     def run(self):
         if self.pe_num_processes:
-            # Some useful debugging:
+            # Some useful debugging, specifically for SGE parallel environment (PE).
             if "PE_HOSTFILE" in os.environ:
                 print("PE_HOSTFILE =", os.environ["PE_HOSTFILE"])
                 if os.environ["PE_HOSTFILE"]:
