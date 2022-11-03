@@ -193,9 +193,15 @@ class ReturnnTrainingJob(Job):
 
         if (self.horovod_num_processes or 1) > (self.multi_node_slots or 1):
             assert self.horovod_num_processes % (self.multi_node_slots or 1) == 0
-            self.rqmt["cpu"] *= self.horovod_num_processes // (self.multi_node_slots or 1)
-            self.rqmt["gpu"] *= self.horovod_num_processes // (self.multi_node_slots or 1)
-            self.rqmt["mem"] *= self.horovod_num_processes // (self.multi_node_slots or 1)
+            self.rqmt["cpu"] *= self.horovod_num_processes // (
+                self.multi_node_slots or 1
+            )
+            self.rqmt["gpu"] *= self.horovod_num_processes // (
+                self.multi_node_slots or 1
+            )
+            self.rqmt["mem"] *= self.horovod_num_processes // (
+                self.multi_node_slots or 1
+            )
 
     def _get_run_cmd(self):
         run_cmd = [
