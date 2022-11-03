@@ -97,7 +97,7 @@ class ReturnnTrainingJob(Job):
         mem_rqmt=4,
         cpu_rqmt=2,
         horovod_num_processes=None,
-        parallel_tasks=None,
+        multi_node_slots=None,
         returnn_python_exe=None,
         returnn_root=None,
     ):
@@ -116,7 +116,7 @@ class ReturnnTrainingJob(Job):
         :param int|float mem_rqmt:
         :param int cpu_rqmt:
         :param int horovod_num_processes: If used without pe_num_processes, then single node, otherwise multi node.
-        :param int parallel_tasks: enables SGE parallel environment, i.e. adds `-pe mpi N` to the `qsub` args.
+        :param int multi_node_slots: multi-node multi-GPU training. See Sisyphus rqmt documentation.
             Currently only with Horovod,
             and horovod_num_processes should be set as well, usually to the same value.
             See https://returnn.readthedocs.io/en/latest/advanced/multi_gpu.html.
@@ -137,7 +137,7 @@ class ReturnnTrainingJob(Job):
             returnn_root if returnn_root is not None else gs.RETURNN_ROOT
         )
         self.horovod_num_processes = horovod_num_processes
-        self.parallel_tasks = parallel_tasks
+        self.multi_node_slots = multi_node_slots
         self.returnn_config = ReturnnTrainingJob.create_returnn_config(**kwargs)
 
         stored_epochs = list(range(save_interval, num_epochs, save_interval)) + [
@@ -183,19 +183,19 @@ class ReturnnTrainingJob(Job):
             "time": time_rqmt,
         }
 
-        if self.parallel_tasks:
+        if self.multi_node_slots:
             assert (
                 self.horovod_num_processes
-            ), "parallel_tasks only supported together with Horovod currently"
-            assert self.horovod_num_processes >= self.parallel_tasks
-            assert self.horovod_num_processes % self.parallel_tasks == 0
-            self.rqmt["parallel_tasks"] = self.parallel_tasks
+            ), "multi_node_slots only supported together with Horovod currently"
+            assert self.horovod_num_processes >= self.multi_node_slots
+            assert self.horovod_num_processes % self.multi_node_slots == 0
+            self.rqmt["multi_node_slots"] = self.multi_node_slots
 
-        if (self.horovod_num_processes or 1) > (self.parallel_tasks or 1):
-            assert self.horovod_num_processes % (self.parallel_tasks or 1) == 0
-            self.rqmt["cpu"] *= self.horovod_num_processes // (self.parallel_tasks or 1)
-            self.rqmt["gpu"] *= self.horovod_num_processes // (self.parallel_tasks or 1)
-            self.rqmt["mem"] *= self.horovod_num_processes // (self.parallel_tasks or 1)
+        if (self.horovod_num_processes or 1) > (self.multi_node_slots or 1):
+            assert self.horovod_num_processes % (self.multi_node_slots or 1) == 0
+            self.rqmt["cpu"] *= self.horovod_num_processes // (self.multi_node_slots or 1)
+            self.rqmt["gpu"] *= self.horovod_num_processes // (self.multi_node_slots or 1)
+            self.rqmt["mem"] *= self.horovod_num_processes // (self.multi_node_slots or 1)
 
     def _get_run_cmd(self):
         run_cmd = [
@@ -270,7 +270,7 @@ class ReturnnTrainingJob(Job):
         os.link(src, dst)
 
     def run(self):
-        if self.parallel_tasks:
+        if self.multi_node_slots:
             # Some useful debugging, specifically for SGE parallel environment (PE).
             if "PE_HOSTFILE" in os.environ:
                 print("PE_HOSTFILE =", os.environ["PE_HOSTFILE"])
@@ -460,8 +460,8 @@ class ReturnnTrainingJob(Job):
         if kwargs["horovod_num_processes"] is not None:
             d["horovod_num_processes"] = kwargs["horovod_num_processes"]
 
-        if kwargs["parallel_tasks"] is not None:
-            d["parallel_tasks"] = kwargs["parallel_tasks"]
+        if kwargs["multi_node_slots"] is not None:
+            d["multi_node_slots"] = kwargs["multi_node_slots"]
 
         return super().hash(d)
 
