@@ -115,7 +115,7 @@ class ReturnnTrainingJob(Job):
         :param int|float time_rqmt:
         :param int|float mem_rqmt:
         :param int cpu_rqmt:
-        :param int horovod_num_processes: If used without pe_num_processes, then single node, otherwise multi node.
+        :param int horovod_num_processes: If used without multi_node_slots, then single node, otherwise multi node.
         :param int multi_node_slots: multi-node multi-GPU training. See Sisyphus rqmt documentation.
             Currently only with Horovod,
             and horovod_num_processes should be set as well, usually to the same value.
