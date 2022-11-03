@@ -7,7 +7,7 @@ __all__ = [
     "first_split_acc_then_align_split_acc",
 ]
 import os
-from typing import Optional, Union, List, Tuple
+from typing import Union, List, Tuple
 
 from i6_core.mm.alignment import AlignmentJob, AMScoresFromAlignmentLogJob
 from i6_core.mm.flow import FlowNetwork
