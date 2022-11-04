@@ -6,6 +6,7 @@ __all__ = [
 ]
 
 import copy
+import sys
 import os
 import shutil
 import subprocess as sp
@@ -96,6 +97,7 @@ class ReturnnTrainingJob(Job):
         mem_rqmt=4,
         cpu_rqmt=2,
         horovod_num_processes=None,
+        multi_node_slots=None,
         returnn_python_exe=None,
         returnn_root=None,
     ):
@@ -113,7 +115,11 @@ class ReturnnTrainingJob(Job):
         :param int|float time_rqmt:
         :param int|float mem_rqmt:
         :param int cpu_rqmt:
-        :param int horovod_num_processes:
+        :param int horovod_num_processes: If used without multi_node_slots, then single node, otherwise multi node.
+        :param int multi_node_slots: multi-node multi-GPU training. See Sisyphus rqmt documentation.
+            Currently only with Horovod,
+            and horovod_num_processes should be set as well, usually to the same value.
+            See https://returnn.readthedocs.io/en/latest/advanced/multi_gpu.html.
         :param Path|str returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
         :param Path|str returnn_root: file path to the RETURNN repository root folder
         """
@@ -130,8 +136,8 @@ class ReturnnTrainingJob(Job):
         self.returnn_root = (
             returnn_root if returnn_root is not None else gs.RETURNN_ROOT
         )
-        self.use_horovod = True if (horovod_num_processes is not None) else False
         self.horovod_num_processes = horovod_num_processes
+        self.multi_node_slots = multi_node_slots
         self.returnn_config = ReturnnTrainingJob.create_returnn_config(**kwargs)
 
         stored_epochs = list(range(save_interval, num_epochs, save_interval)) + [
@@ -177,10 +183,25 @@ class ReturnnTrainingJob(Job):
             "time": time_rqmt,
         }
 
-        if self.use_horovod:
-            self.rqmt["cpu"] *= self.horovod_num_processes
-            self.rqmt["gpu"] *= self.horovod_num_processes
-            self.rqmt["mem"] *= self.horovod_num_processes
+        if self.multi_node_slots:
+            assert (
+                self.horovod_num_processes
+            ), "multi_node_slots only supported together with Horovod currently"
+            assert self.horovod_num_processes >= self.multi_node_slots
+            assert self.horovod_num_processes % self.multi_node_slots == 0
+            self.rqmt["multi_node_slots"] = self.multi_node_slots
+
+        if (self.horovod_num_processes or 1) > (self.multi_node_slots or 1):
+            assert self.horovod_num_processes % (self.multi_node_slots or 1) == 0
+            self.rqmt["cpu"] *= self.horovod_num_processes // (
+                self.multi_node_slots or 1
+            )
+            self.rqmt["gpu"] *= self.horovod_num_processes // (
+                self.multi_node_slots or 1
+            )
+            self.rqmt["mem"] *= self.horovod_num_processes // (
+                self.multi_node_slots or 1
+            )
 
     def _get_run_cmd(self):
         run_cmd = [
@@ -189,7 +210,10 @@ class ReturnnTrainingJob(Job):
             self.out_returnn_config_file.get_path(),
         ]
 
-        if self.use_horovod:
+        if self.horovod_num_processes:
+            # Normally, if the engine (e.g. SGE or Slurm) is configured correctly,
+            # it automatically provides the information on multiple nodes to mpirun,
+            # so it is not needed to explicitly pass on any hostnames here.
             run_cmd = [
                 "mpirun",
                 "-np",
@@ -252,6 +276,19 @@ class ReturnnTrainingJob(Job):
         os.link(src, dst)
 
     def run(self):
+        if self.multi_node_slots:
+            # Some useful debugging, specifically for SGE parallel environment (PE).
+            if "PE_HOSTFILE" in os.environ:
+                print("PE_HOSTFILE =", os.environ["PE_HOSTFILE"])
+                if os.environ["PE_HOSTFILE"]:
+                    try:
+                        print("Content:")
+                        with open(os.environ["PE_HOSTFILE"]) as f:
+                            print(f.read())
+                    except Exception as exc:
+                        print("Cannot read:", exc)
+            sys.stdout.flush()
+
         sp.check_call(self._get_run_cmd())
 
         lrf = self.returnn_config.get("learning_rate_file", "learning_rates")
@@ -428,6 +465,9 @@ class ReturnnTrainingJob(Job):
 
         if kwargs["horovod_num_processes"] is not None:
             d["horovod_num_processes"] = kwargs["horovod_num_processes"]
+
+        if kwargs["multi_node_slots"] is not None:
+            d["multi_node_slots"] = kwargs["multi_node_slots"]
 
         return super().hash(d)
 
