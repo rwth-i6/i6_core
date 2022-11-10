@@ -548,7 +548,9 @@ class CreateHub5e01Corpus(Job):
     def run(self):
         # validate files
         base_dir = self.hub5e_01_folder.get_path()
-        stm_file = os.path.join(base_dir, "data", "transcr", "hub5e01.english.20010402.stm")
+        stm_file = os.path.join(
+            base_dir, "data", "transcr", "hub5e01.english.20010402.stm"
+        )
         assert os.path.isfile(stm_file)
 
         _process_and_write_stm([stm_file], self.out_stm.get_path())
@@ -640,15 +642,23 @@ class CreateSwitchboardE2EBlissCorpus(Job):
 
         with uopen(map_source_path) as map_source, uopen(map_target_path) as map_target:
             for source, target in zip(map_source, map_target):
-                assert source is not None and target is not None, "invalid switchboard map files found"
+                assert (
+                    source is not None and target is not None
+                ), "invalid switchboard map files found"
                 replacement_map[source.strip()] = target.strip().replace("#", " ")
 
         special_token_map = {token: token.upper() for token in SPECIAL_TOKENS}
 
         # sort by longest first to avoid early matching
-        map_regex = re.compile("|".join(
-            sorted(map(re.escape, replacement_map.keys()), key=lambda x: len(x), reverse=True)
-        ))
+        map_regex = re.compile(
+            "|".join(
+                sorted(
+                    map(re.escape, replacement_map.keys()),
+                    key=lambda x: len(x),
+                    reverse=True,
+                )
+            )
+        )
         token_regex = re.compile("|".join(map(re.escape, special_token_map.keys())))
 
         c = corpus.Corpus()
@@ -657,7 +667,9 @@ class CreateSwitchboardE2EBlissCorpus(Job):
         for segment in c.segments():
             orth = segment.orth.lower()
             orth = map_regex.sub(lambda match: replacement_map[match.group(0)], orth)
-            orth = token_regex.sub(lambda match: special_token_map[match.group(0)], orth)
+            orth = token_regex.sub(
+                lambda match: special_token_map[match.group(0)], orth
+            )
             segment.orth = orth
-            
+
         c.dump(self.out_e2e_corpus.get_path())
