@@ -9,7 +9,7 @@ number of speakers: 2260
 """
 
 
-from sisyphus import *
+from sisyphus import Job, Task, tk, setup_path
 
 from collections import defaultdict
 import glob
@@ -17,10 +17,18 @@ import subprocess
 import shutil
 import os
 import re
+from typing import List
 
 from i6_core.lib import corpus
 from i6_core.util import uopen
 from i6_core.tools.download import DownloadJob
+
+
+SPECIAL_TOKENS = {
+    "[vocalized-noise]",
+    "[noise]",
+    "[laughter]",
+}
 
 
 def _map_token(token):
@@ -248,11 +256,6 @@ class CreateSwitchboardBlissCorpusJob(Job):
 
         :param str orth: segment orth to be preprocessed
         """
-        special_tokens = {
-            "[vocalized-noise]",
-            "[noise]",
-            "[laughter]",
-        }
         removed_tokens = {
             "[silence]",
             "<b_aside>",
@@ -264,7 +267,7 @@ class CreateSwitchboardBlissCorpusJob(Job):
             token = token_.strip()
             if token in removed_tokens:
                 continue
-            elif token in special_tokens:
+            elif token in SPECIAL_TOKENS:
                 filtered_orth.append(
                     token.upper()
                 )  # make upper case for consistency with older setups
@@ -274,7 +277,7 @@ class CreateSwitchboardBlissCorpusJob(Job):
         # do not add empty transcription segments
         all_special = True
         for token in filtered_orth:
-            if token.lower() not in special_tokens:
+            if token.lower() not in SPECIAL_TOKENS:
                 all_special = False
                 break
         if all_special:
@@ -336,3 +339,325 @@ class CreateSwitchboardLexiconTextFileJob(Job):
                 token = parts[0].replace("&amp;", "&")  # e.g A&amp;E -> A&E
                 mapped_token = _map_token(token)  # preprocessing as corpus
                 out_f.write(mapped_token + " " + parts[1] + "\n")
+
+
+class SwitchboardSphereToWave(Job):
+    """
+    Takes an audio folder from one of the switchboard LDC folders and converts dual channel .sph files
+    with mulaw encoding to single channel .wav files with s16le encoding
+    """
+
+    def __init__(self, sph_audio_folder: tk.Path):
+        """
+        :param sph_audio_folder:
+        """
+        self.sph_audio_folder = sph_audio_folder
+
+        self.out_wave_audio_folder = self.output_path("wave_audio", directory=True)
+
+        self.rqmt = {"cpu": 1, "mem": 1, "time": 1.0}
+
+    def tasks(self):
+        yield Task("run", rqmt=self.rqmt)
+
+    def run(self):
+        for sph_file in glob.glob(
+            os.path.join(self.sph_audio_folder.get_path(), "**/*.sph"), recursive=True
+        ):
+            sph_name, ext = os.path.splitext(os.path.basename(sph_file))
+            subprocess.call(
+                [
+                    "ffmpeg",
+                    "-i",
+                    sph_file,
+                    "-filter_complex",
+                    "[0:a]channelsplit=channel_layout=stereo[left][right]",
+                    "-c:a",
+                    "pcm_s16le",
+                    "-map",
+                    "[left]",
+                    os.path.join(
+                        self.out_wave_audio_folder.get_path(), f"{sph_name}A.wav"
+                    ),
+                    "-map",
+                    "[right]",
+                    os.path.join(
+                        self.out_wave_audio_folder.get_path(), f"{sph_name}B.wav"
+                    ),
+                ]
+            )
+
+
+#### Evaluation Corpus Helper ####
+
+
+def _process_and_write_stm(stm_in_files: List[str], stm_out_file):
+    """
+    Kaldi-preprocessing (remove double brackets, remove <B_ASIDE> and <E_ASIDE>
+    Change naming pattern to Zoltan style
+
+    :param stm_file:
+    :return:
+    """
+    remove_extra_tag = re.compile(" *<._ASIDE>")
+    remove_double_bracket = re.compile("\(\(")
+    channel_a = re.compile(" [A1] ")
+    channel_b = re.compile(" [B2] ")
+    inter_segment_gap = re.compile("inter_segment_gap")
+
+    with uopen(stm_out_file, "wt") as stm_out:
+        for stm_file in stm_in_files:
+            with uopen(stm_file, "rt") as stm_in:
+                for line in stm_in:
+                    if line.startswith(";;"):
+                        stm_out.write(line)
+                        continue
+                    if inter_segment_gap.search(line) is not None:
+                        continue
+                    line = re.sub(" +", " ", line.strip())
+                    # name channel name+channel start end info [TEXT]
+                    # in some cases there are arbitrary extra whitespaces
+                    fields = line.split(" ", maxsplit=6)
+                    header = " ".join(fields[:6])
+                    header = channel_a.sub("a 1 ", header)
+                    header = channel_b.sub("b 1 ", header)
+                    if len(fields) == 6:
+                        # rt03 can have empty entries
+                        stm_out.write(f"{header}\n")
+                        continue
+                    content = fields[6]
+                    content = remove_extra_tag.sub("", content)
+                    content = remove_double_bracket.sub("(", content)
+                    stm_out.write(f"{header} {content}\n")
+
+
+def _get_segment_list_per_file(stm_file):
+    # store all segments before attaching them to the recordings
+    segment_list_per_file = defaultdict(list)
+
+    for line in uopen(stm_file):
+        if line.startswith(";;"):
+            continue
+        cleaned_line = re.sub(" +", " ", line.strip())
+        fields = cleaned_line.split(" ", maxsplit=6)
+        # audio filenames have no underscore for us
+        name = fields[0]
+        segment = corpus.Segment()
+        # increasing number starting from 1
+        segment.name = len(segment_list_per_file[name]) + 1
+        segment.start = float(fields[3])
+        segment.end = float(fields[4])
+        segment.orth = fields[6].strip() if len(fields) == 7 else ""
+        if segment.orth.startswith("ignore_time_segment_"):
+            continue
+        segment_list_per_file[name].append(segment)
+
+    return segment_list_per_file
+
+
+def _fill_corpus_with_segments(
+    target_corpus: corpus.Corpus, audio_folder: str, segment_list_per_file
+):
+    """
+    :param target_corpus: in place filling of corpus
+    :param audio_folder:
+    :param segment_list_per_file:
+    :return:
+    """
+    for wav_file in sorted(glob.glob(os.path.join(audio_folder, "*.wav"))):
+        recording = corpus.Recording()
+        name = os.path.splitext(os.path.basename(wav_file))[0].lower()
+        recording.name = name.lower()  # we are using lowercased names
+        recording.audio = wav_file
+        for segment in segment_list_per_file[name]:
+            segment.orth = segment.orth.lower()
+            recording.add_segment(segment)
+        target_corpus.add_recording(recording)
+
+
+#### Evaluation Corpora Jobs ####
+
+
+class CreateHub5e00Corpus(Job):
+    """
+    Creates the switchboard hub5e_00 corpus based on LDC2002S09
+    No speaker information attached
+    """
+
+    def __init__(self, wav_audio_folder: tk.Path, hub5_transcription_folder: tk.Path):
+        """
+        :param wav_audio_folder: output of SwitchboardSphereToWave called on extracted LDC2002S09.tgz
+        :param hub5_transcriptions: extracted LDC2002T43.tgz named "2000_hub5_eng_eval_tr"
+        """
+        self.wav_audio_folder = wav_audio_folder
+        self.hub5_transcription_folder = hub5_transcription_folder
+
+        self.out_bliss_corpus = self.output_path("hub5e_00.xml.gz")
+        self.out_stm = self.output_path("hub5e_00.stm")
+        self.out_glm = self.output_path("hub5e_00.glm")
+
+    def tasks(self):
+        yield Task("run", mini_task=True)
+
+    def run(self):
+        # validate files
+        base_dir = self.hub5_transcription_folder.get_path()
+        glm_file = os.path.join(base_dir, "reference", "en20000405_hub5.glm")
+        stm_file = os.path.join(base_dir, "reference", "hub5e00.english.000405.stm")
+        assert os.path.isfile(glm_file)
+        assert os.path.isfile(stm_file)
+
+        _process_and_write_stm([stm_file], self.out_stm.get_path())
+
+        hub5_corpus = corpus.Corpus()
+        hub5_corpus.name = "hub5e_00"
+
+        segment_list_per_file = _get_segment_list_per_file(self.out_stm.get_path())
+
+        _fill_corpus_with_segments(
+            hub5_corpus, self.wav_audio_folder.get_path(), segment_list_per_file
+        )
+
+        hub5_corpus.dump(self.out_bliss_corpus.get_path())
+        shutil.copy(glm_file, self.out_glm.get_path())
+
+
+class CreateHub5e01Corpus(Job):
+    """
+    Creates the switchboard hub5e_01 corpus based on LDC2002S13
+
+    This corpus provides no glm, as the same as for Hub5e00 should be used
+
+    No speaker information attached
+    """
+
+    def __init__(self, wav_audio_folder: tk.Path, hub5e01_folder: tk.Path):
+        """
+        :param wav_audio_folder: output of SwitchboardSphereToWave called on extracted LDC2002S13.tgz
+        :param hub5e01_folder: extracted LDC2002S13 named "hub5e_01"
+        """
+        self.wav_audio_folder = wav_audio_folder
+        self.hub5e_01_folder = hub5e01_folder
+
+        self.out_bliss_corpus = self.output_path("hub5e_01.xml.gz")
+        self.out_stm = self.output_path("hub5e_01.stm")
+
+    def tasks(self):
+        yield Task("run", mini_task=True)
+
+    def run(self):
+        # validate files
+        base_dir = self.hub5e_01_folder.get_path()
+        stm_file = os.path.join(base_dir, "data", "transcr", "hub5e01.english.20010402.stm")
+        assert os.path.isfile(stm_file)
+
+        _process_and_write_stm([stm_file], self.out_stm.get_path())
+
+        hub5_corpus = corpus.Corpus()
+        hub5_corpus.name = "hub5e_01"
+
+        segment_list_per_file = _get_segment_list_per_file(self.out_stm.get_path())
+
+        _fill_corpus_with_segments(
+            hub5_corpus, self.wav_audio_folder.get_path(), segment_list_per_file
+        )
+
+        hub5_corpus.dump(self.out_bliss_corpus.get_path())
+
+
+class CreateRT03sCTSCorpus(Job):
+    """
+    Create the RT03 test set corpus, specifically the "CTS" subset of LDC2007S10
+
+    No speaker information attached
+    """
+
+    def __init__(self, wav_audio_folder: tk.Path, rt03_folder: tk.Path):
+        """
+        :param wav_audio_folder: output of SwitchboardSphereToWave called on extracted LDC2007S10.tgz
+        :param rt03_folder: extracted LDC2007S10.tgz
+        """
+        self.wav_audio_folder = wav_audio_folder
+        self.rt03_folder = rt03_folder
+
+        self.out_bliss_corpus = self.output_path("rt03s_cts.xml.gz")
+        self.out_stm = self.output_path("rt03s_cts.stm")
+        self.out_glm = self.output_path("rt03s_cts.glm")
+
+    def tasks(self):
+        yield Task("run", mini_task=True)
+
+    def run(self):
+        # validate files
+        base_dir = self.rt03_folder.get_path()
+        cts_path = os.path.join(
+            base_dir, "data", "references", "eval03", "english", "cts"
+        )
+        glm_file = os.path.join(base_dir, "data", "trans_rules", "en20030506.glm")
+        assert os.path.isdir(cts_path)
+        assert os.path.isfile(glm_file)
+
+        stm_files = sorted(glob.glob(os.path.join(cts_path, "*.stm")))
+        _process_and_write_stm(stm_files, self.out_stm.get_path())
+
+        rt03s_corpus = corpus.Corpus()
+        rt03s_corpus.name = "rt03s_cts"
+
+        segment_list_per_file = _get_segment_list_per_file(self.out_stm.get_path())
+
+        _fill_corpus_with_segments(
+            rt03s_corpus, self.wav_audio_folder.get_path(), segment_list_per_file
+        )
+
+        rt03s_corpus.dump(self.out_bliss_corpus.get_path())
+        shutil.copy(glm_file, self.out_glm.get_path())
+
+
+class CreateSwitchboardE2EBlissCorpus(Job):
+    """
+    Creates a special E2E version of switchboard-1 used for e.g. BPE or Sentencepiece based models.
+    It includes:
+     - lowercase everything
+     - conversion of numbers to written form
+     - conversion of some short forms into spoken forms
+     - making special tokens uppercase again
+    """
+
+    def __init__(self, switchboard_bliss_corpus: tk.Path):
+        self.switchboard_bliss_corpus = switchboard_bliss_corpus
+
+        self.out_e2e_corpus = self.output_path("swb.e2e.corpus.xml.gz")
+
+    def tasks(self):
+        yield Task("run", mini_task=True)
+
+    def run(self):
+        LocalPath = setup_path(__package__)
+        map_source_path = LocalPath("switchboard_map_files/map_fsh_swb.txt.part1")
+        map_target_path = LocalPath("switchboard_map_files/map_fsh_swb.txt.part2")
+
+        replacement_map = {}
+
+        with uopen(map_source_path) as map_source, uopen(map_target_path) as map_target:
+            for source, target in zip(map_source, map_target):
+                assert source is not None and target is not None, "invalid switchboard map files found"
+                replacement_map[source.strip()] = target.strip().replace("#", " ")
+
+        special_token_map = {token: token.upper() for token in SPECIAL_TOKENS}
+
+        # sort by longest first to avoid early matching
+        map_regex = re.compile("|".join(
+            sorted(map(re.escape, replacement_map.keys()), key=lambda x: len(x), reverse=True)
+        ))
+        token_regex = re.compile("|".join(map(re.escape, special_token_map.keys())))
+
+        c = corpus.Corpus()
+        c.load(self.switchboard_bliss_corpus.get_path())
+
+        for segment in c.segments():
+            orth = segment.orth.lower()
+            orth = map_regex.sub(lambda match: replacement_map[match.group(0)], orth)
+            orth = token_regex.sub(lambda match: special_token_map[match.group(0)], orth)
+            segment.orth = orth
+            
+        c.dump(self.out_e2e_corpus.get_path())
