@@ -17,7 +17,7 @@ import subprocess
 import shutil
 import os
 import re
-from typing import List
+from typing import List, DefaultDict
 
 from i6_core.lib import corpus
 from i6_core.util import uopen
@@ -341,7 +341,7 @@ class CreateSwitchboardLexiconTextFileJob(Job):
                 out_f.write(mapped_token + " " + parts[1] + "\n")
 
 
-class SwitchboardSphereToWave(Job):
+class SwitchboardSphereToWaveJob(Job):
     """
     Takes an audio folder from one of the switchboard LDC folders and converts dual channel .sph files
     with mulaw encoding to single channel .wav files with s16le encoding
@@ -391,13 +391,17 @@ class SwitchboardSphereToWave(Job):
 #### Evaluation Corpus Helper ####
 
 
-def _process_and_write_stm(stm_in_files: List[str], stm_out_file):
+def _process_and_write_stm(stm_in_files: List[str], stm_out_file: str):
     """
     Kaldi-preprocessing (remove double brackets, remove <B_ASIDE> and <E_ASIDE>
-    Change naming pattern to Zoltan style
 
-    :param stm_file:
-    :return:
+    Change naming pattern to Zoltan style to match the corpus naming with respect to the splitted audio files,
+    otherwise there might be conflicts with the ctm, so e.g. from "en_4156 B" -> "en_4156b 1"
+
+    Will write a single target .stm file to be used as reference for the Hub5Scorer
+
+    :param stm_in_files: list of original stm files
+    :param stm_out_file: file path to write the final stm to
     """
     remove_extra_tag = re.compile(" *<._ASIDE>")
     remove_double_bracket = re.compile("\(\(")
@@ -431,8 +435,13 @@ def _process_and_write_stm(stm_in_files: List[str], stm_out_file):
                     stm_out.write(f"{header} {content}\n")
 
 
-def _get_segment_list_per_file(stm_file):
-    # store all segments before attaching them to the recordings
+def _get_segment_list_per_file(stm_file: str) -> DefaultDict[str, List[corpus.Segment]]:
+    """
+    Create corpus segments from the stm
+
+    :param stm_file: reference stm file path
+    :return: dict containing lists of segments for each recording
+    """
     segment_list_per_file = defaultdict(list)
 
     for line in uopen(stm_file):
@@ -447,6 +456,7 @@ def _get_segment_list_per_file(stm_file):
         segment.name = len(segment_list_per_file[name]) + 1
         segment.start = float(fields[3])
         segment.end = float(fields[4])
+        # there can be empty entries
         segment.orth = fields[6].strip() if len(fields) == 7 else ""
         if segment.orth.startswith("ignore_time_segment_"):
             continue
@@ -456,12 +466,14 @@ def _get_segment_list_per_file(stm_file):
 
 
 def _fill_corpus_with_segments(
-    target_corpus: corpus.Corpus, audio_folder: str, segment_list_per_file
+    target_corpus: corpus.Corpus,
+    audio_folder: str,
+    segment_list_per_file: DefaultDict[str, List[corpus.Segment]],
 ):
     """
     :param target_corpus: in place filling of corpus
-    :param audio_folder:
-    :param segment_list_per_file:
+    :param audio_folder: output folder containing wavs from `SwitchboardSphereToWaveJob`
+    :param segment_list_per_file: see `_get_segment_list_per_file()`
     :return:
     """
     for wav_file in sorted(glob.glob(os.path.join(audio_folder, "*.wav"))):
@@ -470,7 +482,6 @@ def _fill_corpus_with_segments(
         recording.name = name.lower()  # we are using lowercased names
         recording.audio = wav_file
         for segment in segment_list_per_file[name]:
-            segment.orth = segment.orth.lower()
             recording.add_segment(segment)
         target_corpus.add_recording(recording)
 
@@ -478,7 +489,7 @@ def _fill_corpus_with_segments(
 #### Evaluation Corpora Jobs ####
 
 
-class CreateHub5e00Corpus(Job):
+class CreateHub5e00CorpusJob(Job):
     """
     Creates the switchboard hub5e_00 corpus based on LDC2002S09
     No speaker information attached
@@ -500,7 +511,6 @@ class CreateHub5e00Corpus(Job):
         yield Task("run", mini_task=True)
 
     def run(self):
-        # validate files
         base_dir = self.hub5_transcription_folder.get_path()
         glm_file = os.path.join(base_dir, "reference", "en20000405_hub5.glm")
         stm_file = os.path.join(base_dir, "reference", "hub5e00.english.000405.stm")
@@ -522,7 +532,7 @@ class CreateHub5e00Corpus(Job):
         shutil.copy(glm_file, self.out_glm.get_path())
 
 
-class CreateHub5e01Corpus(Job):
+class CreateHub5e01CorpusJob(Job):
     """
     Creates the switchboard hub5e_01 corpus based on LDC2002S13
 
@@ -546,7 +556,6 @@ class CreateHub5e01Corpus(Job):
         yield Task("run", mini_task=True)
 
     def run(self):
-        # validate files
         base_dir = self.hub5e_01_folder.get_path()
         stm_file = os.path.join(
             base_dir, "data", "transcr", "hub5e01.english.20010402.stm"
@@ -567,7 +576,7 @@ class CreateHub5e01Corpus(Job):
         hub5_corpus.dump(self.out_bliss_corpus.get_path())
 
 
-class CreateRT03sCTSCorpus(Job):
+class CreateRT03sCTSCorpusJob(Job):
     """
     Create the RT03 test set corpus, specifically the "CTS" subset of LDC2007S10
 
@@ -590,7 +599,6 @@ class CreateRT03sCTSCorpus(Job):
         yield Task("run", mini_task=True)
 
     def run(self):
-        # validate files
         base_dir = self.rt03_folder.get_path()
         cts_path = os.path.join(
             base_dir, "data", "references", "eval03", "english", "cts"
@@ -615,7 +623,7 @@ class CreateRT03sCTSCorpus(Job):
         shutil.copy(glm_file, self.out_glm.get_path())
 
 
-class CreateSwitchboardE2EBlissCorpus(Job):
+class CreateSwitchboardE2EBlissCorpusJob(Job):
     """
     Creates a special E2E version of switchboard-1 used for e.g. BPE or Sentencepiece based models.
     It includes:
@@ -626,6 +634,9 @@ class CreateSwitchboardE2EBlissCorpus(Job):
     """
 
     def __init__(self, switchboard_bliss_corpus: tk.Path):
+        """
+        :param switchboard_bliss_corpus: out_corpus of `CreateSwitchboardBlissCorpusJob`
+        """
         self.switchboard_bliss_corpus = switchboard_bliss_corpus
 
         self.out_e2e_corpus = self.output_path("swb.e2e.corpus.xml.gz")
