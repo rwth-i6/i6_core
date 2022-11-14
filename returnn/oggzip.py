@@ -6,7 +6,12 @@ import subprocess as sp
 import tempfile
 import zipfile
 
-from i6_core.util import MultiOutputPath, relink
+from i6_core.util import (
+    MultiOutputPath,
+    relink,
+    get_returnn_python_exe,
+    get_returnn_root,
+)
 
 from sisyphus import *
 
@@ -67,8 +72,8 @@ class BlissToOggZipJob(Job):
             len(segments.hidden_paths) if isinstance(segments, MultiOutputPath) else 1
         )
 
-        self.returnn_python_exe = util.get_returnn_python_exe(returnn_python_exe)
-        self.returnn_root = util.get_returnn_root(returnn_root)
+        self.returnn_python_exe = get_returnn_python_exe(returnn_python_exe)
+        self.returnn_root = get_returnn_root(returnn_root)
 
         self.zip_subarchives = (
             MultiOutputPath(
