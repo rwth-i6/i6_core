@@ -39,14 +39,8 @@ class ExtractDatasetMeanStddevJob(Job):
         """
 
         self.returnn_config = returnn_config
-        self.returnn_python_exe = (
-            returnn_python_exe
-            if returnn_python_exe is not None
-            else tk.Path(gs.RETURNN_PYTHON_EXE)
-        )
-        self.returnn_root = (
-            returnn_root if returnn_root is not None else tk.Path(gs.RETURNN_ROOT)
-        )
+        self.returnn_python_exe = util.get_returnn_python_exe(returnn_python_exe)
+        self.returnn_root = util.get_returnn_root(returnn_root)
 
         self.out_mean = self.output_var("mean_var")
         self.out_std_dev = self.output_var("std_dev_var")

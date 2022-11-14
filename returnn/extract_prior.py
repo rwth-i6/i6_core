@@ -109,15 +109,8 @@ class ReturnnComputePriorJob(Job):
 
         self.model_checkpoint = model_checkpoint
 
-        self.returnn_python_exe = (
-            returnn_python_exe
-            if returnn_python_exe is not None
-            else tk.Path(gs.RETURNN_PYTHON_EXE)
-        )
-
-        self.returnn_root = (
-            returnn_root if returnn_root is not None else tk.Path(gs.RETURNN_ROOT)
-        )
+        self.returnn_python_exe = util.get_returnn_python_exe(returnn_python_exe)
+        self.returnn_root = util.get_returnn_root(returnn_root)
 
         self.returnn_config = ReturnnComputePriorJob.create_returnn_config(**kwargs)
 

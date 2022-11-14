@@ -67,14 +67,8 @@ class BlissToOggZipJob(Job):
             len(segments.hidden_paths) if isinstance(segments, MultiOutputPath) else 1
         )
 
-        self.returnn_python_exe = (
-            returnn_python_exe
-            if returnn_python_exe is not None
-            else tk.Path(gs.RETURNN_PYTHON_EXE)
-        )
-        self.returnn_root = (
-            returnn_root if returnn_root is not None else tk.Path(gs.RETURNN_ROOT)
-        )
+        self.returnn_python_exe = util.get_returnn_python_exe(returnn_python_exe)
+        self.returnn_root = util.get_returnn_root(returnn_root)
 
         self.zip_subarchives = (
             MultiOutputPath(

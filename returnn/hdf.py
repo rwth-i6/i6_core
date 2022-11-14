@@ -61,14 +61,8 @@ class ReturnnDumpHDFJob(Job):
             "file_size": file_size,
             "time": time,
         }
-        self.returnn_python_exe = (
-            returnn_python_exe
-            if returnn_python_exe is not None
-            else tk.Path(gs.RETURNN_PYTHON_EXE)
-        )
-        self.returnn_root = (
-            returnn_root if returnn_root is not None else tk.Path(gs.RETURNN_ROOT)
-        )
+        self.returnn_python_exe = util.get_returnn_python_exe(returnn_python_exe)
+        self.returnn_root = util.get_returnn_root(returnn_root)
 
         self.out_hdf = self.output_path("data.hdf")
 

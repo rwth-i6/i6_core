@@ -28,11 +28,7 @@ class ApplyBPEModelToLexiconJob(Job):
         self.bliss_lexicon = bliss_lexicon
         self.bpe_codes = bpe_codes
         self.bpe_vocab = bpe_vocab
-        self.subword_nmt_repo = (
-            subword_nmt_repo
-            if subword_nmt_repo is not None
-            else tk.Path(gs.SUBWORD_NMT_PATH)
-        )
+        self.subword_nmt_repo = util.get_subword_nmt_repo(subword_nmt_repo)
 
         self.out_converted_lexicon = self.output_path("lexicon.xml.gz", cached=True)
 
@@ -116,11 +112,7 @@ class ApplyBPEToTextJob(Job):
         self.text_file = text_file
         self.bpe_codes = bpe_codes
         self.bpe_vocab = bpe_vocab
-        self.subword_nmt_repo = (
-            subword_nmt_repo
-            if subword_nmt_repo is not None
-            else tk.Path(gs.SUBWORD_NMT_PATH)
-        )
+        self.subword_nmt_repo = util.get_subword_nmt_repo(subword_nmt_repo)
 
         self.out_bpe_text = self.output_path("words_to_bpe.txt")
 

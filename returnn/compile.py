@@ -61,14 +61,8 @@ class CompileTFGraphJob(Job):
         self.verbosity = verbosity
         self.device = device
         self.summaries_tensor_name = summaries_tensor_name
-        self.returnn_python_exe = (
-            returnn_python_exe
-            if returnn_python_exe is not None
-            else tk.Path(gs.RETURNN_PYTHON_EXE)
-        )
-        self.returnn_root = (
-            returnn_root if returnn_root is not None else tk.Path(gs.RETURNN_ROOT)
-        )
+        self.returnn_python_exe = util.get_returnn_python_exe(returnn_python_exe)
+        self.returnn_root = util.get_returnn_root(returnn_root)
 
         self.out_graph = self.output_path("graph.%s" % output_format)
         self.out_model_params = self.output_var("model_params.pickle", pickle=True)
@@ -156,14 +150,8 @@ class CompileNativeOpJob(Job):
         :param Path|str blas_lib: explicit path to the blas library to use
         """
         self.native_op = native_op
-        self.returnn_python_exe = (
-            returnn_python_exe
-            if returnn_python_exe is not None
-            else tk.Path(gs.RETURNN_PYTHON_EXE)
-        )
-        self.returnn_root = (
-            returnn_root if returnn_root is not None else tk.Path(gs.RETURNN_ROOT)
-        )
+        self.returnn_python_exe = util.get_returnn_python_exe(returnn_python_exe)
+        self.returnn_root = util.get_returnn_root(returnn_root)
         self.search_numpy_blas = search_numpy_blas
         self.blas_lib = blas_lib
 

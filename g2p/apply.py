@@ -6,7 +6,7 @@ from tempfile import mkstemp
 
 from sisyphus import *
 
-from i6_core.util import uopen
+from i6_core.util import uopen, get_g2p_path, get_g2p_python
 
 Path = setup_path(__package__)
 
@@ -39,23 +39,9 @@ class ApplyG2PModelJob(Job):
         :param bool filter_empty_words: if True, creates a new lexicon file with no empty translated words
         :param int concurrent: split up word list file to parallelize job into this many instances
         """
-
-        if g2p_path is None:
-            g2p_path = (
-                tk.Path(gs.G2P_PATH)
-                if hasattr(gs, "G2P_PATH")
-                else tk.Path(os.path.join(os.path.dirname(gs.SIS_COMMAND[0]), "g2p.py"))
-            )
-        if g2p_python is None:
-            g2p_python = (
-                tk.Path(gs.G2P_PYTHON)
-                if hasattr(gs, "G2P_PYTHON")
-                else tk.Path(gs.SIS_COMMAND[0])
-            )
-
         self.g2p_model = g2p_model
-        self.g2p_path = g2p_path
-        self.g2p_python = g2p_python
+        self.g2p_path = get_g2p_path(g2p_path)
+        self.g2p_python = get_g2p_python(g2p_python)
         self.variants_mass = variants_mass
         self.variants_number = variants_number
         self.word_list = word_list_file

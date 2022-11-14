@@ -301,3 +301,43 @@ def instanciate_delayed(o):
         for k in o:
             o[k] = instanciate_delayed(o[k])
     return o
+
+
+def get_executable_path(
+    path: tk.Path, gs_member_name: str, default_exec_path: Optional[tk.Path] = None
+) -> tk.Path:
+    if path is not None:
+        if isinstance(path, tk.Path):
+            return path
+        elif isinstance(path, str):
+            return tk.Path(path)
+        assert False, f"unsupported type of {type(path)} for input {path}"
+    if getattr(gs, gs_member_name, None) is not None:
+        return tk.Path(gs.gs_member_name)
+    if default_exec_path is not None:
+        return default_exec_path
+    assert False, f"could not find executable for {gs_member_name}"
+
+
+def get_returnn_root(returnn_root: tk.Path) -> tk.Path:
+    return get_executable_path(returnn_root, "RETURNN_ROOT")
+
+
+def get_returnn_python_exe(returnn_python_exe: tk.Path) -> tk.Path:
+    system_python = tk.Path(shutil.which(gs.SIS_COMMAND[0]))
+    return get_executable_path(returnn_python_exe, "RETURNN_PYTHON_EXE", system_python)
+
+
+def get_g2p_path(g2p_path: tk.Path) -> tk.Path:
+    system_python_path = os.path.dirname(shutil.which(gs.SIS_COMMAND[0]))
+    system_g2p = tk.Path(system_python_path).join_right("g2p.py")
+    return get_executable_path(g2p_path, "G2P_PATH", system_g2p)
+
+
+def get_g2p_python(g2p_python: tk.Path) -> tk.Path:
+    system_python = tk.Path(shutil.which(gs.SIS_COMMAND[0]))
+    return get_executable_path(returnn_python_exe, "G2P_PYTHON", system_python)
+
+
+def get_subword_nmt_path(subword_nmt_path: tk.Path) -> tk.Path:
+    return get_executable_path(returnn_root, "SUBWORD_NMT_PATH")

@@ -5,7 +5,7 @@ import subprocess as sp
 
 from sisyphus import *
 
-from i6_core.util import uopen
+from i6_core.util import uopen, get_g2p_path, get_g2p_python
 
 Path = setup_path(__package__)
 
@@ -47,18 +47,6 @@ class TrainG2PModelJob(Job):
         """
         if extra_args is None:
             extra_args = []
-        if g2p_path is None:
-            g2p_path = (
-                tk.Path(gs.G2P_PATH)
-                if hasattr(gs, "G2P_PATH")
-                else tk.Path(os.path.join(os.path.dirname(gs.SIS_COMMAND[0]), "g2p.py"))
-            )
-        if g2p_python is None:
-            g2p_python = (
-                tk.Path(gs.G2P_PYTHON)
-                if hasattr(gs, "G2P_PYTHON")
-                else tk.Path(gs.SIS_COMMAND[0])
-            )
 
         self.g2p_lexicon = g2p_lexicon
         self.num_ramp_ups = num_ramp_ups
@@ -67,8 +55,8 @@ class TrainG2PModelJob(Job):
         self.devel = devel
         self.size_constrains = size_constrains
         self.extra_args = extra_args
-        self.g2p_path = g2p_path
-        self.g2p_python = g2p_python
+        self.g2p_path = get_g2p_path(g2p_path)
+        self.g2p_python = get_g2p_python(g2p_python)
 
         self.out_g2p_models = [
             self.output_path("model-%d" % idx) for idx in range(self.num_ramp_ups + 1)
