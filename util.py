@@ -314,7 +314,7 @@ def get_executable_path(
             return tk.Path(path)
         assert False, f"unsupported type of {type(path)} for input {path}"
     if getattr(gs, gs_member_name, None) is not None:
-        return tk.Path(gs.gs_member_name)
+        return tk.Path(getattr(gs, gs_member_name))
     if default_exec_path is not None:
         return default_exec_path
     assert False, f"could not find executable for {gs_member_name}"
@@ -340,5 +340,5 @@ def get_g2p_python(g2p_python: tk.Path) -> tk.Path:
     return get_executable_path(g2p_python, "G2P_PYTHON", system_python)
 
 
-def get_subword_nmt_path(subword_nmt_path: tk.Path) -> tk.Path:
-    return get_executable_path(subword_nmt_path, "SUBWORD_NMT_PATH")
+def get_subword_nmt_repo(subword_nmt_repo: tk.Path) -> tk.Path:
+    return get_executable_path(subword_nmt_repo, "SUBWORD_NMT_PATH")
