@@ -13,7 +13,10 @@ from sisyphus import *
 
 Path = setup_path(__package__)
 
+import os
+
 from .config import *
+from i6_core.util import get_returnn_root
 
 
 class FeatureScorer:
@@ -73,9 +76,6 @@ class ReturnnScorer(FeatureScorer):
     ):
         super().__init__()
 
-        if returnn_root is None:
-            returnn_root = tk.Path(gs.RETURNN_ROOT)
-
         self.config.feature_dimension = feature_dimension
         self.config.feature_scorer_type = "nn-trainer-feature-scorer"
         self.config.file = prior_mixtures
@@ -85,7 +85,7 @@ class ReturnnScorer(FeatureScorer):
         else:
             self.config.normalize_mixture_weights = False
         self.config.pymod_name = "returnn.SprintInterface"
-        self.config.pymod_path = returnn_root.join_right("..")
+        self.config.pymod_path = get_returnn_root(returnn_root).join_right("..")
         self.config.pymod_config = StringWrapper(
             "epoch:%d,action:forward,configfile:%s"
             % (model.epoch, model.returnn_config_file),

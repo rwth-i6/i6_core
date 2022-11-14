@@ -21,27 +21,23 @@ Path = setup_path(__package__)
 
 
 class AnalogJob(Job):
-    __sis_hash_exclude__ = {"rasr_root": None}
-
-    def __init__(self, configs, merge=True, rasr_root=None):
+    def __init__(self, configs, merge=True):
         self.set_vis_name("Analog")
 
         self.merge = merge
         self.configs = configs
         if type(configs) == dict:
             self.configs = list(configs.values())
-        self.rasr_root = rasr_root if rasr_root is not None else tk.Path(gs.RASR_ROOT)
-
         self.out_report = self.output_path("report.analog")
 
     def tasks(self):
         yield Task("run", mini_task=True)
 
     def run(self):
-        analog_path = self.rasr_root.join_right("src/Tools/Analog/analog")
+        analog_path = os.path.join(gs.RASR_ROOT, "src/Tools/Analog/analog")
         with open(self.out_report.get_path(), "w") as out:
             sp.check_call(
-                [analog_path.get_path()]
+                [analog_path]
                 + (["-m"] if self.merge else [])
                 + [tk.uncached_path(c) for c in self.configs],
                 stdout=out,
