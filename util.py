@@ -5,6 +5,7 @@ import stat
 import subprocess as sp
 import xml.dom.minidom
 import xml.etree.ElementTree as ET
+from typing import Optional
 
 from sisyphus import *
 from sisyphus.delayed_ops import DelayedBase
@@ -336,8 +337,8 @@ def get_g2p_path(g2p_path: tk.Path) -> tk.Path:
 
 def get_g2p_python(g2p_python: tk.Path) -> tk.Path:
     system_python = tk.Path(shutil.which(gs.SIS_COMMAND[0]))
-    return get_executable_path(returnn_python_exe, "G2P_PYTHON", system_python)
+    return get_executable_path(g2p_python, "G2P_PYTHON", system_python)
 
 
 def get_subword_nmt_path(subword_nmt_path: tk.Path) -> tk.Path:
-    return get_executable_path(returnn_root, "SUBWORD_NMT_PATH")
+    return get_executable_path(subword_nmt_path, "SUBWORD_NMT_PATH")
