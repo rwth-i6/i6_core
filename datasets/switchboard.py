@@ -393,7 +393,7 @@ class SwitchboardSphereToWaveJob(Job):
 
 def _process_and_write_stm(stm_in_files: List[str], stm_out_file: str):
     """
-    Kaldi-preprocessing (remove double brackets, remove <B_ASIDE> and <E_ASIDE>
+    Kaldi-preprocessing (remove double brackets, remove <B_ASIDE> and <E_ASIDE>)
 
     Change naming pattern to Zoltan style to match the corpus naming with respect to the splitted audio files,
     otherwise there might be conflicts with the ctm, so e.g. from "en_4156 B" -> "en_4156b 1"
