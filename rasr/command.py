@@ -1,7 +1,11 @@
 __all__ = ["RasrCommand"]
 
 import logging
+import shutil
+import tempfile
 import time
+
+from typing import List, Optional, Union
 
 from sisyphus import *
 
@@ -52,6 +56,7 @@ class RasrCommand:
         :param str config:
         :param str filename:
         :param str extra_code:
+        :param str extra_args:
         """
         with open(filename, "wt") as f:
             f.write(
@@ -118,19 +123,53 @@ fi
             return cls.default_exe(default_exe_name)
         return specific_exe
 
-    def run_script(self, task_id, log_file, cmd="./run.sh", args=None, retries=2):
+    def run_script(
+        self,
+        task_id: int,
+        log_file: Union[str, Path],
+        cmd: str = "./run.sh",
+        args: List = None,
+        retries: int = 2,
+        use_tmp_dir: bool = False,
+    ):
         args = [] if args is None else args
         tmp_log_file = remove_suffix(
             os.path.basename(tk.uncached_path(log_file)), ".gz"
         )
-        self.run_cmd(cmd, [task_id, tmp_log_file] + args, retries)
+
+        if use_tmp_dir or (
+            hasattr(gs, "JOB_RUN_RASR_TMP_DIR") and gs.JOB_RUN_RASR_TMP_DIR
+        ):
+            with tempfile.TemporaryDirectory(prefix=gs.TMP_PREFIX) as tmp_dir:
+                print("using temp-dir: %s" % tmp_dir)
+                try:
+                    self.run_cmd(cmd, [task_id, tmp_log_file] + args, retries, tmp_dir)
+                    file_names = os.listdir(tmp_dir)
+                    for fn in file_names:
+                        shutil.move("%s/%s" % (tmp_dir, fn), fn)
+                except Exception as e:
+                    print(
+                        "'%s' crashed - copy temporary work folder as 'crash_dir'" % cmd
+                    )
+                    shutil.copytree(tmp_dir, "crash_dir")
+                    raise e
+        else:
+            self.run_cmd(cmd, [task_id, tmp_log_file] + args, retries)
+
         zmove(tmp_log_file, tk.uncached_path(log_file))
 
-    def run_cmd(self, cmd, args=None, retries=2):
+    def run_cmd(
+        self,
+        cmd: str,
+        args: Optional[List[str]] = None,
+        retries: int = 2,
+        cwd: Optional[str] = None,
+    ):
         """
-        :param str cmd:
-        :param list[str]|None args:
-        :param int retries:
+        :param cmd:
+        :param args:
+        :param retries:
+        :param cwd: execute cmd in this dir
         """
         args = [] if args is None else args
         retries = max(0, retries)
@@ -140,7 +179,7 @@ fi
         for t in range(retries + 1):
             try:
                 self.cleanup_before_run(cmd, t, *args)
-                sp.check_call([cmd] + [str(arg) for arg in args])
+                sp.check_call([cmd] + [str(arg) for arg in args], cwd=cwd)
                 break
             except sp.CalledProcessError as e:
                 logging.warning(
