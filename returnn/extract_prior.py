@@ -3,6 +3,7 @@ __all__ = [
     "ReturnnComputePriorJob",
     "ReturnnComputePriorJobV2",
     "ReturnnRasrComputePriorJob",
+    "ReturnnRasrComputePriorJobV2",
 ]
 
 import copy
@@ -20,6 +21,7 @@ import i6_core.util as util
 
 from i6_core.deprecated.returnn_extract_prior import (
     ReturnnComputePriorJob as _ReturnnComputePriorJob,
+    ReturnnRasrComputePriorJob as _ReturnnRasrComputePriorJob,
 )
 from i6_core.returnn.config import ReturnnConfig
 from i6_core.returnn.rasr_training import ReturnnRasrTrainingJob
@@ -253,7 +255,17 @@ class ReturnnComputePriorJobV2(Job):
         return super().hash(d)
 
 
-class ReturnnRasrComputePriorJob(ReturnnComputePriorJob, ReturnnRasrTrainingJob):
+class ReturnnRasrComputePriorJob(_ReturnnRasrComputePriorJob):
+    """
+    This Job was deprecated because absolute paths are hashed.
+
+    See https://github.com/rwth-i6/i6_core/issues/306 for more details.
+    """
+
+    pass
+
+
+class ReturnnRasrComputePriorJobV2(ReturnnComputePriorJobV2, ReturnnRasrTrainingJob):
     """
     Given a model checkpoint, run compute_prior task with RETURNN using RASR Dataset
     """
@@ -390,7 +402,7 @@ class ReturnnRasrComputePriorJob(ReturnnComputePriorJob, ReturnnRasrTrainingJob)
         )
         kwargs["returnn_config"].config["train"] = datasets["train"]
         kwargs["returnn_config"].config["dev"] = datasets["dev"]
-        returnn_config = ReturnnComputePriorJob.create_returnn_config(**kwargs)
+        returnn_config = ReturnnComputePriorJobV2.create_returnn_config(**kwargs)
         d = {
             "train_config": train_config,
             "dev_config": dev_config,

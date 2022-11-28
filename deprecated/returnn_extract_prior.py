@@ -5,8 +5,9 @@ import subprocess as sp
 
 from sisyphus import Job, Task, gs, tk
 
+from i6_core import rasr
 from i6_core import util
-from i6_core.returnn import ReturnnConfig
+from i6_core.returnn import ReturnnConfig, ReturnnRasrTrainingJob
 
 
 class ReturnnComputePriorJob(Job):
@@ -181,3 +182,154 @@ class ReturnnComputePriorJob(Job):
             "returnn_root": kwargs["returnn_root"],
         }
         return super().hash(d)
+
+
+class ReturnnRasrComputePriorJob(ReturnnComputePriorJob, ReturnnRasrTrainingJob):
+    """
+    Given a model checkpoint, run compute_prior task with RETURNN using RASR Dataset
+    """
+
+    def __init__(
+        self,
+        train_crp,
+        dev_crp,
+        feature_flow,
+        model_checkpoint,
+        returnn_config,
+        prior_data=None,
+        alignment=None,
+        *,  # args below are keyword only
+        log_verbosity=3,
+        device="gpu",
+        time_rqmt=4,
+        mem_rqmt=4,
+        cpu_rqmt=1,
+        returnn_python_exe=None,
+        returnn_root=None,
+        # these are new parameters
+        num_classes=None,
+        disregarded_classes=None,
+        class_label_file=None,
+        buffer_size=200 * 1024,
+        partition_epochs=None,
+        extra_rasr_config=None,
+        extra_rasr_post_config=None,
+        use_python_control=True,
+    ):
+        """
+        :param rasr.CommonRasrParameters train_crp:
+        :param rasr.CommonRasrParameters dev_crp:
+        :param rasr.FlowNetwork feature_flow: RASR flow file for feature extraction or feature cache
+        :param Checkpoint model_checkpoint:  TF model checkpoint. see `ReturnnTrainingJob`.
+        :param ReturnnConfig returnn_config: object representing RETURNN config
+        :param dict[str]|None prior_data: dataset used to compute prior (None = use one train epoch)
+        :param Path|None alignment: path to an alignment cache or cache bundle
+        :param int log_verbosity: RETURNN log verbosity
+        :param str device: RETURNN device, cpu or gpu
+        :param float|int time_rqmt: job time requirement in hours
+        :param float|int mem_rqmt: job memory requirement in GB
+        :param float|int cpu_rqmt: job cpu requirement in GB
+        :param tk.Path|str|None returnn_python_exe: path to the RETURNN executable (python binary or launch script)
+        :param tk.Path|str|None returnn_root: path to the RETURNN src folder
+        :param int num_classes:
+        :param disregarded_classes:
+        :param class_label_file:
+        :param buffer_size:
+        :param dict[str, int]|None partition_epochs: a dict containing the partition values for "train" and "dev"
+        :param extra_rasr_config:
+        :param extra_rasr_post_config:
+        :param use_python_control:
+        """
+        datasets = self.create_dataset_config(
+            train_crp, returnn_config, partition_epochs
+        )
+        returnn_config.config["train"] = datasets["train"]
+        returnn_config.config["dev"] = datasets["dev"]
+        super().__init__(
+            model_checkpoint=model_checkpoint,
+            returnn_config=returnn_config,
+            time_rqmt=time_rqmt,
+            mem_rqmt=mem_rqmt,
+            cpu_rqmt=cpu_rqmt,
+            returnn_python_exe=returnn_python_exe,
+            returnn_root=returnn_root,
+        )
+
+        kwargs = locals()
+        del kwargs["self"]
+
+        self.num_classes = num_classes
+        self.alignment = alignment  # allowed to be None
+        self.rasr_exe = rasr.RasrCommand.select_exe(
+            train_crp.nn_trainer_exe, "nn-trainer"
+        )
+
+        del kwargs["train_crp"]
+        del kwargs["dev_crp"]
+        kwargs["crp"] = train_crp
+        self.feature_flow = ReturnnRasrTrainingJob.create_flow(**kwargs)
+        (
+            self.rasr_train_config,
+            self.rasr_train_post_config,
+        ) = ReturnnRasrTrainingJob.create_config(**kwargs)
+        kwargs["crp"] = dev_crp
+        (
+            self.rasr_dev_config,
+            self.rasr_dev_post_config,
+        ) = ReturnnRasrTrainingJob.create_config(**kwargs)
+
+    def create_files(self):
+        if self.num_classes is not None:
+            if "num_outputs" not in self.returnn_config.config:
+                self.returnn_config.config["num_outputs"] = {}
+            self.returnn_config.config["num_outputs"]["classes"] = [
+                util.get_val(self.num_classes),
+                1,
+            ]
+
+        super().create_files()
+
+        rasr.RasrCommand.write_config(
+            self.rasr_train_config,
+            self.rasr_train_post_config,
+            "rasr.train.config",
+        )
+        rasr.RasrCommand.write_config(
+            self.rasr_dev_config, self.rasr_dev_post_config, "rasr.dev.config"
+        )
+
+        self.feature_flow.write_to_file("feature.flow")
+
+    def path_available(self, path):
+        return self._sis_finished()
+
+    @classmethod
+    def hash(cls, kwargs):
+        flow = ReturnnRasrTrainingJob.create_flow(**kwargs)
+        kwargs = copy.copy(kwargs)
+        train_crp = kwargs["train_crp"]
+        dev_crp = kwargs["dev_crp"]
+        del kwargs["train_crp"]
+        del kwargs["dev_crp"]
+        kwargs["crp"] = train_crp
+        train_config, train_post_config = cls.create_config(**kwargs)
+        kwargs["crp"] = dev_crp
+        dev_config, dev_post_config = cls.create_config(**kwargs)
+
+        datasets = ReturnnRasrTrainingJob.create_dataset_config(
+            train_crp, kwargs["returnn_config"], kwargs["partition_epochs"]
+        )
+        kwargs["returnn_config"].config["train"] = datasets["train"]
+        kwargs["returnn_config"].config["dev"] = datasets["dev"]
+        returnn_config = ReturnnComputePriorJob.create_returnn_config(**kwargs)
+        d = {
+            "train_config": train_config,
+            "dev_config": dev_config,
+            "alignment_flow": flow,
+            "returnn_config": returnn_config,
+            "rasr_exe": train_crp.nn_trainer_exe,
+            "returnn_python_exe": kwargs["returnn_python_exe"],
+            "returnn_root": kwargs["returnn_root"],
+        }
+
+        return Job.hash(d)
