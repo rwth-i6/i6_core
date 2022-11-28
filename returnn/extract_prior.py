@@ -13,7 +13,7 @@ import numpy as np
 import os
 import subprocess as sp
 
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional
 from sisyphus import *
 
 import i6_core.rasr as rasr

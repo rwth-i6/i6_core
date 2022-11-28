@@ -7,7 +7,8 @@ from sisyphus import Job, Task, gs, tk
 
 from i6_core import rasr
 from i6_core import util
-from i6_core.returnn import ReturnnConfig, ReturnnRasrTrainingJob
+from i6_core.returnn.config import ReturnnConfig
+from i6_core.returnn.rasr_training import ReturnnRasrTrainingJob
 
 
 class ReturnnComputePriorJob(Job):
