@@ -2,7 +2,9 @@ __all__ = ["ApplyBPEModelToLexiconJob", "ApplyBPEToTextJob"]
 
 import subprocess as sp
 import os
+import shutil
 import sys
+import tempfile
 import xml.etree.ElementTree as ET
 
 from sisyphus import *
@@ -106,39 +108,68 @@ class ApplyBPEToTextJob(Job):
     Apply BPE codes on a text file
     """
 
-    def __init__(self, text_file, bpe_codes, bpe_vocab=None, subword_nmt_repo=None):
+    __sis_hash_exclude__ = {"gzip_output": False}
+
+    def __init__(
+        self,
+        text_file: tk.Path,
+        bpe_codes: tk.Path,
+        bpe_vocab=None,
+        subword_nmt_repo=None,
+        gzip_output=False,
+    ):
         """
         :param Path text_file: words text file to convert to bpe
-        :param Path bpe_codes: bpe codes file
-        :param Path|None bpe_vocab: if provided, then merge operations that produce OOV are reverted
-        :param Path|str|None subword_nmt_repo: subword nmt repository path. see also `CloneGitRepositoryJob`
+        :param Path bpe_codes: bpe codes file, e.g. ReturnnTrainBpeJob.out_bpe_codes
+        :param Path|None bpe_vocab: if provided, then merge operations that produce OOV are reverted,
+            use e.g. ReturnnTrainBpeJob.out_bpe_apply_vocab
+        :param Path|None subword_nmt_repo: subword nmt repository path. see also `CloneGitRepositoryJob`
         """
         self.text_file = text_file
         self.bpe_codes = bpe_codes
         self.bpe_vocab = bpe_vocab
         self.subword_nmt_repo = (
-            subword_nmt_repo if subword_nmt_repo is not None else gs.SUBWORD_NMT_PATH
+            subword_nmt_repo
+            if subword_nmt_repo is not None
+            else tk.Path(gs.SUBWORD_NMT_PATH)
         )
+        self.gzip_output = gzip_output
 
-        self.out_bpe_text = self.output_path("words_to_bpe.txt")
+        self.out_bpe_text = self.output_path(
+            "words_to_bpe.txt.gz" if gzip_output else "words_to_bpe.txt"
+        )
 
     def tasks(self):
         yield Task("run", mini_task=True)
 
     def run(self):
-        cmd = [
-            sys.executable,
-            os.path.join(tk.uncached_path(self.subword_nmt_repo), "apply_bpe.py"),
-            "--input",
-            self.text_file.get_path(),
-            "--codes",
-            self.bpe_codes.get_path(),
-            "--output",
-            self.out_bpe_text.get_path(),
-        ]
+        with tempfile.TemporaryDirectory(prefix=gs.TMP_PREFIX) as tmp:
+            input_file = self.text_file.get_path()
+            tmp_infile = os.path.join(tmp, "in_text.txt")
+            tmp_outfile = os.path.join(tmp, "out_text.txt")
+            with util.uopen(tmp_infile, "wt") as out:
+                sp.call(["zcat", "-f", input_file], stdout=out)
+            cmd = [
+                sys.executable,
+                os.path.join(self.subword_nmt_repo.get_path(), "apply_bpe.py"),
+                "--input",
+                tmp_infile,
+                "--codes",
+                self.bpe_codes.get_path(),
+                "--output",
+                tmp_outfile,
+            ]
 
-        if self.bpe_vocab:
-            cmd += ["--vocabulary", self.bpe_vocab.get_path()]
+            if self.bpe_vocab:
+                cmd += ["--vocabulary", self.bpe_vocab.get_path()]
 
-        util.create_executable("apply_bpe.sh", cmd)
-        sp.run(cmd, check=True)
+            util.create_executable("apply_bpe.sh", cmd)
+            sp.run(cmd, check=True)
+
+            if self.gzip_output:
+                with util.uopen(tmp_outfile, "rt") as fin, util.uopen(
+                    self.out_bpe_text, "wb"
+                ) as fout:
+                    sp.call(["gzip"], stdin=fin, stdout=fout)
+            else:
+                shutil.copy(tmp_outfile, self.out_bpe_text.get_path())
