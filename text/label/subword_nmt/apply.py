@@ -5,6 +5,7 @@ import os
 import shutil
 import sys
 import tempfile
+from typing import Optional
 import xml.etree.ElementTree as ET
 
 from sisyphus import *
@@ -114,16 +115,17 @@ class ApplyBPEToTextJob(Job):
         self,
         text_file: tk.Path,
         bpe_codes: tk.Path,
-        bpe_vocab=None,
-        subword_nmt_repo=None,
-        gzip_output=False,
+        bpe_vocab: Optional[tk.Path] = None,
+        subword_nmt_repo: Optional[tk.Path] = None,
+        gzip_output: bool = False,
     ):
         """
-        :param Path text_file: words text file to convert to bpe
-        :param Path bpe_codes: bpe codes file, e.g. ReturnnTrainBpeJob.out_bpe_codes
-        :param Path|None bpe_vocab: if provided, then merge operations that produce OOV are reverted,
+        :param text_file: words text file to convert to bpe
+        :param bpe_codes: bpe codes file, e.g. ReturnnTrainBpeJob.out_bpe_codes
+        :param bpe_vocab: if provided, then merge operations that produce OOV are reverted,
             use e.g. ReturnnTrainBpeJob.out_bpe_apply_vocab
-        :param Path|None subword_nmt_repo: subword nmt repository path. see also `CloneGitRepositoryJob`
+        :param subword_nmt_repo: subword nmt repository path. see also `CloneGitRepositoryJob`
+        :param gzip_output: use gzip on the output text
         """
         self.text_file = text_file
         self.bpe_codes = bpe_codes
