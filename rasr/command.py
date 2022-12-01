@@ -139,6 +139,7 @@ fi
         )
 
         if use_tmp_dir:
+            date_time_cur = time.strftime("%y%m%d-%H%M%S", time.localtime())
             with tempfile.TemporaryDirectory(prefix=gs.TMP_PREFIX) as tmp_dir:
                 print("using temp-dir: %s" % tmp_dir)
                 try:
@@ -150,7 +151,7 @@ fi
                     print(
                         "'%s' crashed - copy temporary work folder as 'crash_dir'" % cmd
                     )
-                    shutil.copytree(tmp_dir, "crash_dir")
+                    shutil.copytree(tmp_dir, "crash_dir_" + date_time_cur)
                     raise e
         else:
             self.run_cmd(cmd, [task_id, tmp_log_file] + args, retries)
