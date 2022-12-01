@@ -1,7 +1,4 @@
-__all__ = [
-    "DownloadTEDLIUM2CorpusJob",
-    "CreateTEDLIUM2BlissCorpusJob"
-]
+__all__ = ["DownloadTEDLIUM2CorpusJob", "CreateTEDLIUM2BlissCorpusJob"]
 
 import os
 import re
@@ -13,16 +10,19 @@ from sisyphus import *
 from i6_core.lib import corpus
 from i6_core.util import uopen
 
+
 class DownloadTEDLIUM2CorpusJob(Job):
     """
-    Download full TED-LIUM Release 2 corpus from 
+    Download full TED-LIUM Release 2 corpus from
     https://projets-lium.univ-lemans.fr/wp-content/uploads/corpus/TED-LIUM/
     (all train/dev/test/LM/dictionary data included)
     """
 
     def __init__(self):
         self.out_corpus_folders = dict(
-            (corpus_key, self.output_path(corpus_key)) for corpus_key in ["train", "dev", "test"])
+            (corpus_key, self.output_path(corpus_key))
+            for corpus_key in ["train", "dev", "test"]
+        )
         self.out_lm_folder = self.output_path("LM")
         self.out_vocab_dict = self.output_path("TEDLIUM.152k.dic")
 
@@ -32,13 +32,18 @@ class DownloadTEDLIUM2CorpusJob(Job):
 
     def run(self):
         subprocess.check_call(
-            ["wget", "--no-check-certificate", "https://projets-lium.univ-lemans.fr/wp-content/uploads/corpus/TED-LIUM/TEDLIUM_release2.tar.gz"]
+            [
+                "wget",
+                "--no-check-certificate",
+                "https://projets-lium.univ-lemans.fr/wp-content/uploads/corpus/TED-LIUM/TEDLIUM_release2.tar.gz",
+            ]
         )
-        subprocess.check_call(
-            ["tar", "-zxvf", "TEDLIUM_release2.tar.gz"]
-        )
+        subprocess.check_call(["tar", "-zxvf", "TEDLIUM_release2.tar.gz"])
         for corpus_key in ["train", "dev", "test"]:
-            shutil.move("TEDLIUM_release2/%s" %corpus_key, self.out_corpus_folders[corpus_key].get_path())
+            shutil.move(
+                "TEDLIUM_release2/%s" % corpus_key,
+                self.out_corpus_folders[corpus_key].get_path(),
+            )
         shutil.move("TEDLIUM_release2/LM", self.out_lm_folder.get_path())
 
     def process_dict(self):
@@ -46,7 +51,7 @@ class DownloadTEDLIUM2CorpusJob(Job):
         with uopen(dict_file, "r") as f:
             data = f.read()
             for n in range(2, 8):
-                data = data.replace("(%d)" %n, "")
+                data = data.replace("(%d)" % n, "")
             data = data.replace("ayışığı EY\n", "")
             # 2 minor pronunciation fixes
             data = data.replace("'d   D IY", "'d   D")
@@ -60,13 +65,13 @@ class DownloadTEDLIUM2CorpusJob(Job):
 
 class CreateTEDLIUM2BlissCorpusJob(Job):
     """
-    Processes stm files from TEDLIUM2 corpus folders and creates Bliss corpus files 
+    Processes stm files from TEDLIUM2 corpus folders and creates Bliss corpus files
     Outputs a stm file and a bliss .xml.gz file for each train/dev/test set
     """
-    
+
     def __init__(self, corpus_folders):
         """
-        :param Dict {corpus_key: Path} corpus_folders: 
+        :param Dict {corpus_key: Path} corpus_folders:
         """
         self.corpus_folders = corpus_folders
 
@@ -74,8 +79,10 @@ class CreateTEDLIUM2BlissCorpusJob(Job):
         self.out_stm_files = {}
         for corpus_key in ["train", "dev", "test"]:
             assert corpus_key in self.corpus_folders
-            self.out_corpus_files[corpus_key] = self.output_path("%s.corpus.xml.gz" %corpus_key)
-            self.out_stm_files[corpus_key] = self.output_path("%s.stm" %corpus_key)
+            self.out_corpus_files[corpus_key] = self.output_path(
+                "%s.corpus.xml.gz" % corpus_key
+            )
+            self.out_stm_files[corpus_key] = self.output_path("%s.stm" % corpus_key)
 
     def tasks(self):
         yield Task("make_stm", mini_task=True)
@@ -96,19 +103,19 @@ class CreateTEDLIUM2BlissCorpusJob(Job):
             if nextSeg is not None and seg[0] == nextSeg[0]:
                 nextStart = max(float(nextSeg[3]) - startPad, end)
             end = min(end + endPad, nextStart)
-            return "%.2f" %(start), "%.2f" %(end)
+            return "%.2f" % (start), "%.2f" % (end)
 
-        header = [ 
-            ';;', 
+        header = [
+            ";;",
             ';; LABEL "o" "Overall" "Overall results"',
             ';; LABEL "f0" "f0" "Wideband channel"',
             ';; LABEL "f2" "f2" "Telephone channel"',
             ';; LABEL "male" "Male" "Male Talkers"',
             ';; LABEL "female" "Female" "Female Talkers"',
-            ';;'
+            ";;",
         ]
         for corpus_key in ["train", "dev", "test"]:
-            f = open("%s.stm" %corpus_key, "w")
+            f = open("%s.stm" % corpus_key, "w")
             f.write("\n".join(header) + "\n")
 
             stm_folder = os.path.join(self.corpus_folders[corpus_key].get_path(), "stm")
@@ -119,22 +126,28 @@ class CreateTEDLIUM2BlissCorpusJob(Job):
                 for idx in range(len(data)):
                     # some text normalization
                     text = data[idx][6]
-                    text = text.replace("imiss","i miss")
-                    text = text.replace("uptheir","up their")
-                    text = re.sub("(\w)'([a-zA-Z])", r"\1 '\2", text) # split apostrophe 
+                    text = text.replace("imiss", "i miss")
+                    text = text.replace("uptheir", "up their")
+                    text = re.sub(
+                        "(\w)'([a-zA-Z])", r"\1 '\2", text
+                    )  # split apostrophe
                     data[idx][6] = text
-                    
+
                     # train-only: segment boundary non-overlapping extension (kaldi)
                     if corpus_key == "train":
                         pre_seg = None if idx == 0 else data[idx - 1]
-                        next_seg = None if idx == len(data) -1 else data[idx + 1]
-                        data[idx][3], data[idx][4] = extend_segment_time(data[idx], pre_seg, next_seg, 0.15, 0.1)                
-                
+                        next_seg = None if idx == len(data) - 1 else data[idx + 1]
+                        data[idx][3], data[idx][4] = extend_segment_time(
+                            data[idx], pre_seg, next_seg, 0.15, 0.1
+                        )
+
                 for seg in data:
-                    f.write(' '.join(seg) + '\n')
+                    f.write(" ".join(seg) + "\n")
 
             f.close()
-            shutil.move("%s.stm" %corpus_key, self.out_stm_files[corpus_key].get_path())
+            shutil.move(
+                "%s.stm" % corpus_key, self.out_stm_files[corpus_key].get_path()
+            )
 
     def make_corpus(self):
         """
@@ -150,7 +163,7 @@ class CreateTEDLIUM2BlissCorpusJob(Job):
 
             speakers = []
             last_rec_name = ""
-            recording = None 
+            recording = None
             for seg in data:
                 rec_name, channel, spk_name, start, end, gender, text = seg
 
@@ -169,10 +182,10 @@ class CreateTEDLIUM2BlissCorpusJob(Job):
                         c.recordings.append(recording)
                     recording = corpus.Recording()
                     recording.name = rec_name
-                    recording.audio = os.path.join(audio_dir, "%s.sph" %rec_name)
+                    recording.audio = os.path.join(audio_dir, "%s.sph" % rec_name)
                     last_rec_name = rec_name
                     seg_id = 1
-                
+
                 segment = corpus.Segment()
                 segment.name = str(seg_id)
                 segment.start = float(start)
@@ -196,7 +209,7 @@ class CreateTEDLIUM2BlissCorpusJob(Job):
             for line in f:
                 if not line.strip() or line.strip().startswith(";;"):
                     continue
-                if "ignore_time_segment_in_scoring" in line: 
+                if "ignore_time_segment_in_scoring" in line:
                     continue
                 line = line.replace("<F0_M>", "<o,f0,male>")
                 line = line.replace("<F0_F>", "<o,f0,female>")
@@ -207,5 +220,3 @@ class CreateTEDLIUM2BlissCorpusJob(Job):
                 text = " ".join(tokens[6:])
                 data.append([recName, channel, spkName, start, end, gender, text])
         return data
-
-
