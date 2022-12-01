@@ -2,6 +2,7 @@ __all__ = ["RasrCommand"]
 
 import logging
 import shutil
+import subprocess as sp
 import tempfile
 import time
 
