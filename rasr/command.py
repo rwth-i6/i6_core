@@ -137,9 +137,7 @@ fi
             os.path.basename(tk.uncached_path(log_file)), ".gz"
         )
 
-        if use_tmp_dir or (
-            hasattr(gs, "JOB_RUN_RASR_TMP_DIR") and gs.JOB_RUN_RASR_TMP_DIR
-        ):
+        if use_tmp_dir:
             with tempfile.TemporaryDirectory(prefix=gs.TMP_PREFIX) as tmp_dir:
                 print("using temp-dir: %s" % tmp_dir)
                 try:

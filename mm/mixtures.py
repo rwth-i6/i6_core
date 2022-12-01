@@ -387,6 +387,7 @@ class EstimateMixturesJob(MergeMixturesJob):
         self.concurrent = crp.concurrent
 
         self._old_mixtures = old_mixtures
+        self.use_tmp_dir = True
 
         self.out_log_file = self.log_file_output_path("accumulate", crp, True)
 
@@ -425,7 +426,10 @@ class EstimateMixturesJob(MergeMixturesJob):
 
     def accumulate(self, task_id):
         self.run_script(
-            task_id, self.out_log_file[task_id], "./accumulate.sh", use_tmp_dir=True
+            task_id,
+            self.out_log_file[task_id],
+            "./accumulate.sh",
+            use_tmp_dir=self.use_tmp_dir,
         )
 
     def delete_accumulators(self):
