@@ -99,6 +99,8 @@ class ReturnnComputePriorJobV2(Job):
         self,
         model_checkpoint: Checkpoint,
         returnn_config: ReturnnConfig,
+        returnn_python_exe: tk.Path,
+        returnn_root: tk.Path,
         prior_data: Optional[Dict[str, Any]] = None,
         *,
         log_verbosity: int = 3,
@@ -106,8 +108,6 @@ class ReturnnComputePriorJobV2(Job):
         time_rqmt: float = 4,
         mem_rqmt: float = 4,
         cpu_rqmt: int = 2,
-        returnn_python_exe: Optional[tk.Path] = None,
-        returnn_root: Optional[tk.Path] = None,
     ):
         """
         :param model_checkpoint:  TF model checkpoint. see `ReturnnTrainingJob`.
@@ -127,14 +127,8 @@ class ReturnnComputePriorJobV2(Job):
 
         self.model_checkpoint = model_checkpoint
 
-        self.returnn_python_exe = (
-            returnn_python_exe
-            if returnn_python_exe is not None
-            else gs.RETURNN_PYTHON_EXE
-        )
-        self.returnn_root = (
-            returnn_root if returnn_root is not None else gs.RETURNN_ROOT
-        )
+        self.returnn_python_exe = returnn_python_exe
+        self.returnn_root = returnn_root
 
         self.returnn_config = ReturnnComputePriorJobV2.create_returnn_config(**kwargs)
 
@@ -291,8 +285,8 @@ class ReturnnRasrComputePriorJobV2(ReturnnComputePriorJobV2, ReturnnRasrTraining
         time_rqmt=4,
         mem_rqmt=4,
         cpu_rqmt=1,
-        returnn_python_exe=None,
-        returnn_root=None,
+        returnn_python_exe,
+        returnn_root,
         # these are new parameters
         num_classes=None,
         disregarded_classes=None,
@@ -316,8 +310,8 @@ class ReturnnRasrComputePriorJobV2(ReturnnComputePriorJobV2, ReturnnRasrTraining
         :param float|int time_rqmt: job time requirement in hours
         :param float|int mem_rqmt: job memory requirement in GB
         :param float|int cpu_rqmt: job cpu requirement in GB
-        :param tk.Path|str|None returnn_python_exe: path to the RETURNN executable (python binary or launch script)
-        :param tk.Path|str|None returnn_root: path to the RETURNN src folder
+        :param tk.Path returnn_python_exe: path to the RETURNN executable (python binary or launch script)
+        :param tk.Path returnn_root: path to the RETURNN src folder
         :param int num_classes:
         :param disregarded_classes:
         :param class_label_file:
