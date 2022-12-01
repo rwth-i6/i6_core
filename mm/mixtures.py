@@ -11,6 +11,7 @@ import shutil
 import stat
 import struct
 import tempfile
+from typing import Dict, Optional, Union
 
 from sisyphus import *
 
@@ -360,15 +361,15 @@ class LinearAlignmentJob(MergeMixturesJob):
 class EstimateMixturesJob(MergeMixturesJob):
     def __init__(
         self,
-        crp,
-        old_mixtures,
-        feature_flow,
-        alignment,
-        split_first=True,
-        keep_accumulators=False,
-        extra_merge_args=None,
-        extra_config=None,
-        extra_post_config=None,
+        crp: rasr.CommonRasrParameters,
+        old_mixtures: tk.Path,
+        feature_flow: Union[str, tk.Path, rasr.FlagDependentFlowAttribute],
+        alignment: Union[str, tk.Path, rasr.FlagDependentFlowAttribute],
+        split_first: bool = True,
+        keep_accumulators: bool = False,
+        extra_merge_args: Optional[Dict] = None,
+        extra_config: Optional[rasr.RasrConfig] = None,
+        extra_post_config: Optional[rasr.RasrConfig] = None,
     ):
         self.set_vis_name("Split Mixtures" if split_first else "Accumulate Mixtures")
 
@@ -386,6 +387,7 @@ class EstimateMixturesJob(MergeMixturesJob):
         self.concurrent = crp.concurrent
 
         self._old_mixtures = old_mixtures
+        self.use_tmp_dir = True
 
         self.out_log_file = self.log_file_output_path("accumulate", crp, True)
 
@@ -423,7 +425,12 @@ class EstimateMixturesJob(MergeMixturesJob):
         self.write_run_script(self.exe, "accumulate-mixtures.config", "accumulate.sh")
 
     def accumulate(self, task_id):
-        self.run_script(task_id, self.out_log_file[task_id], "./accumulate.sh")
+        self.run_script(
+            task_id,
+            self.out_log_file[task_id],
+            "./accumulate.sh",
+            use_tmp_dir=self.use_tmp_dir,
+        )
 
     def delete_accumulators(self):
         for i in range(1, self.concurrent + 1):
