@@ -43,7 +43,7 @@ class DownloadTEDLIUM2CorpusJob(Job):
 
     def process_dict(self):
         dict_file = "TEDLIUM_release2/TEDLIUM.152k.dic"
-        with uopen(dict_file, 'r') as f:
+        with uopen(dict_file, "r") as f:
             data = f.read()
             for n in range(2, 8):
                 data = data.replace("(%d)" %n, "")
@@ -52,8 +52,8 @@ class DownloadTEDLIUM2CorpusJob(Job):
             data = data.replace("'d   D IY", "'d   D")
             data = data.replace("'ll   EH L EH L", "'ll   L")
 
-        dict_file = 'mod.TEDLIUM.152k.dic'
-        with open(dict_file, 'w') as f:
+        dict_file = "mod.TEDLIUM.152k.dic"
+        with open(dict_file, "w") as f:
             f.write(data)
         shutil.move(dict_file, self.out_vocab_dict.get_path())
 
@@ -113,14 +113,14 @@ class CreateTEDLIUM2BlissCorpusJob(Job):
 
             stm_folder = os.path.join(self.corpus_folders[corpus_key].get_path(), "stm")
             for stm_file in sorted(os.listdir(stm_folder)):
-                if not stm_file.endswith('.stm'):
+                if not stm_file.endswith(".stm"):
                     continue
                 data = self.load_stm_data(os.path.join(stm_folder, stm_file))
                 for idx in range(len(data)):
                     # some text normalization
                     text = data[idx][6]
-                    text = text.replace('imiss','i miss')
-                    text = text.replace('uptheir','up their')
+                    text = text.replace("imiss","i miss")
+                    text = text.replace("uptheir","up their")
                     text = re.sub("(\w)'([a-zA-Z])", r"\1 '\2", text) # split apostrophe 
                     data[idx][6] = text
                     
@@ -158,10 +158,10 @@ class CreateTEDLIUM2BlissCorpusJob(Job):
                     speakers.append(spk_name)
                     speaker = corpus.Speaker()
                     speaker.name = spk_name
-                    if 'female' in gender:
-                        speaker.attribs["gender"] = 'female'
-                    elif 'male' in gender:
-                        speaker.attribs["gender"] = 'male'
+                    if "female" in gender:
+                        speaker.attribs["gender"] = "female"
+                    elif "male" in gender:
+                        speaker.attribs["gender"] = "male"
                     c.add_speaker(speaker)
 
                 if rec_name != last_rec_name:
@@ -192,19 +192,19 @@ class CreateTEDLIUM2BlissCorpusJob(Job):
         :param str stm_file
         """
         data = []
-        with uopen(stm_file, 'r') as f:
+        with uopen(stm_file, "r") as f:
             for line in f:
-                if not line.strip() or line.strip().startswith(';;'): 
+                if not line.strip() or line.strip().startswith(";;"):
                     continue
                 if "ignore_time_segment_in_scoring" in line: 
                     continue
-                line = line.replace('<F0_M>', '<o,f0,male>')
-                line = line.replace('<F0_F>', '<o,f0,female>')
+                line = line.replace("<F0_M>", "<o,f0,male>")
+                line = line.replace("<F0_F>", "<o,f0,female>")
 
                 tokens = line.split()
                 assert len(tokens) >= 7, line
                 recName, channel, spkName, start, end, gender = tokens[:6]
-                text = ' '.join(tokens[6:])
+                text = " ".join(tokens[6:])
                 data.append([recName, channel, spkName, start, end, gender, text])
         return data
 
