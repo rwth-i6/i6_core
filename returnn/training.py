@@ -832,12 +832,14 @@ class AverageTFCheckpointsJob(Job):
 
         # we are writing a checkpoint with the maximum epoch index in the file name because Returnn
         # resolves symlinks and reads the name to determine the "checkpoint epoch"
-        out_path = os.path.join(self._out_model_dir.get_path(), "epoch.%3d" % max_epoch)
+        out_path = os.path.join(
+            self._out_model_dir.get_path(), "epoch.%03d" % max_epoch
+        )
         args = [
             self.returnn_python_exe.get_path(),
             os.path.join(self.returnn_root.get_path(), "tools/tf_avg_checkpoints.py"),
             "--checkpoints",
-            ",".join([str(epoch) for epoch in epochs]),
+            ",".join(["%03d" % epoch for epoch in epochs]),
             "--prefix",
             self.model_dir.get_path() + "/epoch.",
             "--output_path",
