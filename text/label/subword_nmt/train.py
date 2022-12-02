@@ -104,7 +104,7 @@ class ReturnnTrainBpeJob(Job):
         - bpe_vocab: the index vocab in the form of {"<token>": <index>, ...} that can be used e.g. for RETURNN
             Will contain <s> and </s> pointing to index 0 and the unk_label pointing to index 1
         - bpe_apply_vocab: a text file containing all words, to be used with the `ApplyBPEToTextJob`
-            DOES NOT INCLUDE COUNTS, but just set each count to 100. Is used to not cause invalid merges
+            DOES NOT INCLUDE COUNTS, but just set each count to -1. Is used to not cause invalid merges
             when converting text to the BPE form.
         - vocab_size: variable containing the number of indices
     """
@@ -184,7 +184,7 @@ class ReturnnTrainBpeJob(Job):
             num_labels = max(list(vocab.values())) + 1  # 0-based index
             self.out_vocab_size.set(num_labels)
             for l in vocab.keys():
-                txt_vocab.write(f"{l} 100\n")
+                txt_vocab.write(f"{l} -1\n")
 
     def tasks(self):
         yield Task("run", rqmt={"cpu": 1, "mem": 2, "time": 4})
