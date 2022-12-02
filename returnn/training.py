@@ -5,7 +5,7 @@ __all__ = [
     "ReturnnTrainingFromFileJob",
     "GetBestEpochJob",
     "GetBestTFCheckpointJob",
-    "AverageCheckpointsJob",
+    "AverageTFCheckpointsJob",
 ]
 
 import copy
