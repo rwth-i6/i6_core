@@ -829,6 +829,9 @@ class AverageTFCheckpointsJob(Job):
     def run(self):
         epochs = util.instanciate_delayed(self.epochs)
         max_epoch = max(epochs)
+
+        # we are writing a checkpoint with the maximum epoch index in the file name because Returnn
+        # resolves symlinks and reads the name to determine the "checkpoint epoch"
         out_path = os.path.join(self._out_model_dir.get_path(), "epoch.%3d" % max_epoch)
         args = [
             self.returnn_python_exe.get_path(),
