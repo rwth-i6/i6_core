@@ -821,7 +821,7 @@ class AverageTFCheckpointsJob(Job):
         self._out_model_dir = self.output_path("model", directory=True)
         self.out_checkpoint = Checkpoint(self.output_path("model/average.index"))
 
-        self.rqmt = {"cpu": 1, "time": 0.5, "mem": max(2 * len(epochs), 4)}
+        self.rqmt = {"cpu": 1, "time": 0.5, "mem": 2 * len(epochs)}
 
     def tasks(self):
         yield Task("run", rqmt=self.rqmt)
