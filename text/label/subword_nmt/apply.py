@@ -123,7 +123,7 @@ class ApplyBPEToTextJob(Job):
         :param text_file: words text file to convert to bpe
         :param bpe_codes: bpe codes file, e.g. ReturnnTrainBpeJob.out_bpe_codes
         :param bpe_vocab: if provided, then merge operations that produce OOV are reverted,
-            use e.g. ReturnnTrainBpeJob.out_bpe_apply_vocab
+            use e.g. ReturnnTrainBpeJob.out_bpe_dummy_count_vocab
         :param subword_nmt_repo: subword nmt repository path. see also `CloneGitRepositoryJob`
         :param gzip_output: use gzip on the output text
         """

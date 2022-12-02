@@ -133,7 +133,7 @@ class ReturnnTrainBpeJob(Job):
 
         self.out_bpe_codes = self.output_path("bpe.codes")
         self.out_bpe_vocab = self.output_path("bpe.vocab")
-        self.out_bpe_apply_vocab = self.output_path("bpe.vocab.txt")
+        self.out_bpe_dummy_count_vocab = self.output_path("bpe.dummy_count.vocab")
         self.out_vocab_size = self.output_var("vocab_size")
 
     def run(self):
@@ -178,7 +178,7 @@ class ReturnnTrainBpeJob(Job):
         sp.run(bpe_vocab_cmd, check=True)
 
         with util.uopen(self.out_bpe_vocab) as f, util.uopen(
-            self.out_bpe_apply_vocab, "wt"
+            self.out_bpe_dummy_count_vocab, "wt"
         ) as txt_vocab:
             vocab = eval(f.read())
             num_labels = max(list(vocab.values())) + 1  # 0-based index
