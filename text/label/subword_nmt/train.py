@@ -117,7 +117,7 @@ class ReturnnTrainBpeJob(Job):
         subword_nmt_repo: Optional[tk.Path] = None,
     ):
         """
-        :param text_file: corpus text file, only accepts uncompressed text
+        :param text_file: corpus text file, .gz compressed or uncompressed
         :param int bpe_size: number of BPE merge operations
         :param str unk_label: unknown label
         :param Path|None subword_nmt_repo: subword nmt repository path. see also `CloneGitRepositoryJob`
