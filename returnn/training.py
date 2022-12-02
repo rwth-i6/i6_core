@@ -3,6 +3,9 @@ __all__ = [
     "Checkpoint",
     "ReturnnTrainingJob",
     "ReturnnTrainingFromFileJob",
+    "GetBestEpochJob",
+    "GetBestTFCheckpointJob",
+    "AverageTFCheckpointsJob",
 ]
 
 import copy
@@ -10,6 +13,7 @@ import sys
 import os
 import shutil
 import subprocess as sp
+from typing import List, Union
 
 from sisyphus import *
 
@@ -788,3 +792,65 @@ class GetBestTFCheckpointJob(GetBestEpochJob):
                 self._out_model_dir.get_path(), "checkpoint.data-00000-of-00001"
             ),
         )
+
+
+class AverageTFCheckpointsJob(Job):
+    """
+    Compute the average of multiple specified Tensorflow checkpoints using the tf_avg_checkpoints script from Returnn
+    """
+
+    def __init__(
+        self,
+        model_dir: tk.Path,
+        epochs: List[Union[int, tk.Variable]],
+        returnn_python_exe: tk.Path,
+        returnn_root: tk.Path,
+    ):
+        """
+
+        :param model_dir: model dir from `ReturnnTrainingJob`
+        :param epochs: manually specified epochs or `out_epoch` from `GetBestEpochJob`
+        :param returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
+        :param returnn_root: file path to the RETURNN repository root folder
+        """
+        self.model_dir = model_dir
+        self.epochs = epochs
+        self.returnn_python_exe = returnn_python_exe
+        self.returnn_root = returnn_root
+
+        self._out_model_dir = self.output_path("model", directory=True)
+        self.out_checkpoint = Checkpoint(self.output_path("model/average.index"))
+
+        self.rqmt = {"cpu": 1, "time": 0.5, "mem": 2 * len(epochs)}
+
+    def tasks(self):
+        yield Task("run", rqmt=self.rqmt)
+
+    def run(self):
+        epochs = util.instanciate_delayed(self.epochs)
+        max_epoch = max(epochs)
+
+        # we are writing a checkpoint with the maximum epoch index in the file name because Returnn
+        # resolves symlinks and reads the name to determine the "checkpoint epoch"
+        out_path = os.path.join(
+            self._out_model_dir.get_path(), "epoch.%03d" % max_epoch
+        )
+        args = [
+            self.returnn_python_exe.get_path(),
+            os.path.join(self.returnn_root.get_path(), "tools/tf_avg_checkpoints.py"),
+            "--checkpoints",
+            ",".join(["%03d" % epoch for epoch in epochs]),
+            "--prefix",
+            self.model_dir.get_path() + "/epoch.",
+            "--output_path",
+            out_path,
+        ]
+        os.symlink(out_path + ".index", self.out_checkpoint.index_path.get_path())
+        os.symlink(out_path + ".meta", self.out_checkpoint.ckpt_path + ".meta")
+        os.symlink(
+            out_path + ".data-00000-of-00001",
+            self.out_checkpoint.ckpt_path + ".data-00000-of-00001",
+        )
+
+        # The env override is needed if this job is run locally on a node with a GPU installed
+        sp.check_call(args, env={"CUDA_VISIBLE_DEVICES": ""})
