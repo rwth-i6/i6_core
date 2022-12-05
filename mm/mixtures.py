@@ -387,7 +387,7 @@ class EstimateMixturesJob(MergeMixturesJob):
         self.concurrent = crp.concurrent
 
         self._old_mixtures = old_mixtures
-        self.use_tmp_dir = True
+        self.use_tmp_dir = False
 
         self.out_log_file = self.log_file_output_path("accumulate", crp, True)
 
