@@ -118,6 +118,7 @@ class ApplyBPEToTextJob(Job):
         bpe_vocab: Optional[tk.Path] = None,
         subword_nmt_repo: Optional[tk.Path] = None,
         gzip_output: bool = False,
+        mini_task=True,
     ):
         """
         :param text_file: words text file to convert to bpe
@@ -126,6 +127,7 @@ class ApplyBPEToTextJob(Job):
             use e.g. ReturnnTrainBpeJob.out_bpe_dummy_count_vocab
         :param subword_nmt_repo: subword nmt repository path. see also `CloneGitRepositoryJob`
         :param gzip_output: use gzip on the output text
+        :param mini_task: if the Job should run locally, e.g. only a small (<1M lines) text should be processed
         """
         self.text_file = text_file
         self.bpe_codes = bpe_codes
@@ -141,8 +143,14 @@ class ApplyBPEToTextJob(Job):
             "words_to_bpe.txt.gz" if gzip_output else "words_to_bpe.txt"
         )
 
+        self.mini_task = mini_task
+        self.rqmt = {"cpu": 1, "mem": 2, "time": 2}
+
     def tasks(self):
-        yield Task("run", mini_task=True)
+        if self.mini_task:
+            yield Task("run", mini_task=True)
+        else:
+            yield Task("run", rqmt=self.rqmt)
 
     def run(self):
         with tempfile.TemporaryDirectory(prefix=gs.TMP_PREFIX) as tmp:
@@ -175,3 +183,8 @@ class ApplyBPEToTextJob(Job):
                     sp.call(["gzip"], stdin=fin, stdout=fout)
             else:
                 shutil.copy(tmp_outfile, self.out_bpe_text.get_path())
+
+    @classmethod
+    def hash(cls, parsed_args):
+        del parsed_args["mini_task"]
+        return super().hash(parsed_args)
