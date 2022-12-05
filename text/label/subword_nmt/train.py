@@ -103,7 +103,7 @@ class ReturnnTrainBpeJob(Job):
         - bpe_codes: the codes file to apply BPE to any text
         - bpe_vocab: the index vocab in the form of {"<token>": <index>, ...} that can be used e.g. for RETURNN
             Will contain <s> and </s> pointing to index 0 and the unk_label pointing to index 1
-        - bpe_apply_vocab: a text file containing all words, to be used with the `ApplyBPEToTextJob`
+        - bpe_dummy_count_vocab: a text file containing all words, to be used with the `ApplyBPEToTextJob`
             DOES NOT INCLUDE COUNTS, but just set each count to -1. Is used to not cause invalid merges
             when converting text to the BPE form.
         - vocab_size: variable containing the number of indices
