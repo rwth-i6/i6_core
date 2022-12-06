@@ -468,7 +468,7 @@ class ReturnnComputeWERJob(Job):
         )
         self.returnn_root = returnn_root if returnn_root else gs.RETURNN_ROOT
 
-        self.out_wer = self.output_path("wer")
+        self.out_wer = self.output_var("wer")
 
     def run(self):
         call = [
@@ -476,11 +476,11 @@ class ReturnnComputeWERJob(Job):
             os.path.join(str(self.returnn_root), "tools/calculate-word-error-rate.py"),
             "--expect_full",
             "--hyps",
-            tk.uncached_path(self.hypothesis),
+            self.hypothesis.get_path(),
             "--refs",
-            tk.uncached_path(self.reference),
+            self.reference.get_path(),
             "--out",
-            tk.uncached_path(self.out_wer),
+            self.out_wer.get_path(),
         ]
         logging.info("run %s" % " ".join(call))
         sp.check_call(call)
