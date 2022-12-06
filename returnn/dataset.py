@@ -2,7 +2,6 @@ __all__ = ["ExtractDatasetMeanStddevJob"]
 
 from sisyphus import *
 
-import os
 import pickle
 import shutil
 import subprocess
@@ -13,7 +12,12 @@ import numpy
 from i6_core.returnn.config import ReturnnConfig
 from i6_core.lib import corpus
 from i6_core.lib.hdf import get_returnn_simple_hdf_writer
-from i6_core.util import create_executable, uopen
+from i6_core.util import (
+    create_executable,
+    get_returnn_python_exe,
+    get_returnn_root,
+    uopen,
+)
 
 
 class ExtractDatasetMeanStddevJob(Job):
@@ -39,8 +43,8 @@ class ExtractDatasetMeanStddevJob(Job):
         """
 
         self.returnn_config = returnn_config
-        self.returnn_python_exe = util.get_returnn_python_exe(returnn_python_exe)
-        self.returnn_root = util.get_returnn_root(returnn_root)
+        self.returnn_python_exe = get_returnn_python_exe(returnn_python_exe)
+        self.returnn_root = get_returnn_root(returnn_root)
 
         self.out_mean = self.output_var("mean_var")
         self.out_std_dev = self.output_var("std_dev_var")
