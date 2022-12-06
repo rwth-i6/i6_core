@@ -19,10 +19,10 @@ class DownloadTEDLIUM2CorpusJob(Job):
     """
 
     def __init__(self):
-        self.out_corpus_folders = dict(
-            (corpus_key, self.output_path(corpus_key))
+        self.out_corpus_folders = {
+            corpus_key: self.output_path(corpus_key)
             for corpus_key in ["train", "dev", "test"]
-        )
+        }
         self.out_lm_folder = self.output_path("LM")
         self.out_vocab_dict = self.output_path("TEDLIUM.152k.dic")
 
@@ -47,11 +47,16 @@ class DownloadTEDLIUM2CorpusJob(Job):
         shutil.move("TEDLIUM_release2/LM", self.out_lm_folder.get_path())
 
     def process_dict(self):
+        """
+        minor modification on the dictionary (see comments)
+        """
         dict_file = "TEDLIUM_release2/TEDLIUM.152k.dic"
         with uopen(dict_file, "r") as f:
             data = f.read()
+            # remove pronunciation variants index
             for n in range(2, 8):
                 data = data.replace("(%d)" % n, "")
+            # remove invalid word
             data = data.replace("ayışığı EY\n", "")
             # 2 minor pronunciation fixes
             data = data.replace("'d   D IY", "'d   D")
@@ -89,20 +94,20 @@ class CreateTEDLIUM2BlissCorpusJob(Job):
         yield Task("make_corpus", mini_task=True)
 
     def make_stm(self):
-        def extend_segment_time(seg, preSeg, nextSeg, startPad=0.15, endPad=0.1):
+        def extend_segment_time(seg, prev_seg, next_seg, start_pad=0.15, end_pad=0.1):
             start = float(seg[3])
             end = float(seg[4])
             # start padding (previous seg alread padded)
-            if preSeg is not None and seg[0] == preSeg[0]:
-                preEnd = float(preSeg[4])
+            if prev_seg is not None and seg[0] == prev_seg[0]:
+                prev_end = float(prev_seg[4])
             else:
-                preEnd = 0.0
-            start = max(start - startPad, preEnd)
+                prev_end = 0.0
+            start = max(start - start_pad, prev_end)
             # end padding (next seg not yet padded and start padding is more important)
-            nextStart = end + endPad
-            if nextSeg is not None and seg[0] == nextSeg[0]:
-                nextStart = max(float(nextSeg[3]) - startPad, end)
-            end = min(end + endPad, nextStart)
+            next_start = end + end_pad
+            if next_seg is not None and seg[0] == next_seg[0]:
+                next_start = max(float(next_seg[3]) - start_pad, end)
+            end = min(end + end_pad, next_start)
             return "%.2f" % (start), "%.2f" % (end)
 
         header = [
@@ -179,7 +184,7 @@ class CreateTEDLIUM2BlissCorpusJob(Job):
 
                 if rec_name != last_rec_name:
                     if recording:
-                        c.recordings.append(recording)
+                        c.add_recording(recording)
                     recording = corpus.Recording()
                     recording.name = rec_name
                     recording.audio = os.path.join(audio_dir, "%s.sph" % rec_name)
@@ -193,11 +198,11 @@ class CreateTEDLIUM2BlissCorpusJob(Job):
                 segment.speaker_name = spk_name
                 segment.orth = text
 
-                recording.segments.append(segment)
+                recording.add_segment(segment)
                 seg_id += 1
 
-            if recording:
-                c.recordings.append(recording)
+            # add final recording
+            c.add_recording(recording)
             c.dump(self.out_corpus_files[corpus_key].get_path())
 
     def load_stm_data(self, stm_file):
@@ -216,7 +221,7 @@ class CreateTEDLIUM2BlissCorpusJob(Job):
 
                 tokens = line.split()
                 assert len(tokens) >= 7, line
-                recName, channel, spkName, start, end, gender = tokens[:6]
+                rec_name, channel, spk_name, start, end, gender = tokens[:6]
                 text = " ".join(tokens[6:])
-                data.append([recName, channel, spkName, start, end, gender, text])
+                data.append([rec_name, channel, spk_name, start, end, gender, text])
         return data
