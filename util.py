@@ -305,6 +305,9 @@ def instanciate_delayed(o):
     return o
 
 
+already_printed_gs_warnings = set()
+
+
 def get_executable_path(
     path: Optional[tk.Path],
     gs_member_name: str,
@@ -320,6 +323,7 @@ def get_executable_path(
     :param gs_member_name: get path from sisyphus.global_settings.<gs_member_name>
     :param default_exec_path: general fallback if no specific version is given
     """
+    global already_printed_gs_warnings
     if path is not None:
         if isinstance(path, tk.Path):
             return path
@@ -330,9 +334,12 @@ def get_executable_path(
             return tk.Path(path)
         assert False, f"unsupported type of {type(path)} for input {path}"
     if getattr(gs, gs_member_name, None) is not None:
-        logging.warning(
-            f"use of gs is deprecated, please provide a Path object for gs.{gs_member_name}"
-        )
+        if gs_member_name not in already_printed_gs_warnings:
+            logging.warning(
+                f"use of gs is deprecated, please provide a Path object for gs.{gs_member_name}"
+            )
+            already_printed_gs_warnings.add(gs_member_name)
+
         return tk.Path(getattr(gs, gs_member_name))
     if default_exec_path is not None:
         return default_exec_path
