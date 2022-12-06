@@ -132,17 +132,29 @@ fi
         args: List = None,
         retries: int = 2,
         use_tmp_dir: bool = False,
+        copy_tmp_ls: Optional[List] = None,
     ):
         args = [] if args is None else args
         tmp_log_file = remove_suffix(
             os.path.basename(tk.uncached_path(log_file)), ".gz"
         )
 
+        work_dir = os.path.abspath(os.curdir)
         if use_tmp_dir:
             date_time_cur = time.strftime("%y%m%d-%H%M%S", time.localtime())
             with tempfile.TemporaryDirectory(prefix=gs.TMP_PREFIX) as tmp_dir:
                 print("using temp-dir: %s" % tmp_dir)
                 try:
+                    if copy_tmp_ls is None:
+                        assert (
+                            task_id == 1
+                        ), "Concurrent Jobs need a list of files to copy due to race conditions"
+                        file_names = os.listdir(work_dir)
+                    else:
+                        file_names = copy_tmp_ls
+                    for fn in file_names:
+                        print(fn)
+                        shutil.copy(os.path.join(work_dir, fn), "%s/%s" % (tmp_dir, fn))
                     self.run_cmd(cmd, [task_id, tmp_log_file] + args, retries, tmp_dir)
                     file_names = os.listdir(tmp_dir)
                     for fn in file_names:
@@ -151,7 +163,9 @@ fi
                     print(
                         "'%s' crashed - copy temporary work folder as 'crash_dir'" % cmd
                     )
-                    shutil.copytree(tmp_dir, "crash_dir_" + date_time_cur)
+                    shutil.copytree(
+                        tmp_dir, "crash_dir_" + str(task_id) + "_" + date_time_cur
+                    )
                     raise e
         else:
             self.run_cmd(cmd, [task_id, tmp_log_file] + args, retries)
