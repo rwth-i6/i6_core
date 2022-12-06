@@ -388,7 +388,7 @@ class EstimateMixturesJob(MergeMixturesJob):
 
         self._old_mixtures = old_mixtures
         self.use_tmp_dir = True
-        self.copy_list = [
+        self.tmp_dir_copy_list = [
             "accumulate-mixtures.config",
             "accumulate.sh",
             "alignment.flow",
@@ -435,7 +435,7 @@ class EstimateMixturesJob(MergeMixturesJob):
             self.out_log_file[task_id],
             "./accumulate.sh",
             use_tmp_dir=self.use_tmp_dir,
-            copy_tmp_ls=self.copy_list if self.use_tmp_dir else None,
+            copy_tmp_ls=self.tmp_dir_copy_list if self.use_tmp_dir else None,
         )
 
     def delete_accumulators(self):
