@@ -149,16 +149,16 @@ fi
                         assert (
                             task_id == 1
                         ), "Concurrent Jobs need a list of files to copy due to race conditions"
-                        file_names = os.listdir(work_dir)
+                        copy_file_names = os.listdir(work_dir)
                     else:
-                        file_names = copy_tmp_ls
-                    for fn in file_names:
-                        print(fn)
+                        copy_file_names = copy_tmp_ls
+                    for fn in copy_file_names:
                         shutil.copy(os.path.join(work_dir, fn), "%s/%s" % (tmp_dir, fn))
                     self.run_cmd(cmd, [task_id, tmp_log_file] + args, retries, tmp_dir)
-                    file_names = os.listdir(tmp_dir)
-                    for fn in file_names:
-                        shutil.move("%s/%s" % (tmp_dir, fn), fn)
+                    move_file_names = os.listdir(tmp_dir)
+                    for fn in move_file_names:
+                        if fn not in copy_file_names:
+                            shutil.move("%s/%s" % (tmp_dir, fn), fn)
                 except Exception as e:
                     print(
                         "'%s' crashed - copy temporary work folder as 'crash_dir'" % cmd
