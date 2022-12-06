@@ -162,7 +162,7 @@ fi
                     print(
                         "'%s' crashed - copy temporary work folder as 'crash_dir'" % cmd
                     )
-                    shutil.copytree(tmp_dir, "crash_dir_" + date_time_cur)
+                    shutil.copytree(tmp_dir, "crash_dir_" + str(task_id) + "_" + date_time_cur)
                     raise e
         else:
             self.run_cmd(cmd, [task_id, tmp_log_file] + args, retries)
