@@ -146,7 +146,9 @@ fi
                 print("using temp-dir: %s" % tmp_dir)
                 try:
                     if copy_tmp_ls is None:
-                        assert task_id == 1, "Concurrent Jobs need a list of files to copy due to race conditions"
+                        assert (
+                            task_id == 1
+                        ), "Concurrent Jobs need a list of files to copy due to race conditions"
                         file_names = os.listdir(work_dir)
                     else:
                         file_names = copy_tmp_ls
