@@ -160,6 +160,56 @@ class CreateSwitchboardSpeakersListJob(Job):
                     )  # speaker_id gender recording
 
 
+class CreateLDCSwitchboardSpeakerListJob(Job):
+    """
+    This creates the speaker list according to the conversation and speaker table
+    from the LDC documentation: https://catalog.ldc.upenn.edu/docs/LDC97S62
+
+    The resulting file contains 520 speakers in the format of:
+        <speaker_id> <gender> <recording>
+    """
+
+    def __init__(self, caller_tab_file, conv_tab_file):
+        # locally create the download jobs
+        self.caller_tab_file = caller_tab_file
+        self.conv_tab_file = conv_tab_file
+
+        self.out_speakers_list = self.output_path("speakers_list.txt")
+
+    def tasks(self):
+        yield Task("run", mini_task=True)
+
+    @staticmethod
+    def _conv_gender(gender):
+        if gender == '"MALE"':
+            return "M"
+        elif gender == '"FEMALE"':
+            return "F"
+        else:
+            assert False, "invalid gender %s" % gender
+
+    def run(self):
+        speakers = {}
+        with uopen(self.caller_tab_file, "rt") as f:
+            for line in f.readlines():
+                split = line.strip().split(",")
+                sid = int(split[0])
+                gender = split[3].strip()
+                speakers[sid] = gender
+
+        with uopen(self.out_speakers_list, "wt") as fout:
+            with uopen(self.conv_tab_file, "rt") as f:
+                for line in f.readlines():
+                    split = line.strip().split(",")
+                    seq_id = int(split[0])
+                    callerA = int(split[2])
+                    callerB = int(split[3])
+                    genderA = self._conv_gender(speakers[callerA])
+                    genderB = self._conv_gender(speakers[callerB])
+                    fout.write("%d %s %dA\n" % (callerA, genderA, seq_id))
+                    fout.write("%d %s %dB\n" % (callerB, genderB, seq_id))
+
+
 class CreateSwitchboardBlissCorpusJob(Job):
     """
     Creates Switchboard bliss corpus xml
