@@ -217,17 +217,32 @@ class CreateSwitchboardBlissCorpusJob(Job):
     segment name format: sw2001B-ms98-a-<folder-name>
     """
 
-    def __init__(self, audio_dir, trans_dir, speakers_list_file):
+    __sis_hash_exclude__ = {"skip_empty_ldc_file": False, "lowercase": False}
+
+    def __init__(
+        self,
+        audio_dir,
+        trans_dir,
+        speakers_list_file,
+        skip_empty_ldc_file=True,
+        lowercase=True,
+    ):
         """
         :param tk.Path audio_dir: path for audio data
         :param tk.Path trans_dir: path for transcription data. see `DownloadSwitchboardTranscriptionAndDictJob`
         :param tk.Path speakers_list_file: path to a speakers list text file with format:
-                speaker_id gender recording
+                speaker_id gender recording<channel>, e.g. 1005 F 2452A
             on each line. see `CreateSwitchboardSpeakersListJob` job
+        :param bool skip_empty_ldc_file: In the original corpus the sequence 2167B is mostly empty,
+            thus exclude it from training (recommended, GMM will fail otherwise)
+        :param bool lowercase: lowercase the transcriptions of the corpus (recommended)
         """
         self.audio_dir = audio_dir
         self.trans_dir = trans_dir
         self.speakers_list_file = speakers_list_file
+        self.skip_empty_ldc_file = skip_empty_ldc_file
+        self.lowercase = lowercase
+
         self.out_corpus = self.output_path("swb.corpus.xml.gz")
 
     def tasks(self):
@@ -265,6 +280,8 @@ class CreateSwitchboardBlissCorpusJob(Job):
         for rec_name, segs in sorted(rec_to_segs.items()):
             recording = corpus.Recording()
             recording.name = rec_name
+            if self.skip_empty_ldc_file and rec_name == "sw02167B":
+                continue
             recording.audio = os.path.join(self.audio_dir.get_path(), rec_name + ".wav")
 
             assert os.path.exists(
@@ -299,8 +316,7 @@ class CreateSwitchboardBlissCorpusJob(Job):
 
         c.dump(self.out_corpus.get_path())
 
-    @staticmethod
-    def _filter_orth(orth):
+    def _filter_orth(self, orth):
         """
         Filters orth by handling special cases such as silence tag removal, partial words, etc
 
@@ -315,6 +331,8 @@ class CreateSwitchboardBlissCorpusJob(Job):
         tokens = orth.strip().split()
         for token_ in tokens:
             token = token_.strip()
+            if self.lowercase:
+                token = token.lower()
             if token in removed_tokens:
                 continue
             elif token in SPECIAL_TOKENS:
@@ -336,7 +354,11 @@ class CreateSwitchboardBlissCorpusJob(Job):
         out = " ".join(filtered_orth)
 
         # replace &
-        out = out.replace("AT&T's", "AT and T")
+        # for AT&T's we drop the 's as t's is not in the lexicon
+        if self.lowercase:
+            out = out.replace("at&t's", "at and t")
+        else:
+            out = out.replace("AT&T's", "AT and T")
         out = out.replace("&", " and ")
 
         return out
