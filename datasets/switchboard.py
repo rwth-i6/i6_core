@@ -170,6 +170,10 @@ class CreateLDCSwitchboardSpeakerListJob(Job):
     """
 
     def __init__(self, caller_tab_file, conv_tab_file):
+        """
+        :param caller_tab_file: caller_tab.csv from the Switchboard LDC documentation
+        :param conv_tab_file: conv_tab.csv from the Switchboard LDC documentation
+        """
         # locally create the download jobs
         self.caller_tab_file = caller_tab_file
         self.conv_tab_file = conv_tab_file
