@@ -756,3 +756,52 @@ class CreateSwitchboardE2EBlissCorpusJob(Job):
             segment.orth = orth
 
         c.dump(self.out_e2e_corpus.get_path())
+
+
+class CreateFisherTranscriptionsJob(Job):
+    """
+    Create the compressed text data based on the fisher transcriptions which can be used for LM training
+
+    Part 1: https://catalog.ldc.upenn.edu/LDC2004T19
+    Part 2: https://catalog.ldc.upenn.edu/LDC2005T19
+    """
+
+    def __init__(
+        self,
+        fisher_transcriptions1_folder: tk.Path,
+        fisher_transcriptions2_folder: tk.Path,
+    ):
+        """
+        :param fisher_transcriptions1_folder: path to unpacked LDC2004T19.tgz, usually named fe_03_p1_tran
+        :param fisher_transcriptions2_folder: path to unpacked LDC2005T19.tgz, usually named fe_03_p2_tran
+        """
+        self.fsh_trans1_folder = fisher_transcriptions1_folder
+        self.fsh_trans2_folder = fisher_transcriptions2_folder
+
+        self.out = self.output_path("fisher.lm_train.txt.gz")
+
+    def tasks(self):
+        yield Task("run", mini_task=True)
+
+    def run(self):
+        files1 = glob.glob(
+            os.path.join(
+                self.fsh_trans1_folder.get_path(), "data", "trans", "*", "fe_03_*.txt"
+            )
+        )
+        files2 = glob.glob(
+            os.path.join(
+                self.fsh_trans1_folder.get_path(), "data", "trans", "*", "fe_03_*.txt"
+            )
+        )
+        with uopen(self.out, "wt") as fout:
+            for file in sorted(files1 + files2):
+                with uopen(file) as fin:
+                    for line in fin:
+                        split = line.split(":")
+                        if len(split) < 2:
+                            continue
+                        elif len(split) > 2:
+                            assert False, "Weird line detected"
+                        else:
+                            fout.write(split[1].strip() + "\n")
