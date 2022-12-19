@@ -1,6 +1,125 @@
-from sisyphus import Job, Task
+from sisyphus import Job, Task, tk
+
+from dataclasses import dataclass
+from typing import Optional, Union
 
 from i6_core.lib.lm import Lm
+from i6_core.lib.lexicon import Lexicon
+from i6_core.util import uopen
+
+
+@dataclass(frozen=True)
+class LmIndexVocabulary:
+    vocab: tk.Path
+    vocab_size: tk.Variable
+    unknown_token: Union[tk.Variable, str]
+
+
+class LmIndexVocabularyFromLexiconJob(Job):
+    """
+    Computes a <word>: <index> vocabulary file from a bliss lexicon for Word-Level LM training
+
+    Sentence begin/end will point to index 0, unknown to index 1.
+    Both are taking directly from the lexicon via the "special" marking:
+      - <lemma special="sentence-begin"> -> index 0
+      - <lemma special="sentence-end"> -> index 0
+      - <lemma special="unknown"> -> index 1
+
+    If <synt> tokens are provided in a lemma, they will be used instead of <orth>
+
+    CAUTION:
+    Be aware of: https://github.com/rwth-i6/returnn/issues/1245 when using Returnn's LmDataset
+    """
+
+    def __init__(
+        self, bliss_lexicon: tk.Path, count_ordering_text: Optional[tk.Path] = None
+    ):
+        self.bliss_lexicon = bliss_lexicon
+        self.count_ordering_text = count_ordering_text
+
+        self.out_vocab = self.output_path("lm.vocab.txt")
+        self.out_vocab_size = self.output_var("vocab_size")
+        self.out_unknown_token = self.output_var("unknown_token")
+
+        self.out_vocabulary_object = LmIndexVocabulary(
+            vocab=self.out_vocab,
+            vocab_size=self.out_vocab_size,
+            unknown_token=self.out_unknown_token,
+        )
+
+    def tasks(self):
+        yield Task("run", mini_task=True)
+
+    def run(self):
+        lex = Lexicon()
+        lex.load(self.bliss_lexicon.get_path())
+        wordlist = []
+        sentence_begin = None
+        sentence_end = None
+        sentence_boundary = None
+        unknown = None
+
+        for lemma in lex.lemmata:
+            if lemma.special == "sentence-begin":
+                sentence_begin_list = (
+                    lemma.synt if lemma.synt is not None else lemma.orth
+                )
+                assert len(sentence_begin_list) == 1
+                sentence_begin = sentence_begin_list[0]
+            elif lemma.special == "sentence-end":
+                sentence_end_list = lemma.synt if lemma.synt is not None else lemma.orth
+                assert len(sentence_end_list) == 1
+                sentence_end = sentence_end_list[0]
+            elif lemma.special == "sentence-boundary":
+                sentence_boundary_list = (
+                    lemma.synt if lemma.synt is not None else lemma.orth
+                )
+                assert len(sentence_boundary_list) == 1
+                sentence_boundary = sentence_boundary_list[0]
+            elif lemma.special == "unknown":
+                unknown_list = lemma.synt if lemma.synt is not None else lemma.orth
+                assert len(unknown_list) == 1
+                unknown = unknown_list[0]
+            elif lemma.synt is not None:
+                wordlist.extend(lemma.synt)
+            else:
+                wordlist.extend(lemma.orth)
+
+        assert sentence_boundary is not None or (
+            sentence_begin is not None and sentence_end is not None
+        )
+        assert unknown is not None
+
+        if self.count_ordering_text is not None:
+            word_set = set(wordlist)
+            word_counts = {}
+            for w in wordlist:
+                word_counts[w] = 0
+            with uopen(self.count_ordering_text, "rt") as f:
+                for line in f.readlines():
+                    for word in line.strip().split(" "):
+                        if word in word_set:
+                            word_counts[word] += 1
+            wordlist = [
+                w
+                for w, _ in sorted(
+                    word_counts.items(), key=lambda wc: wc[1], reverse=True
+                )
+            ]
+
+        with uopen(self.out_vocab, "wt") as f:
+            if sentence_begin is not None:
+                f.write("%s 0\n" % sentence_begin)
+            if sentence_end is not None:
+                f.write("%s 0\n" % sentence_end)
+            if sentence_boundary is not None:
+                f.write("%s 0\n" % sentence_boundary)
+            f.write("%s 1\n" % unknown)
+            for i, word in enumerate(wordlist):
+                f.write("%s %d\n" % (word, i + 2))
+            self.out_vocab_size.set(i + 3)
+
+        self.out_unknown_token.set(unknown)
 
 
 class VocabularyFromLmJob(Job):
