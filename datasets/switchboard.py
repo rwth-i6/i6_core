@@ -281,11 +281,12 @@ class CreateSwitchboardBlissCorpusJob(Job):
                 rec_to_speaker[rec] = {"speaker_id": "speaker#" + str(unk_spk_id)}
                 unk_spk_id += 1
 
+        if self.skip_empty_ldc_file:
+            rec_to_segs.pop("sw02167B")
+
         for rec_name, segs in sorted(rec_to_segs.items()):
             recording = corpus.Recording()
             recording.name = rec_name
-            if self.skip_empty_ldc_file and rec_name == "sw02167B":
-                continue
             recording.audio = os.path.join(self.audio_dir.get_path(), rec_name + ".wav")
 
             assert os.path.exists(
