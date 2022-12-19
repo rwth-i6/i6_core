@@ -160,6 +160,60 @@ class CreateSwitchboardSpeakersListJob(Job):
                     )  # speaker_id gender recording
 
 
+class CreateLDCSwitchboardSpeakerListJob(Job):
+    """
+    This creates the speaker list according to the conversation and speaker table
+    from the LDC documentation: https://catalog.ldc.upenn.edu/docs/LDC97S62
+
+    The resulting file contains 520 speakers in the format of:
+        <speaker_id> <gender> <recording>
+    """
+
+    def __init__(self, caller_tab_file, conv_tab_file):
+        """
+        :param caller_tab_file: caller_tab.csv from the Switchboard LDC documentation
+        :param conv_tab_file: conv_tab.csv from the Switchboard LDC documentation
+        """
+        # locally create the download jobs
+        self.caller_tab_file = caller_tab_file
+        self.conv_tab_file = conv_tab_file
+
+        self.out_speakers_list = self.output_path("speakers_list.txt")
+
+    def tasks(self):
+        yield Task("run", mini_task=True)
+
+    @staticmethod
+    def _conv_gender(gender):
+        if gender == '"MALE"':
+            return "M"
+        elif gender == '"FEMALE"':
+            return "F"
+        else:
+            assert False, "invalid gender %s" % gender
+
+    def run(self):
+        speakers = {}
+        with uopen(self.caller_tab_file, "rt") as f:
+            for line in f.readlines():
+                split = line.strip().split(",")
+                sid = int(split[0])
+                gender = split[3].strip()
+                speakers[sid] = gender
+
+        with uopen(self.out_speakers_list, "wt") as fout:
+            with uopen(self.conv_tab_file, "rt") as f:
+                for line in f.readlines():
+                    split = line.strip().split(",")
+                    seq_id = int(split[0])
+                    callerA = int(split[2])
+                    callerB = int(split[3])
+                    genderA = self._conv_gender(speakers[callerA])
+                    genderB = self._conv_gender(speakers[callerB])
+                    fout.write("%d %s %dA\n" % (callerA, genderA, seq_id))
+                    fout.write("%d %s %dB\n" % (callerB, genderB, seq_id))
+
+
 class CreateSwitchboardBlissCorpusJob(Job):
     """
     Creates Switchboard bliss corpus xml
@@ -167,17 +221,32 @@ class CreateSwitchboardBlissCorpusJob(Job):
     segment name format: sw2001B-ms98-a-<folder-name>
     """
 
-    def __init__(self, audio_dir, trans_dir, speakers_list_file):
+    __sis_hash_exclude__ = {"skip_empty_ldc_file": False, "lowercase": False}
+
+    def __init__(
+        self,
+        audio_dir,
+        trans_dir,
+        speakers_list_file,
+        skip_empty_ldc_file=True,
+        lowercase=True,
+    ):
         """
         :param tk.Path audio_dir: path for audio data
         :param tk.Path trans_dir: path for transcription data. see `DownloadSwitchboardTranscriptionAndDictJob`
         :param tk.Path speakers_list_file: path to a speakers list text file with format:
-                speaker_id gender recording
+                speaker_id gender recording<channel>, e.g. 1005 F 2452A
             on each line. see `CreateSwitchboardSpeakersListJob` job
+        :param bool skip_empty_ldc_file: In the original corpus the sequence 2167B is mostly empty,
+            thus exclude it from training (recommended, GMM will fail otherwise)
+        :param bool lowercase: lowercase the transcriptions of the corpus (recommended)
         """
         self.audio_dir = audio_dir
         self.trans_dir = trans_dir
         self.speakers_list_file = speakers_list_file
+        self.skip_empty_ldc_file = skip_empty_ldc_file
+        self.lowercase = lowercase
+
         self.out_corpus = self.output_path("swb.corpus.xml.gz")
 
     def tasks(self):
@@ -211,6 +280,9 @@ class CreateSwitchboardBlissCorpusJob(Job):
             if rec not in rec_to_speaker:
                 rec_to_speaker[rec] = {"speaker_id": "speaker#" + str(unk_spk_id)}
                 unk_spk_id += 1
+
+        if self.skip_empty_ldc_file:
+            rec_to_segs.pop("sw02167B")
 
         for rec_name, segs in sorted(rec_to_segs.items()):
             recording = corpus.Recording()
@@ -249,8 +321,7 @@ class CreateSwitchboardBlissCorpusJob(Job):
 
         c.dump(self.out_corpus.get_path())
 
-    @staticmethod
-    def _filter_orth(orth):
+    def _filter_orth(self, orth):
         """
         Filters orth by handling special cases such as silence tag removal, partial words, etc
 
@@ -265,6 +336,8 @@ class CreateSwitchboardBlissCorpusJob(Job):
         tokens = orth.strip().split()
         for token_ in tokens:
             token = token_.strip()
+            if self.lowercase:
+                token = token.lower()
             if token in removed_tokens:
                 continue
             elif token in SPECIAL_TOKENS:
@@ -286,7 +359,11 @@ class CreateSwitchboardBlissCorpusJob(Job):
         out = " ".join(filtered_orth)
 
         # replace &
-        out = out.replace("AT&T's", "AT and T")
+        # for AT&T's we drop the 's as t's is not in the lexicon
+        if self.lowercase:
+            out = out.replace("at&t's", "at and t")
+        else:
+            out = out.replace("AT&T's", "AT and T")
         out = out.replace("&", " and ")
 
         return out
@@ -684,3 +761,52 @@ class CreateSwitchboardE2EBlissCorpusJob(Job):
             segment.orth = orth
 
         c.dump(self.out_e2e_corpus.get_path())
+
+
+class CreateFisherTranscriptionsJob(Job):
+    """
+    Create the compressed text data based on the fisher transcriptions which can be used for LM training
+
+    Part 1: https://catalog.ldc.upenn.edu/LDC2004T19
+    Part 2: https://catalog.ldc.upenn.edu/LDC2005T19
+    """
+
+    def __init__(
+        self,
+        fisher_transcriptions1_folder: tk.Path,
+        fisher_transcriptions2_folder: tk.Path,
+    ):
+        """
+        :param fisher_transcriptions1_folder: path to unpacked LDC2004T19.tgz, usually named fe_03_p1_tran
+        :param fisher_transcriptions2_folder: path to unpacked LDC2005T19.tgz, usually named fe_03_p2_tran
+        """
+        self.fsh_trans1_folder = fisher_transcriptions1_folder
+        self.fsh_trans2_folder = fisher_transcriptions2_folder
+
+        self.out = self.output_path("fisher.lm_train.txt.gz")
+
+    def tasks(self):
+        yield Task("run", mini_task=True)
+
+    def run(self):
+        files1 = glob.glob(
+            os.path.join(
+                self.fsh_trans1_folder.get_path(), "data", "trans", "*", "fe_03_*.txt"
+            )
+        )
+        files2 = glob.glob(
+            os.path.join(
+                self.fsh_trans1_folder.get_path(), "data", "trans", "*", "fe_03_*.txt"
+            )
+        )
+        with uopen(self.out, "wt") as fout:
+            for file in sorted(files1 + files2):
+                with uopen(file) as fin:
+                    for line in fin:
+                        split = line.split(":")
+                        if len(split) < 2:
+                            continue
+                        elif len(split) > 2:
+                            assert False, "Weird line detected"
+                        else:
+                            fout.write(split[1].strip() + "\n")
