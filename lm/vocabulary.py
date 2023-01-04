@@ -1,5 +1,6 @@
 from sisyphus import Job, Task, tk
 
+from collections import OrderedDict
 from dataclasses import dataclass
 from typing import Optional, Union
 
@@ -57,7 +58,7 @@ class LmIndexVocabularyFromLexiconJob(Job):
     def run(self):
         lex = Lexicon()
         lex.load(self.bliss_lexicon.get_path())
-        wordlist = []
+        word_counts = OrderedDict()
         sentence_begin = None
         sentence_end = None
         sentence_boundary = None
@@ -85,9 +86,11 @@ class LmIndexVocabularyFromLexiconJob(Job):
                 assert len(unknown_list) == 1
                 unknown = unknown_list[0]
             elif lemma.synt is not None:
-                wordlist.extend(lemma.synt)
+                for synt in lemma.synt:
+                    word_counts[synt] = 0
             else:
-                wordlist.extend(lemma.orth)
+                for orth in lemma.orth:
+                    word_counts[orth] = 0
 
         assert sentence_boundary is not None or (
             sentence_begin is not None and sentence_end is not None
@@ -95,9 +98,6 @@ class LmIndexVocabularyFromLexiconJob(Job):
         assert unknown is not None
 
         if self.count_ordering_text is not None:
-            word_counts = {}
-            for w in wordlist:
-                word_counts[w] = 0
             with uopen(self.count_ordering_text, "rt") as f:
                 for line in f.readlines():
                     for word in line.strip().split(" "):
@@ -109,6 +109,8 @@ class LmIndexVocabularyFromLexiconJob(Job):
                     word_counts.items(), key=lambda wc: wc[1], reverse=True
                 )
             ]
+        else:
+            wordlist = [word for word in word_counts.keys()]
 
         with uopen(self.out_vocab, "wt") as f:
             if sentence_begin is not None:
