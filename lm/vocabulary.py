@@ -34,6 +34,10 @@ class LmIndexVocabularyFromLexiconJob(Job):
     def __init__(
         self, bliss_lexicon: tk.Path, count_ordering_text: Optional[tk.Path] = None
     ):
+        """
+        :param bliss_lexicon: us the lemmas from the lexicon to define the indices
+        :param count_ordering_text: optional text that can be used to define the index order based on the lemma count
+        """
         self.bliss_lexicon = bliss_lexicon
         self.count_ordering_text = count_ordering_text
 
