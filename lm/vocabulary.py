@@ -91,14 +91,13 @@ class LmIndexVocabularyFromLexiconJob(Job):
         assert unknown is not None
 
         if self.count_ordering_text is not None:
-            word_set = set(wordlist)
             word_counts = {}
             for w in wordlist:
                 word_counts[w] = 0
             with uopen(self.count_ordering_text, "rt") as f:
                 for line in f.readlines():
                     for word in line.strip().split(" "):
-                        if word in word_set:
+                        if word in word_counts:
                             word_counts[word] += 1
             wordlist = [
                 w
