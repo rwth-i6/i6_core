@@ -207,11 +207,14 @@ class BlissToPcmHDFJob(Job):
     compatible with the RETURNN HDFDataset
     """
 
+    __sis_hash_exclude__ = {"multi_channel_strategy": "none"}
+
     def __init__(
         self,
         bliss_corpus: tk.Path,
         segment_file: Optional[tk.Path] = None,
         output_dtype: str = "int16",
+        multi_channel_strategy: str = "none",
         returnn_root: Optional[tk.Path] = None,
     ):
         """
@@ -219,14 +222,23 @@ class BlissToPcmHDFJob(Job):
         :param bliss_corpus: Bliss corpus to read segments and audio files from
         :param segment_file: segment file that lists allowed segments
         :param output_dtype: dtype that should be written in the hdf (supports float64, float32, int32, int16)
+        :param multi_channel_strategy: defines what should happen to multi-channel audio files.
+            Currently implemented are:
+            "pick_first": Takes audio from first channel
+            "none": assume only one channel
         :param returnn_root: RETURNN repository
         """
         self.set_vis_name("Dump audio to HDF")
         assert output_dtype in ["float64", "float32", "int32", "int16"]
+        assert multi_channel_strategy in [
+            "pick_first",
+            "none",
+        ], f"multi_channel_strategy {multi_channel_strategy} is not implemented"
 
         self.bliss_corpus = bliss_corpus
         self.segment_file = segment_file
         self.output_dtype = output_dtype
+        self.multi_channel_strategy = multi_channel_strategy
         self.returnn_root = returnn_root
         self.rqmt = {}
 
@@ -257,7 +269,6 @@ class BlissToPcmHDFJob(Job):
         for recording in c.all_recordings():
             audio_file = recording.audio
             audio = sf.SoundFile(audio_file)
-            assert audio.channels == 1, "Multichannel audio not yet implemented"
 
             for segment in recording.segments:
                 if (not segments_whitelist) or (
@@ -266,8 +277,15 @@ class BlissToPcmHDFJob(Job):
                     audio.seek(int(segment.start * audio.samplerate))
                     data = audio.read(
                         int((segment.end - segment.start) * audio.samplerate),
+                        always_2d=True,
                         dtype=self.output_dtype,
                     )
+                    if self.multi_channel_strategy == "pick_first":
+                        data = data[:, 0]
+                    else:
+                        assert (
+                            data.shape[-1] == 1
+                        ), "Audio has more than one channel, choose a multi_channel_strategy"
                     out_hdf.insert_batch(
                         inputs=data.reshape(1, -1, 1),
                         seq_len=[data.shape[0]],
