@@ -32,7 +32,7 @@ class ReturnnForwardJob(Job):
 
     def __init__(
         self,
-        model_checkpoint: Checkpoint,
+        model_checkpoint: Optional[Checkpoint],
         returnn_config: ReturnnConfig,
         returnn_python_exe: tk.Path,
         returnn_root: tk.Path,
@@ -47,7 +47,8 @@ class ReturnnForwardJob(Job):
     ):
         """
 
-        :param model_checkpoint: Checkpoint object pointing to a stored RETURNN Tensorflow model
+        :param model_checkpoint: Checkpoint object pointing to a stored RETURNN Tensorflow model or None if network has
+          no parameters or should be randomly initialized
         :param returnn_config: RETURNN config object
         :param returnn_python_exe: path to the RETURNN executable (python binary or launch script)
         :param returnn_root: path to the RETURNN src folder
@@ -61,6 +62,8 @@ class ReturnnForwardJob(Job):
         :param cpu_rqmt: job cpu requirement
         """
         self.returnn_config = returnn_config
+        if model_checkpoint is None:
+            assert not eval_mode, "Eval requires a checkpoint"
         self.model_checkpoint = model_checkpoint
         self.returnn_python_exe = returnn_python_exe
         self.returnn_root = returnn_root
@@ -107,9 +110,10 @@ class ReturnnForwardJob(Job):
         util.create_executable("rnn.sh", cmd)
 
         # check here if model actually exists
-        assert os.path.exists(
-            self.model_checkpoint.index_path.get_path()
-        ), "Provided model does not exists: %s" % str(self.model_checkpoint)
+        if self.model_checkpoint is not None:
+            assert os.path.exists(
+                self.model_checkpoint.index_path.get_path()
+            ), "Provided model does not exists: %s" % str(self.model_checkpoint)
 
     def run(self):
         # run everything in a TempDir as writing HDFs can cause heavy load
@@ -141,7 +145,7 @@ class ReturnnForwardJob(Job):
     @classmethod
     def create_returnn_config(
         cls,
-        model_checkpoint: Checkpoint,
+        model_checkpoint: Optional[Checkpoint],
         returnn_config: ReturnnConfig,
         eval_mode: bool,
         log_verbosity: int,
@@ -166,10 +170,13 @@ class ReturnnForwardJob(Job):
 
         res = copy.deepcopy(returnn_config)
 
-        config = {
-            "load": model_checkpoint,
-            "task": "eval" if eval_mode else "forward",
-        }
+        if model_checkpoint is not None:
+            config = {
+                "load": model_checkpoint,
+                "task": "eval" if eval_mode else "forward",
+            }
+        else:
+            config = {"task": "forward", "allow_random_model_init": True}
 
         post_config = {
             "device": device,

@@ -30,6 +30,8 @@ class CodeWrapper:
         self.code = code
 
     def __repr__(self):
+        if isinstance(self.code, DelayedBase):
+            return self.code.get()
         return self.code
 
 

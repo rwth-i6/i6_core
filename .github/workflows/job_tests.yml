@@ -29,6 +29,7 @@ jobs:
           pip install .
           cd ..
           pip install pytest
+          sudo apt-get install -y libsndfile1
           pip install -r i6_core/requirements.txt
       - name: Test Jobs
         run: |

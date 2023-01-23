@@ -1,125 +1,46 @@
-__all__ = [
-    "ExtractPriorFromHDF5Job",
-    "ReturnnComputePriorJob",
-    "ReturnnComputePriorJobV2",
-    "ReturnnRasrComputePriorJob",
-    "ReturnnRasrComputePriorJobV2",
-]
-
 import copy
-import h5py
-import math
 import numpy as np
 import os
 import subprocess as sp
 
-from typing import Any, Dict, Optional
-from sisyphus import *
+from sisyphus import Job, Task, gs, tk
 
-import i6_core.rasr as rasr
-import i6_core.util as util
-
-from i6_core.deprecated.returnn_extract_prior import (
-    ReturnnComputePriorJob as _ReturnnComputePriorJob,
-    ReturnnRasrComputePriorJob as _ReturnnRasrComputePriorJob,
-)
+from i6_core import rasr
+from i6_core import util
 from i6_core.returnn.config import ReturnnConfig
 from i6_core.returnn.rasr_training import ReturnnRasrTrainingJob
-from i6_core.returnn.training import Checkpoint
-
-Path = setup_path(__package__)
 
 
-class ExtractPriorFromHDF5Job(Job):
-    """
-    Extracts the prior information from a RETURNN generated HDF file,
-    and saves it in the RASR compatible .xml format
-    """
-
-    def __init__(self, prior_hdf_file, layer="output", plot_prior=False):
-        """
-
-        :param Path prior_hdf_file:
-        :param str layer:
-        :param bool plot_prior:
-        """
-        self.returnn_model = prior_hdf_file
-        self.layer = layer
-        self.plot_prior = plot_prior
-
-        self.out_prior = self.output_path("prior.xml", cached=True)
-        if self.plot_prior:
-            self.out_prior_plot = self.output_path("prior.png")
-
-    def tasks(self):
-        yield Task("run", resume="run", mini_task=True)
-
-    def run(self):
-        model = h5py.File(tk.uncached_path(self.returnn_model), "r")
-        priors_set = model["%s/priors" % self.layer]
-
-        priors_list = np.asarray(priors_set[:])
-
-        with open(self.out_prior.get_path(), "wt") as out:
-            out.write(
-                '<?xml version="1.0" encoding="UTF-8"?>\n<vector-f32 size="%d">\n'
-                % priors_list.shape[0]
-            )
-            out.write(" ".join("%.20e" % math.log(s) for s in priors_list) + "\n")
-            out.write("</vector-f32>")
-
-        if self.plot_prior:
-            import matplotlib.pyplot as plt
-
-            xdata = range(len(priors_list))
-            plt.semilogy(xdata, priors_list)
-
-            plt.xlabel("emission idx")
-            plt.ylabel("prior")
-            plt.grid(True)
-            plt.savefig(self.out_prior_plot.get_path())
-
-
-class ReturnnComputePriorJob(_ReturnnComputePriorJob):
-    """
-    This Job was deprecated because absolute paths are hashed.
-
-    See https://github.com/rwth-i6/i6_core/issues/306 for more details.
-    """
-
-    pass
-
-
-class ReturnnComputePriorJobV2(Job):
+class ReturnnComputePriorJob(Job):
     """
     Given a model checkpoint, run compute_prior task with RETURNN
     """
 
     def __init__(
         self,
-        model_checkpoint: Checkpoint,
-        returnn_config: ReturnnConfig,
-        returnn_python_exe: tk.Path,
-        returnn_root: tk.Path,
-        prior_data: Optional[Dict[str, Any]] = None,
+        model_checkpoint,
+        returnn_config,
+        prior_data=None,
         *,
-        log_verbosity: int = 3,
-        device: str = "gpu",
-        time_rqmt: float = 4,
-        mem_rqmt: float = 4,
-        cpu_rqmt: int = 2,
+        log_verbosity=3,
+        device="gpu",
+        time_rqmt=4,
+        mem_rqmt=4,
+        cpu_rqmt=2,
+        returnn_python_exe=None,
+        returnn_root=None,
     ):
         """
-        :param model_checkpoint:  TF model checkpoint. see `ReturnnTrainingJob`.
-        :param returnn_config: object representing RETURNN config
-        :param prior_data: dataset used to compute prior (None = use one train epoch)
-        :param log_verbosity: RETURNN log verbosity
-        :param device: RETURNN device, cpu or gpu
-        :param time_rqmt: job time requirement in hours
-        :param mem_rqmt: job memory requirement in GB
-        :param cpu_rqmt: job cpu requirement in GB
-        :param returnn_python_exe: path to the RETURNN executable (python binary or launch script)
-        :param returnn_root: path to the RETURNN src folder
+        :param Checkpoint model_checkpoint:  TF model checkpoint. see `ReturnnTrainingJob`.
+        :param ReturnnConfig returnn_config: object representing RETURNN config
+        :param dict[str]|None prior_data: dataset used to compute prior (None = use one train epoch)
+        :param int log_verbosity: RETURNN log verbosity
+        :param str device: RETURNN device, cpu or gpu
+        :param float|int time_rqmt: job time requirement in hours
+        :param float|int mem_rqmt: job memory requirement in GB
+        :param float|int cpu_rqmt: job cpu requirement in GB
+        :param tk.Path|str|None returnn_python_exe: path to the RETURNN executable (python binary or launch script)
+        :param tk.Path|str|None returnn_root: path to the RETURNN src folder
         """
         assert isinstance(returnn_config, ReturnnConfig)
         kwargs = locals()
@@ -127,10 +48,17 @@ class ReturnnComputePriorJobV2(Job):
 
         self.model_checkpoint = model_checkpoint
 
-        self.returnn_python_exe = returnn_python_exe
-        self.returnn_root = returnn_root
+        self.returnn_python_exe = (
+            returnn_python_exe
+            if returnn_python_exe is not None
+            else gs.RETURNN_PYTHON_EXE
+        )
 
-        self.returnn_config = ReturnnComputePriorJobV2.create_returnn_config(**kwargs)
+        self.returnn_root = (
+            returnn_root if returnn_root is not None else gs.RETURNN_ROOT
+        )
+
+        self.returnn_config = ReturnnComputePriorJob.create_returnn_config(**kwargs)
 
         self.out_returnn_config_file = self.output_path("returnn.config")
 
@@ -160,23 +88,24 @@ class ReturnnComputePriorJobV2(Job):
         util.create_executable("rnn.sh", cmd)
 
         # check here if model actually exists
-        assert os.path.exists(self.model_checkpoint.index_path.get_path()), (
-            "Provided model does not exists: %s" % self.model_checkpoint
-        )
+        assert os.path.exists(
+            tk.uncached_path(self.model_checkpoint.index_path)
+        ), "Provided model does not exists: %s" % str(self.model_checkpoint)
 
     def run(self):
         cmd = self._get_run_cmd()
         sp.check_call(cmd)
 
-        merged_scores = np.loadtxt(self.out_prior_txt_file.get_path(), delimiter=" ")
+        with open(self.out_prior_txt_file.get_path(), "rt") as f:
+            merged_scores = np.loadtxt(f, delimiter=" ")
 
-        with open(self.out_prior_xml_file.get_path(), "wt") as f_out:
-            f_out.write(
+        with open(self.out_prior_xml_file.get_path(), "wt") as f:
+            f.write(
                 '<?xml version="1.0" encoding="UTF-8"?>\n<vector-f32 size="%d">\n'
                 % len(merged_scores)
             )
-            f_out.write(" ".join("%.20e" % s for s in merged_scores) + "\n")
-            f_out.write("</vector-f32>")
+            f.write(" ".join("%.20e" % s for s in merged_scores) + "\n")
+            f.write("</vector-f32>")
 
     def plot(self):
         import matplotlib
@@ -184,7 +113,8 @@ class ReturnnComputePriorJobV2(Job):
         matplotlib.use("Agg")
         import matplotlib.pyplot as plt
 
-        merged_scores = np.loadtxt(self.out_prior_txt_file.get_path(), delimiter=" ")
+        with open(self.out_prior_txt_file.get_path(), "rt") as f:
+            merged_scores = np.loadtxt(f, delimiter=" ")
 
         xdata = range(len(merged_scores))
         plt.semilogy(xdata, np.exp(merged_scores))
@@ -195,28 +125,28 @@ class ReturnnComputePriorJobV2(Job):
 
     def _get_run_cmd(self):
         return [
-            self.returnn_python_exe.get_path(),
-            self.returnn_root.join_right("rnn.py").get_path(),
+            tk.uncached_path(self.returnn_python_exe),
+            os.path.join(tk.uncached_path(self.returnn_root), "rnn.py"),
             self.out_returnn_config_file.get_path(),
         ]
 
     @classmethod
     def create_returnn_config(
         cls,
-        model_checkpoint: Checkpoint,
-        returnn_config: ReturnnConfig,
-        prior_data: Optional[Dict[str, Any]],
-        log_verbosity: int,
-        device: str,
+        model_checkpoint,
+        returnn_config,
+        prior_data,
+        log_verbosity,
+        device,
         **kwargs,
     ):
         """
         Creates compute_prior RETURNN config
-        :param model_checkpoint:  TF model checkpoint. see `ReturnnTrainingJob`.
-        :param returnn_config: object representing RETURNN config
-        :param prior_data: dataset used to compute prior (None = use one train epoch)
-        :param log_verbosity: RETURNN log verbosity
-        :param device: RETURNN device, cpu or gpu
+        :param Checkpoint model_checkpoint:  TF model checkpoint. see `ReturnnTrainingJob`.
+        :param ReturnnConfig returnn_config: object representing RETURNN config
+        :param dict[str]|None prior_data: dataset used to compute prior (None = use one train epoch)
+        :param int log_verbosity: RETURNN log verbosity
+        :param str device: RETURNN device, cpu or gpu
         :rtype: ReturnnConfig
         """
         assert device in ["gpu", "cpu"]
@@ -224,7 +154,7 @@ class ReturnnComputePriorJobV2(Job):
         assert "network" in original_config
 
         config = copy.deepcopy(original_config)
-        config["load"] = model_checkpoint
+        config["load"] = model_checkpoint.ckpt_path
         config["task"] = "compute_priors"
 
         if prior_data is not None:
@@ -248,24 +178,14 @@ class ReturnnComputePriorJobV2(Job):
     @classmethod
     def hash(cls, kwargs):
         d = {
-            "returnn_config": ReturnnComputePriorJobV2.create_returnn_config(**kwargs),
+            "returnn_config": ReturnnComputePriorJob.create_returnn_config(**kwargs),
             "returnn_python_exe": kwargs["returnn_python_exe"],
             "returnn_root": kwargs["returnn_root"],
         }
         return super().hash(d)
 
 
-class ReturnnRasrComputePriorJob(_ReturnnRasrComputePriorJob):
-    """
-    This Job was deprecated because absolute paths are hashed.
-
-    See https://github.com/rwth-i6/i6_core/issues/306 for more details.
-    """
-
-    pass
-
-
-class ReturnnRasrComputePriorJobV2(ReturnnComputePriorJobV2, ReturnnRasrTrainingJob):
+class ReturnnRasrComputePriorJob(ReturnnComputePriorJob, ReturnnRasrTrainingJob):
     """
     Given a model checkpoint, run compute_prior task with RETURNN using RASR Dataset
     """
@@ -285,8 +205,8 @@ class ReturnnRasrComputePriorJobV2(ReturnnComputePriorJobV2, ReturnnRasrTraining
         time_rqmt=4,
         mem_rqmt=4,
         cpu_rqmt=1,
-        returnn_python_exe,
-        returnn_root,
+        returnn_python_exe=None,
+        returnn_root=None,
         # these are new parameters
         num_classes=None,
         disregarded_classes=None,
@@ -310,8 +230,8 @@ class ReturnnRasrComputePriorJobV2(ReturnnComputePriorJobV2, ReturnnRasrTraining
         :param float|int time_rqmt: job time requirement in hours
         :param float|int mem_rqmt: job memory requirement in GB
         :param float|int cpu_rqmt: job cpu requirement in GB
-        :param tk.Path returnn_python_exe: path to the RETURNN executable (python binary or launch script)
-        :param tk.Path returnn_root: path to the RETURNN src folder
+        :param tk.Path|str|None returnn_python_exe: path to the RETURNN executable (python binary or launch script)
+        :param tk.Path|str|None returnn_root: path to the RETURNN src folder
         :param int num_classes:
         :param disregarded_classes:
         :param class_label_file:
@@ -402,7 +322,7 @@ class ReturnnRasrComputePriorJobV2(ReturnnComputePriorJobV2, ReturnnRasrTraining
         )
         kwargs["returnn_config"].config["train"] = datasets["train"]
         kwargs["returnn_config"].config["dev"] = datasets["dev"]
-        returnn_config = ReturnnComputePriorJobV2.create_returnn_config(**kwargs)
+        returnn_config = ReturnnComputePriorJob.create_returnn_config(**kwargs)
         d = {
             "train_config": train_config,
             "dev_config": dev_config,

@@ -21,7 +21,7 @@ class CompileTFGraphJob(Job):
 
     """
 
-    __sis_hash_exclude__ = {"device": None}
+    __sis_hash_exclude__ = {"device": None, "epoch": None}
 
     def __init__(
         self,
@@ -29,6 +29,7 @@ class CompileTFGraphJob(Job):
         train=0,
         eval=0,
         search=0,
+        epoch=None,
         verbosity=4,
         device=None,
         summaries_tensor_name=None,
@@ -42,6 +43,7 @@ class CompileTFGraphJob(Job):
         :param int train:
         :param int eval:
         :param int search:
+        :param int|None epoch: compile a specific epoch for networks that might change with every epoch
         :param int log_verbosity: RETURNN log verbosity from 1 (least verbose) to 5 (most verbose)
         :param str|None device: optimize graph for cpu or gpu. If `None`, defaults to cpu for current RETURNN.
             For any RETURNN version before `cd4bc382`, the behavior will depend on the `device` entry in the
@@ -55,6 +57,7 @@ class CompileTFGraphJob(Job):
         self.train = train
         self.eval = eval
         self.search = search
+        self.epoch = epoch
         self.verbosity = verbosity
         self.device = device
         self.summaries_tensor_name = summaries_tensor_name
@@ -70,6 +73,7 @@ class CompileTFGraphJob(Job):
         self.out_graph = self.output_path("graph.%s" % output_format)
         self.out_model_params = self.output_var("model_params.pickle", pickle=True)
         self.out_state_vars = self.output_var("state_vars.pickle", pickle=True)
+        self.out_returnn_config = self.output_path("returnn.config")
 
         self.rqmt = None
 
@@ -82,13 +86,15 @@ class CompileTFGraphJob(Job):
     def run(self):
         if isinstance(self.returnn_config, tk.Path):
             returnn_config_path = self.returnn_config.get_path()
+            shutil.copy(returnn_config_path, self.out_returnn_config.get_path())
 
         elif isinstance(self.returnn_config, ReturnnConfig):
-            returnn_config_path = "returnn.config"
+            returnn_config_path = self.out_returnn_config.get_path()
             self.returnn_config.write(returnn_config_path)
 
         else:
             returnn_config_path = self.returnn_config
+            shutil.copy(self.returnn_config, self.out_returnn_config.get_path())
 
         args = [
             tk.uncached_path(self.returnn_python_exe),
@@ -106,6 +112,8 @@ class CompileTFGraphJob(Job):
         ]
         if self.device is not None:
             args.append("--device=%s" % self.device)
+        if self.epoch is not None:
+            args.append("--epoch=%d" % self.epoch)
         if self.summaries_tensor_name is not None:
             args.append("--summaries_tensor_name=%s" % self.summaries_tensor_name)
 

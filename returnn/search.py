@@ -1,9 +1,13 @@
 __all__ = [
     "ReturnnSearchJob",
+    "ReturnnSearchJobV2",
     "ReturnnSearchFromFileJob",
     "SearchBPEtoWordsJob",
     "SearchWordsToCTMJob",
     "ReturnnComputeWERJob",
+    "SearchRemoveLabelJob",
+    "SearchBeamJoinScoresJob",
+    "SearchTakeBestJob",
 ]
 
 import copy
@@ -11,7 +15,7 @@ import logging
 import os
 import shutil
 import subprocess as sp
-from typing import Any, Dict
+from typing import Any, Union, Set, Dict
 
 from sisyphus import *
 
@@ -55,6 +59,7 @@ class ReturnnSearchJobV2(Job):
         returnn_root: tk.Path,
         *,
         output_mode: str = "py",
+        output_gzip: bool = False,
         log_verbosity: int = 3,
         device: str = "gpu",
         time_rqmt: float = 4,
@@ -68,6 +73,7 @@ class ReturnnSearchJobV2(Job):
         :param tk.Path returnn_python_exe: path to the RETURNN executable (python binary or launch script)
         :param tk.Path returnn_root: path to the RETURNN src folder
         :param str output_mode: "txt" or "py"
+        :param bool output_gzip: if true, gzip the output file
         :param int log_verbosity: RETURNN log verbosity
         :param str device: RETURNN device, cpu or gpu
         :param time_rqmt: job time requirement in hours
@@ -84,7 +90,9 @@ class ReturnnSearchJobV2(Job):
 
         self.out_returnn_config_file = self.output_path("returnn.config")
 
-        self.out_search_file = self.output_path("search_out")
+        self.out_search_file = self.output_path(
+            "search_out" + (f".{output_mode}.gz" if output_gzip else "")
+        )
 
         self.returnn_config = ReturnnSearchJobV2.create_returnn_config(**kwargs)
         self.returnn_config.post_config["search_output_file"] = self.out_search_file
@@ -193,6 +201,8 @@ class ReturnnSearchJobV2(Job):
             "returnn_python_exe": kwargs["returnn_python_exe"],
             "returnn_root": kwargs["returnn_root"],
         }
+        if kwargs.get("output_gzip", False) is not False:
+            d["output_gzip"] = kwargs["output_gzip"]
         return super().hash(d)
 
 
@@ -458,7 +468,7 @@ class ReturnnComputeWERJob(Job):
         )
         self.returnn_root = returnn_root if returnn_root else gs.RETURNN_ROOT
 
-        self.out_wer = self.output_path("wer")
+        self.out_wer = self.output_var("wer")
 
     def run(self):
         call = [
@@ -466,14 +476,149 @@ class ReturnnComputeWERJob(Job):
             os.path.join(str(self.returnn_root), "tools/calculate-word-error-rate.py"),
             "--expect_full",
             "--hyps",
-            tk.uncached_path(self.hypothesis),
+            self.hypothesis.get_path(),
             "--refs",
-            tk.uncached_path(self.reference),
+            self.reference.get_path(),
             "--out",
-            tk.uncached_path(self.out_wer),
+            self.out_wer.get_path(),
         ]
         logging.info("run %s" % " ".join(call))
         sp.check_call(call)
 
     def tasks(self):
         yield Task("run", mini_task=True)
+
+
+class SearchTakeBestJob(Job):
+    """
+    From RETURNN beam search results, extract the best result for each sequence.
+    """
+
+    def __init__(self, search_py_output: tk.Path):
+        """
+        :param search_py_output: a search output file from RETURNN in python format (n-best)
+        """
+        self.search_py_output = search_py_output
+        self.out_best_search_results = self.output_path("best_search_results.py")
+
+    def tasks(self):
+        """task"""
+        yield Task("run", mini_task=True)
+
+    def run(self):
+        """run"""
+        d = eval(util.uopen(self.search_py_output, "r").read())
+        assert isinstance(d, dict)  # seq_tag -> bpe string
+        assert not os.path.exists(self.out_best_search_results.get_path())
+        with util.uopen(self.out_best_search_results, "w") as out:
+            out.write("{\n")
+            for seq_tag, entry in d.items():
+                assert isinstance(entry, list)
+                # n-best list as [(score, text), ...]
+                best_score, best_entry = max(entry)
+                out.write("%r: %r,\n" % (seq_tag, best_entry))
+            out.write("}\n")
+
+
+class SearchRemoveLabelJob(Job):
+    """
+    Remove some labels from the search output, e.g. "<blank>".
+    """
+
+    def __init__(
+        self, search_py_output: tk.Path, *, remove_label: Union[str, Set[str]]
+    ):
+        """
+        :param search_py_output: a search output file from RETURNN in python format (single or n-best)
+        :param remove_label: label(s) to remove from the output, e.g. "<blank>"
+        """
+        self.search_py_output = search_py_output
+        if isinstance(remove_label, str):
+            remove_label = {remove_label}
+        assert isinstance(remove_label, set)
+        self.remove_label = remove_label
+        self.out_search_results = self.output_path("search_results.py")
+
+    def tasks(self):
+        """task"""
+        yield Task("run", mini_task=True)
+
+    def run(self):
+        """run"""
+        d = eval(util.uopen(self.search_py_output, "r").read())
+        assert isinstance(d, dict)  # seq_tag -> bpe string
+        assert not os.path.exists(self.out_search_results.get_path())
+        with util.uopen(self.out_search_results, "w") as out:
+            out.write("{\n")
+            for seq_tag, entry in d.items():
+                if isinstance(entry, list):
+                    # n-best list as [(score, text), ...]
+                    out.write("%r: [\n" % (seq_tag,))
+                    for score, text in entry:
+                        out.write("(%f, %r),\n" % (score, self._filter(text)))
+                    out.write("],\n")
+                else:
+                    out.write("%r: %r,\n" % (seq_tag, self._filter(entry)))
+            out.write("}\n")
+
+    def _filter(self, txt: str) -> str:
+        tokens = txt.split(" ")
+        tokens = [t for t in tokens if t not in self.remove_label]
+        return " ".join(tokens)
+
+
+class SearchBeamJoinScoresJob(Job):
+    """
+    Expects a beam of hypotheses.
+    If there are multiple hyps which are the same (e.g. this can happen after "<blank>" removal),
+    it will collapse them into a single hyp with the logsumexp of the scores.
+    """
+
+    def __init__(self, search_py_output: tk.Path):
+        """
+        :param search_py_output: a search output file from RETURNN in python format (single or n-best)
+        """
+        self.search_py_output = search_py_output
+        self.out_search_results = self.output_path("search_results.py")
+
+    def tasks(self):
+        """task"""
+        yield Task("run", mini_task=True)
+
+    def run(self):
+        """run"""
+        import numpy
+
+        neg_inf = -float("inf")
+
+        def logsumexp(*args):
+            """
+            Stable log sum exp.
+            """
+            if all(a == neg_inf for a in args):
+                return neg_inf
+            a_max = max(args)
+            lsp = numpy.log(sum(numpy.exp(a - a_max) for a in args))
+            return a_max + lsp
+
+        d = eval(util.uopen(self.search_py_output, "r").read())
+        assert isinstance(d, dict)  # seq_tag -> bpe string
+        assert not os.path.exists(self.out_search_results.get_path())
+        with util.uopen(self.out_search_results, "w") as out:
+            out.write("{\n")
+            for seq_tag, entry in d.items():
+                # n-best list as [(score, text), ...]
+                assert isinstance(entry, list)
+                hyps = {}  # text -> score
+                for score, text in entry:
+                    if text not in hyps:
+                        hyps[text] = score
+                    else:
+                        hyps[text] = logsumexp(hyps[text], score)
+                out.write("%r: [\n" % (seq_tag,))
+                for score, text in sorted(
+                    [(score, text) for text, score in hyps.items()], reverse=True
+                ):
+                    out.write("(%f, %r),\n" % (score, text))
+                out.write("],\n")
+            out.write("}\n")

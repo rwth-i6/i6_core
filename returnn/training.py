@@ -3,12 +3,17 @@ __all__ = [
     "Checkpoint",
     "ReturnnTrainingJob",
     "ReturnnTrainingFromFileJob",
+    "GetBestEpochJob",
+    "GetBestTFCheckpointJob",
+    "AverageTFCheckpointsJob",
 ]
 
 import copy
+import sys
 import os
 import shutil
 import subprocess as sp
+from typing import List, Union
 
 from sisyphus import *
 
@@ -96,6 +101,7 @@ class ReturnnTrainingJob(Job):
         mem_rqmt=4,
         cpu_rqmt=2,
         horovod_num_processes=None,
+        multi_node_slots=None,
         returnn_python_exe=None,
         returnn_root=None,
     ):
@@ -113,7 +119,11 @@ class ReturnnTrainingJob(Job):
         :param int|float time_rqmt:
         :param int|float mem_rqmt:
         :param int cpu_rqmt:
-        :param int horovod_num_processes:
+        :param int horovod_num_processes: If used without multi_node_slots, then single node, otherwise multi node.
+        :param int multi_node_slots: multi-node multi-GPU training. See Sisyphus rqmt documentation.
+            Currently only with Horovod,
+            and horovod_num_processes should be set as well, usually to the same value.
+            See https://returnn.readthedocs.io/en/latest/advanced/multi_gpu.html.
         :param Path|str returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
         :param Path|str returnn_root: file path to the RETURNN repository root folder
         """
@@ -130,8 +140,8 @@ class ReturnnTrainingJob(Job):
         self.returnn_root = (
             returnn_root if returnn_root is not None else gs.RETURNN_ROOT
         )
-        self.use_horovod = True if (horovod_num_processes is not None) else False
         self.horovod_num_processes = horovod_num_processes
+        self.multi_node_slots = multi_node_slots
         self.returnn_config = ReturnnTrainingJob.create_returnn_config(**kwargs)
 
         stored_epochs = list(range(save_interval, num_epochs, save_interval)) + [
@@ -177,10 +187,25 @@ class ReturnnTrainingJob(Job):
             "time": time_rqmt,
         }
 
-        if self.use_horovod:
-            self.rqmt["cpu"] *= self.horovod_num_processes
-            self.rqmt["gpu"] *= self.horovod_num_processes
-            self.rqmt["mem"] *= self.horovod_num_processes
+        if self.multi_node_slots:
+            assert (
+                self.horovod_num_processes
+            ), "multi_node_slots only supported together with Horovod currently"
+            assert self.horovod_num_processes >= self.multi_node_slots
+            assert self.horovod_num_processes % self.multi_node_slots == 0
+            self.rqmt["multi_node_slots"] = self.multi_node_slots
+
+        if (self.horovod_num_processes or 1) > (self.multi_node_slots or 1):
+            assert self.horovod_num_processes % (self.multi_node_slots or 1) == 0
+            self.rqmt["cpu"] *= self.horovod_num_processes // (
+                self.multi_node_slots or 1
+            )
+            self.rqmt["gpu"] *= self.horovod_num_processes // (
+                self.multi_node_slots or 1
+            )
+            self.rqmt["mem"] *= self.horovod_num_processes // (
+                self.multi_node_slots or 1
+            )
 
     def _get_run_cmd(self):
         run_cmd = [
@@ -189,7 +214,10 @@ class ReturnnTrainingJob(Job):
             self.out_returnn_config_file.get_path(),
         ]
 
-        if self.use_horovod:
+        if self.horovod_num_processes:
+            # Normally, if the engine (e.g. SGE or Slurm) is configured correctly,
+            # it automatically provides the information on multiple nodes to mpirun,
+            # so it is not needed to explicitly pass on any hostnames here.
             run_cmd = [
                 "mpirun",
                 "-np",
@@ -252,6 +280,19 @@ class ReturnnTrainingJob(Job):
         os.link(src, dst)
 
     def run(self):
+        if self.multi_node_slots:
+            # Some useful debugging, specifically for SGE parallel environment (PE).
+            if "PE_HOSTFILE" in os.environ:
+                print("PE_HOSTFILE =", os.environ["PE_HOSTFILE"])
+                if os.environ["PE_HOSTFILE"]:
+                    try:
+                        print("Content:")
+                        with open(os.environ["PE_HOSTFILE"]) as f:
+                            print(f.read())
+                    except Exception as exc:
+                        print("Cannot read:", exc)
+            sys.stdout.flush()
+
         sp.check_call(self._get_run_cmd())
 
         lrf = self.returnn_config.get("learning_rate_file", "learning_rates")
@@ -429,6 +470,9 @@ class ReturnnTrainingJob(Job):
         if kwargs["horovod_num_processes"] is not None:
             d["horovod_num_processes"] = kwargs["horovod_num_processes"]
 
+        if kwargs["multi_node_slots"] is not None:
+            d["multi_node_slots"] = kwargs["multi_node_slots"]
+
         return super().hash(d)
 
 
@@ -573,3 +617,240 @@ class ReturnnTrainingFromFileJob(Job):
         }
 
         return super().hash(d)
+
+
+class GetBestEpochJob(Job):
+    """
+    Provided a RETURNN model directory and a score key, finds the best epoch.
+    The sorting is lower=better, so to access the model with the highest values use negative index values (e.g. -1 for
+    the model with the highest score, error or "loss")
+
+    """
+
+    def __init__(
+        self, model_dir: tk.Path, learning_rates: tk.Path, key: str, index: int = 0
+    ):
+        """
+        :param model_dir: model_dir output from a RETURNNTrainingJob
+        :param learning_rates: learning_rates output from a RETURNNTrainingJob
+        :param key: a key from the learning rate file that is used to sort the models,
+            e.g. "dev_score_output/output_prob"
+        :param index: index of the sorted list to access, 0 for the lowest, -1 for the highest score/error/loss
+        """
+        self.model_dir = model_dir
+        self.learning_rates = learning_rates
+        self.index = index
+        self.out_epoch = self.output_var("epoch")
+        self.key = key
+
+    def run(self):
+        # this has to be defined in order for "eval" to work
+        def EpochData(learningRate, error):
+            return {"learning_rate": learningRate, "error": error}
+
+        with open(self.learning_rates.get_path(), "rt") as f:
+            text = f.read()
+
+        data = eval(
+            text, {"nan": float("nan"), "inf": float("inf"), "EpochData": EpochData}
+        )
+
+        epochs = list(sorted(data.keys()))
+
+        # some epochs might not have all keys, we require that the last entry has the key, other epochs which
+        # do not have it might be ignored
+        available_keys = data[epochs[-1]]["error"]
+        if self.key not in available_keys:
+            raise KeyError(
+                f"{self.key} is not available in the provided learning_rates file f{self.learning_rates.get_path()}"
+            )
+
+        scores = [
+            (epoch, data[epoch]["error"][self.key])
+            for epoch in epochs
+            if self.key in data[epoch]["error"]
+        ]
+        sorted_scores = list(sorted(scores, key=lambda x: x[1]))
+
+        self.out_epoch.set(sorted_scores[self.index][0])
+
+    def tasks(self):
+        yield Task("run", mini_task=True)
+
+
+class GetBestTFCheckpointJob(GetBestEpochJob):
+    """
+    Returns the best checkpoint given a training model dir and a learning-rates file
+    The best checkpoint will be HARD-linked if possible, so that no space is wasted but also the model not
+    deleted in case that the training folder is removed.
+    """
+
+    def __init__(
+        self, model_dir: tk.Path, learning_rates: tk.Path, key: str, index: int = 0
+    ):
+        """
+
+        :param Path model_dir: model_dir output from a RETURNNTrainingJob
+        :param Path learning_rates: learning_rates output from a RETURNNTrainingJob
+        :param str key: a key from the learning rate file that is used to sort the models
+            e.g. "dev_score_output/output_prob"
+        :param int index: index of the sorted list to access, 0 for the lowest, -1 for the highest score
+        """
+        super().__init__(model_dir, learning_rates, key, index)
+        self._out_model_dir = self.output_path("model", directory=True)
+
+        # Note: checkpoint.index (without epoch number) is only a symlink which is possibly resolved by RETURNN
+        # See also https://github.com/rwth-i6/returnn/issues/1194 for the current behavior
+        self.out_checkpoint = Checkpoint(self.output_path("model/checkpoint.index"))
+
+    def tasks(self):
+        yield Task("run", mini_task=True)
+
+    def run(self):
+        super().run()
+
+        try:
+            os.link(
+                os.path.join(
+                    self.model_dir.get_path(), "epoch.%.3d.index" % self.out_epoch.get()
+                ),
+                os.path.join(
+                    self._out_model_dir.get_path(),
+                    "epoch.%.3d.index" % self.out_epoch.get(),
+                ),
+            )
+            os.link(
+                os.path.join(
+                    self.model_dir.get_path(), "epoch.%.3d.meta" % self.out_epoch.get()
+                ),
+                os.path.join(
+                    self._out_model_dir.get_path(),
+                    "epoch.%.3d.meta" % self.out_epoch.get(),
+                ),
+            )
+            os.link(
+                os.path.join(
+                    self.model_dir.get_path(),
+                    "epoch.%.3d.data-00000-of-00001" % self.out_epoch.get(),
+                ),
+                os.path.join(
+                    self._out_model_dir.get_path(),
+                    "epoch.%.3d.data-00000-of-00001" % self.out_epoch.get(),
+                ),
+            )
+        except OSError:
+            # the hardlink will fail when there was an imported job on a different filesystem,
+            # thus do a copy instead then
+            shutil.copy(
+                os.path.join(
+                    self.model_dir.get_path(), "epoch.%.3d.index" % self.out_epoch.get()
+                ),
+                os.path.join(
+                    self._out_model_dir.get_path(),
+                    "epoch.%.3d.index" % self.out_epoch.get(),
+                ),
+            )
+            shutil.copy(
+                os.path.join(
+                    self.model_dir.get_path(), "epoch.%.3d.meta" % self.out_epoch.get()
+                ),
+                os.path.join(
+                    self._out_model_dir.get_path(),
+                    "epoch.%.3d.meta" % self.out_epoch.get(),
+                ),
+            )
+            shutil.copy(
+                os.path.join(
+                    self.model_dir.get_path(),
+                    "epoch.%.3d.data-00000-of-00001" % self.out_epoch.get(),
+                ),
+                os.path.join(
+                    self._out_model_dir.get_path(),
+                    "epoch.%.3d.data-00000-of-00001" % self.out_epoch.get(),
+                ),
+            )
+
+        os.symlink(
+            os.path.join(
+                self._out_model_dir.get_path(),
+                "epoch.%.3d.index" % self.out_epoch.get(),
+            ),
+            os.path.join(self._out_model_dir.get_path(), "checkpoint.index"),
+        )
+        os.symlink(
+            os.path.join(
+                self._out_model_dir.get_path(), "epoch.%.3d.meta" % self.out_epoch.get()
+            ),
+            os.path.join(self._out_model_dir.get_path(), "checkpoint.meta"),
+        )
+        os.symlink(
+            os.path.join(
+                self._out_model_dir.get_path(),
+                "epoch.%.3d.data-00000-of-00001" % self.out_epoch.get(),
+            ),
+            os.path.join(
+                self._out_model_dir.get_path(), "checkpoint.data-00000-of-00001"
+            ),
+        )
+
+
+class AverageTFCheckpointsJob(Job):
+    """
+    Compute the average of multiple specified Tensorflow checkpoints using the tf_avg_checkpoints script from Returnn
+    """
+
+    def __init__(
+        self,
+        model_dir: tk.Path,
+        epochs: List[Union[int, tk.Variable]],
+        returnn_python_exe: tk.Path,
+        returnn_root: tk.Path,
+    ):
+        """
+
+        :param model_dir: model dir from `ReturnnTrainingJob`
+        :param epochs: manually specified epochs or `out_epoch` from `GetBestEpochJob`
+        :param returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
+        :param returnn_root: file path to the RETURNN repository root folder
+        """
+        self.model_dir = model_dir
+        self.epochs = epochs
+        self.returnn_python_exe = returnn_python_exe
+        self.returnn_root = returnn_root
+
+        self._out_model_dir = self.output_path("model", directory=True)
+        self.out_checkpoint = Checkpoint(self.output_path("model/average.index"))
+
+        self.rqmt = {"cpu": 1, "time": 0.5, "mem": 2 * len(epochs)}
+
+    def tasks(self):
+        yield Task("run", rqmt=self.rqmt)
+
+    def run(self):
+        epochs = util.instanciate_delayed(self.epochs)
+        max_epoch = max(epochs)
+
+        # we are writing a checkpoint with the maximum epoch index in the file name because Returnn
+        # resolves symlinks and reads the name to determine the "checkpoint epoch"
+        out_path = os.path.join(
+            self._out_model_dir.get_path(), "epoch.%03d" % max_epoch
+        )
+        args = [
+            self.returnn_python_exe.get_path(),
+            os.path.join(self.returnn_root.get_path(), "tools/tf_avg_checkpoints.py"),
+            "--checkpoints",
+            ",".join(["%03d" % epoch for epoch in epochs]),
+            "--prefix",
+            self.model_dir.get_path() + "/epoch.",
+            "--output_path",
+            out_path,
+        ]
+        os.symlink(out_path + ".index", self.out_checkpoint.index_path.get_path())
+        os.symlink(out_path + ".meta", self.out_checkpoint.ckpt_path + ".meta")
+        os.symlink(
+            out_path + ".data-00000-of-00001",
+            self.out_checkpoint.ckpt_path + ".data-00000-of-00001",
+        )
+
+        # The env override is needed if this job is run locally on a node with a GPU installed
+        sp.check_call(args, env={"CUDA_VISIBLE_DEVICES": ""})

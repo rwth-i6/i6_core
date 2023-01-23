@@ -226,6 +226,7 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
 
     def create_files(self):
         self.write_config(self.config, self.post_config, "recognition.config")
+        self.feature_flow.add_param("TASK")
         self.feature_flow.write_to_file("feature.flow")
         util.write_paths_to_file(
             self.out_lattice_bundle, self.out_single_lattice_caches.values()

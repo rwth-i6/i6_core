@@ -7,6 +7,7 @@ __all__ = [
     "first_split_acc_then_align_split_acc",
 ]
 import os
+from typing import Union, List, Tuple
 
 from i6_core.mm.alignment import AlignmentJob, AMScoresFromAlignmentLogJob
 from i6_core.mm.flow import FlowNetwork
@@ -228,20 +229,50 @@ def align_then_split_and_accumulate_sequence(
 
 
 def align_and_accumulate_sequence(
-    num_align, num_accumulate, mark_accumulate=True, mark_align=True
+    num_align: int,
+    num_accumulate: int,
+    mark_accumulate: Union[bool, List[int]] = True,
+    mark_align: Union[bool, List[Tuple[int, int]]] = True,
 ):
     """
-    :param int num_align:
-    :param int num_accumulate:
-    :param bool mark_accumulate:
-    :param bool mark_align:
+    :param num_align: number full iterations (defined by number of aligns)
+    :param num_accumulate: number of accumulates per align
+    :param mark_accumulate: mark all accumulates as selected or 0 idx. tuple list which accums to mark
+    :param mark_align: mark all aligns as selected or 0 idx. list which aligns to mark
     :return: action sequence
     :rtype: list[str]
     """
     assert num_align > 0 and num_accumulate > 0
-    acc_str = "accumulate" + ("!" if mark_accumulate else "")
-    align_str = "align" + ("!" if mark_align else "")
-    return ([align_str] + ["accumulate"] * (num_accumulate - 1) + [acc_str]) * num_align
+    acc_str = "accumulate" + ("!" if mark_accumulate is True else "")
+    align_str = "align" + ("!" if mark_align is True else "")
+    sequence_list = (
+        [align_str] + ["accumulate"] * (num_accumulate - 1) + [acc_str]
+    ) * num_align
+
+    if isinstance(mark_align, list):
+        for mark in mark_align:
+            assert mark < num_align, "This align does not exist %d" % mark
+            assert "align" in sequence_list[mark * (num_accumulate + 1)]
+            sequence_list[mark * (num_accumulate + 1)] = "align!"
+
+    if isinstance(mark_accumulate, list):
+        assert all(
+            isinstance(pair, tuple) for pair in mark_accumulate
+        ), "Input to mark needs to be Tuple"
+        for align_i, accum_i in mark_accumulate:
+            assert align_i < num_align, "This align does not exist %d" % align_i
+            assert accum_i < num_accumulate, (
+                "Accum sequence is shorter than requested mark %d" % accum_i
+            )
+            assert (
+                "accumulate"
+                in sequence_list[(align_i * (num_accumulate + 1) + accum_i + 1)]
+            ), (align_i, accum_i)
+            sequence_list[
+                (align_i * (num_accumulate + 1) + accum_i + 1)
+            ] = "accumulate!"
+
+    return sequence_list
 
 
 def multiple_aligns_per_split_sequence(

@@ -23,11 +23,12 @@ jobs:
         path: "sisyphus"
     - uses: actions/setup-python@v4
       with:
-        python-version: 3.7
+        python-version: 3.8
         cache: "pip"
     - run: |
         pip install --user --upgrade pip setuptools wheel
         pip install flask
+        sudo apt-get install -y libsndfile1
         pip install -r recipe/i6_core/requirements.txt
     - name: Setup Sisyphus environment
       run: |

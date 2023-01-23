@@ -6,7 +6,6 @@ __all__ = [
     "CorpusToTxtJob",
 ]
 
-import gzip
 import itertools
 import pprint
 import re

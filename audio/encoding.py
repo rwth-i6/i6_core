@@ -10,6 +10,8 @@ class BlissChangeEncodingJob(BlissFfmpegJob):
     Uses ffmpeg to convert all audio files of a bliss corpus (file format, encoding, channel layout)
     """
 
+    __sis_hash_exclude__ = {"recover_duration": None}
+
     def __init__(
         self,
         corpus_file,
@@ -22,6 +24,7 @@ class BlissChangeEncodingJob(BlissFfmpegJob):
         select_channels=None,
         ffmpeg_binary=None,
         hash_binary=False,
+        recover_duration=None,
     ):
         """
         For all parameter holds that "None" means to use the ffmpeg defaults, which depend on the input file
@@ -41,6 +44,10 @@ class BlissChangeEncodingJob(BlissFfmpegJob):
         :param Path|str|None ffmpeg_binary: path to a ffmpeg binary, uses system "ffmpeg" if None
         :param bool hash_binary: In some cases it might be required to work with a specific ffmpeg version,
                                  in which case the binary needs to be hashed
+        :param bool|None recover_duration: This will open all files with "soundfile" and extract the length information.
+            There might be minimal differences when converting the encoding, so only set this to `False` if you're
+            willing to accept this risk. `None` (default) means that the duration is recovered if either `output_format`
+            or `codec` is specified because this might possibly lead to duration mismatches.
         """
         ffmpeg_options = []
 
@@ -68,10 +75,16 @@ class BlissChangeEncodingJob(BlissFfmpegJob):
         if force_num_channels:
             ffmpeg_options += ["-ac", str(force_num_channels)]
 
+        if recover_duration is None:
+            if output_format is None and codec is None:
+                recover_duration = False
+            else:
+                recover_duration = True
+
         super().__init__(
             corpus_file=corpus_file,
             ffmpeg_options=ffmpeg_options,
-            recover_duration=False if output_format is None and codec is None else True,
+            recover_duration=recover_duration,
             output_format=output_format,
             ffmpeg_binary=ffmpeg_binary,
             hash_binary=hash_binary,
