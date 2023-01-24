@@ -237,6 +237,20 @@ class ReturnnTrainingJob(Job):
 
         return run_cmd
 
+    def info(self):
+        if self.out_checkpoints is None:
+            return None
+        # if self.keep_epochs is set, `self.out_checkpoints` will be incomplete, but
+        # using it is fast because `Path.available()` is cached.
+        available_checkpoints = [
+            k for k, ckpt in self.out_checkpoints.items() if ckpt.index_path.available()
+        ]
+        if len(available_checkpoints) == 0:
+            return None
+        max_ep = max(self.out_checkpoints)
+        max_available_ep = max(available_checkpoints)
+        return f"ep {max_available_ep}/{max_ep}"
+
     def path_available(self, path):
         # if job is finished the path is available
         res = super().path_available(path)
