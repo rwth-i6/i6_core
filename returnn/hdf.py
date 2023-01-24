@@ -1,5 +1,6 @@
 __all__ = ["ReturnnDumpHDFJob", "ReturnnRasrDumpHDFJob", "BlissToPcmHDFJob"]
 
+from dataclasses import dataclass
 import os
 import shutil
 import soundfile as sf
@@ -207,6 +208,13 @@ class BlissToPcmHDFJob(Job):
     compatible with the RETURNN HDFDataset
     """
 
+    class BaseStrategy:
+        pass
+
+    @dataclass(frozen=True)
+    class PickNth(BaseStrategy):
+        channel: int
+
     __sis_hash_exclude__ = {"multi_channel_strategy": "none"}
 
     def __init__(
@@ -214,7 +222,7 @@ class BlissToPcmHDFJob(Job):
         bliss_corpus: tk.Path,
         segment_file: Optional[tk.Path] = None,
         output_dtype: str = "int16",
-        multi_channel_strategy: str = "none",
+        multi_channel_strategy: BaseStrategy = BaseStrategy(),
         returnn_root: Optional[tk.Path] = None,
     ):
         """
@@ -224,16 +232,12 @@ class BlissToPcmHDFJob(Job):
         :param output_dtype: dtype that should be written in the hdf (supports float64, float32, int32, int16)
         :param multi_channel_strategy: defines what should happen to multi-channel audio files.
             Currently implemented are:
-            "pick_first": Takes audio from first channel
-            "none": assume only one channel
+            BaseStrategy(): no handling, assume only one channel
+            PickNth(n): Takes audio from n-th channel
         :param returnn_root: RETURNN repository
         """
         self.set_vis_name("Dump audio to HDF")
         assert output_dtype in ["float64", "float32", "int32", "int16"]
-        assert multi_channel_strategy in [
-            "pick_first",
-            "none",
-        ], f"multi_channel_strategy {multi_channel_strategy} is not implemented"
 
         self.bliss_corpus = bliss_corpus
         self.segment_file = segment_file
@@ -280,8 +284,8 @@ class BlissToPcmHDFJob(Job):
                         always_2d=True,
                         dtype=self.output_dtype,
                     )
-                    if self.multi_channel_strategy == "pick_first":
-                        data = data[:, 0]
+                    if isinstance(self.multi_channel_strategy, PickNth):
+                        data = data[:, self.multi_channel_strategy.channel]
                     else:
                         assert (
                             data.shape[-1] == 1
