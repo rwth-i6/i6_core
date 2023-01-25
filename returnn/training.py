@@ -239,18 +239,21 @@ class ReturnnTrainingJob(Job):
         return run_cmd
 
     def info(self):
-        def try_load_lr_log(file: str):
+        def try_load_lr_log(files: List[str]):
             # Used in parsing the learning rates
             @dataclass
             class EpochData:
                 learningRate: float
                 error: Dict[str, float]
 
-            try:
-                with open(file, "rt") as file:
-                    return eval(file.read().strip())
-            except FileNotFoundError:
-                return None
+            for file in files:
+                try:
+                    with open(file, "rt") as file:
+                        return eval(file.read().strip())
+                except FileNotFoundError:
+                    pass
+
+            return None
 
         lr_during_training = os.path.join(
             self._sis_path(gs.JOB_WORK_DIR),
@@ -258,8 +261,7 @@ class ReturnnTrainingJob(Job):
         )
         lr_after_training = tk.uncached_path(self.out_learning_rates)
 
-        loaded_epochs = map(try_load_lr_log, [lr_during_training, lr_after_training])
-        epochs = next((f for f in loaded_epochs if f is not None), None)
+        epochs = try_load_lr_log([lr_during_training, lr_after_training])
 
         if epochs is None:
             return None
