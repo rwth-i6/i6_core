@@ -9,11 +9,12 @@ __all__ = [
 ]
 
 import copy
+from dataclasses import dataclass
 import sys
 import os
 import shutil
 import subprocess as sp
-from typing import List, Union
+from typing import Dict, List, Optional, Union
 
 from sisyphus import *
 
@@ -238,17 +239,43 @@ class ReturnnTrainingJob(Job):
         return run_cmd
 
     def info(self):
-        if self.out_checkpoints is None:
+        def try_load_lr_log(file: str):
+            # Used in parsing the learning rates
+            @dataclass
+            class EpochData:
+                learningRate: float
+                error: Dict[str, float]
+
+            try:
+                with open(file, "rt") as file:
+                    return eval(file.read().strip())
+            except FileNotFoundError:
+                return None
+
+        lr_during_training = os.path.join(
+            self._sis_path(gs.JOB_WORK_DIR),
+            self.returnn_config.get("learning_rate_file", "learning_rates"),
+        )
+        lr_after_training = tk.uncached_path(self.out_learning_rates)
+
+        loaded_epochs = map(try_load_lr_log, [lr_during_training, lr_after_training])
+        epochs = next((f for f in loaded_epochs if f is not None), None)
+
+        if epochs is None:
             return None
-        # if self.keep_epochs is set, `self.out_checkpoints` will be incomplete, but
-        # using it is fast because `Path.available()` is cached.
-        available_checkpoints = [
-            k for k, ckpt in self.out_checkpoints.items() if ckpt.index_path.available()
-        ]
-        if len(available_checkpoints) == 0:
-            return None
+
+        if not isinstance(epochs, dict):
+            raise TypeError(
+                f"parsed learning rates must be a Dict[int, EpochData] but found {type(epochs)}"
+            )
+
+        available_epochs = {
+            ep: data for ep, data in epochs.items() if len(data.error) > 0
+        }
+
+        max_available_ep = max(available_epochs) if len(available_epochs) > 0 else 0
         max_ep = max(self.out_checkpoints)
-        max_available_ep = max(available_checkpoints)
+
         return f"ep {max_available_ep}/{max_ep}"
 
     def path_available(self, path):
