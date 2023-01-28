@@ -259,7 +259,7 @@ class ReturnnTrainingJob(Job):
             self._sis_path(gs.JOB_WORK_DIR),
             self.returnn_config.get("learning_rate_file", "learning_rates"),
         )
-        lr_after_training = tk.uncached_path(self.out_learning_rates)
+        lr_after_training = self.out_learning_rates.get_path()
 
         epochs = try_load_lr_log([lr_during_training, lr_after_training])
 
