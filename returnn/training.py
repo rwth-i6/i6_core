@@ -239,21 +239,27 @@ class ReturnnTrainingJob(Job):
         return run_cmd
 
     def info(self):
-        def try_load_lr_log(file_path: str):
+        def try_load_lr_log(file_path: str) -> Optional[dict]:
             # Used in parsing the learning rates
             @dataclass
             class EpochData:
                 learningRate: float
                 error: Dict[str, float]
 
-            with open(file_path, "rt") as file:
-                return eval(file.read().strip())
+            try:
+                with open(file_path, "rt") as file:
+                    return eval(file.read().strip())
+            except FileNotFoundError:
+                return None
 
         lr_file = os.path.join(
             self._sis_path(gs.JOB_WORK_DIR),
             self.returnn_config.get("learning_rate_file", "learning_rates"),
         )
         epochs = try_load_lr_log(lr_file)
+
+        if epochs is None:
+            return None
 
         if not isinstance(epochs, dict):
             raise TypeError(
