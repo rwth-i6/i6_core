@@ -700,11 +700,11 @@ class CreateRT03sCTSCorpusJob(Job):
         shutil.copy(glm_file, self.out_glm.get_path())
 
 
-class CreateSwitchboardE2EBlissCorpusJob(Job):
+class CreateSwitchboardSpokenFormBlissCorpusJob(Job):
     """
     Creates a special E2E version of switchboard-1 used for e.g. BPE or Sentencepiece based models.
     It includes:
-     - lowercase everything
+     - make sure everything is lowercased
      - conversion of numbers to written form
      - conversion of some short forms into spoken forms
      - making special tokens uppercase again
