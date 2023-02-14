@@ -702,11 +702,11 @@ class CreateRT03sCTSCorpusJob(Job):
 
 class CreateSwitchboardSpokenFormBlissCorpusJob(Job):
     """
-    Creates a special E2E version of switchboard-1 used for e.g. BPE or Sentencepiece based models.
+    Creates a special spoken form version of switchboard-1 used for e.g. BPE or Sentencepiece based models.
     It includes:
      - make sure everything is lowercased
-     - conversion of numbers to written form
-     - conversion of some short forms into spoken forms
+     - conversion of numbers to written form (using a given conversion table)
+     - conversion of some short forms into spoken forms (also using the table)
      - making special tokens uppercase again
     """
 
@@ -716,7 +716,7 @@ class CreateSwitchboardSpokenFormBlissCorpusJob(Job):
         """
         self.switchboard_bliss_corpus = switchboard_bliss_corpus
 
-        self.out_e2e_corpus = self.output_path("swb.e2e.corpus.xml.gz")
+        self.out_spoken_form_corpus = self.output_path("swb.spoken_form.corpus.xml.gz")
 
     def tasks(self):
         yield Task("run", mini_task=True)
@@ -760,7 +760,7 @@ class CreateSwitchboardSpokenFormBlissCorpusJob(Job):
             )
             segment.orth = orth
 
-        c.dump(self.out_e2e_corpus.get_path())
+        c.dump(self.out_spoken_form_corpus.get_path())
 
 
 class CreateFisherTranscriptionsJob(Job):
