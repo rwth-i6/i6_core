@@ -228,15 +228,29 @@ class FilterCorpusBySegmentsJob(Job):
 
 
 class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
-    def __init__(self, bliss_corpus, bliss_lexicon, case_sensitive=False):
+    """
+    Filter segments of a bliss corpus if there are unknowns with respect to a given lexicon
+    """
+
+    __sis_hash_exclude__ = {"all_unknown": True}
+
+    def __init__(
+        self,
+        bliss_corpus: tk.Path,
+        bliss_lexicon: tk.Path,
+        case_sensitive: bool = False,
+        all_unknown: bool = True,
+    ):
         """
-        :param Path bliss_corpus:
-        :param Path bliss_lexicon:
-        :param bool case_sensitive:
+        :param bliss_corpus:
+        :param bliss_lexicon:
+        :param case_sensitive: consider casing for check against lexicon
+        :param all_unknown: all words have to be unknown in order for the segment to be discarded
         """
         self.corpus = bliss_corpus
         self.lexicon = bliss_lexicon
         self.case_sensitive = case_sensitive
+        self.all_unknown = all_unknown
 
         self.out_corpus = self.output_path("corpus.xml.gz", cached=True)
 
@@ -247,7 +261,7 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
         def maybe_to_lower(s):
             return s if self.case_sensitive else s.lower()
 
-        lex_path = tk.uncached_path(self.lexicon)
+        lex_path = self.lexicon.get_path()
         open_func = gzip.open if lex_path.endswith(".gz") else open
         with open_func(lex_path, "rt") as f:
             lex_root = ET.parse(f)
@@ -259,23 +273,28 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
         )
 
         c = corpus.Corpus()
-        c.load(tk.uncached_path(self.corpus))
+        c.load(self.corpus.get_path())
 
-        def not_only_unknowns(corpus, recording, segment):
+        def unknown_filter(
+            corpus: corpus.Corpus, recording: corpus.Recording, segment: corpus.Segment
+        ) -> bool:
             """
-            :param Corpus corpus:
-            :param Recording recording:
-            :param Segment segment:
-            :return: whether the orth of segment contains at least one known word
-            :rtype: bool
+            :param corpus: needed to match the filter signature
+            :param recording: needed to match the filter signature
+            :param segment: segment to filter
+            :return: whether the orth of segment contains at least one known word (all_unknown = True) or
+                     whether all orths are in the lexicon (all_unknown = False)
             """
             orth = segment.orth
             if not orth:
                 return True
             words = [maybe_to_lower(o) for o in orth.strip().split(" ")]
-            return not all(w not in vocabulary for w in words)
+            if self.all_unknown:
+                return not all(w not in vocabulary for w in words)
+            else:
+                return all(w in vocabulary for w in words)
 
-        c.filter_segments(not_only_unknowns)
+        c.filter_segments(unknown_filter)
         c.dump(self.out_corpus.get_path())
 
 
