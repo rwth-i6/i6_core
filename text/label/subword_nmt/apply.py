@@ -26,14 +26,12 @@ class ApplyBPEModelToLexiconJob(Job):
         :param Path bliss_lexicon:
         :param Path bpe_codes:
         :param Path|None bpe_vocab:
-        :param Path|str|None subword_nmt_repo:
+        :param Optional[Path] subword_nmt_repo:
         """
         self.bliss_lexicon = bliss_lexicon
         self.bpe_codes = bpe_codes
         self.bpe_vocab = bpe_vocab
-        self.subword_nmt_repo = (
-            subword_nmt_repo if subword_nmt_repo is not None else gs.SUBWORD_NMT_PATH
-        )
+        self.subword_nmt_repo = util.get_subword_nmt_repo(subword_nmt_repo)
 
         self.out_converted_lexicon = self.output_path("lexicon.xml.gz", cached=True)
 
@@ -62,12 +60,10 @@ class ApplyBPEModelToLexiconJob(Job):
             for t in lm_tokens:
                 f.write("%s\n" % t)
 
-        apply_binary = os.path.join(
-            tk.uncached_path(self.subword_nmt_repo), "subword_nmt/apply_bpe.py"
-        )
+        apply_binary = self.subword_nmt_repo.join_right("subword_nmt/apply_bpe.py")
         args = [
             sys.executable,
-            apply_binary,
+            apply_binary.get_path(),
             "--input",
             "words",
             "--codes",
@@ -132,11 +128,7 @@ class ApplyBPEToTextJob(Job):
         self.text_file = text_file
         self.bpe_codes = bpe_codes
         self.bpe_vocab = bpe_vocab
-        self.subword_nmt_repo = (
-            subword_nmt_repo
-            if subword_nmt_repo is not None
-            else tk.Path(gs.SUBWORD_NMT_PATH)
-        )
+        self.subword_nmt_repo = util.get_subword_nmt_repo(subword_nmt_repo)
         self.gzip_output = gzip_output
 
         self.out_bpe_text = self.output_path(

@@ -2,7 +2,6 @@ __all__ = ["ExtractDatasetMeanStddevJob"]
 
 from sisyphus import *
 
-import os
 import pickle
 import shutil
 import subprocess
@@ -13,7 +12,12 @@ import numpy
 from i6_core.returnn.config import ReturnnConfig
 from i6_core.lib import corpus
 from i6_core.lib.hdf import get_returnn_simple_hdf_writer
-from i6_core.util import create_executable, uopen
+from i6_core.util import (
+    create_executable,
+    get_returnn_python_exe,
+    get_returnn_root,
+    uopen,
+)
 
 
 class ExtractDatasetMeanStddevJob(Job):
@@ -34,19 +38,13 @@ class ExtractDatasetMeanStddevJob(Job):
         """
 
         :param ReturnnConfig returnn_config:
-        :param Path|str|None returnn_python_exe:
-        :param Path|str|None returnn_root:
+        :param Optional[Path] returnn_python_exe:
+        :param Optional[Path] returnn_root:
         """
 
         self.returnn_config = returnn_config
-        self.returnn_python_exe = (
-            returnn_python_exe
-            if returnn_python_exe is not None
-            else gs.RETURNN_PYTHON_EXE
-        )
-        self.returnn_root = (
-            returnn_root if returnn_root is not None else gs.RETURNN_ROOT
-        )
+        self.returnn_python_exe = get_returnn_python_exe(returnn_python_exe)
+        self.returnn_root = get_returnn_root(returnn_root)
 
         self.out_mean = self.output_var("mean_var")
         self.out_std_dev = self.output_var("std_dev_var")
@@ -62,8 +60,8 @@ class ExtractDatasetMeanStddevJob(Job):
         self.returnn_config.write("returnn.config")
 
         command = [
-            tk.uncached_path(self.returnn_python_exe),
-            os.path.join(tk.uncached_path(self.returnn_root), "tools/dump-dataset.py"),
+            self.returnn_python_exe.get_path(),
+            self.returnn_root.join_right("tools/dump-dataset.py").get_path(),
             "returnn.config",
             "--endseq",
             "-1",

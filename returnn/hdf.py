@@ -47,8 +47,8 @@ class ReturnnDumpHDFJob(Job):
         :param int mem: RAM required in Gb
         :param int file_size: request file space on compute node in Gb
         :param int time: compute time in hours
-        :param Path|str returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
-        :param Path|str returnn_root: file path to the RETURNN repository root folder
+        :param Optional[Path] returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
+        :param Optional[Path] returnn_root: file path to the RETURNN repository root folder
         """
         self.data = data  # typing: dict|Path|str
         self.start_seq = start_seq
@@ -61,14 +61,8 @@ class ReturnnDumpHDFJob(Job):
             "file_size": file_size,
             "time": time,
         }
-        self.returnn_python_exe = (
-            returnn_python_exe
-            if returnn_python_exe is not None
-            else gs.RETURNN_PYTHON_EXE
-        )
-        self.returnn_root = (
-            returnn_root if returnn_root is not None else gs.RETURNN_ROOT
-        )
+        self.returnn_python_exe = util.get_returnn_python_exe(returnn_python_exe)
+        self.returnn_root = util.get_returnn_root(returnn_root)
 
         self.out_hdf = self.output_path("data.hdf")
 
@@ -87,8 +81,8 @@ class ReturnnDumpHDFJob(Job):
         os.close(fd)
 
         args = [
-            tk.uncached_path(self.returnn_python_exe),
-            os.path.join(tk.uncached_path(self.returnn_root), "tools/hdf_dump.py"),
+            self.returnn_python_exe.get_path(),
+            self.returnn_root.join_right("tools/hdf_dump.py").get_path(),
             data,
             tmp_hdf_file,
         ]
@@ -143,8 +137,8 @@ class ReturnnRasrDumpHDFJob(ReturnnDumpHDFJob):
         :param int mem: RAM required in Gb
         :param int file_size: request file space on compute node in Gb
         :param int time: compute time in hours
-        :param Path|str returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
-        :param Path|str returnn_root: file path to the RETURNN repository root folder
+        :param Optional[Path] returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
+        :param Optional[Path] returnn_root: file path to the RETURNN repository root folder
         """
 
         data = {

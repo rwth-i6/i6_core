@@ -6,7 +6,12 @@ import subprocess as sp
 import tempfile
 import zipfile
 
-from i6_core.util import MultiOutputPath, relink
+from i6_core.util import (
+    MultiOutputPath,
+    relink,
+    get_returnn_python_exe,
+    get_returnn_root,
+)
 
 from sisyphus import *
 
@@ -52,8 +57,8 @@ class BlissToOggZipJob(Job):
         :param bool no_conversion: do not call the actual conversion, assume the audio files are already correct
         :param bool no_audio: do not add audio files
         :param str ffmpeg_acodec: force audio codec for ffmpeg calls
-        :param Path|str returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
-        :param Path|str returnn_root: file path to the RETURNN repository root folder
+        :param Optional[Path] returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
+        :param Optional[Path] returnn_root: file path to the RETURNN repository root folder
         """
         self.bliss_corpus = bliss_corpus
         self.segments = segments
@@ -67,14 +72,8 @@ class BlissToOggZipJob(Job):
             len(segments.hidden_paths) if isinstance(segments, MultiOutputPath) else 1
         )
 
-        self.returnn_python_exe = (
-            returnn_python_exe
-            if returnn_python_exe is not None
-            else gs.RETURNN_PYTHON_EXE
-        )
-        self.returnn_root = (
-            returnn_root if returnn_root is not None else gs.RETURNN_ROOT
-        )
+        self.returnn_python_exe = get_returnn_python_exe(returnn_python_exe)
+        self.returnn_root = get_returnn_root(returnn_root)
 
         self.zip_subarchives = (
             MultiOutputPath(
@@ -110,10 +109,8 @@ class BlissToOggZipJob(Job):
             else "out.ogg.zip"
         )
         args = [
-            tk.uncached_path(self.returnn_python_exe),
-            os.path.join(
-                tk.uncached_path(self.returnn_root), "tools/bliss-to-ogg-zip.py"
-            ),
+            self.returnn_python_exe.get_path(),
+            self.returnn_root.join_right("tools/bliss-to-ogg-zip.py").get_path(),
             tk.uncached_path(self.bliss_corpus),
             "--output",
             output,

@@ -1,10 +1,12 @@
 import gzip
+import logging
 import os
 import shutil
 import stat
 import subprocess as sp
 import xml.dom.minidom
 import xml.etree.ElementTree as ET
+from typing import Optional
 
 from sisyphus import *
 from sisyphus.delayed_ops import DelayedBase
@@ -301,3 +303,73 @@ def instanciate_delayed(o):
         for k in o:
             o[k] = instanciate_delayed(o[k])
     return o
+
+
+already_printed_gs_warnings = set()
+
+
+def get_executable_path(
+    path: Optional[tk.Path],
+    gs_member_name: str,
+    default_exec_path: Optional[tk.Path] = None,
+) -> tk.Path:
+    """
+    Helper function that allows to select a specific version of software while
+    maintaining compatibility to different methods that were used in the past to select
+    software versions.
+    It will return a Path object for the first path found in
+
+    :param path: Directly specify the path to be used
+    :param gs_member_name: get path from sisyphus.global_settings.<gs_member_name>
+    :param default_exec_path: general fallback if no specific version is given
+    """
+    global already_printed_gs_warnings
+    if path is not None:
+        if isinstance(path, tk.Path):
+            return path
+        elif isinstance(path, str):
+            logging.warning(
+                f"use of str is deprecated, please provide a Path object for {path}"
+            )
+            return tk.Path(path)
+        assert False, f"unsupported type of {type(path)} for input {path}"
+    if getattr(gs, gs_member_name, None) is not None:
+        if gs_member_name not in already_printed_gs_warnings:
+            logging.warning(
+                f"use of gs is deprecated, please provide a Path object for gs.{gs_member_name}"
+            )
+            already_printed_gs_warnings.add(gs_member_name)
+
+        return tk.Path(getattr(gs, gs_member_name))
+    if default_exec_path is not None:
+        return default_exec_path
+    assert False, f"could not find executable for {gs_member_name}"
+
+
+def get_returnn_root(returnn_root: tk.Path) -> tk.Path:
+    """gets the path to the root folder of RETURNN"""
+    return get_executable_path(returnn_root, "RETURNN_ROOT")
+
+
+def get_returnn_python_exe(returnn_python_exe: tk.Path) -> tk.Path:
+    """gets the path to a python binary or script that is used to run RETURNN"""
+    system_python = tk.Path(shutil.which(gs.SIS_COMMAND[0]))
+    return get_executable_path(returnn_python_exe, "RETURNN_PYTHON_EXE", system_python)
+
+
+def get_g2p_path(g2p_path: tk.Path) -> tk.Path:
+    """gets the path to the sequitur g2p script"""
+    system_python_path = os.path.dirname(shutil.which(gs.SIS_COMMAND[0]))
+    system_g2p = tk.Path(system_python_path).join_right("g2p.py")
+    return get_executable_path(g2p_path, "G2P_PATH", system_g2p)
+
+
+def get_g2p_python(g2p_python: tk.Path) -> tk.Path:
+    """gets the path to a python binary or script that is used to run g2p"""
+    system_python = tk.Path(shutil.which(gs.SIS_COMMAND[0]))
+    return get_executable_path(g2p_python, "G2P_PYTHON", system_python)
+
+
+def get_subword_nmt_repo(subword_nmt_repo: tk.Path) -> tk.Path:
+    """gets the path to the root folder of subword-nmt repo"""
+    return get_executable_path(subword_nmt_repo, "SUBWORD_NMT_PATH")
