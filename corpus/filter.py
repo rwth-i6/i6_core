@@ -261,7 +261,7 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
         def maybe_to_lower(s):
             return s if self.case_sensitive else s.lower()
 
-        lex_path = tk.uncached_path(self.lexicon)
+        lex_path = self.lexicon.get_path()
         open_func = gzip.open if lex_path.endswith(".gz") else open
         with open_func(lex_path, "rt") as f:
             lex_root = ET.parse(f)
@@ -273,7 +273,7 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
         )
 
         c = corpus.Corpus()
-        c.load(tk.uncached_path(self.corpus))
+        c.load(self.corpus.get_path())
 
         def unknown_filter(
             corpus: corpus.Corpus, recording: corpus.Recording, segment: corpus.Segment
