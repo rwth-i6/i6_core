@@ -13,6 +13,7 @@ from i6_core.lib import corpus
 from i6_core.lib.hdf import get_returnn_simple_hdf_writer
 import i6_core.rasr as rasr
 from i6_core.util import instanciate_delayed, uopen
+from i6_core import util
 
 from sisyphus import *
 
