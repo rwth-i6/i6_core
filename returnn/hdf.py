@@ -209,13 +209,17 @@ class BlissToPcmHDFJob(Job):
     """
 
     class BaseStrategy:
-        pass
+        def __eq__(self, other):
+            return type(other) == BaseStrategy
 
     @dataclass(frozen=True)
     class PickNth(BaseStrategy):
         channel: int
 
-    __sis_hash_exclude__ = {"multi_channel_strategy": "none"}
+        def __eq__(self, other):
+            return type(other) == PickNth and other.channel == self.channel
+
+    __sis_hash_exclude__ = {"multi_channel_strategy": BaseStrategy()}
 
     def __init__(
         self,
