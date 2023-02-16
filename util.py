@@ -336,7 +336,12 @@ def get_executable_path(
             logging.warning(
                 f"use of a DelayedFormat is deprecated, please use Path.join_right to provide a Path object for {path}"
             )
-            if isinstance(path.args[0], tk.Path):
+            if (
+                len(path.args) == 2 
+                and isinstance(path.args[0], tk.Path) 
+                and isinstance(path.args[1], str)
+                and path.string == "{}/{}"
+            ):
                 return path.args[0].join_right(path.args[1])
             else:
                 return tk.Path(path.get())
