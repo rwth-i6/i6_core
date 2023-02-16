@@ -9,7 +9,7 @@ import xml.etree.ElementTree as ET
 from typing import Optional
 
 from sisyphus import *
-from sisyphus.delayed_ops import DelayedBase
+from sisyphus.delayed_ops import DelayedBase, DelayedFormat
 
 Path = setup_path(__package__)
 Variable = tk.Variable
@@ -332,6 +332,14 @@ def get_executable_path(
                 f"use of str is deprecated, please provide a Path object for {path}"
             )
             return tk.Path(path)
+        elif isinstance(path, DelayedFormat):
+            logging.warning(
+                f"use of a DelayedFormat is deprecated, please use Path.join_right to provide a Path object for {path}"
+            )
+            if isinstance(path.args[0], tk.Path):
+                return path.args[0].join_right(path.args[1])
+            else:
+                return tk.Path(path.get())
         assert False, f"unsupported type of {type(path)} for input {path}"
     if getattr(gs, gs_member_name, None) is not None:
         if gs_member_name not in already_printed_gs_warnings:
