@@ -28,6 +28,7 @@ class ApplyG2PModelJob(Job):
         g2p_python=None,
         filter_empty_words=False,
         concurrent=1,
+        nonce="this value is not needed",
     ):
         """
         :param Path g2p_model:
@@ -47,6 +48,7 @@ class ApplyG2PModelJob(Job):
         self.word_list = word_list_file
         self.filter_empty_words = filter_empty_words
         self.concurrent = concurrent
+        self.nonce = nonce
 
         self.out_g2p_lexicon = self.output_path("g2p.lexicon")
         self.out_g2p_untranslated = self.output_path("g2p.untranslated")
