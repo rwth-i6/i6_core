@@ -1,4 +1,4 @@
-name: hashes
+name: AppTek hashes
 on:
   push:
     branches:
@@ -13,7 +13,6 @@ jobs:
     - uses: actions/setup-python@v4
       with:
         python-version: 3.8
-        cache: "pip"
     - name: Print Branch Name for later
       run: |
         echo ${GITHUB_REF##*/}
