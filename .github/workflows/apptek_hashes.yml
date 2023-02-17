@@ -37,4 +37,13 @@ jobs:
             https://api.bitbucket.org/2.0/repositories/omnifluent/apptek_asr/pipelines/$(cat pipeline_uuid.txt) |\
             python3 -c "import sys,json; print(json.load(sys.stdin)['state']['result']['name'])") \
         ] 
+    - name: Report Error
+      if: failure()
+      run: |
+        echo "::error ::The AppTek hashtest pipeline #"$(\
+            curl -X GET -s -u ${{ secrets.MICHEL_BITBUCKET_AUTHENTICATION }} \
+            -H 'Accept: application/json' \
+            https://api.bitbucket.org/2.0/repositories/omnifluent/apptek_asr/pipelines/$(cat pipeline_uuid.txt) |\
+            python3 -c "import sys,json; print(json.load(sys.stdin)['build_number'])") \
+            " failed. Please contact {wmichel,ebeck}@apptek.com to find out why."
 
