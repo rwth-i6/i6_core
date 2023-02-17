@@ -1,0 +1,42 @@
+name: hashes
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+jobs:
+  test-hashes:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/setup-python@v4
+      with:
+        python-version: 3.8
+        cache: "pip"
+    - name: Print Branch Name for later
+      run: |
+        echo ${GITHUB_REF##*/}
+    - name: Start Bitbucket Pipeline
+      run: |
+        curl -X POST -s -u ${{ secrets.MICHEL_BITBUCKET_AUTHENTICATION }} \
+            -H 'Content-Type: application/json' \
+            https://api.bitbucket.org/2.0/repositories/omnifluent/apptek_asr/pipelines/ \
+            -d '{"target": {"ref_type": "branch", "ref_name": "main","type": "pipeline_ref_target"}}' |\
+        python -c "import sys,json; print(json.load(sys.stdin)['uuid'])" |\
+        sed '/{/%7B/' | sed '/}/%7D/' > pipeline_uuid.txt
+    - name: Wait for Results
+      run: |
+        while [ IN_PROGRESS == `\
+            curl -X GET -s -u ${{ secrets.MICHEL_BITBUCKET_AUTHENTICATION }} \
+            -H 'Accept: application/json' \
+            https://api.bitbucket.org/2.0/repositories/omnifluent/apptek_asr/pipelines/$(cat pipeline_uuid.txt) |\
+            python3 -c "import sys,json; print(json.load(sys.stdin)['state']['name'])" `\
+            ]; do sleep(10); done
+        [ SUCCESSFUL == `\
+            curl -X GET -s -u ${{ secrets.MICHEL_BITBUCKET_AUTHENTICATION }} \
+            -H 'Accept: application/json' \
+            https://api.bitbucket.org/2.0/repositories/omnifluent/apptek_asr/pipelines/$(cat pipeline_uuid.txt) |\
+            python3 -c "import sys,json; print(json.load(sys.stdin)['state']['result']['name'])" `\
+        ]
+
