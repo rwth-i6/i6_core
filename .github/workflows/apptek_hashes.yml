@@ -28,16 +28,16 @@ jobs:
         sed 's/{/%7B/' | sed 's/}/%7D/' > pipeline_uuid.txt
     - name: Wait for Results
       run: |
-        while [ IN_PROGRESS == `\
+        while [ IN_PROGRESS == $(\
             curl -X GET -s -u ${{ secrets.MICHEL_BITBUCKET_AUTHENTICATION }} \
             -H 'Accept: application/json' \
             https://api.bitbucket.org/2.0/repositories/omnifluent/apptek_asr/pipelines/$(cat pipeline_uuid.txt) |\
-            python3 -c "import sys,json; print(json.load(sys.stdin)['state']['name'])" `\
+            python3 -c "import sys,json; print(json.load(sys.stdin)['state']['name'])") \
             ]; do sleep 10 ; done
-        [ SUCCESSFUL == `\
+        [ SUCCESSFUL == $(\
             curl -X GET -s -u ${{ secrets.MICHEL_BITBUCKET_AUTHENTICATION }} \
             -H 'Accept: application/json' \
             https://api.bitbucket.org/2.0/repositories/omnifluent/apptek_asr/pipelines/$(cat pipeline_uuid.txt) |\
-            python3 -c "import sys,json; print(json.load(sys.stdin)['state']['result']['name'])" `\
-        ]
+            python3 -c "import sys,json; print(json.load(sys.stdin)['state']['result']['name'])") \
+        ] 
 
