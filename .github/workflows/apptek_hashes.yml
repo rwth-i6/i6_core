@@ -5,8 +5,6 @@ env:
   get_header: "-X GET -s -H 'Accept: application/json'"
   post_header: "-X POST -s -H 'Content-Type: application/json'"
   post_content: '{"target": {"ref_type": "branch", "ref_name": "willi-i6_core-integration", "type": "pipeline_ref_target", "selector": {"type": "custom", "pattern": "hashes-only"}}, "variables": [{"key": "i6_core_branch", "value": "'${GITHUB_HEAD_REF}'"}]}'
-
-
 on:
   push:
     branches:
