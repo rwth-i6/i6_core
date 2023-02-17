@@ -23,7 +23,9 @@ jobs:
         curl -X POST -s -u ${{ secrets.MICHEL_BITBUCKET_AUTHENTICATION }} \
             -H 'Content-Type: application/json' \
             https://api.bitbucket.org/2.0/repositories/omnifluent/apptek_asr/pipelines/ \
-            -d '{"target": {"ref_type": "branch", "ref_name": "main","type": "pipeline_ref_target"}}' |\
+            -d '{"target": {"ref_type": "branch", "ref_name": "willi-i6_core-integration",
+                 "type": "pipeline_ref_target", "selector": {"type": "custom", "pattern": "hashes-only"}},
+                 "variables": [{"key": "i6_core_branch", "value": "'${GITHUB_HEAD_REF}'"}]}' |\
         python -c "import sys,json; print(json.load(sys.stdin)['uuid'])" |\
         sed 's/{/%7B/' | sed 's/}/%7D/' > pipeline_uuid.txt
     - name: Wait for Results
