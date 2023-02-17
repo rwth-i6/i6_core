@@ -41,4 +41,5 @@ jobs:
             curl ${{ env.get_header }} ${{ env.auth_token}} ${{ env.api_url }}$(cat pipeline_uuid.txt) |\
             python3 -c "import sys,json; print(json.load(sys.stdin)['build_number'])") \
             " failed. Please contact {wmichel,ebeck}@apptek.com to find out why."
+        exit 1
 
