@@ -13,11 +13,6 @@ jobs:
     - uses: actions/setup-python@v4
       with:
         python-version: 3.8
-    - name: Print Branch Name for later
-      run: |
-        echo GITHUB_REF is ${GITHUB_REF}
-        echo GITHUB_HEAD_REF is ${GITHUB_HEAD_REF}
-        echo GITHUB_REF_NAME is ${GITHUB_REF_NAME}
     - name: Start Bitbucket Pipeline
       run: |
         curl -X POST -s -u ${{ secrets.MICHEL_BITBUCKET_AUTHENTICATION }} \
