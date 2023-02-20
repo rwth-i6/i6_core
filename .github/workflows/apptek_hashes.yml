@@ -22,24 +22,24 @@ jobs:
     - name: Start Bitbucket Pipeline
       run: |
         curl ${{ env.post_header }} ${{ env.auth_token}} ${{ env.api_url }} -d '${{ env.post_content }}'${GITHUB_HEAD_REF}'"}]}' |\
-        python -c "import sys,json; print(json.load(sys.stdin)['uuid'].replace('{','%7B').replace('}','%7D'))" > pipeline_uuid.txt
+        jq -r '.uuid' | sed 's/{/%7B/' | sed 's/}/%7D/' > pipeline_uuid.txt
     - name: Wait for Results
       run: |
         sleep 300
         while [ COMPLETED != $(\
             curl ${{ env.get_header }} ${{ env.auth_token}} ${{ env.api_url }}$(cat pipeline_uuid.txt) |\
-            python3 -c "import sys,json; print(json.load(sys.stdin)['state']['name'])") \
+            jq -r '.state.name') \
             ]; do sleep 30 ; done
         [ SUCCESSFUL == $(\
             curl ${{ env.get_header }} ${{ env.auth_token}} ${{ env.api_url }}$(cat pipeline_uuid.txt) |\
-            python3 -c "import sys,json; print(json.load(sys.stdin)['state']['result']['name'])") \
+            jq -r '.state.result.name') \
         ] 
     - name: Report Error
       if: failure()
       run: |
         echo "::error ::The AppTek hashtest pipeline #"$(\
             curl ${{ env.get_header }} ${{ env.auth_token}} ${{ env.api_url }}$(cat pipeline_uuid.txt) |\
-            python3 -c "import sys,json; print(json.load(sys.stdin)['build_number'])") \
+            jq -r '.build_number') \
             " failed. Please contact {wmichel,ebeck}@apptek.com to find out why."
         exit 1
 
