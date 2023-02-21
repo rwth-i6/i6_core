@@ -40,6 +40,6 @@ jobs:
         echo "::error ::The AppTek hashtest pipeline #"$(\
             curl ${{ env.get_header }} ${{ env.auth_token}} ${{ env.api_url }}$(cat pipeline_uuid.txt) |\
             jq -r '.build_number') \
-            " failed. Please contact {wmichel,ebeck}@apptek.com to find out why."
+            "failed. Please contact {wmichel,ebeck}@apptek.com to find out why."
         exit 1
 
