@@ -117,9 +117,9 @@ class BlissFfmpegJob(Job):
         from multiprocessing import pool
 
         p = pool.Pool(self.rqmt["cpu"])
-        p.map(self._perform_ffmpeg, c.recordings)
+        p.map(self._perform_ffmpeg, c.all_recordings())
 
-        for r in c.recordings:
+        for r in c.all_recordings():
             audio_filename = self._get_output_filename(r)
             r.audio = os.path.join(self.out_audio_folder.get_path(), audio_filename)
 
