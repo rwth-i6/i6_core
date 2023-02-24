@@ -9,7 +9,7 @@ import collections
 import gzip
 import os
 import re
-from typing import Callable, Dict, Iterable, List, Optional
+from typing import Callable, Dict, Iterable, List, Optional, TextIO
 import xml
 import xml.sax as sax
 import xml.sax.saxutils as saxutils
@@ -22,14 +22,14 @@ FilterFunction = Callable[["Corpus", "Recording", "Segment"], bool]
 class NamedEntity:
     def __init__(self):
         super().__init__()
-        self.name = None  # type: Optional[str]
+        self.name: Optional[str] = None
 
 
 class CorpusSection:
     def __init__(self):
         super().__init__()
-        self.speaker_name = None  # type: Optional[str]
-        self.default_speaker = None  # type: Optional[Speaker]
+        self.speaker_name: Optional[str] = None
+        self.default_speaker: Optional[Speaker] = None
 
         self.speakers = collections.OrderedDict()
 
@@ -44,7 +44,7 @@ class CorpusParser(sax.handler.ContentHandler):
     def __init__(self, corpus: Corpus, path: str):
         super().__init__()
 
-        self.elements = [
+        self.elements: List[NamedEntity] = [
             corpus
         ]  # stack of objects to store the element of the corpus that is beeing read
         self.path = path  # path of the parent corpus (needed for include statements)
@@ -165,10 +165,10 @@ class Corpus(NamedEntity, CorpusSection):
     def __init__(self):
         super().__init__()
 
-        self.parent_corpus = None  # type: Optional[Corpus]
+        self.parent_corpus: Optional[Corpus] = None
 
-        self.subcorpora = []  # type: List[Corpus]
-        self.recordings = []  # type: List[Recording]
+        self.subcorpora: List[Corpus] = []
+        self.recordings: List[Recording] = []
 
     def segments(self) -> Iterable[Segment]:
         """
@@ -246,7 +246,7 @@ class Corpus(NamedEntity, CorpusSection):
     def filter_segments(self, filter_function: FilterFunction):
         """
         filter all segments (including in subcorpora) using filter_function
-        :param function filter_function: takes arguments corpus, recording and segment, returns True if segment should be kept
+        :param filter_function: takes arguments corpus, recording and segment, returns True if segment should be kept
         """
         for r in self.recordings:
             r.segments = [s for s in r.segments if filter_function(self, r, s)]
@@ -273,7 +273,7 @@ class Corpus(NamedEntity, CorpusSection):
             f.write('<?xml version="1.0" encoding="utf-8"?>\n')
             self._dump_internal(f)
 
-    def _dump_internal(self, out, indentation=""):
+    def _dump_internal(self, out: TextIO, indentation: str = ""):
         if self.parent_corpus is None:
             out.write('<corpus name="%s">\n' % self.name)
         else:
@@ -299,9 +299,9 @@ class Corpus(NamedEntity, CorpusSection):
 class Recording(NamedEntity, CorpusSection):
     def __init__(self):
         super().__init__()
-        self.audio = None  # type: Optional[str]
-        self.corpus = None  # type: Optional[Corpus]
-        self.segments = []  # type: List[Segment]
+        self.audio: Optional[str] = None
+        self.corpus: Optional[Corpus] = None
+        self.segments: List[Segment] = []
 
     def fullname(self) -> str:
         return self.corpus.fullname() + "/" + self.name
@@ -314,7 +314,7 @@ class Recording(NamedEntity, CorpusSection):
         else:
             return self.corpus.speaker(speaker_name, self.default_speaker)
 
-    def dump(self, out, indentation=""):
+    def dump(self, out: TextIO, indentation: str = ""):
         out.write(
             '%s<recording name="%s" audio="%s">\n'
             % (indentation, self.name, self.audio)
@@ -341,11 +341,11 @@ class Segment(NamedEntity):
         super().__init__()
         self.start = 0.0
         self.end = 0.0
-        self.track = None  # type: Optional[int]
-        self.orth = None  # type: Optional[str]
-        self.speaker_name = None  # type: Optional[str]
+        self.track: Optional[int] = None
+        self.orth: Optional[str] = None
+        self.speaker_name: Optional[str] = None
 
-        self.recording = None  # type: Optional[Recording]
+        self.recording: Optional[Recording] = None
 
     def fullname(self) -> str:
         return self.recording.fullname() + "/" + self.name
@@ -353,7 +353,7 @@ class Segment(NamedEntity):
     def speaker(self) -> Speaker:
         return self.recording.speaker(self.speaker_name)
 
-    def dump(self, out, indentation=""):
+    def dump(self, out: TextIO, indentation: str = ""):
         has_child_element = self.orth is not None or self.speaker_name is not None
         t = ' track="%d"' % self.track if self.track is not None else ""
         new_line = "\n" if has_child_element else ""
@@ -376,9 +376,9 @@ class Segment(NamedEntity):
 class Speaker(NamedEntity):
     def __init__(self):
         super().__init__()
-        self.attribs = {}  # type: Dict[str, str]
+        self.attribs: Dict[str, str] = {}
 
-    def dump(self, out, indentation=""):
+    def dump(self, out: TextIO, indentation: str = ""):
         out.write(
             "%s<speaker-description%s>"
             % (indentation, (' name="%s"' % self.name) if self.name is not None else "")
@@ -395,18 +395,18 @@ class Speaker(NamedEntity):
 
 class SegmentMap(object):
     def __init__(self):
-        self.map_entries = []  # type: List[SegmentMapItem]
+        self.map_entries: List[SegmentMapItem] = []
 
-    def load(self, path):
+    def load(self, path: str):
         """
-        :param str path:
+        :param  path: segment file path (optionally with .gz)
         """
         open_fun = gzip.open if path.endswith(".gz") else open
 
         with open_fun(path, "rb") as f:
             for event, elem in ET.iterparse(f, events=("start",)):
+                elem: xml.etree.ElementTree = elem
                 if elem.tag == "map-item":
-                    elem = elem  # type: xml.etree.Element
                     item = SegmentMapItem()
                     item.key = elem.attrib["key"]
                     item.value = elem.attrib["value"]
@@ -430,11 +430,11 @@ class SegmentMap(object):
 
 class SegmentMapItem(object):
     def __init__(self):
-        self.key = None  # type: Optional[str]
-        self.value = None  # type: Optional[str]
+        self.key: Optional[str] = None
+        self.value: Optional[str] = None
 
     def dump(
         self,
-        out,
+        out: TextIO,
     ):
         out.write('<map-item key="%s" value="%s" />\n' % (self.key, self.value))
