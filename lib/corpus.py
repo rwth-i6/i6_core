@@ -1,25 +1,35 @@
+"""
+Helper functions and classes for Bliss xml corpus loading and writing
+"""
+from __future__ import annotations
+
 __all__ = ["NamedEntity", "CorpusSection", "Corpus", "Recording", "Segment", "Speaker"]
 
 import collections
 import gzip
 import os
 import re
+from typing import Callable, Dict, Iterable, List, Optional, TextIO
+import xml
 import xml.sax as sax
 import xml.sax.saxutils as saxutils
 import xml.etree.ElementTree as ET
 
 
+FilterFunction = Callable[["Corpus", "Recording", "Segment"], bool]
+
+
 class NamedEntity:
     def __init__(self):
         super().__init__()
-        self.name = None
+        self.name: Optional[str] = None
 
 
 class CorpusSection:
     def __init__(self):
         super().__init__()
-        self.speaker_name = None
-        self.default_speaker = None
+        self.speaker_name: Optional[str] = None
+        self.default_speaker: Optional[Speaker] = None
 
         self.speakers = collections.OrderedDict()
 
@@ -31,10 +41,10 @@ class CorpusParser(sax.handler.ContentHandler):
     is currently beeing read.
     """
 
-    def __init__(self, corpus, path):
+    def __init__(self, corpus: Corpus, path: str):
         super().__init__()
 
-        self.elements = [
+        self.elements: List[NamedEntity] = [
             corpus
         ]  # stack of objects to store the element of the corpus that is beeing read
         self.path = path  # path of the parent corpus (needed for include statements)
@@ -42,7 +52,7 @@ class CorpusParser(sax.handler.ContentHandler):
             ""  # buffer for character events, it is reset whenever a new element starts
         )
 
-    def startElement(self, name, attrs):
+    def startElement(self, name: str, attrs: Dict[str, str]):
         e = self.elements[-1]
         if name == "corpus":
             assert (
@@ -117,7 +127,7 @@ class CorpusParser(sax.handler.ContentHandler):
             e.speaker_name = attrs["name"]
         self.chars = ""
 
-    def endElement(self, name):
+    def endElement(self, name: str):
         e = self.elements[-1]
 
         if name == "orth":
@@ -142,7 +152,7 @@ class CorpusParser(sax.handler.ContentHandler):
         ]:
             self.elements.pop()
 
-    def characters(self, characters):
+    def characters(self, characters: str):
         self.chars += characters
 
 
@@ -155,41 +165,40 @@ class Corpus(NamedEntity, CorpusSection):
     def __init__(self):
         super().__init__()
 
-        self.parent_corpus = None
+        self.parent_corpus: Optional[Corpus] = None
 
-        self.subcorpora = []
-        self.recordings = []
+        self.subcorpora: List[Corpus] = []
+        self.recordings: List[Recording] = []
 
-    def segments(self):
+    def segments(self) -> Iterable[Segment]:
         """
         :return: an iterator over all segments within the corpus
-        :rtype: Iterable[Segment]
         """
         for r in self.recordings:
             yield from r.segments
         for sc in self.subcorpora:
             yield from sc.segments()
 
-    def all_recordings(self):
+    def all_recordings(self) -> Iterable[Recording]:
         yield from self.recordings
         for sc in self.subcorpora:
             yield from sc.all_recordings()
 
-    def all_speakers(self):
+    def all_speakers(self) -> Iterable[Speaker]:
         yield from self.speakers.values()
         for sc in self.subcorpora:
             yield from sc.all_speakers()
 
-    def top_level_recordings(self):
+    def top_level_recordings(self) -> Iterable[Recording]:
         yield from self.recordings
 
-    def top_level_subcorpora(self):
+    def top_level_subcorpora(self) -> Iterable[Corpus]:
         yield from self.subcorpora
 
-    def top_level_speakers(self):
+    def top_level_speakers(self) -> Iterable[Speaker]:
         yield from self.speakers.values()
 
-    def remove_recording(self, recording):
+    def remove_recording(self, recording: Recording):
         to_delete = []
         for idx, r in enumerate(self.recordings):
             if r is recording or r == recording or r.name == recording:
@@ -199,27 +208,29 @@ class Corpus(NamedEntity, CorpusSection):
         for sc in self.subcorpora:
             sc.remove_recording(recording)
 
-    def add_recording(self, recording):
+    def add_recording(self, recording: Recording):
         assert isinstance(recording, Recording)
         recording.corpus = self
         self.recordings.append(recording)
 
-    def add_subcorpus(self, corpus):
+    def add_subcorpus(self, corpus: Corpus):
         assert isinstance(corpus, Corpus)
         corpus.parent_corpus = self
         self.subcorpora.append(corpus)
 
-    def add_speaker(self, speaker):
+    def add_speaker(self, speaker: Speaker):
         assert isinstance(speaker, Speaker)
         self.speakers[speaker.name] = speaker
 
-    def fullname(self):
+    def fullname(self) -> str:
         if self.parent_corpus is not None:
             return self.parent_corpus.fullname() + "/" + self.name
         else:
             return self.name
 
-    def speaker(self, speaker_name, default_speaker):
+    def speaker(
+        self, speaker_name: Optional[str], default_speaker: Optional[Speaker]
+    ) -> Speaker:
         if speaker_name is None:
             speaker_name = self.speaker_name
         if speaker_name in self.speakers:
@@ -232,19 +243,19 @@ class Corpus(NamedEntity, CorpusSection):
             else:
                 return default_speaker
 
-    def filter_segments(self, filter_function):
+    def filter_segments(self, filter_function: FilterFunction):
         """
         filter all segments (including in subcorpora) using filter_function
-        :param function filter_function: takes arguments corpus, recording and segment, returns True if segment should be kept
+        :param filter_function: takes arguments corpus, recording and segment, returns True if segment should be kept
         """
         for r in self.recordings:
             r.segments = [s for s in r.segments if filter_function(self, r, s)]
         for sc in self.subcorpora:
             sc.filter_segments(filter_function)
 
-    def load(self, path):
+    def load(self, path: str):
         """
-        :param str path:
+        :param path: corpus .xml or .xml.gz
         """
         open_fun = gzip.open if path.endswith(".gz") else open
 
@@ -252,9 +263,9 @@ class Corpus(NamedEntity, CorpusSection):
             handler = CorpusParser(self, path)
             sax.parse(f, handler)
 
-    def dump(self, path):
+    def dump(self, path: str):
         """
-        :param str path:
+        :param path: target .xml or .xml.gz path
         """
         open_fun = gzip.open if path.endswith(".gz") else open
 
@@ -262,7 +273,7 @@ class Corpus(NamedEntity, CorpusSection):
             f.write('<?xml version="1.0" encoding="utf-8"?>\n')
             self._dump_internal(f)
 
-    def _dump_internal(self, out, indentation=""):
+    def _dump_internal(self, out: TextIO, indentation: str = ""):
         if self.parent_corpus is None:
             out.write('<corpus name="%s">\n' % self.name)
         else:
@@ -288,14 +299,14 @@ class Corpus(NamedEntity, CorpusSection):
 class Recording(NamedEntity, CorpusSection):
     def __init__(self):
         super().__init__()
-        self.audio = None
-        self.corpus = None
-        self.segments = []
+        self.audio: Optional[str] = None
+        self.corpus: Optional[Corpus] = None
+        self.segments: List[Segment] = []
 
-    def fullname(self):
+    def fullname(self) -> str:
         return self.corpus.fullname() + "/" + self.name
 
-    def speaker(self, speaker_name=None):
+    def speaker(self, speaker_name: Optional[str] = None) -> Speaker:
         if speaker_name is None:
             speaker_name = self.speaker_name
         if speaker_name in self.speakers:
@@ -303,7 +314,7 @@ class Recording(NamedEntity, CorpusSection):
         else:
             return self.corpus.speaker(speaker_name, self.default_speaker)
 
-    def dump(self, out, indentation=""):
+    def dump(self, out: TextIO, indentation: str = ""):
         out.write(
             '%s<recording name="%s" audio="%s">\n'
             % (indentation, self.name, self.audio)
@@ -319,7 +330,7 @@ class Recording(NamedEntity, CorpusSection):
 
         out.write("%s</recording>\n" % indentation)
 
-    def add_segment(self, segment):
+    def add_segment(self, segment: Segment):
         assert isinstance(segment, Segment)
         segment.recording = self
         self.segments.append(segment)
@@ -330,19 +341,19 @@ class Segment(NamedEntity):
         super().__init__()
         self.start = 0.0
         self.end = 0.0
-        self.track = None
-        self.orth = None
-        self.speaker_name = None
+        self.track: Optional[int] = None
+        self.orth: Optional[str] = None
+        self.speaker_name: Optional[str] = None
 
-        self.recording = None
+        self.recording: Optional[Recording] = None
 
-    def fullname(self):
+    def fullname(self) -> str:
         return self.recording.fullname() + "/" + self.name
 
-    def speaker(self):
+    def speaker(self) -> Speaker:
         return self.recording.speaker(self.speaker_name)
 
-    def dump(self, out, indentation=""):
+    def dump(self, out: TextIO, indentation: str = ""):
         has_child_element = self.orth is not None or self.speaker_name is not None
         t = ' track="%d"' % self.track if self.track is not None else ""
         new_line = "\n" if has_child_element else ""
@@ -365,9 +376,9 @@ class Segment(NamedEntity):
 class Speaker(NamedEntity):
     def __init__(self):
         super().__init__()
-        self.attribs = {}
+        self.attribs: Dict[str, str] = {}
 
-    def dump(self, out, indentation=""):
+    def dump(self, out: TextIO, indentation: str = ""):
         out.write(
             "%s<speaker-description%s>"
             % (indentation, (' name="%s"' % self.name) if self.name is not None else "")
@@ -384,26 +395,26 @@ class Speaker(NamedEntity):
 
 class SegmentMap(object):
     def __init__(self):
-        self.map_entries = []
+        self.map_entries: List[SegmentMapItem] = []
 
-    def load(self, path):
+    def load(self, path: str):
         """
-        :param str path:
+        :param  path: segment file path (optionally with .gz)
         """
         open_fun = gzip.open if path.endswith(".gz") else open
 
         with open_fun(path, "rb") as f:
             for event, elem in ET.iterparse(f, events=("start",)):
+                elem: xml.etree.ElementTree = elem
                 if elem.tag == "map-item":
-                    elem = elem  # type: etree.Element
                     item = SegmentMapItem()
                     item.key = elem.attrib["key"]
                     item.value = elem.attrib["value"]
                     self.map_entries.append(item)
 
-    def dump(self, path):
+    def dump(self, path: str):
         """
-        :param str path:
+        :param path: segment file path with no extension or .gz
         """
         open_fun = gzip.open if path.endswith(".gz") else open
 
@@ -419,11 +430,11 @@ class SegmentMap(object):
 
 class SegmentMapItem(object):
     def __init__(self):
-        self.key = None
-        self.value = None
+        self.key: Optional[str] = None
+        self.value: Optional[str] = None
 
     def dump(
         self,
-        out,
+        out: TextIO,
     ):
         out.write('<map-item key="%s" value="%s" />\n' % (self.key, self.value))
