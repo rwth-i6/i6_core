@@ -21,7 +21,7 @@ jobs:
         python-version: 3.8
     - name: Start Bitbucket Pipeline
       run: |
-        curl ${{ env.post_header }} ${{ env.auth_token}} ${{ env.api_url }} -d '${{ env.post_content }}'${GITHUB_HEAD_REF}'"}]}' |\
+        curl ${{ env.post_header }} ${{ env.auth_token}} ${{ env.api_url }} -d '${{ env.post_content }}'${GITHUB_HEAD_REF:-main}'"}]}' |\
         jq -r '.uuid' | sed 's/{/%7B/' | sed 's/}/%7D/' > pipeline_uuid.txt
     - name: Wait for Results
       run: |
