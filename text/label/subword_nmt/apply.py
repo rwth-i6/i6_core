@@ -89,10 +89,7 @@ class ApplyBPEModelToLexiconJob(Job):
                 if l.synt:
                     l.synt = sum([w2b[token] for token in l.synt], [])
                 if len(l.eval) > 0:
-                    l.eval = [
-                        sum([w2b[t] for t in token_sequence], [])
-                        for token_sequence in l.eval
-                    ]
+                    l.eval = [sum([w2b[t] for t in token_sequence], []) for token_sequence in l.eval]
 
         elem = lexicon.to_xml()
         tree = ET.ElementTree(elem)
@@ -131,9 +128,7 @@ class ApplyBPEToTextJob(Job):
         self.subword_nmt_repo = util.get_subword_nmt_repo(subword_nmt_repo)
         self.gzip_output = gzip_output
 
-        self.out_bpe_text = self.output_path(
-            "words_to_bpe.txt.gz" if gzip_output else "words_to_bpe.txt"
-        )
+        self.out_bpe_text = self.output_path("words_to_bpe.txt.gz" if gzip_output else "words_to_bpe.txt")
 
         self.mini_task = mini_task
         self.rqmt = {"cpu": 1, "mem": 2, "time": 2}
@@ -169,9 +164,7 @@ class ApplyBPEToTextJob(Job):
             sp.run(cmd, check=True)
 
             if self.gzip_output:
-                with util.uopen(tmp_outfile, "rt") as fin, util.uopen(
-                    self.out_bpe_text, "wb"
-                ) as fout:
+                with util.uopen(tmp_outfile, "rt") as fin, util.uopen(self.out_bpe_text, "wb") as fout:
                     sp.call(["gzip"], stdin=fin, stdout=fout)
             else:
                 shutil.copy(tmp_outfile, self.out_bpe_text.get_path())

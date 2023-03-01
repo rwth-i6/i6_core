@@ -90,9 +90,7 @@ class ReturnnSearchJobV2(Job):
 
         self.out_returnn_config_file = self.output_path("returnn.config")
 
-        self.out_search_file = self.output_path(
-            "search_out" + (f".{output_mode}.gz" if output_gzip else "")
-        )
+        self.out_search_file = self.output_path("search_out" + (f".{output_mode}.gz" if output_gzip else ""))
 
         self.returnn_config = ReturnnSearchJobV2.create_returnn_config(**kwargs)
         self.returnn_config.post_config["search_output_file"] = self.out_search_file
@@ -121,9 +119,9 @@ class ReturnnSearchJobV2(Job):
         util.create_executable("rnn.sh", cmd)
 
         # check here if model actually exists
-        assert os.path.exists(
-            self.model_checkpoint.index_path.get_path()
-        ), "Provided model does not exists: %s" % str(self.model_checkpoint)
+        assert os.path.exists(self.model_checkpoint.index_path.get_path()), "Provided model does not exists: %s" % str(
+            self.model_checkpoint
+        )
 
     def run(self):
         call = [
@@ -240,14 +238,8 @@ class ReturnnSearchFromFileJob(Job):
         :param tk.Path|str returnn_root: RETURNN source root
         """
 
-        self.returnn_python_exe = (
-            returnn_python_exe
-            if returnn_python_exe is not None
-            else gs.RETURNN_PYTHON_EXE
-        )
-        self.returnn_root = (
-            returnn_root if returnn_root is not None else gs.RETURNN_ROOT
-        )
+        self.returnn_python_exe = returnn_python_exe if returnn_python_exe is not None else gs.RETURNN_PYTHON_EXE
+        self.returnn_root = returnn_root if returnn_root is not None else gs.RETURNN_ROOT
 
         self.returnn_config_file_in = returnn_config_file
         self.default_model_name = default_model_name
@@ -266,28 +258,19 @@ class ReturnnSearchFromFileJob(Job):
         self.parameter_dict["search_output_file_format"] = output_mode
 
     def update(self):
-        if (
-            "ext_model" in self.parameter_dict
-            and "ext_load_epoch" in self.parameter_dict
-        ):
+        if "ext_model" in self.parameter_dict and "ext_load_epoch" in self.parameter_dict:
             epoch = self.parameter_dict["ext_load_epoch"]
             epoch = epoch.get() if isinstance(epoch, tk.Variable) else epoch
             model_dir = self.parameter_dict["ext_model"]
             if isinstance(model_dir, tk.Path):
                 self.add_input(
                     Path(
-                        tk.uncached_path(model_dir)
-                        + "/%s.%03d.index" % (self.default_model_name, epoch),
+                        tk.uncached_path(model_dir) + "/%s.%03d.index" % (self.default_model_name, epoch),
                         creator=model_dir.creator,
                     )
                 )
             else:
-                self.add_input(
-                    Path(
-                        tk.uncached_path(model_dir)
-                        + "/%s.%03d.index" % (self.default_model_name, epoch)
-                    )
-                )
+                self.add_input(Path(tk.uncached_path(model_dir) + "/%s.%03d.index" % (self.default_model_name, epoch)))
 
     def tasks(self):
         yield Task("create_files", mini_task=True)
@@ -406,33 +389,21 @@ class SearchWordsToCTMJob(Job):
         corpus = Corpus()
         corpus.load(self.bliss_corpus.get_path())
         d = eval(util.uopen(self.recog_words_file.get_path(), "r").read())
-        assert isinstance(
-            d, dict
-        ), "only search output file with dict format is supported"
+        assert isinstance(d, dict), "only search output file with dict format is supported"
         with util.uopen(self.out_ctm_file.get_path(), "w") as out:
-            out.write(
-                ";; <name> <track> <start> <duration> <word> <confidence> [<n-best>]\n"
-            )
+            out.write(";; <name> <track> <start> <duration> <word> <confidence> [<n-best>]\n")
             for seg in corpus.segments():
                 seg_start = 0.0 if seg.start == float("inf") else seg.start
                 seg_end = 0.0 if seg.end == float("inf") else seg.end
                 seg_fullname = seg.fullname()
-                assert seg_fullname in d, "can not find {} in search output".format(
-                    seg_fullname
-                )
+                assert seg_fullname in d, "can not find {} in search output".format(seg_fullname)
                 out.write(";; %s (%f-%f)\n" % (seg_fullname, seg_start, seg_end))
-                assert isinstance(
-                    d[seg_fullname], str
-                ), "no support for n-best lists yet"
+                assert isinstance(d[seg_fullname], str), "no support for n-best lists yet"
                 words = d[seg_fullname].split()
                 # Just linearly interpolate the start/end of each word as time stamps are not given
                 avg_dur = (seg_end - seg_start) * 0.9 / max(len(words), 1)
                 for i in range(len(words)):
-                    if (
-                        self.filter_tags
-                        and words[i].startswith("[")
-                        and words[i].endswith("]")
-                    ):
+                    if self.filter_tags and words[i].startswith("[") and words[i].endswith("]"):
                         continue
                     out.write(
                         "%s 1 %f %f %s 0.99\n"
@@ -450,9 +421,7 @@ class ReturnnComputeWERJob(Job):
     Computes WER using the calculate-word-error-rate.py tool from RETURNN
     """
 
-    def __init__(
-        self, hypothesis, reference, returnn_python_exe=None, returnn_root=None
-    ):
+    def __init__(self, hypothesis, reference, returnn_python_exe=None, returnn_root=None):
         """
 
         :param Path hypothesis: python-style search output from RETURNN (e.g. SearchBPEtoWordsJob)
@@ -463,9 +432,7 @@ class ReturnnComputeWERJob(Job):
         self.hypothesis = hypothesis
         self.reference = reference
 
-        self.returnn_python_exe = (
-            returnn_python_exe if returnn_python_exe else gs.RETURNN_PYTHON_EXE
-        )
+        self.returnn_python_exe = returnn_python_exe if returnn_python_exe else gs.RETURNN_PYTHON_EXE
         self.returnn_root = returnn_root if returnn_root else gs.RETURNN_ROOT
 
         self.out_wer = self.output_var("wer")
@@ -525,9 +492,7 @@ class SearchRemoveLabelJob(Job):
     Remove some labels from the search output, e.g. "<blank>".
     """
 
-    def __init__(
-        self, search_py_output: tk.Path, *, remove_label: Union[str, Set[str]]
-    ):
+    def __init__(self, search_py_output: tk.Path, *, remove_label: Union[str, Set[str]]):
         """
         :param search_py_output: a search output file from RETURNN in python format (single or n-best)
         :param remove_label: label(s) to remove from the output, e.g. "<blank>"
@@ -616,9 +581,7 @@ class SearchBeamJoinScoresJob(Job):
                     else:
                         hyps[text] = logsumexp(hyps[text], score)
                 out.write("%r: [\n" % (seq_tag,))
-                for score, text in sorted(
-                    [(score, text) for text, score in hyps.items()], reverse=True
-                ):
+                for score, text in sorted([(score, text) for text, score in hyps.items()], reverse=True):
                     out.write("(%f, %r),\n" % (score, text))
                 out.write("],\n")
             out.write("}\n")

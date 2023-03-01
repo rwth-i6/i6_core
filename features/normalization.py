@@ -46,12 +46,8 @@ class CovarianceNormalizationJob(rasr.RasrCommand, Job):
         )
 
         self.estimate_log_file = self.log_file_output_path("estimate", crp, False)
-        self.normalization_log_file = self.log_file_output_path(
-            "normalization", crp, False
-        )
-        self.normalization_matrix = self.output_path(
-            "normalization.matrix", cached=True
-        )
+        self.normalization_log_file = self.log_file_output_path("normalization", crp, False)
+        self.normalization_matrix = self.output_path("normalization.matrix", cached=True)
 
     def tasks(self):
         yield Task("create_files", mini_task=True)
@@ -96,13 +92,9 @@ class CovarianceNormalizationJob(rasr.RasrCommand, Job):
             crp, {"corpus": "feature-statistics.corpus"}
         )
         config_estimate.feature_statistics.action = "estimate-covariance"
-        config_estimate.feature_statistics.covariance_estimator.file = (
-            "xml:covariance.matrix"
-        )
+        config_estimate.feature_statistics.covariance_estimator.file = "xml:covariance.matrix"
         config_estimate.feature_statistics.covariance_estimator.shall_normalize = True
-        config_estimate.feature_statistics.covariance_estimator.feature_extraction.file = (
-            "feature.flow"
-        )
+        config_estimate.feature_statistics.covariance_estimator.feature_extraction.file = "feature.flow"
         config_estimate.feature_statistics.covariance_estimator.output_precision = 20
 
         feature_flow.apply_config(
@@ -119,18 +111,14 @@ class CovarianceNormalizationJob(rasr.RasrCommand, Job):
             config_normalization,
             post_config_normalization,
         ) = rasr.build_config_from_mapping(crp, {})
-        config_normalization.feature_statistics.action = (
-            "calculate-covariance-diagonal-normalization"
-        )
+        config_normalization.feature_statistics.action = "calculate-covariance-diagonal-normalization"
         config_normalization.feature_statistics.covariance_diagonal_normalization.covariance_file = (
             "xml:covariance.matrix"
         )
         config_normalization.feature_statistics.covariance_diagonal_normalization.normalization_file = (
             "xml:normalization.matrix"
         )
-        config_normalization.feature_statistics.covariance_diagonal_normalization.output_precision = (
-            20
-        )
+        config_normalization.feature_statistics.covariance_diagonal_normalization.output_precision = 20
 
         config_normalization._update(extra_config_normalization)
         post_config_normalization._update(extra_post_config_normalization)

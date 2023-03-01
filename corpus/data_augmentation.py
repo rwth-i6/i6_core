@@ -118,19 +118,11 @@ class SelfNoiseCorpusJob(Job):
             else:
                 ffmpeg_head = "ffmpeg -hide_banner  -i '%s' " % audio_name
                 noise_inputs = " ".join(
-                    [
-                        "-i '/dev/shm/%s/tmp_concat_%i.wav'" % (id, i)
-                        for i in range(self.n_noise_tracks)
-                    ]
+                    ["-i '/dev/shm/%s/tmp_concat_%i.wav'" % (id, i) for i in range(self.n_noise_tracks)]
                 )
                 filter_head = ' -filter_complex "'
                 volume_reduction = (
-                    ";".join(
-                        [
-                            "[%i]volume=-%idB[a%i]" % (i + 1, self.snr, i + 1)
-                            for i in range(self.n_noise_tracks)
-                        ]
-                    )
+                    ";".join(["[%i]volume=-%idB[a%i]" % (i + 1, self.snr, i + 1) for i in range(self.n_noise_tracks)])
                     + ";"
                 )
                 mixer = (
@@ -139,14 +131,7 @@ class SelfNoiseCorpusJob(Job):
                     + "amix=duration=first:inputs=%i[out]" % (self.n_noise_tracks + 1)
                 )
                 filter_tail = '" -map "[out]" "{audio_out}/%s"' % reverbed_audio_name
-                command = (
-                    ffmpeg_head
-                    + noise_inputs
-                    + filter_head
-                    + volume_reduction
-                    + mixer
-                    + filter_tail
-                )
+                command = ffmpeg_head + noise_inputs + filter_head + volume_reduction + mixer + filter_tail
                 self.sh(command)
 
             nr = corpus.Recording()
@@ -215,8 +200,7 @@ class ChangeCorpusSpeedJob(Job):
 
             self.sh(
                 "ffmpeg -hide_banner -i '%s' -filter:a \"asetrate={base_frequency}*{speed_factor}\" "
-                "-ar {base_frequency} '{audio_out}/%s'"
-                % (r.audio, perturbed_audio_name)
+                "-ar {base_frequency} '{audio_out}/%s'" % (r.audio, perturbed_audio_name)
             )
 
             pr = corpus.Recording()

@@ -51,9 +51,7 @@ class ScoreFeaturesJob(rasr.RasrCommand, Job):
         self.config, self.post_config = ScoreFeaturesJob.create_config(**kwargs)
         self.feature_flow = feature_flow
         self.concurrent = crp.concurrent
-        self.exe = self.select_exe(
-            crp.acoustic_model_trainer_exe, "acoustic-model-trainer"
-        )
+        self.exe = self.select_exe(crp.acoustic_model_trainer_exe, "acoustic-model-trainer")
         self.feature_scorer = feature_scorer
         self.normalize = normalize
         self.plot_prior = plot_prior
@@ -75,9 +73,7 @@ class ScoreFeaturesJob(rasr.RasrCommand, Job):
 
     def tasks(self):
         yield Task("create_files", resume="create_files", mini_task=True)
-        yield Task(
-            "run", resume="run", rqmt=self.rqmt, args=range(1, self.concurrent + 1)
-        )
+        yield Task("run", resume="run", rqmt=self.rqmt, args=range(1, self.concurrent + 1))
         yield Task("prior_and_plot", resume="prior_and_plot", mini_task=True)
 
     def create_files(self):
@@ -90,10 +86,8 @@ class ScoreFeaturesJob(rasr.RasrCommand, Job):
             'export TF_DEVICE="{0}"'.format("gpu" if self.use_gpu else "cpu")
         )
         if self.rqmt["cpu"] > 1:
-            extra_code += (
-                "\nexport MKL_NUM_THREADS={}\nexport OMP_NUM_THREADS={}".format(
-                    self.rqmt["cpu"], self.rqmt["cpu"]
-                )
+            extra_code += "\nexport MKL_NUM_THREADS={}\nexport OMP_NUM_THREADS={}".format(
+                self.rqmt["cpu"], self.rqmt["cpu"]
             )
         self.write_run_script(self.exe, "score_features.config", extra_code=extra_code)
 
@@ -131,10 +125,7 @@ class ScoreFeaturesJob(rasr.RasrCommand, Job):
         merged_scores = [s / total_mass for s in merged_scores]
 
         with open(self.out_prior.get_path(), "wt") as f:
-            f.write(
-                '<?xml version="1.0" encoding="UTF-8"?>\n<vector-f32 size="%d">\n'
-                % len(merged_scores)
-            )
+            f.write('<?xml version="1.0" encoding="UTF-8"?>\n<vector-f32 size="%d">\n' % len(merged_scores))
             f.write(" ".join("%.20e" % math.log(s) for s in merged_scores) + "\n")
             f.write("</vector-f32>")
 
@@ -188,12 +179,8 @@ class ScoreFeaturesJob(rasr.RasrCommand, Job):
         )
 
         config.action = "calculate-average-feature-scorer-activation"
-        config.acoustic_model_trainer.average_feature_scorer_activation.feature_extraction.file = (
-            "feature.flow"
-        )
-        config.acoustic_model_trainer.average_feature_scorer_activation.output.channel = (
-            crp.default_log_channel
-        )
+        config.acoustic_model_trainer.average_feature_scorer_activation.feature_extraction.file = "feature.flow"
+        config.acoustic_model_trainer.average_feature_scorer_activation.output.channel = crp.default_log_channel
 
         config._update(extra_config)
         post_config._update(extra_post_config)

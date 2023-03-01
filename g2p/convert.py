@@ -46,9 +46,7 @@ class BlissLexiconToG2PLexiconJob(Job):
             tree = ET.parse(f)
         with uopen(self.out_g2p_lexicon, "wt") as out:
             all_lemmas = tree.findall(".//lemma")
-            assert (
-                len(all_lemmas) > 0
-            ), "No lemma tag found in the lexicon file! Wrong format file?"
+            assert len(all_lemmas) > 0, "No lemma tag found in the lexicon file! Wrong format file?"
 
             for lemma in all_lemmas:
                 if lemma.get("special") is not None:
@@ -97,23 +95,15 @@ class G2POutputToBlissLexiconJob(Job):
     def run(self):
         with uopen(self.g2p_lexicon, "rt", encoding="utf-8") as f:
             oov_words = dict()
-            for orth, data in it.groupby(
-                map(lambda line: line.strip().split("\t"), f), lambda t: t[0]
-            ):
+            for orth, data in it.groupby(map(lambda line: line.strip().split("\t"), f), lambda t: t[0]):
                 oov_words[orth] = []
                 for d in data:
                     if len(d) == 4:
                         oov_words[orth].append(d[3])
                     elif len(d) < 4:
-                        logging.warning(
-                            'No pronunciation found for orthography "{}"'.format(orth)
-                        )
+                        logging.warning('No pronunciation found for orthography "{}"'.format(orth))
                     else:
-                        logging.warning(
-                            'Did not fully parse entry for orthography "{}"'.format(
-                                orth
-                            )
-                        )
+                        logging.warning('Did not fully parse entry for orthography "{}"'.format(orth))
 
         iv_lexicon = lexicon.Lexicon()
         iv_lexicon.load(self.iv_bliss_lexicon.get_path())

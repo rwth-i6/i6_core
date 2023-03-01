@@ -19,10 +19,7 @@ class DownloadTEDLIUM2CorpusJob(Job):
     """
 
     def __init__(self):
-        self.out_corpus_folders = {
-            corpus_key: self.output_path(corpus_key)
-            for corpus_key in ["train", "dev", "test"]
-        }
+        self.out_corpus_folders = {corpus_key: self.output_path(corpus_key) for corpus_key in ["train", "dev", "test"]}
         self.out_lm_folder = self.output_path("LM")
         self.out_vocab_dict = self.output_path("TEDLIUM.152k.dic")
 
@@ -84,9 +81,7 @@ class CreateTEDLIUM2BlissCorpusJob(Job):
         self.out_stm_files = {}
         for corpus_key in ["train", "dev", "test"]:
             assert corpus_key in self.corpus_folders
-            self.out_corpus_files[corpus_key] = self.output_path(
-                "%s.corpus.xml.gz" % corpus_key
-            )
+            self.out_corpus_files[corpus_key] = self.output_path("%s.corpus.xml.gz" % corpus_key)
             self.out_stm_files[corpus_key] = self.output_path("%s.stm" % corpus_key)
 
     def tasks(self):
@@ -133,26 +128,20 @@ class CreateTEDLIUM2BlissCorpusJob(Job):
                     text = data[idx][6]
                     text = text.replace("imiss", "i miss")
                     text = text.replace("uptheir", "up their")
-                    text = re.sub(
-                        "(\w)'([a-zA-Z])", r"\1 '\2", text
-                    )  # split apostrophe
+                    text = re.sub("(\w)'([a-zA-Z])", r"\1 '\2", text)  # split apostrophe
                     data[idx][6] = text
 
                     # train-only: segment boundary non-overlapping extension (kaldi)
                     if corpus_key == "train":
                         pre_seg = None if idx == 0 else data[idx - 1]
                         next_seg = None if idx == len(data) - 1 else data[idx + 1]
-                        data[idx][3], data[idx][4] = extend_segment_time(
-                            data[idx], pre_seg, next_seg, 0.15, 0.1
-                        )
+                        data[idx][3], data[idx][4] = extend_segment_time(data[idx], pre_seg, next_seg, 0.15, 0.1)
 
                 for seg in data:
                     f.write(" ".join(seg) + "\n")
 
             f.close()
-            shutil.move(
-                "%s.stm" % corpus_key, self.out_stm_files[corpus_key].get_path()
-            )
+            shutil.move("%s.stm" % corpus_key, self.out_stm_files[corpus_key].get_path())
 
     def make_corpus(self):
         """

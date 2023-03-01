@@ -47,15 +47,9 @@ class ReturnnSearchJob(Job):
 
         self.model_checkpoint = model_checkpoint
 
-        self.returnn_python_exe = (
-            returnn_python_exe
-            if returnn_python_exe is not None
-            else gs.RETURNN_PYTHON_EXE
-        )
+        self.returnn_python_exe = returnn_python_exe if returnn_python_exe is not None else gs.RETURNN_PYTHON_EXE
 
-        self.returnn_root = (
-            returnn_root if returnn_root is not None else gs.RETURNN_ROOT
-        )
+        self.returnn_root = returnn_root if returnn_root is not None else gs.RETURNN_ROOT
 
         self.out_returnn_config_file = self.output_path("returnn.config")
 

@@ -87,8 +87,7 @@ class ReturnnScorer(FeatureScorer):
         self.config.pymod_name = "returnn.SprintInterface"
         self.config.pymod_path = get_returnn_root(returnn_root).join_right("..")
         self.config.pymod_config = StringWrapper(
-            "epoch:%d,action:forward,configfile:%s"
-            % (model.epoch, model.returnn_config_file),
+            "epoch:%d,action:forward,configfile:%s" % (model.epoch, model.returnn_config_file),
             model,
         )
         self.config.scale = mixture_scale

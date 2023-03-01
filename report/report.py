@@ -35,9 +35,7 @@ class GenerateReportStringJob(Job):
         self.report_template = report_template
         self.compress = compress
 
-        self.out_report = self.output_path(
-            "report.txt.gz" if self.compress else "report.txt"
-        )
+        self.out_report = self.output_path("report.txt.gz" if self.compress else "report.txt")
 
     def tasks(self):
         yield Task("run", mini_task=True)
@@ -95,15 +93,9 @@ class MailJob(Job):
             subject = self.subject
 
         if self.send_contents:
-            p1 = subprocess.Popen(
-                ["zcat", "-f", self.result.get_path()], stdout=subprocess.PIPE
-            )
-            value = subprocess.check_output(
-                ["mail", "-s", subject, self.mail_address], stdin=p1.stdout
-            )
+            p1 = subprocess.Popen(["zcat", "-f", self.result.get_path()], stdout=subprocess.PIPE)
+            value = subprocess.check_output(["mail", "-s", subject, self.mail_address], stdin=p1.stdout)
         else:
-            out = subprocess.run(
-                ["mail", "-s", subject, self.mail_address], input=subject, check=True
-            )
+            out = subprocess.run(["mail", "-s", subject, self.mail_address], input=subject, check=True)
             value = out.returncode
         self.out_status.set(value)

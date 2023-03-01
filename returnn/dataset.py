@@ -81,9 +81,7 @@ class ExtractDatasetMeanStddevJob(Job):
         total_mean = 0
         total_var = 0
 
-        with open(self.out_mean_file.get_path()) as mean_file, open(
-            self.out_std_dev_file.get_path()
-        ) as std_dev_file:
+        with open(self.out_mean_file.get_path()) as mean_file, open(self.out_std_dev_file.get_path()) as std_dev_file:
 
             # compute the total mean and std-dev in an iterative way
             for i, (mean, std_dev) in enumerate(zip(mean_file, std_dev_file)):
@@ -135,17 +133,13 @@ class SpeakerLabelHDFFromBlissJob(Job):
         SimpleHDFWriter = get_returnn_simple_hdf_writer(
             returnn_root=self.returnn_root.get_path() if self.returnn_root else None
         )
-        hdf_writer = SimpleHDFWriter(
-            self.out_speaker_hdf.get_path(), dim=num_speakers, ndim=1
-        )
+        hdf_writer = SimpleHDFWriter(self.out_speaker_hdf.get_path(), dim=num_speakers, ndim=1)
 
         for recording in bliss.all_recordings():
             for segment in recording.segments:
                 speaker_name = segment.speaker_name or recording.speaker_name
                 speaker_index = index_by_speaker[speaker_name]
                 segment_name = segment.fullname()
-                hdf_writer.insert_batch(
-                    numpy.asarray([[speaker_index]], dtype="int32"), [1], [segment_name]
-                )
+                hdf_writer.insert_batch(numpy.asarray([[speaker_index]], dtype="int32"), [1], [segment_name])
 
         hdf_writer.close()

@@ -39,10 +39,7 @@ def generate():
                 continue
             if fn == "__pycache__":
                 continue
-            if (
-                not os.path.exists(os.path.join(path, fn, "__init__.py"))
-                and not fn == "i6_core"
-            ):
+            if not os.path.exists(os.path.join(path, fn, "__init__.py")) and not fn == "i6_core":
                 continue
             scan_modules(modpath + [fn])
 

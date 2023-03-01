@@ -37,9 +37,7 @@ class AnalogJob(Job):
         analog_path = os.path.join(gs.RASR_ROOT, "src/Tools/Analog/analog")
         with open(self.out_report.get_path(), "w") as out:
             sp.check_call(
-                [analog_path]
-                + (["-m"] if self.merge else [])
-                + [tk.uncached_path(c) for c in self.configs],
+                [analog_path] + (["-m"] if self.merge else []) + [tk.uncached_path(c) for c in self.configs],
                 stdout=out,
             )
 
@@ -118,11 +116,7 @@ class ScliteJob(Job):
         if self.sctk_binary_path:
             sclite_path = os.path.join(self.sctk_binary_path.get_path(), "sclite")
         else:
-            sclite_path = (
-                os.path.join(gs.SCTK_PATH, "sclite")
-                if hasattr(gs, "SCTK_PATH")
-                else "sclite"
-            )
+            sclite_path = os.path.join(gs.SCTK_PATH, "sclite") if hasattr(gs, "SCTK_PATH") else "sclite"
         output_dir = self.out_report_dir.get_path() if output_to_report_dir else "."
         stm_file = tmp_stm_file if self.sort_files else self.ref.get_path()
         ctm_file = tmp_ctm_file if self.sort_files else self.hyp.get_path()
@@ -255,9 +249,7 @@ class Hub5ScoreJob(Job):
             sctk_path = self.sctk_binary_path.get_path()
         elif hasattr(gs, "SCTK_PATH"):
             sctk_path = gs.SCTK_PATH
-        hubscr_path = os.path.join(
-            sctk_path, "hubscr.pl"
-        )  # evaluates to just "hubscr.pl" if sctk_path is empty
+        hubscr_path = os.path.join(sctk_path, "hubscr.pl")  # evaluates to just "hubscr.pl" if sctk_path is empty
 
         sctk_opt = ["-p", sctk_path] if sctk_path else []
 
@@ -274,9 +266,7 @@ class Hub5ScoreJob(Job):
             pass
 
         sp.check_call(
-            [hubscr_path, "-V", "-l", "english", "-h", "hub5"]
-            + sctk_opt
-            + ["-g", self.glm.get_path(), "-r", ref, hyp]
+            [hubscr_path, "-V", "-l", "english", "-h", "hub5"] + sctk_opt + ["-g", self.glm.get_path(), "-r", ref, hyp]
         )
 
         if move_files:  # run as real job
@@ -496,9 +486,7 @@ class KaldiScorerJob(Job):
             transcriptions = collections.defaultdict(list)
             for line in f:
                 if line.startswith(";;"):
-                    full_name = line.split(" ")[
-                        1
-                    ]  # second field contains full segment name
+                    full_name = line.split(" ")[1]  # second field contains full segment name
                     continue
 
                 fields = line.split()
@@ -541,9 +529,7 @@ class KaldiScorerJob(Job):
             transcriptions = collections.defaultdict(list)
             for line in f:
                 if line.startswith(";;"):
-                    full_name = line.split(" ")[
-                        1
-                    ]  # second field contains full segment name
+                    full_name = line.split(" ")[1]  # second field contains full segment name
                     continue
 
                 fields = line.split()

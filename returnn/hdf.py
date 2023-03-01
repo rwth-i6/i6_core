@@ -145,9 +145,7 @@ class ReturnnRasrDumpHDFJob(ReturnnDumpHDFJob):
 
         data = {
             "class": "ExternSprintDataset",
-            "sprintTrainerExecPath": rasr.RasrCommand.select_exe(
-                crp.nn_trainer_exe, "nn-trainer"
-            ),
+            "sprintTrainerExecPath": rasr.RasrCommand.select_exe(crp.nn_trainer_exe, "nn-trainer"),
             "sprintConfigStr": "--config=rasr.config --*.LOGFILE=nn-trainer.log --*.TASK=1",
             "partitionEpoch": 1,
         }
@@ -166,10 +164,7 @@ class ReturnnRasrDumpHDFJob(ReturnnDumpHDFJob):
         self.alignment = alignment
         self.rasr_exe = rasr.RasrCommand.select_exe(crp.nn_trainer_exe, "nn-trainer")
         self.feature_flow = ReturnnRasrTrainingJob.create_flow(feature_flow, alignment)
-        (
-            self.rasr_config,
-            self.rasr_post_config,
-        ) = ReturnnRasrTrainingJob.create_config(
+        (self.rasr_config, self.rasr_post_config,) = ReturnnRasrTrainingJob.create_config(
             crp=crp,
             alignment=alignment,
             num_classes=num_classes,
@@ -187,14 +182,10 @@ class ReturnnRasrDumpHDFJob(ReturnnDumpHDFJob):
         yield Task("run", rqmt=self.rqmt)
 
     def create_files(self):
-        rasr.RasrCommand.write_config(
-            self.rasr_config, self.rasr_post_config, "rasr.config"
-        )
+        rasr.RasrCommand.write_config(self.rasr_config, self.rasr_post_config, "rasr.config")
         self.feature_flow.write_to_file("feature.flow")
         with open("dummy.flow", "wt") as f:
-            f.write(
-                '<?xml version="1.0" ?>\n<network><out name="features" /></network>'
-            )
+            f.write('<?xml version="1.0" ?>\n<network><out name="features" /></network>')
 
 
 class BlissToPcmHDFJob(Job):
@@ -251,9 +242,7 @@ class BlissToPcmHDFJob(Job):
         yield Task("run", rqmt=self.rqmt)
 
     def run(self):
-        returnn_root = (
-            None if self.returnn_root is None else self.returnn_root.get_path()
-        )
+        returnn_root = None if self.returnn_root is None else self.returnn_root.get_path()
         SimpleHDFWriter = get_returnn_simple_hdf_writer(returnn_root)
 
         c = corpus.Corpus()
@@ -261,9 +250,7 @@ class BlissToPcmHDFJob(Job):
 
         if self.segment_file:
             with uopen(self.segment_file, "rt") as f:
-                segments_whitelist = set(
-                    l.strip() for l in f.readlines() if len(l.strip()) > 0
-                )
+                segments_whitelist = set(l.strip() for l in f.readlines() if len(l.strip()) > 0)
         else:
             segments_whitelist = None
 
@@ -274,9 +261,7 @@ class BlissToPcmHDFJob(Job):
             audio = sf.SoundFile(audio_file)
 
             for segment in recording.segments:
-                if (not segments_whitelist) or (
-                    segment.fullname() in segments_whitelist
-                ):
+                if (not segments_whitelist) or (segment.fullname() in segments_whitelist):
                     audio.seek(int(segment.start * audio.samplerate))
                     data = audio.read(
                         int((segment.end - segment.start) * audio.samplerate),
@@ -286,9 +271,7 @@ class BlissToPcmHDFJob(Job):
                     if isinstance(self.multi_channel_strategy, PickNth):
                         data = data[:, self.multi_channel_strategy.channel]
                     else:
-                        assert (
-                            data.shape[-1] == 1
-                        ), "Audio has more than one channel, choose a multi_channel_strategy"
+                        assert data.shape[-1] == 1, "Audio has more than one channel, choose a multi_channel_strategy"
                     out_hdf.insert_batch(
                         inputs=data.reshape(1, -1, 1),
                         seq_len=[data.shape[0]],

@@ -48,37 +48,28 @@ class CorpusParser(sax.handler.ContentHandler):
             corpus
         ]  # stack of objects to store the element of the corpus that is beeing read
         self.path = path  # path of the parent corpus (needed for include statements)
-        self.chars = (
-            ""  # buffer for character events, it is reset whenever a new element starts
-        )
+        self.chars = ""  # buffer for character events, it is reset whenever a new element starts
 
     def startElement(self, name: str, attrs: Dict[str, str]):
         e = self.elements[-1]
         if name == "corpus":
-            assert (
-                len(self.elements) == 1
-            ), "<corpus> may only occur as the root element"
+            assert len(self.elements) == 1, "<corpus> may only occur as the root element"
             e.name = attrs["name"]
         elif name == "subcorpus":
-            assert isinstance(
-                e, Corpus
-            ), "<subcorpus> may only occur within a <corpus> or <subcorpus> element"
+            assert isinstance(e, Corpus), "<subcorpus> may only occur within a <corpus> or <subcorpus> element"
             subcorpus = Corpus()
             subcorpus.name = attrs["name"]
             subcorpus.parent_corpus = e
             e.subcorpora.append(subcorpus)
             self.elements.append(subcorpus)
         elif name == "include":
-            assert isinstance(
-                e, Corpus
-            ), "<include> may only occur within a <corpus> or <subcorpus> element"
+            assert isinstance(e, Corpus), "<include> may only occur within a <corpus> or <subcorpus> element"
             path = os.path.join(os.path.dirname(self.path), attrs["file"])
             c = Corpus()
             c.load(path)
             if c.name != e.name:
                 print(
-                    "Warning: included corpus (%s) has a different name than the current corpus (%s)"
-                    % (c.name, e.name)
+                    "Warning: included corpus (%s) has a different name than the current corpus (%s)" % (c.name, e.name)
                 )
             for sc in c.subcorpora:
                 sc.parent_corpus = e.parent_corpus
@@ -88,9 +79,7 @@ class CorpusParser(sax.handler.ContentHandler):
             e.recordings.extend(c.recordings)
             e.speakers.update(c.speakers)
         elif name == "recording":
-            assert isinstance(
-                e, Corpus
-            ), "<recording> may only occur within a <corpus> or <subcorpus> element"
+            assert isinstance(e, Corpus), "<recording> may only occur within a <corpus> or <subcorpus> element"
             rec = Recording()
             rec.name = attrs["name"]
             rec.audio = attrs["audio"]
@@ -98,9 +87,7 @@ class CorpusParser(sax.handler.ContentHandler):
             e.recordings.append(rec)
             self.elements.append(rec)
         elif name == "segment":
-            assert isinstance(
-                e, Recording
-            ), "<segment> may only occur within a <recording> element"
+            assert isinstance(e, Recording), "<segment> may only occur within a <recording> element"
             seg = Segment()
             seg.name = attrs.get("name", str(len(e.segments) + 1))
             seg.start = float(attrs.get("start", "0.0"))
@@ -228,9 +215,7 @@ class Corpus(NamedEntity, CorpusSection):
         else:
             return self.name
 
-    def speaker(
-        self, speaker_name: Optional[str], default_speaker: Optional[Speaker]
-    ) -> Speaker:
+    def speaker(self, speaker_name: Optional[str], default_speaker: Optional[Speaker]) -> Speaker:
         if speaker_name is None:
             speaker_name = self.speaker_name
         if speaker_name in self.speakers:
@@ -315,10 +300,7 @@ class Recording(NamedEntity, CorpusSection):
             return self.corpus.speaker(speaker_name, self.default_speaker)
 
     def dump(self, out: TextIO, indentation: str = ""):
-        out.write(
-            '%s<recording name="%s" audio="%s">\n'
-            % (indentation, self.name, self.audio)
-        )
+        out.write('%s<recording name="%s" audio="%s">\n' % (indentation, self.name, self.audio))
 
         for s in self.speakers.values():
             s.dump(out, indentation + "  ")
@@ -364,9 +346,7 @@ class Segment(NamedEntity):
         if self.speaker_name is not None:
             out.write('%s  <speaker name="%s"/>\n' % (indentation, self.speaker_name))
         if self.orth is not None:
-            out.write(
-                "%s  <orth> %s </orth>\n" % (indentation, saxutils.escape(self.orth))
-            )
+            out.write("%s  <orth> %s </orth>\n" % (indentation, saxutils.escape(self.orth)))
         if has_child_element:
             out.write("%s</segment>\n" % indentation)
         else:
@@ -380,17 +360,13 @@ class Speaker(NamedEntity):
 
     def dump(self, out: TextIO, indentation: str = ""):
         out.write(
-            "%s<speaker-description%s>"
-            % (indentation, (' name="%s"' % self.name) if self.name is not None else "")
+            "%s<speaker-description%s>" % (indentation, (' name="%s"' % self.name) if self.name is not None else "")
         )
         if len(self.attribs) > 0:
             out.write("\n")
         for k, v in self.attribs.items():
             out.write("%s  <%s>%s</%s>\n" % (indentation, k, v, k))
-        out.write(
-            "%s</speaker-description>\n"
-            % (indentation if len(self.attribs) > 0 else "")
-        )
+        out.write("%s</speaker-description>\n" % (indentation if len(self.attribs) > 0 else ""))
 
 
 class SegmentMap(object):

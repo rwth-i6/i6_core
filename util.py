@@ -41,9 +41,7 @@ class MultiPath:
 
     def __sis_state__(self):
         return {
-            "path_template": self.path_template
-            if self.hash_overwrite is None
-            else self.hash_overwrite,
+            "path_template": self.path_template if self.hash_overwrite is None else self.hash_overwrite,
             "hidden_paths": self.hidden_paths,
             "cached": self.cached,
         }
@@ -231,9 +229,7 @@ def write_xml(filename, element_tree, prettify=True):
 
     if prettify:
         remove_unwanted_whitespace(root)
-        xml_string = xml.dom.minidom.parseString(ET.tostring(root)).toprettyxml(
-            indent=" " * 2
-        )
+        xml_string = xml.dom.minidom.parseString(ET.tostring(root)).toprettyxml(indent=" " * 2)
     else:
         xml_string = ET.tostring(root, encoding="unicode")
 
@@ -253,13 +249,7 @@ def create_executable(filename, command):
         f.write("#!/usr/bin/env bash\n%s" % " ".join(command))
     os.chmod(
         filename,
-        stat.S_IRUSR
-        | stat.S_IRGRP
-        | stat.S_IROTH
-        | stat.S_IWUSR
-        | stat.S_IXUSR
-        | stat.S_IXGRP
-        | stat.S_IXOTH,
+        stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH | stat.S_IWUSR | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH,
     )
 
 
@@ -328,9 +318,7 @@ def get_executable_path(
         if isinstance(path, tk.Path):
             return path
         elif isinstance(path, str):
-            logging.warning(
-                f"use of str is deprecated, please provide a Path object for {path}"
-            )
+            logging.warning(f"use of str is deprecated, please provide a Path object for {path}")
             return tk.Path(path)
         elif isinstance(path, DelayedFormat):
             logging.warning(
@@ -348,9 +336,7 @@ def get_executable_path(
         assert False, f"unsupported type of {type(path)} for input {path}"
     if getattr(gs, gs_member_name, None) is not None:
         if gs_member_name not in already_printed_gs_warnings:
-            logging.warning(
-                f"use of gs is deprecated, please provide a Path object for gs.{gs_member_name}"
-            )
+            logging.warning(f"use of gs is deprecated, please provide a Path object for gs.{gs_member_name}")
             already_printed_gs_warnings.add(gs_member_name)
 
         return tk.Path(getattr(gs, gs_member_name))

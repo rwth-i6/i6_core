@@ -20,13 +20,9 @@ class StoreAllophonesJob(rasr.RasrCommand, Job):
     ):
         self.set_vis_name("Store Allophones")
 
-        self.config, self.post_config = StoreAllophonesJob.create_config(
-            crp, extra_config, extra_post_config
-        )
+        self.config, self.post_config = StoreAllophonesJob.create_config(crp, extra_config, extra_post_config)
         self.exe = self.select_exe(crp.allophone_tool_exe, "allophone-tool")
-        self.num_single_state_monophones = (
-            num_single_state_monophones  # usually only silence and noise
-        )
+        self.num_single_state_monophones = num_single_state_monophones  # usually only silence and noise
 
         self.out_log_file = self.log_file_output_path("store-allophones", crp, False)
         self.out_allophone_file = self.output_path("allophones")
@@ -54,15 +50,10 @@ class StoreAllophonesJob(rasr.RasrCommand, Job):
         num_monophones = len(set(a.split("{")[0] for a in allophones))
         self.out_num_monophones.set(num_monophones)
 
-        self.config._update(
-            self.post_config
-        )  # make it easier to access states-per-phone
-        states_per_phone = (
-            self.config.allophone_tool.acoustic_model.hmm.states_per_phone
-        )
+        self.config._update(self.post_config)  # make it easier to access states-per-phone
+        states_per_phone = self.config.allophone_tool.acoustic_model.hmm.states_per_phone
         num_monophone_states = (
-            self.num_single_state_monophones
-            + (num_monophones - self.num_single_state_monophones) * states_per_phone
+            self.num_single_state_monophones + (num_monophones - self.num_single_state_monophones) * states_per_phone
         )
         self.out_num_monophone_states.set(num_monophone_states)
 
@@ -97,9 +88,7 @@ class DumpStateTyingJob(rasr.RasrCommand, Job):
     def __init__(self, crp, extra_config=None, extra_post_config=None):
         self.set_vis_name("Dump state-tying")
 
-        self.config, self.post_config = DumpStateTyingJob.create_config(
-            crp, extra_config, extra_post_config
-        )
+        self.config, self.post_config = DumpStateTyingJob.create_config(crp, extra_config, extra_post_config)
         self.exe = self.select_exe(crp.allophone_tool_exe, "allophone-tool")
 
         self.out_log_file = self.log_file_output_path("dump-state-tying", crp, False)
