@@ -68,9 +68,7 @@ class BlissToOggZipJob(Job):
         self.no_conversion = no_conversion
         self.no_audio = no_audio
         self.ffmpeg_acodec = ffmpeg_acodec
-        self.concurrent = (
-            len(segments.hidden_paths) if isinstance(segments, MultiOutputPath) else 1
-        )
+        self.concurrent = len(segments.hidden_paths) if isinstance(segments, MultiOutputPath) else 1
 
         self.returnn_python_exe = get_returnn_python_exe(returnn_python_exe)
         self.returnn_root = get_returnn_root(returnn_root)
@@ -103,11 +101,7 @@ class BlissToOggZipJob(Job):
                 yield Task("merge", mini_task=True)
 
     def run(self, task_id):
-        output = (
-            self.zip_subarchives.hidden_paths[task_id]
-            if self.concurrent > 1
-            else "out.ogg.zip"
-        )
+        output = self.zip_subarchives.hidden_paths[task_id] if self.concurrent > 1 else "out.ogg.zip"
         args = [
             self.returnn_python_exe.get_path(),
             self.returnn_root.join_right("tools/bliss-to-ogg-zip.py").get_path(),
@@ -142,17 +136,13 @@ class BlissToOggZipJob(Job):
         with tempfile.TemporaryDirectory(prefix=gs.TMP_PREFIX) as tmp_dir:
             # extract all subarchives
             for zip_subarchive in self.zip_subarchives.hidden_paths.values():
-                with zipfile.ZipFile(
-                    zip_subarchive, mode="r", compression=zipfile.ZIP_DEFLATED
-                ) as zip_file:
+                with zipfile.ZipFile(zip_subarchive, mode="r", compression=zipfile.ZIP_DEFLATED) as zip_file:
                     zip_file.extractall(tmp_dir)
                 os.remove(zip_subarchive)
 
             # create output folder
             assert self.out_ogg_zip.get().endswith(".zip")
-            output_folder = os.path.join(
-                tmp_dir, os.path.basename(self.out_ogg_zip.get())[: -len(".zip")]
-            )
+            output_folder = os.path.join(tmp_dir, os.path.basename(self.out_ogg_zip.get())[: -len(".zip")])
             os.mkdir(output_folder)
 
             # merge meta files, remove from subarchives
@@ -160,9 +150,7 @@ class BlissToOggZipJob(Job):
             with open(meta_file, "w") as mf:
                 mf.write("[\n")
                 for zip_subarchive in self.zip_subarchives.hidden_paths.values():
-                    sub_meta_file = os.path.join(
-                        tmp_dir, zip_subarchive.replace(".zip", ".txt")
-                    )
+                    sub_meta_file = os.path.join(tmp_dir, zip_subarchive.replace(".zip", ".txt"))
                     with open(sub_meta_file, "r") as smf:
                         for line in smf.readlines():
                             if not (line.startswith("[") or line.startswith("]")):
@@ -176,9 +164,7 @@ class BlissToOggZipJob(Job):
                 "-av",
                 os.path.join(
                     tmp_dir,
-                    os.path.basename(self.zip_subarchives.path_template).replace(
-                        ".$(TASK).zip", ".*/*"
-                    ),
+                    os.path.basename(self.zip_subarchives.path_template).replace(".$(TASK).zip", ".*/*"),
                 ),
                 output_folder,
             ]

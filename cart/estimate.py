@@ -51,15 +51,11 @@ class AccumulateCartStatisticsJob(rasr.RasrCommand, Job):
             self.post_config_merge,
         ) = AccumulateCartStatisticsJob.create_merge_config(**kwargs)
         self.alignment_flow = alignment_flow
-        self.exe = self.select_exe(
-            crp.acoustic_model_trainer_exe, "acoustic-model-trainer"
-        )
+        self.exe = self.select_exe(crp.acoustic_model_trainer_exe, "acoustic-model-trainer")
         self.keep_accumulators = keep_accumulators
         self.concurrent = crp.concurrent
 
-        self.out_accumulate_log_file = self.log_file_output_path(
-            "accumulate", crp, True
-        )
+        self.out_accumulate_log_file = self.log_file_output_path("accumulate", crp, True)
         self.out_merge_log_file = self.log_file_output_path("merge", crp, False)
         self.out_cart_sum = self.output_path("cart.sum.xml.gz", cached=True)
 
@@ -80,18 +76,14 @@ class AccumulateCartStatisticsJob(rasr.RasrCommand, Job):
         yield Task("merge", mini_task=True)
 
     def create_files(self):
-        self.write_config(
-            self.config_accumulate, self.post_config_accumulate, "accumulate.config"
-        )
+        self.write_config(self.config_accumulate, self.post_config_accumulate, "accumulate.config")
         self.write_config(self.config_merge, self.post_config_merge, "merge.config")
         self.alignment_flow.write_to_file("alignment.flow")
         self.write_run_script(self.exe, "accumulate.config", "accumulate.sh")
         self.write_run_script(self.exe, "merge.config", "merge.sh")
 
     def accumulate(self, task_id):
-        self.run_script(
-            task_id, self.out_accumulate_log_file[task_id], "./accumulate.sh"
-        )
+        self.run_script(task_id, self.out_accumulate_log_file[task_id], "./accumulate.sh")
 
     def merge(self):
         self.run_script(1, self.out_merge_log_file, "./merge.sh")
@@ -135,12 +127,8 @@ class AccumulateCartStatisticsJob(rasr.RasrCommand, Job):
         )
 
         config.acoustic_model_trainer.action = "accumulate-cart-examples"
-        config.acoustic_model_trainer.aligning_feature_extractor.feature_extraction.file = (
-            "alignment.flow"
-        )
-        config.acoustic_model_trainer.cart_trainer.example_file = (
-            "cart.acc.xml.$(TASK).gz"
-        )
+        config.acoustic_model_trainer.aligning_feature_extractor.feature_extraction.file = "alignment.flow"
+        config.acoustic_model_trainer.cart_trainer.example_file = "cart.acc.xml.$(TASK).gz"
 
         alignment_flow.apply_config(
             "acoustic-model-trainer.aligning-feature-extractor.feature-extraction",
@@ -154,9 +142,7 @@ class AccumulateCartStatisticsJob(rasr.RasrCommand, Job):
         return config, post_config
 
     @classmethod
-    def create_merge_config(
-        cls, crp, extra_config_merge, extra_post_config_merge, **kwargs
-    ):
+    def create_merge_config(cls, crp, extra_config_merge, extra_post_config_merge, **kwargs):
         """
         :param rasr.crp.CommonRasrParameters crp:
         :param rasr.config.RasrConfig extra_config_merge:
@@ -227,9 +213,7 @@ class EstimateCartJob(rasr.RasrCommand, Job):
         del kwargs["self"]
 
         self.config, self.post_config = EstimateCartJob.create_config(**kwargs)
-        self.exe = self.select_exe(
-            crp.acoustic_model_trainer_exe, "acoustic-model-trainer"
-        )
+        self.exe = self.select_exe(crp.acoustic_model_trainer_exe, "acoustic-model-trainer")
         self.questions = questions
         self.generate_cluster_file = generate_cluster_file
         self.concurrent = crp.concurrent
@@ -293,16 +277,10 @@ class EstimateCartJob(rasr.RasrCommand, Job):
         config.acoustic_model_trainer.action = "estimate-cart"
         config.acoustic_model_trainer.cart_trainer.training_file = questions_path
         config.acoustic_model_trainer.cart_trainer.example_file = cart_examples
-        config.acoustic_model_trainer.cart_trainer.decision_tree_file = (
-            "cart.tree.xml.gz"
-        )
+        config.acoustic_model_trainer.cart_trainer.decision_tree_file = "cart.tree.xml.gz"
         if generate_cluster_file:
-            config.acoustic_model_trainer.cart_trainer.cluster_file = (
-                "cart.cluster.xml.gz"
-            )
-        config.acoustic_model_trainer.cart_trainer.log_likelihood_gain.variance_clipping = (
-            variance_clipping
-        )
+            config.acoustic_model_trainer.cart_trainer.cluster_file = "cart.cluster.xml.gz"
+        config.acoustic_model_trainer.cart_trainer.log_likelihood_gain.variance_clipping = variance_clipping
 
         config._update(extra_config)
         post_config._update(extra_post_config)

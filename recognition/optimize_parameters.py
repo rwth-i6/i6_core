@@ -97,9 +97,7 @@ class OptimizeAMandLMScaleJob(rasr.RasrCommand, Job):
                 )
 
             scorer_kwargs = dict(**self.scorer_kwargs)
-            scorer_kwargs[self.scorer_hyp_param_name] = tk.Path(
-                os.path.abspath(ctm_file)
-            )
+            scorer_kwargs[self.scorer_hyp_param_name] = tk.Path(os.path.abspath(ctm_file))
             scorer = self.scorer_cls(**scorer_kwargs)
             wer = scorer.calc_wer()
 
@@ -134,10 +132,7 @@ class OptimizeAMandLMScaleJob(rasr.RasrCommand, Job):
         self.out_best_am_score.set(float(am_scale))
         self.out_best_lm_score.set(float(lm_scale))
         with open(self.out_log_file.get_path(), "wt") as f:
-            f.write(
-                "Found optimum at am-scale = %f lm-scale = %f with WER %f\n"
-                % (am_scale, lm_scale, fopt)
-            )
+            f.write("Found optimum at am-scale = %f lm-scale = %f with WER %f\n" % (am_scale, lm_scale, fopt))
             f.write("%d iterations\n" % iter)
             f.write("%d funccalls\n" % funccalls)
             for (am_scale, lm_scale), wer in result_cache.items():
@@ -147,9 +142,7 @@ class OptimizeAMandLMScaleJob(rasr.RasrCommand, Job):
         util.backup_if_exists("lm_and_state_tree.log")
 
     @classmethod
-    def create_config(
-        cls, crp, lattice_cache, extra_config, extra_post_config, **kwargs
-    ):
+    def create_config(cls, crp, lattice_cache, extra_config, extra_post_config, **kwargs):
         config, post_config = rasr.build_config_from_mapping(
             crp,
             {
@@ -161,9 +154,7 @@ class OptimizeAMandLMScaleJob(rasr.RasrCommand, Job):
         config.flf_lattice_tool.network.initial_nodes = "speech-segment"
 
         config.flf_lattice_tool.network.speech_segment.type = "speech-segment"
-        config.flf_lattice_tool.network.speech_segment.links = (
-            "0->archive-reader:1 0->dump-ctm:1"
-        )
+        config.flf_lattice_tool.network.speech_segment.links = "0->archive-reader:1 0->dump-ctm:1"
 
         config.flf_lattice_tool.network.archive_reader.type = "archive-reader"
         config.flf_lattice_tool.network.archive_reader.links = "scale-lm"
@@ -176,15 +167,11 @@ class OptimizeAMandLMScaleJob(rasr.RasrCommand, Job):
         config.flf_lattice_tool.network.scale_lm.lm.scale = "$(lm-scale)"
         config.flf_lattice_tool.network.scale_lm.am.scale = 1.0
 
-        config.flf_lattice_tool.network.scale_pronunciation.type = (
-            "extend-by-pronunciation-score"
-        )
+        config.flf_lattice_tool.network.scale_pronunciation.type = "extend-by-pronunciation-score"
         config.flf_lattice_tool.network.scale_pronunciation.links = "to-lemma"
         config.flf_lattice_tool.network.scale_pronunciation.key = "am"
         config.flf_lattice_tool.network.scale_pronunciation.scale = "$(am-scale)"
-        config.flf_lattice_tool.network.scale_pronunciation.rescore_mode = (
-            "in-place-cached"
-        )
+        config.flf_lattice_tool.network.scale_pronunciation.rescore_mode = "in-place-cached"
 
         config.flf_lattice_tool.network.to_lemma.type = "map-alphabet"
         config.flf_lattice_tool.network.to_lemma.links = "best"

@@ -95,15 +95,11 @@ def filterbank_flow(
         "filterbank",
         {"warping-function": warping_function, "filter-width": filter_width},
     )
-    net.link(
-        fft_mapping[fft_net.get_output_links("amplitude-spectrum").pop()], filterbank
-    )
+    net.link(fft_mapping[fft_net.get_output_links("amplitude-spectrum").pop()], filterbank)
 
     if apply_log:
         if add_epsilon:
-            nonlinear = net.add_node(
-                "generic-vector-f32-log-plus", "nonlinear", {"value": "1.175494e-38"}
-            )
+            nonlinear = net.add_node("generic-vector-f32-log-plus", "nonlinear", {"value": "1.175494e-38"})
         else:
             nonlinear = net.add_node("generic-vector-f32-log", "nonlinear")
         net.link(filterbank, nonlinear)
@@ -118,9 +114,7 @@ def filterbank_flow(
             "right": "infinity",
         }
         attr.update(normalization_options)
-        normalization = net.add_node(
-            "signal-normalization", "filterbank-normalization", attr
-        )
+        normalization = net.add_node("signal-normalization", "filterbank-normalization", attr)
         net.link(filterbank_out, normalization)
         net.link(normalization, "network:features")
     else:
@@ -151,9 +145,7 @@ def filter_width_from_channels(channels, warping_function="mel", f_max=8000, f_m
 
     maximumFrequency = warp(f_max)
     minimumFrequency = warp(f_min)
-    targetfilterWidth = (maximumFrequency - minimumFrequency) / (
-        ((channels - 1) / 2) + 1
-    )
+    targetfilterWidth = (maximumFrequency - minimumFrequency) / (((channels - 1) / 2) + 1)
     return targetfilterWidth
 
 

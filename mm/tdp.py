@@ -14,9 +14,7 @@ import i6_core.util as util
 
 
 class ViterbiTdpTuningJob(Job):
-    def __init__(
-        self, crp, feature_flow, feature_scorer, allophone_files, am_args, max_iter=5
-    ):
+    def __init__(self, crp, feature_flow, feature_scorer, allophone_files, am_args, max_iter=5):
         self.flow = feature_flow
         self.scorer = feature_scorer
         self.allophone = allophone_files
@@ -40,9 +38,7 @@ class ViterbiTdpTuningJob(Job):
 
         from shutil import copyfile
 
-        copyfile(
-            self.last_tdp.transition_prob.get_path(), self.transition_prob.get_path()
-        )
+        copyfile(self.last_tdp.transition_prob.get_path(), self.transition_prob.get_path())
 
         with open(self.log.get_path(), "w") as of:
             json.dump(self.tdp_list, of)
@@ -54,33 +50,19 @@ class ViterbiTdpTuningJob(Job):
                 self.am_args = util.get_val(self.last_tdp.am_args)
                 self.tdp_list.append(self.am_args)
 
-            self.crp.acoustic_model_config.tdp["*"].loop = self.am_args[
-                "tdp_transition"
-            ][0]
-            self.crp.acoustic_model_config.tdp["*"].forward = self.am_args[
-                "tdp_transition"
-            ][1]
-            self.crp.acoustic_model_config.tdp["*"].skip = self.am_args[
-                "tdp_transition"
-            ][2]
+            self.crp.acoustic_model_config.tdp["*"].loop = self.am_args["tdp_transition"][0]
+            self.crp.acoustic_model_config.tdp["*"].forward = self.am_args["tdp_transition"][1]
+            self.crp.acoustic_model_config.tdp["*"].skip = self.am_args["tdp_transition"][2]
 
-            self.crp.acoustic_model_config.tdp.silence.loop = self.am_args[
-                "tdp_silence"
-            ][0]
-            self.crp.acoustic_model_config.tdp.silence.forward = self.am_args[
-                "tdp_silence"
-            ][1]
+            self.crp.acoustic_model_config.tdp.silence.loop = self.am_args["tdp_silence"][0]
+            self.crp.acoustic_model_config.tdp.silence.forward = self.am_args["tdp_silence"][1]
 
             self.tune_tdp()
 
     def tune_tdp(self):
-        align = AlignmentJob(
-            crp=self.crp, feature_flow=self.flow, feature_scorer=self.scorer
-        )
+        align = AlignmentJob(crp=self.crp, feature_flow=self.flow, feature_scorer=self.scorer)
         self.add_input(align.out_alignment_bundle)
-        tdp = TdpFromAlignmentJob(
-            crp=self.crp, alignment=align, allophones=self.allophone
-        )
+        tdp = TdpFromAlignmentJob(crp=self.crp, alignment=align, allophones=self.allophone)
         self.add_input(tdp.transition_prob)
         self.last_tdp = tdp
         self.cur_iter += 1
@@ -110,9 +92,7 @@ class TdpFromAlignmentJob(Job):
         self.am_args = self.output_var("am_args")
 
     def tasks(self):
-        yield Task(
-            "run", resume="run", rqmt=self.rqmt, args=range(1, self.concurrent + 1)
-        )
+        yield Task("run", resume="run", rqmt=self.rqmt, args=range(1, self.concurrent + 1))
         yield Task("prob", resume="prob", mini_task=True)
 
     def run(self, task_id):
@@ -176,18 +156,14 @@ class TdpFromAlignmentJob(Job):
                     for trans, count in r.items():
                         trans_dict[phon][trans] += count
 
-        with open(
-            self.transition_count.get_path() + ".{}".format(task_id), "w"
-        ) as out_file:
+        with open(self.transition_count.get_path() + ".{}".format(task_id), "w") as out_file:
             out_file.write(json.dumps(trans_dict))
 
     def prob(self):
         trans_dict = {"phon": {"0": 0, "1": 0, "2": 0}, "si": {"0": 0, "1": 0, "2": 0}}
 
         for i in range(1, self.concurrent + 1):
-            with open(
-                self.transition_count.get_path() + ".{}".format(i), "rb"
-            ) as in_file:
+            with open(self.transition_count.get_path() + ".{}".format(i), "rb") as in_file:
                 d = json.load(in_file)
                 for phon, sub_dict in d.items():
                     for trans, count in sub_dict.items():

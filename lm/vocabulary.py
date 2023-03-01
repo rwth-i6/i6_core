@@ -32,9 +32,7 @@ class LmIndexVocabularyFromLexiconJob(Job):
     Be aware of: https://github.com/rwth-i6/returnn/issues/1245 when using Returnn's LmDataset
     """
 
-    def __init__(
-        self, bliss_lexicon: tk.Path, count_ordering_text: Optional[tk.Path] = None
-    ):
+    def __init__(self, bliss_lexicon: tk.Path, count_ordering_text: Optional[tk.Path] = None):
         """
         :param bliss_lexicon: us the lemmas from the lexicon to define the indices
         :param count_ordering_text: optional text that can be used to define the index order based on the lemma count
@@ -66,9 +64,7 @@ class LmIndexVocabularyFromLexiconJob(Job):
 
         for lemma in lex.lemmata:
             if lemma.special == "sentence-begin":
-                sentence_begin_list = (
-                    lemma.synt if lemma.synt is not None else lemma.orth
-                )
+                sentence_begin_list = lemma.synt if lemma.synt is not None else lemma.orth
                 assert len(sentence_begin_list) == 1
                 sentence_begin = sentence_begin_list[0]
             elif lemma.special == "sentence-end":
@@ -76,9 +72,7 @@ class LmIndexVocabularyFromLexiconJob(Job):
                 assert len(sentence_end_list) == 1
                 sentence_end = sentence_end_list[0]
             elif lemma.special == "sentence-boundary":
-                sentence_boundary_list = (
-                    lemma.synt if lemma.synt is not None else lemma.orth
-                )
+                sentence_boundary_list = lemma.synt if lemma.synt is not None else lemma.orth
                 assert len(sentence_boundary_list) == 1
                 sentence_boundary = sentence_boundary_list[0]
             elif lemma.special == "unknown":
@@ -92,9 +86,7 @@ class LmIndexVocabularyFromLexiconJob(Job):
                 for orth in lemma.orth:
                     word_counts[orth] = 0
 
-        assert sentence_boundary is not None or (
-            sentence_begin is not None and sentence_end is not None
-        )
+        assert sentence_boundary is not None or (sentence_begin is not None and sentence_end is not None)
         assert unknown is not None
 
         if self.count_ordering_text is not None:
@@ -103,12 +95,7 @@ class LmIndexVocabularyFromLexiconJob(Job):
                     for word in line.strip().split(" "):
                         if word in word_counts:
                             word_counts[word] += 1
-            wordlist = [
-                w
-                for w, _ in sorted(
-                    word_counts.items(), key=lambda wc: wc[1], reverse=True
-                )
-            ]
+            wordlist = [w for w, _ in sorted(word_counts.items(), key=lambda wc: wc[1], reverse=True)]
         else:
             wordlist = [word for word in word_counts.keys()]
 

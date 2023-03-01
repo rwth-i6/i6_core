@@ -35,18 +35,14 @@ class MergeMixturesJob(rasr.RasrCommand, Job):
         (
             self.config_merge,
             self.post_config_merge,
-        ) = MergeMixturesJob.create_merge_config(
-            crp, estimator, extra_config, extra_post_config
-        )
+        ) = MergeMixturesJob.create_merge_config(crp, estimator, extra_config, extra_post_config)
         self.merge_exe = (
             crp.acoustic_model_trainer_exe
             if crp.acoustic_model_trainer_exe is not None
             else self.default_exe("acoustic-model-trainer")
         )
         if type(mixtures_to_combine) == dict:
-            mixtures_to_combine = [
-                mixtures_to_combine[k] for k in sorted(mixtures_to_combine)
-            ]
+            mixtures_to_combine = [mixtures_to_combine[k] for k in sorted(mixtures_to_combine)]
         self.mixtures_to_combine = mixtures_to_combine
         self.combine_per_step = combine_per_step
 
@@ -96,8 +92,7 @@ class MergeMixturesJob(rasr.RasrCommand, Job):
                     "--config=merge-mixtures.config",
                     "--*.TASK=1",
                     "--*.LOGFILE=merge.log.%d" % merge_num,
-                    "--mixture-set-trainer.mixture-set-files-to-combine=%s"
-                    % " ".join(elements),
+                    "--mixture-set-trainer.mixture-set-files-to-combine=%s" % " ".join(elements),
                     "--mixture-set-trainer.new-mixture-set-file=%s" % tmp_merge_file,
                 ],
             )
@@ -128,9 +123,7 @@ class MergeMixturesJob(rasr.RasrCommand, Job):
         util.backup_if_exists(log)
 
     @classmethod
-    def create_merge_config(
-        cls, crp, estimator, extra_config, extra_post_config, **kwargs
-    ):
+    def create_merge_config(cls, crp, estimator, extra_config, extra_post_config, **kwargs):
         config, post_config = rasr.build_config_from_mapping(crp, {})
         config.acoustic_model_trainer.action = "combine-mixture-sets"
         config.acoustic_model_trainer.mixture_set_trainer.estimator_type = estimator
@@ -178,9 +171,7 @@ class LinearAlignmentJob(MergeMixturesJob):
 
         self.config, self.post_config = LinearAlignmentJob.create_config(**kwargs)
         self.linear_alignment_flow = LinearAlignmentJob.create_flow(**kwargs)
-        self.exe = self.select_exe(
-            crp.acoustic_model_trainer_exe, "acoustic-model-trainer"
-        )
+        self.exe = self.select_exe(crp.acoustic_model_trainer_exe, "acoustic-model-trainer")
         self.concurrent = crp.concurrent
         self.save_alignment = save_alignment
         self.keep_accumulators = keep_accumulators
@@ -188,8 +179,7 @@ class LinearAlignmentJob(MergeMixturesJob):
         self.out_log_file = self.log_file_output_path("accumulate", crp, True)
         if save_alignment:
             self.single_alignment_caches = dict(
-                (i, self.output_path("alignment.cache.%d" % i, cached=True))
-                for i in range(1, self.concurrent + 1)
+                (i, self.output_path("alignment.cache.%d" % i, cached=True)) for i in range(1, self.concurrent + 1)
             )
             self.out_alignment_path = util.MultiOutputPath(
                 self,
@@ -222,9 +212,7 @@ class LinearAlignmentJob(MergeMixturesJob):
         self.linear_alignment_flow.write_to_file("linear-alignment.flow")
         self.write_run_script(self.exe, "linear-segmentation.config", "accumulate.sh")
         if self.save_alignment:
-            util.write_paths_to_file(
-                self.out_alignment_bundle, self.single_alignment_caches.values()
-            )
+            util.write_paths_to_file(self.out_alignment_bundle, self.single_alignment_caches.values())
 
     def accumulate(self, task_id):
         self.run_script(task_id, self.out_log_file[task_id], "./accumulate.sh")
@@ -267,45 +255,28 @@ class LinearAlignmentJob(MergeMixturesJob):
         mapping = {
             "corpus": "acoustic-model-trainer.corpus",
             "lexicon": ["acoustic-model-trainer.mixture-set-trainer.lexicon"],
-            "acoustic_model": [
-                "acoustic-model-trainer.mixture-set-trainer.acoustic-model"
-            ],
+            "acoustic_model": ["acoustic-model-trainer.mixture-set-trainer.acoustic-model"],
         }
 
         # acoustic model + lexicon for the flow nodes
-        for node in segmentation_flow.get_node_names_by_filter(
-            "speech-linear-segmentation"
-        ):
-            node_path = (
-                "acoustic-model-trainer.aligning-feature-extractor.feature-extraction."
-                + node
-            )
+        for node in segmentation_flow.get_node_names_by_filter("speech-linear-segmentation"):
+            node_path = "acoustic-model-trainer.aligning-feature-extractor.feature-extraction." + node
             mapping["lexicon"].append("%s.model-combination.lexicon" % node_path)
-            mapping["acoustic_model"].append(
-                "%s.model-combination.acoustic-model" % node_path
-            )
+            mapping["acoustic_model"].append("%s.model-combination.acoustic-model" % node_path)
 
-        config, post_config = rasr.build_config_from_mapping(
-            crp, mapping, parallelize=True
-        )
+        config, post_config = rasr.build_config_from_mapping(crp, mapping, parallelize=True)
 
         # shortcuts
         fe = config.acoustic_model_trainer.aligning_feature_extractor.feature_extraction
         mst = config.acoustic_model_trainer.mixture_set_trainer
 
         # segmentation options for the flow nodes
-        for node in segmentation_flow.get_node_names_by_filter(
-            "speech-linear-segmentation"
-        ):
+        for node in segmentation_flow.get_node_names_by_filter("speech-linear-segmentation"):
             fe[node].linear_segmenter.minimum_segment_length = minimum_segment_length
             fe[node].linear_segmenter.maximum_segment_length = maximum_segment_length
             fe[node].linear_segmenter.delimiter.number_of_iterations = iterations
             fe[node].linear_segmenter.delimiter.penalty = penalty
-            fe[
-                node
-            ].linear_segmenter.delimiter.minimum_speech_proportion = (
-                minimum_speech_proportion
-            )
+            fe[node].linear_segmenter.delimiter.minimum_speech_proportion = minimum_speech_proportion
 
         config.action = "accumulate-mixture-set-text-dependent"
         mst.new_mixture_set_file = "linear.acc.$(TASK)"
@@ -324,17 +295,13 @@ class LinearAlignmentJob(MergeMixturesJob):
 
     @classmethod
     def create_flow(cls, feature_energy_flow, save_alignment, **kwargs):
-        return linear_segmentation_flow(
-            feature_energy_flow, "alignment.cache.$(TASK)" if save_alignment else None
-        )
+        return linear_segmentation_flow(feature_energy_flow, "alignment.cache.$(TASK)" if save_alignment else None)
 
     @classmethod
     def merge_args(cls, crp, extra_merge_args, **kwargs):
         merge_args = {
             "crp": crp,
-            "mixtures_to_combine": [
-                "linear.acc.%d" % i for i in range(1, crp.concurrent + 1)
-            ],
+            "mixtures_to_combine": ["linear.acc.%d" % i for i in range(1, crp.concurrent + 1)],
             "combine_per_step": 2,
             "estimator": "maximum-likelihood",
             "extra_config": None,
@@ -379,9 +346,7 @@ class EstimateMixturesJob(MergeMixturesJob):
 
         self.config, self.post_config = EstimateMixturesJob.create_config(**kwargs)
         self.alignment_flow = EstimateMixturesJob.create_flow(**kwargs)
-        self.exe = self.select_exe(
-            crp.acoustic_model_trainer_exe, "acoustic-model-trainer"
-        )
+        self.exe = self.select_exe(crp.acoustic_model_trainer_exe, "acoustic-model-trainer")
         self.split_first = split_first
         self.keep_accumulators = keep_accumulators
         self.concurrent = crp.concurrent
@@ -405,9 +370,7 @@ class EstimateMixturesJob(MergeMixturesJob):
     def tasks(self):
         rqmt = self.accumulate_rqmt.copy()
         try:
-            mixture_size = os.stat(tk.uncached_path(self._old_mixtures)).st_size / (
-                1024.0**2
-            )
+            mixture_size = os.stat(tk.uncached_path(self._old_mixtures)).st_size / (1024.0**2)
             rqmt["mem"] += 2 if mixture_size > 500.0 else 0
         except OSError as e:
             if e.errno != 2:  # file does not exist
@@ -475,15 +438,9 @@ class EstimateMixturesJob(MergeMixturesJob):
 
         config.acoustic_model_trainer.action = "accumulate-mixture-set-text-dependent"
         config.acoustic_model_trainer.mixture_set_trainer.split_first = split_first
-        config.acoustic_model_trainer.mixture_set_trainer.old_mixture_set_file = (
-            old_mixtures
-        )
-        config.acoustic_model_trainer.mixture_set_trainer.new_mixture_set_file = (
-            "am.acc.$(TASK)"
-        )
-        config.acoustic_model_trainer.aligning_feature_extractor.feature_extraction.file = (
-            "alignment.flow"
-        )
+        config.acoustic_model_trainer.mixture_set_trainer.old_mixture_set_file = old_mixtures
+        config.acoustic_model_trainer.mixture_set_trainer.new_mixture_set_file = "am.acc.$(TASK)"
+        config.acoustic_model_trainer.aligning_feature_extractor.feature_extraction.file = "alignment.flow"
 
         alignment_flow.apply_config(
             "acoustic-model-trainer.aligning-feature-extractor.feature-extraction",
@@ -504,9 +461,7 @@ class EstimateMixturesJob(MergeMixturesJob):
     def merge_args(cls, crp, extra_merge_args, **kwargs):
         merge_args = {
             "crp": crp,
-            "mixtures_to_combine": [
-                "am.acc.%d" % i for i in range(1, crp.concurrent + 1)
-            ],
+            "mixtures_to_combine": ["am.acc.%d" % i for i in range(1, crp.concurrent + 1)],
             "combine_per_step": 2,
             "estimator": "maximum-likelihood",
             "extra_config": None,
@@ -542,16 +497,8 @@ class CreateDummyMixturesJob(Job):
         yield Task("run", mini_task=True)
 
     def run(self):
-        num_mixtures = int(
-            self.num_mixtures.get()
-            if isinstance(self.num_mixtures, tk.Variable)
-            else self.num_mixtures
-        )
-        num_features = int(
-            self.num_features.get()
-            if isinstance(self.num_features, tk.Variable)
-            else self.num_features
-        )
+        num_mixtures = int(self.num_mixtures.get() if isinstance(self.num_mixtures, tk.Variable) else self.num_mixtures)
+        num_features = int(self.num_features.get() if isinstance(self.num_features, tk.Variable) else self.num_features)
 
         with open(tk.uncached_path(self.out_mixtures), "wb") as f:
             f.write(b"MIXSET\0\0")
@@ -559,9 +506,7 @@ class CreateDummyMixturesJob(Job):
             args = [1, num_features] + [0.0] * num_features + [1.0]
             f.write(struct.pack("II%ddd" % num_features, *args))  # mean accumulator
             f.write(struct.pack("II%ddd" % num_features, *args))  # var  accumulator
-            f.write(
-                struct.pack("IIII", 1, 0, 0, num_mixtures)
-            )  # num density + density mean/var idx + num of mixtures
+            f.write(struct.pack("IIII", 1, 0, 0, num_mixtures))  # num density + density mean/var idx + num of mixtures
             single_mixture = struct.pack("IId", 1, 0, 1.0)
             for i in range(num_mixtures):
                 f.write(single_mixture)

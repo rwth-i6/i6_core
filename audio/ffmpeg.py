@@ -144,10 +144,7 @@ class BlissFfmpegJob(Job):
             old_duration = r.segments[0].end
             data, sample_rate = soundfile.read(open(r.audio, "rb"))
             new_duration = len(data) / sample_rate
-            logging.info(
-                "%s: adjusted from %f to %f seconds"
-                % (r.segments[0].name, old_duration, new_duration)
-            )
+            logging.info("%s: adjusted from %f to %f seconds" % (r.segments[0].name, old_duration, new_duration))
             r.segments[0].end = new_duration
 
         c.dump(self.out_corpus.get_path())
@@ -186,9 +183,7 @@ class BlissFfmpegJob(Job):
                 "-i",
                 recording.audio,
             ]
-            command_tail = [
-                os.path.join(self.out_audio_folder.get_path(), audio_filename)
-            ]
+            command_tail = [os.path.join(self.out_audio_folder.get_path(), audio_filename)]
             if self.ffmpeg_options is None or len(self.ffmpeg_options) == 0:
                 command = command_head + command_tail
             else:

@@ -9,9 +9,7 @@ from i6_core.rasr import FlowNetwork
 from i6_core.rasr.crp import CommonRasrParameters
 
 
-def MfccJob(
-    crp: CommonRasrParameters, mfcc_options: Optional[Dict[str, Any]] = None, **kwargs
-) -> FeatureExtractionJob:
+def MfccJob(crp: CommonRasrParameters, mfcc_options: Optional[Dict[str, Any]] = None, **kwargs) -> FeatureExtractionJob:
     """
     :param crp:
     :param mfcc_options: Nested parameters for :func:`mfcc_flow`
@@ -28,9 +26,7 @@ def MfccJob(
 
     port_name_mapping = {"features": "mfcc"}
 
-    return FeatureExtractionJob(
-        crp, feature_flow, port_name_mapping, job_name="MFCC", **kwargs
-    )
+    return FeatureExtractionJob(crp, feature_flow, port_name_mapping, job_name="MFCC", **kwargs)
 
 
 def mfcc_flow(
@@ -89,9 +85,7 @@ def mfcc_flow(
         "filterbank",
         {"warping-function": warping_function, "filter-width": filter_width},
     )
-    net.link(
-        fft_mapping[fft_net.get_output_links("amplitude-spectrum").pop()], filterbank
-    )
+    net.link(fft_mapping[fft_net.get_output_links("amplitude-spectrum").pop()], filterbank)
 
     cepstrum_net = cepstrum_flow(**cepstrum_options)
     cepstrum_mapping = net.add_net(cepstrum_net)

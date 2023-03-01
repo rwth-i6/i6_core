@@ -181,9 +181,7 @@ class CompileNativeOpJob(Job):
             cmd += ["--blas_lib", tk.uncached_path(self.blas_lib)]
         logging.info(cmd)
 
-        util.create_executable(
-            "compile.sh", cmd
-        )  # convenience file for manual execution
+        util.create_executable("compile.sh", cmd)  # convenience file for manual execution
         sp.run(cmd, check=True)
 
         with open("compile.out", "rt") as f:

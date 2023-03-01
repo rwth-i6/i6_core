@@ -109,16 +109,13 @@ class ApplyG2PModelJob(Job):
 
         with uopen(self.out_g2p_untranslated, "wt") as f:
             sp.check_call(
-                ["cat"]
-                + [f"g2p.untranslated.{i}" for i in range(1, self.concurrent + 1)],
+                ["cat"] + [f"g2p.untranslated.{i}" for i in range(1, self.concurrent + 1)],
                 stdout=f,
             )
 
     def filter(self):
         handle, tmp_path = mkstemp(dir=".", text=True)
-        with uopen(self.out_g2p_lexicon, "rt") as lex, os.fdopen(
-            handle, "wt"
-        ) as fd_out:
+        with uopen(self.out_g2p_lexicon, "rt") as lex, os.fdopen(handle, "wt") as fd_out:
             for line in lex:
                 if len(line.strip().split("\t")) == 4:
                     fd_out.write(line)

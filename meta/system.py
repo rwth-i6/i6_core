@@ -127,46 +127,22 @@ class System:
         if not target_name:
             target_name = origin_name
 
-        self.crp[target_name] = rasr.CommonRasrParameters(
-            base=origin_system.crp[origin_name]
-        )
+        self.crp[target_name] = rasr.CommonRasrParameters(base=origin_system.crp[origin_name])
 
-        self.alignments[target_name] = copy.deepcopy(
-            origin_system.alignments[origin_name]
-        )
-        self.ctm_files[target_name] = copy.deepcopy(
-            origin_system.ctm_files[origin_name]
-        )
-        self.feature_caches[target_name] = copy.deepcopy(
-            origin_system.feature_caches[origin_name]
-        )
-        self.feature_bundles[target_name] = copy.deepcopy(
-            origin_system.feature_bundles[origin_name]
-        )
-        self.feature_flows[target_name] = copy.deepcopy(
-            origin_system.feature_flows[origin_name]
-        )
-        self.feature_scorers[target_name] = copy.deepcopy(
-            origin_system.feature_scorers[origin_name]
-        )
-        self.lattice_caches[target_name] = copy.deepcopy(
-            origin_system.lattice_caches[origin_name]
-        )
-        self.lattice_bundles[target_name] = copy.deepcopy(
-            origin_system.lattice_bundles[origin_name]
-        )
+        self.alignments[target_name] = copy.deepcopy(origin_system.alignments[origin_name])
+        self.ctm_files[target_name] = copy.deepcopy(origin_system.ctm_files[origin_name])
+        self.feature_caches[target_name] = copy.deepcopy(origin_system.feature_caches[origin_name])
+        self.feature_bundles[target_name] = copy.deepcopy(origin_system.feature_bundles[origin_name])
+        self.feature_flows[target_name] = copy.deepcopy(origin_system.feature_flows[origin_name])
+        self.feature_scorers[target_name] = copy.deepcopy(origin_system.feature_scorers[origin_name])
+        self.lattice_caches[target_name] = copy.deepcopy(origin_system.lattice_caches[origin_name])
+        self.lattice_bundles[target_name] = copy.deepcopy(origin_system.lattice_bundles[origin_name])
         self.mixtures[target_name] = copy.deepcopy(origin_system.mixtures[origin_name])
-        self.nn_configs[target_name] = copy.deepcopy(
-            origin_system.nn_configs[origin_name]
-        )
-        self.nn_models[target_name] = copy.deepcopy(
-            origin_system.nn_models[origin_name]
-        )
+        self.nn_configs[target_name] = copy.deepcopy(origin_system.nn_configs[origin_name])
+        self.nn_models[target_name] = copy.deepcopy(origin_system.nn_models[origin_name])
         # self.stm_files      [target_name] = copy.deepcopy(origin_system.stm_files[origin_name])
 
-        self.normalization_matrices[target_name] = copy.deepcopy(
-            origin_system.normalization_matrices[origin_name]
-        )
+        self.normalization_matrices[target_name] = copy.deepcopy(origin_system.normalization_matrices[origin_name])
 
         self.jobs[target_name] = {}
 
@@ -233,18 +209,12 @@ class System:
         :param kwargs:
         :return:
         """
-        self.jobs[target_corpus]["allophones"] = lexicon.StoreAllophonesJob(
-            self.crp[source_corpus], **kwargs
-        )
+        self.jobs[target_corpus]["allophones"] = lexicon.StoreAllophonesJob(self.crp[source_corpus], **kwargs)
         # noinspection PyUnresolvedReferences
-        self.allophone_files[target_corpus] = self.jobs[target_corpus][
-            "allophones"
-        ].out_allophone_file
+        self.allophone_files[target_corpus] = self.jobs[target_corpus]["allophones"].out_allophone_file
         if self.crp[target_corpus].acoustic_model_post_config is None:
             self.crp[target_corpus].acoustic_model_post_config = rasr.RasrConfig()
-        self.crp[
-            target_corpus
-        ].acoustic_model_post_config.allophones.add_from_file = self.allophone_files[
+        self.crp[target_corpus].acoustic_model_post_config.allophones.add_from_file = self.allophone_files[
             target_corpus
         ]
 
@@ -285,9 +255,7 @@ class System:
         :param kwargs:
         :return:
         """
-        self.jobs[corpus]["energy_features"] = f = features.EnergyJob(
-            self.crp[corpus], **kwargs
-        )
+        self.jobs[corpus]["energy_features"] = f = features.EnergyJob(self.crp[corpus], **kwargs)
         f.add_alias("%s%s_energy_features" % (prefix, corpus))
         self.feature_caches[corpus]["energy"] = f.out_feature_path["energy"]
         self.feature_bundles[corpus]["energy"] = f.out_feature_bundle["energy"]
@@ -311,9 +279,7 @@ class System:
         :param kwargs:
         :return:
         """
-        self.jobs[corpus]["mfcc_features"] = f = features.MfccJob(
-            self.crp[corpus], **kwargs
-        )
+        self.jobs[corpus]["mfcc_features"] = f = features.MfccJob(self.crp[corpus], **kwargs)
         f.add_alias("%s%s_mfcc_features" % (prefix, corpus))
         self.feature_caches[corpus]["mfcc"] = f.out_feature_path["mfcc"]
         self.feature_bundles[corpus]["mfcc"] = f.out_feature_bundle["mfcc"]
@@ -336,9 +302,7 @@ class System:
         :param kwargs:
         :return:
         """
-        self.jobs[corpus]["fb_features"] = f = features.FilterbankJob(
-            self.crp[corpus], **kwargs
-        )
+        self.jobs[corpus]["fb_features"] = f = features.FilterbankJob(self.crp[corpus], **kwargs)
         f.add_alias("%s_fb_features" % corpus)
         self.feature_caches[corpus]["fb"] = f.out_feature_path["fb"]
         self.feature_bundles[corpus]["fb"] = f.out_feature_bundle["fb"]
@@ -360,14 +324,9 @@ class System:
         :param kwargs:
         :return:
         """
-        self.jobs[corpus]["gt_features"] = f = features.GammatoneJob(
-            self.crp[corpus], **kwargs
-        )
+        self.jobs[corpus]["gt_features"] = f = features.GammatoneJob(self.crp[corpus], **kwargs)
         if "gt_options" in kwargs and "channels" in kwargs.get("gt_options"):
-            f.add_alias(
-                "%s%s_gt_%i_features"
-                % (prefix, corpus, kwargs.get("gt_options").get("channels"))
-            )
+            f.add_alias("%s%s_gt_%i_features" % (prefix, corpus, kwargs.get("gt_options").get("channels")))
         else:
             f.add_alias("%s%s_gt_features" % (prefix, corpus))
         self.feature_caches[corpus]["gt"] = f.out_feature_path["gt"]
@@ -383,9 +342,7 @@ class System:
         self.feature_flows[corpus]["gt"] = features.basic_cache_flow(feature_path)
         self.feature_flows[corpus]["uncached_gt"] = f.feature_flow
 
-    def generic_features(
-        self, corpus, name, feature_flow, port_name="features", prefix="", **kwargs
-    ):
+    def generic_features(self, corpus, name, feature_flow, port_name="features", prefix="", **kwargs):
         """
         :param str corpus: corpus identifier
         :param str name: feature identifier, like "mfcc". Also used in the naming of the output feature caches.
@@ -421,9 +378,7 @@ class System:
         :param kwargs:
         :return:
         """
-        self.jobs[corpus]["plp_features"] = f = features.PlpJob(
-            self.crp[corpus], **kwargs
-        )
+        self.jobs[corpus]["plp_features"] = f = features.PlpJob(self.crp[corpus], **kwargs)
         f.add_alias("%s_plp_features" % corpus)
         self.feature_caches[corpus]["plp"] = f.out_feature_path["plp"]
         self.feature_bundles[corpus]["plp"] = f.out_feature_bundle["plp"]
@@ -436,9 +391,7 @@ class System:
             },
         )
         self.feature_flows[corpus]["plp"] = features.basic_cache_flow(feature_path)
-        self.feature_flows[corpus]["plp+deriv"] = features.add_derivatives(
-            self.feature_flows[corpus]["plp"], num_deriv
-        )
+        self.feature_flows[corpus]["plp+deriv"] = features.add_derivatives(self.feature_flows[corpus]["plp"], num_deriv)
         if num_features is not None:
             self.feature_flows[corpus]["plp+deriv"] = features.select_features(
                 self.feature_flows[corpus]["plp+deriv"], "0-%d" % (num_features - 1)
@@ -452,9 +405,7 @@ class System:
         :param kwargs:
         :return:
         """
-        self.jobs[corpus]["voiced_features"] = f = features.VoicedJob(
-            self.crp[corpus], **kwargs
-        )
+        self.jobs[corpus]["voiced_features"] = f = features.VoicedJob(self.crp[corpus], **kwargs)
         f.add_alias("%s_%s_voiced_features" % (prefix, corpus))
         self.feature_caches[corpus]["voiced"] = f.out_feature_path["voiced"]
         self.feature_bundles[corpus]["voiced"] = f.out_feature_bundle["voiced"]
@@ -541,9 +492,7 @@ class System:
         feature_flow.flags = {"cache_mode": "bundle"}
         new_flow_name = "%s+norm" % flow
 
-        self.jobs[corpus][
-            "normalize_%s" % flow
-        ] = j = features.CovarianceNormalizationJob(
+        self.jobs[corpus]["normalize_%s" % flow] = j = features.CovarianceNormalizationJob(
             self.crp[corpus], feature_flow, **kwargs
         )
         self.normalization_matrices[corpus][new_flow_name] = j.normalization_matrix
@@ -560,9 +509,7 @@ class System:
         :param kwargs:
         :return:
         """
-        self.jobs[corpus]["costa"] = j = corpus_recipes.CostaJob(
-            self.crp[corpus], **kwargs
-        )
+        self.jobs[corpus]["costa"] = j = corpus_recipes.CostaJob(self.crp[corpus], **kwargs)
         j.add_alias("%scosta_%s" % (prefix, corpus))
         tk.register_output("%s%s.costa.log.gz" % (prefix, corpus), j.out_log_file)
 
@@ -610,9 +557,7 @@ class System:
             {"task_dependent": j.out_alignment_path, "bundle": j.out_alignment_bundle},
         )
 
-    def estimate_mixtures(
-        self, name, corpus, flow, old_mixtures=None, alignment=None, prefix="", **kwargs
-    ):
+    def estimate_mixtures(self, name, corpus, flow, old_mixtures=None, alignment=None, prefix="", **kwargs):
         """
         :param str name:
         :param str corpus:
@@ -657,9 +602,7 @@ class System:
 
         self.mixtures[corpus][name] = j.selected_mixtures
         self.alignments[corpus][name] = j.selected_alignments
-        self.feature_scorers[corpus][name] = [
-            self.default_mixture_scorer(m) for m in j.selected_mixtures
-        ]
+        self.feature_scorers[corpus][name] = [self.default_mixture_scorer(m) for m in j.selected_mixtures]
 
     def recog(
         self,
@@ -720,9 +663,7 @@ class System:
         self.jobs[corpus]["scorer_%s" % name] = scorer
         tk.register_output("%srecog_%s.reports" % (prefix, name), scorer.out_report_dir)
 
-    def optimize_am_lm(
-        self, name, corpus, initial_am_scale, initial_lm_scale, prefix="", **kwargs
-    ):
+    def optimize_am_lm(self, name, corpus, initial_am_scale, initial_lm_scale, prefix="", **kwargs):
         """
         :param str name:
         :param str corpus:
@@ -734,9 +675,7 @@ class System:
         """
         j = recog.OptimizeAMandLMScaleJob(
             crp=self.crp[corpus],
-            lattice_cache=self.jobs[corpus][
-                name
-            ].out_lattice_bundle,  # noqa, job type is not known
+            lattice_cache=self.jobs[corpus][name].out_lattice_bundle,  # noqa, job type is not known
             initial_am_scale=initial_am_scale,
             initial_lm_scale=initial_lm_scale,
             scorer_cls=self.scorers[corpus],
@@ -943,12 +882,6 @@ class CorpusObject(tk.Object):
     def __init__(self):
 
         self.corpus_file = None  # type: Optional[tk.Path] # bliss corpus xml
-        self.audio_dir = (
-            None
-        )  # type: Optional[tk.Path] # audio directory if paths are relative (usually not needed)
-        self.audio_format = (
-            None
-        )  # type: Optional[str] # format type of the audio files, see e.g. get_input_node_type()
-        self.duration = (
-            None
-        )  # type: Optional[float] # duration of the corpus, is used to determine job time
+        self.audio_dir = None  # type: Optional[tk.Path] # audio directory if paths are relative (usually not needed)
+        self.audio_format = None  # type: Optional[str] # format type of the audio files, see e.g. get_input_node_type()
+        self.duration = None  # type: Optional[float] # duration of the corpus, is used to determine job time

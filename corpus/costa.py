@@ -23,12 +23,8 @@ class CostaJob(rasr.RasrCommand, Job):
         )
         self.audio_flow = raw_audio_flow(crp.audio_format) if eval_recordings else None
 
-        self.out_log_file = self.output_path(
-            "costa.log" + (".gz" if crp.compress_log_file else "")
-        )
-        self.exe = (
-            crp.costa_exe if crp.costa_exe is not None else self.default_exe("costa")
-        )
+        self.out_log_file = self.output_path("costa.log" + (".gz" if crp.compress_log_file else ""))
+        self.exe = crp.costa_exe if crp.costa_exe is not None else self.default_exe("costa")
         self.rqmt = {
             "time": max(crp.corpus_duration / 20, 0.5),
             "cpu": 1,
@@ -54,9 +50,7 @@ class CostaJob(rasr.RasrCommand, Job):
         util.backup_if_exists("costa.log")
 
     @classmethod
-    def create_config(
-        cls, crp, eval_recordings, eval_lm, extra_config, extra_post_config
-    ):
+    def create_config(cls, crp, eval_recordings, eval_lm, extra_config, extra_post_config):
         config = rasr.RasrConfig()
         post_config = rasr.RasrConfig()
 
@@ -75,9 +69,7 @@ class CostaJob(rasr.RasrCommand, Job):
         post_config.costa.statistics.lexicon = crp.lexicon_post_config
 
         config.costa.lm_statistics = (
-            crp.language_model_config is not None
-            and crp.lexicon_config is not None
-            and eval_lm
+            crp.language_model_config is not None and crp.lexicon_config is not None and eval_lm
         )
         config.costa.statistics.lm = crp.language_model_config
         post_config.costa.statistics.lm = crp.language_model_post_config

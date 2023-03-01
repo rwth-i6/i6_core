@@ -58,12 +58,8 @@ class TrainG2PModelJob(Job):
         self.g2p_path = get_g2p_path(g2p_path)
         self.g2p_python = get_g2p_python(g2p_python)
 
-        self.out_g2p_models = [
-            self.output_path("model-%d" % idx) for idx in range(self.num_ramp_ups + 1)
-        ]
-        self.out_error_rates = [
-            self.output_var("err-%d" % idx) for idx in range(self.num_ramp_ups + 1)
-        ]
+        self.out_g2p_models = [self.output_path("model-%d" % idx) for idx in range(self.num_ramp_ups + 1)]
+        self.out_error_rates = [self.output_var("err-%d" % idx) for idx in range(self.num_ramp_ups + 1)]
         self.out_best_model = self.output_path("model-best")
         self.out_best_error_rate = self.output_var("err-best")
 

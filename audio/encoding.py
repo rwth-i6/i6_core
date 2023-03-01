@@ -55,8 +55,7 @@ class BlissChangeEncodingJob(BlissFfmpegJob):
             assert isinstance(select_channels, tuple) and len(select_channels) == 2
             ffmpeg_options += [
                 "-filter_complex",
-                "[0:a]channelsplit=channel_layout=%s:channels=%s[out]"
-                % select_channels,
+                "[0:a]channelsplit=channel_layout=%s:channels=%s[out]" % select_channels,
                 "-map",
                 "[out]",
             ]

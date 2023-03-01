@@ -48,15 +48,9 @@ class ReturnnComputePriorJob(Job):
 
         self.model_checkpoint = model_checkpoint
 
-        self.returnn_python_exe = (
-            returnn_python_exe
-            if returnn_python_exe is not None
-            else gs.RETURNN_PYTHON_EXE
-        )
+        self.returnn_python_exe = returnn_python_exe if returnn_python_exe is not None else gs.RETURNN_PYTHON_EXE
 
-        self.returnn_root = (
-            returnn_root if returnn_root is not None else gs.RETURNN_ROOT
-        )
+        self.returnn_root = returnn_root if returnn_root is not None else gs.RETURNN_ROOT
 
         self.returnn_config = ReturnnComputePriorJob.create_returnn_config(**kwargs)
 
@@ -100,10 +94,7 @@ class ReturnnComputePriorJob(Job):
             merged_scores = np.loadtxt(f, delimiter=" ")
 
         with open(self.out_prior_xml_file.get_path(), "wt") as f:
-            f.write(
-                '<?xml version="1.0" encoding="UTF-8"?>\n<vector-f32 size="%d">\n'
-                % len(merged_scores)
-            )
+            f.write('<?xml version="1.0" encoding="UTF-8"?>\n<vector-f32 size="%d">\n' % len(merged_scores))
             f.write(" ".join("%.20e" % s for s in merged_scores) + "\n")
             f.write("</vector-f32>")
 
@@ -241,9 +232,7 @@ class ReturnnRasrComputePriorJob(ReturnnComputePriorJob, ReturnnRasrTrainingJob)
         :param extra_rasr_post_config:
         :param use_python_control:
         """
-        datasets = self.create_dataset_config(
-            train_crp, returnn_config, partition_epochs
-        )
+        datasets = self.create_dataset_config(train_crp, returnn_config, partition_epochs)
         returnn_config.config["train"] = datasets["train"]
         returnn_config.config["dev"] = datasets["dev"]
         super().__init__(
@@ -261,9 +250,7 @@ class ReturnnRasrComputePriorJob(ReturnnComputePriorJob, ReturnnRasrTrainingJob)
 
         self.num_classes = num_classes
         self.alignment = alignment  # allowed to be None
-        self.rasr_exe = rasr.RasrCommand.select_exe(
-            train_crp.nn_trainer_exe, "nn-trainer"
-        )
+        self.rasr_exe = rasr.RasrCommand.select_exe(train_crp.nn_trainer_exe, "nn-trainer")
 
         del kwargs["train_crp"]
         del kwargs["dev_crp"]
@@ -295,9 +282,7 @@ class ReturnnRasrComputePriorJob(ReturnnComputePriorJob, ReturnnRasrTrainingJob)
             self.rasr_train_post_config,
             "rasr.train.config",
         )
-        rasr.RasrCommand.write_config(
-            self.rasr_dev_config, self.rasr_dev_post_config, "rasr.dev.config"
-        )
+        rasr.RasrCommand.write_config(self.rasr_dev_config, self.rasr_dev_post_config, "rasr.dev.config")
 
         self.feature_flow.write_to_file("feature.flow")
 

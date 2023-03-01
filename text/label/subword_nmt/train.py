@@ -141,9 +141,7 @@ class ReturnnTrainBpeJob(Job):
         util.create_executable("create_bpe_codes.sh", bpe_codes_cmd)
 
         with util.uopen(self.text_file, "rb") as f:
-            p = sp.Popen(
-                bpe_codes_cmd, stdin=sp.PIPE, stdout=sys.stdout, stderr=sys.stderr
-            )
+            p = sp.Popen(bpe_codes_cmd, stdin=sp.PIPE, stdout=sys.stdout, stderr=sys.stderr)
             while True:
                 data = f.read(4096)
                 if len(data) > 0:
@@ -169,9 +167,7 @@ class ReturnnTrainBpeJob(Job):
         util.create_executable("create_bpe_vocab.sh", bpe_vocab_cmd)
         sp.run(bpe_vocab_cmd, check=True)
 
-        with util.uopen(self.out_bpe_vocab) as f, util.uopen(
-            self.out_bpe_dummy_count_vocab, "wt"
-        ) as txt_vocab:
+        with util.uopen(self.out_bpe_vocab) as f, util.uopen(self.out_bpe_dummy_count_vocab, "wt") as txt_vocab:
             vocab = eval(f.read())
             num_labels = max(list(vocab.values())) + 1  # 0-based index
             self.out_vocab_size.set(num_labels)

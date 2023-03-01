@@ -28,9 +28,9 @@ def test_write_rasr_config():
         write_rasr_config_job.run()
 
         with open(write_rasr_config_job.out_config) as config_file:
-            for i, (source_line, reference_line) in enumerate(
-                zip(config_file.readlines(), TEST_CONFIG.split("\n"))
-            ):
-                assert (
-                    source_line.strip() == reference_line.strip()
-                ), "line mismatch in %i:\n%s vs %s" % (i, source_line, reference_line)
+            for i, (source_line, reference_line) in enumerate(zip(config_file.readlines(), TEST_CONFIG.split("\n"))):
+                assert source_line.strip() == reference_line.strip(), "line mismatch in %i:\n%s vs %s" % (
+                    i,
+                    source_line,
+                    reference_line,
+                )

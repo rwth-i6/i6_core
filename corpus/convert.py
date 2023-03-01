@@ -85,20 +85,14 @@ class CorpusReplaceOrthFromTxtJob(Job):
 
         if self.segment_file:
             with uopen(self.segment_file.get_path(), "rt") as f:
-                segments_whitelist = set(
-                    l.strip() for l in f.readlines() if len(l.strip()) > 0
-                )
-            segment_iterator = filter(
-                lambda s: s.fullname() in segments_whitelist, c.segments()
-            )
+                segments_whitelist = set(l.strip() for l in f.readlines() if len(l.strip()) > 0)
+            segment_iterator = filter(lambda s: s.fullname() in segments_whitelist, c.segments())
         else:
             segment_iterator = c.segments()
 
         with uopen(self.text_file, "rt") as f:
             for segment, line in itertools.zip_longest(segment_iterator, f):
-                assert (
-                    segment is not None
-                ), "there were more text file lines than segments"
+                assert segment is not None, "there were more text file lines than segments"
                 assert line is not None, "there were less text file lines than segments"
                 assert len(line) > 0
                 segment.orth = line.strip()
@@ -141,13 +135,9 @@ class CorpusToStmJob(Job):
 
         self.bliss_corpus = bliss_corpus
         self.exclude_non_speech = exclude_non_speech
-        self.non_speech_tokens = (
-            non_speech_tokens if non_speech_tokens is not None else []
-        )
+        self.non_speech_tokens = non_speech_tokens if non_speech_tokens is not None else []
         self.remove_punctuation = remove_punctuation
-        self.punctuation_tokens = (
-            punctuation_tokens if punctuation_tokens is not None else []
-        )
+        self.punctuation_tokens = punctuation_tokens if punctuation_tokens is not None else []
         self.fix_whitespace = fix_whitespace
         self.tag_mapping = tag_mapping
         self.name = name
@@ -169,9 +159,7 @@ class CorpusToStmJob(Job):
         ]
 
         for segment in c.segments():
-            tag_map[segment.fullname()] = [
-                "d%d" % i for i in range(len(self.tag_mapping) + 1)
-            ]
+            tag_map[segment.fullname()] = ["d%d" % i for i in range(len(self.tag_mapping) + 1)]
 
         for i, (tag, segments) in enumerate(self.tag_mapping):
             all_tags.append(tag)
@@ -182,11 +170,7 @@ class CorpusToStmJob(Job):
 
         with uopen(self.out_stm_path, "wt") as out:
             for segment in c.segments():
-                speaker_name = (
-                    segment.speaker().name
-                    if segment.speaker() is not None
-                    else segment.recording.name
-                )
+                speaker_name = segment.speaker().name if segment.speaker() is not None else segment.recording.name
                 segment_track = segment.track + 1 if segment.track else 1
 
                 orth = f" {segment.orth.strip()} "
@@ -269,11 +253,7 @@ class CorpusToTextDictJob(Job):
             orth = segment.orth.strip()
             key = segment.fullname()
             if segments:
-                if (
-                    not self.invert_match
-                    and key not in segments
-                    and segment.name not in segments
-                ):
+                if not self.invert_match and key not in segments and segment.name not in segments:
                     continue
                 if self.invert_match and key in segments:
                     continue
@@ -313,15 +293,11 @@ class CorpusToTxtJob(Job):
 
         if self.segment_file:
             with uopen(self.segment_file, "rt") as f:
-                segments_whitelist = set(
-                    l.strip() for l in f.readlines() if len(l.strip()) > 0
-                )
+                segments_whitelist = set(l.strip() for l in f.readlines() if len(l.strip()) > 0)
         else:
             segments_whitelist = None
 
         with uopen(self.out_txt.get_path(), "wt") as f:
             for segment in c.segments():
-                if (not segments_whitelist) or (
-                    segment.fullname() in segments_whitelist
-                ):
+                if (not segments_whitelist) or (segment.fullname() in segments_whitelist):
                     f.write(segment.orth + "\n")

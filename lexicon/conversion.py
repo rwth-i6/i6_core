@@ -29,11 +29,7 @@ class LexiconToWordListJob(Job):
             lexicon = ET.fromstring(lexicon_file.read())
             words = set()
             for e in lexicon.findall("./lemma/orth"):
-                if (
-                    e.text is not None
-                    and len(e.text) > 0
-                    and not (e.text.startswith("[") and self.apply_filter)
-                ):
+                if e.text is not None and len(e.text) > 0 and not (e.text.startswith("[") and self.apply_filter):
                     words.add(e.text)
 
         with open(self.out_word_list.get_path(), "w") as word_file:
@@ -49,9 +45,7 @@ class FilterLexiconByWordListJob(Job):
 
     __sis_hash_exclude__ = {"check_synt_tok": False}
 
-    def __init__(
-        self, bliss_lexicon, word_list, case_sensitive=False, check_synt_tok=False
-    ):
+    def __init__(self, bliss_lexicon, word_list, case_sensitive=False, check_synt_tok=False):
         """
         :param tk.Path bliss_lexicon: lexicon file to be handeled
         :param tk.Path word_list: filter lexicon by this word list
@@ -65,9 +59,7 @@ class FilterLexiconByWordListJob(Job):
         self.case_sensitive = case_sensitive
         self.check_synt_tok = check_synt_tok
 
-        self.out_bliss_lexicon = self.output_path(
-            os.path.basename(tk.uncached_path(bliss_lexicon)), cached=True
-        )
+        self.out_bliss_lexicon = self.output_path(os.path.basename(tk.uncached_path(bliss_lexicon)), cached=True)
 
     def tasks(self):
         yield Task("run", mini_task=True)
@@ -89,15 +81,7 @@ class FilterLexiconByWordListJob(Job):
                 or "special" in lemma.attrib
                 or (orth.text is not None and orth.text.startswith("["))
                 for orth in lemma.findall("orth")
-            ) or (
-                self.check_synt_tok
-                and all(
-                    [
-                        transform(tok.text) in words
-                        for tok in lemma.findall("./synt/tok")
-                    ]
-                )
-            ):
+            ) or (self.check_synt_tok and all([transform(tok.text) in words for tok in lemma.findall("./synt/tok")])):
                 root.append(lemma)
 
         with uopen(self.out_bliss_lexicon.get_path(), "wt") as lexicon_file:
@@ -134,9 +118,7 @@ class LexiconUniqueOrthJob(Job):
         self.bliss_lexicon = bliss_lexicon
         self.merge_multi_orths_lemmata = merge_multi_orths_lemmata
 
-        self.out_bliss_lexicon = self.output_path(
-            os.path.basename(tk.uncached_path(bliss_lexicon)), cached=True
-        )
+        self.out_bliss_lexicon = self.output_path(os.path.basename(tk.uncached_path(bliss_lexicon)), cached=True)
 
     def tasks(self):
         yield Task("run", mini_task=True)
@@ -202,9 +184,7 @@ class LexiconFromTextFileJob(Job):
         """
         self.text_file = text_file
 
-        self.out_bliss_lexicon = self.output_path(
-            "lexicon.xml.gz" if compressed else "lexicon.xml"
-        )
+        self.out_bliss_lexicon = self.output_path("lexicon.xml.gz" if compressed else "lexicon.xml")
 
     def tasks(self):
         yield Task("run", mini_task=True)
@@ -220,9 +200,7 @@ class LexiconFromTextFileJob(Job):
                 # src/Tools/Bliss/blissLexiconLib.py#L185
                 s = line.split(None, 1)
                 orth = s[0].split("\\", 1)[0]
-                phon_variants = [
-                    tuple(p.split()) for p in s[1].split("\\") if p.strip()
-                ]
+                phon_variants = [tuple(p.split()) for p in s[1].split("\\") if p.strip()]
                 for phon_variant in phon_variants:
                     phonemes.update(phon_variant)
                 phon = [" ".join(v) for v in phon_variants]
@@ -245,14 +223,10 @@ class LexiconFromTextFileJob(Job):
 class GraphemicLexiconFromWordListJob(Job):
     default_transforms = {".": "DOT", "+": "PLUS", "{": "LBR", "}": "RBR"}
 
-    def __init__(
-        self, word_list_file, add_unknown=False, add_noise=False, transforms=None
-    ):
+    def __init__(self, word_list_file, add_unknown=False, add_noise=False, transforms=None):
         self.add_unknown = add_unknown
         self.add_noise = add_noise
-        self.transforms = (
-            transforms if transforms is not None else self.default_transforms
-        )
+        self.transforms = transforms if transforms is not None else self.default_transforms
         self.word_list_file = word_list_file
 
         self.out_bliss_lexicon = self.output_path("grapheme.lexicon", cached=True)
@@ -291,21 +265,11 @@ class GraphemicLexiconFromWordListJob(Job):
             )
         )
         # sentence border lemmata, needs no eval element
-        lex.add_lemma(
-            lexicon.Lemma(
-                orth=["[SENTENCE_BEGIN]"], synt=["<s>"], special="sentence-begin"
-            )
-        )
-        lex.add_lemma(
-            lexicon.Lemma(
-                orth=["[SENTENCE_END]"], synt=["</s>"], special="sentence-end"
-            )
-        )
+        lex.add_lemma(lexicon.Lemma(orth=["[SENTENCE_BEGIN]"], synt=["<s>"], special="sentence-begin"))
+        lex.add_lemma(lexicon.Lemma(orth=["[SENTENCE_END]"], synt=["</s>"], special="sentence-end"))
         # unknown lemma, needs no synt/eval element
         if self.add_unknown:
-            lex.add_lemma(
-                lexicon.Lemma(orth=["[UNKNOWN]"], phon=["unk"], special="unknown")
-            )
+            lex.add_lemma(lexicon.Lemma(orth=["[UNKNOWN]"], phon=["unk"], special="unknown"))
             # TODO: synt = ["<UNK>"] ???
         # noise lemma, needs empty synt token sequence but no eval element?
         if self.add_noise:
