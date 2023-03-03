@@ -375,9 +375,6 @@ class SearchWordsToCTMJob(Job):
         :param Path recog_words_file: search output file from RETURNN
         :param Path bliss_corpus: bliss xml corpus
         :param bool filter_tags: if set to True, tags such as [noise] will be filtered out
-        :param empty_seq_label: if set, this label will be used for empty sequences,
-            otherwise empty sequences do not have any entries
-            (but an empty seq usually causes sclite to fail, so you probably always want to set this)
         """
         self.recog_words_file = recog_words_file
         self.bliss_corpus = bliss_corpus
