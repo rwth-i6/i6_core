@@ -15,7 +15,7 @@ import logging
 import os
 import shutil
 import subprocess as sp
-from typing import Any, Union, Set, Dict
+from typing import Optional, Any, Union, Set, Dict
 
 from sisyphus import *
 
@@ -370,15 +370,21 @@ class SearchWordsToCTMJob(Job):
     Convert RETURNN search output file into CTM format file (does not support n-best lists yet)
     """
 
-    def __init__(self, recog_words_file, bliss_corpus, filter_tags=True):
+    __sis_hash_exclude__ = {"empty_seq_label": None}
+
+    def __init__(self, recog_words_file, bliss_corpus, filter_tags=True, *, empty_seq_label: Optional[str] = None):
         """
         :param Path recog_words_file: search output file from RETURNN
         :param Path bliss_corpus: bliss xml corpus
         :param bool filter_tags: if set to True, tags such as [noise] will be filtered out
+        :param empty_seq_label: if set, this label will be used for empty sequences,
+            otherwise empty sequences do not have any entries
+            (but an empty seq usually causes sclite to fail, so you probably always want to set this)
         """
         self.recog_words_file = recog_words_file
         self.bliss_corpus = bliss_corpus
         self.filter_tags = filter_tags
+        self.empty_seq_label = empty_seq_label
 
         self.out_ctm_file = self.output_path("search.ctm")
 
@@ -402,6 +408,7 @@ class SearchWordsToCTMJob(Job):
                 words = d[seg_fullname].split()
                 # Just linearly interpolate the start/end of each word as time stamps are not given
                 avg_dur = (seg_end - seg_start) * 0.9 / max(len(words), 1)
+                count = 0
                 for i in range(len(words)):
                     if self.filter_tags and words[i].startswith("[") and words[i].endswith("]"):
                         continue
@@ -412,6 +419,17 @@ class SearchWordsToCTMJob(Job):
                             seg_start + avg_dur * i,
                             avg_dur,
                             words[i],
+                        )
+                    )
+                    count += 1
+                if count == 0 and self.empty_seq_label:
+                    out.write(
+                        "%s 1 %f %f %s 0.99\n"
+                        % (
+                            seg.recording.name,
+                            seg_start,
+                            avg_dur,
+                            self.empty_seq_label,
                         )
                     )
 
