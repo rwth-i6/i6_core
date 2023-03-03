@@ -15,7 +15,7 @@ import logging
 import os
 import shutil
 import subprocess as sp
-from typing import Optional, Any, Union, Set, Dict
+from typing import Any, Union, Set, Dict
 
 from sisyphus import *
 
