@@ -370,9 +370,7 @@ class SearchWordsToCTMJob(Job):
     Convert RETURNN search output file into CTM format file (does not support n-best lists yet)
     """
 
-    __sis_hash_exclude__ = {"empty_seq_label": None}
-
-    def __init__(self, recog_words_file, bliss_corpus, filter_tags=True, *, empty_seq_label: Optional[str] = None):
+    def __init__(self, recog_words_file, bliss_corpus, filter_tags=True):
         """
         :param Path recog_words_file: search output file from RETURNN
         :param Path bliss_corpus: bliss xml corpus
@@ -384,7 +382,6 @@ class SearchWordsToCTMJob(Job):
         self.recog_words_file = recog_words_file
         self.bliss_corpus = bliss_corpus
         self.filter_tags = filter_tags
-        self.empty_seq_label = empty_seq_label
 
         self.out_ctm_file = self.output_path("search.ctm")
 
@@ -422,14 +419,14 @@ class SearchWordsToCTMJob(Job):
                         )
                     )
                     count += 1
-                if count == 0 and self.empty_seq_label:
+                if count == 0:
                     out.write(
                         "%s 1 %f %f %s 0.99\n"
                         % (
                             seg.recording.name,
                             seg_start,
                             avg_dur,
-                            self.empty_seq_label,
+                            "<empty-sequence>",
                         )
                     )
 
