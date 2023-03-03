@@ -417,6 +417,12 @@ class SearchWordsToCTMJob(Job):
                     )
                     count += 1
                 if count == 0:
+                    # sclite cannot handle empty sequences, and would stop with an error like:
+                    #   hyp file '4515-11057-0054' and ref file '4515-11057-0053' not synchronized
+                    #   sclite: Alignment failed.  Exiting
+                    # So we make sure it is never empty.
+                    # For the WER, it should not matter, assuming the reference sequence is non-empty,
+                    # you will anyway get a WER of 100% for this sequence.
                     out.write(
                         "%s 1 %f %f %s 0.99\n"
                         % (
