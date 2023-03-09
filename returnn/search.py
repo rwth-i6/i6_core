@@ -510,17 +510,20 @@ class SearchRemoveLabelJob(Job):
     Remove some labels from the search output, e.g. "<blank>".
     """
 
-    def __init__(self, search_py_output: tk.Path, *, remove_label: Union[str, Set[str]]):
+    __sis_hash_exclude__ = {"output_gzip": False}
+
+    def __init__(self, search_py_output: tk.Path, *, remove_label: Union[str, Set[str]], output_gzip: bool = False):
         """
         :param search_py_output: a search output file from RETURNN in python format (single or n-best)
         :param remove_label: label(s) to remove from the output, e.g. "<blank>"
+        :param output_gzip: gzip the output
         """
         self.search_py_output = search_py_output
         if isinstance(remove_label, str):
             remove_label = {remove_label}
         assert isinstance(remove_label, set)
         self.remove_label = remove_label
-        self.out_search_results = self.output_path("search_results.py")
+        self.out_search_results = self.output_path("search_results.py" + (".gz" if output_gzip else ""))
 
     def tasks(self):
         """task"""
