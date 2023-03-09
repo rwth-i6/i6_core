@@ -481,12 +481,15 @@ class SearchTakeBestJob(Job):
     From RETURNN beam search results, extract the best result for each sequence.
     """
 
-    def __init__(self, search_py_output: tk.Path):
+    __sis_hash_exclude__ = {"output_gzip": False}
+
+    def __init__(self, search_py_output: tk.Path, *, output_gzip: bool = False):
         """
         :param search_py_output: a search output file from RETURNN in python format (n-best)
+        :param output_gzip: if True, the output will be gzipped
         """
         self.search_py_output = search_py_output
-        self.out_best_search_results = self.output_path("best_search_results.py")
+        self.out_best_search_results = self.output_path("best_search_results.py" + (".gz" if output_gzip else ""))
 
     def tasks(self):
         """task"""
