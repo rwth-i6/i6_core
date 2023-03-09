@@ -332,13 +332,15 @@ class SearchBPEtoWordsJob(Job):
     converts BPE tokens to words in the python format dict from the returnn search
     """
 
-    def __init__(self, search_py_output):
-        """
+    __sis_hash_exclude__ = {"output_gzip": False}
 
-        :param Path search_py_output: a search output file from RETURNN in python format (single or n-best)
+    def __init__(self, search_py_output: Path, *, output_gzip: bool = False):
+        """
+        :param search_py_output: a search output file from RETURNN in python format (single or n-best)
+        :param output_gzip: if True, gzip the output
         """
         self.search_py_output = search_py_output
-        self.out_word_search_results = self.output_path("word_search_results.py")
+        self.out_word_search_results = self.output_path("word_search_results.py" + (".gz" if output_gzip else ""))
 
     def tasks(self):
         yield Task("run", mini_task=True)
