@@ -346,10 +346,10 @@ class SearchBPEtoWordsJob(Job):
         yield Task("run", mini_task=True)
 
     def run(self):
-        d = eval(util.uopen(self.search_py_output, "r").read())
+        d = eval(util.uopen(self.search_py_output, "rt").read())
         assert isinstance(d, dict)  # seq_tag -> bpe string
         assert not os.path.exists(self.out_word_search_results.get_path())
-        with util.uopen(self.out_word_search_results, "w") as out:
+        with util.uopen(self.out_word_search_results, "wt") as out:
             out.write("{\n")
             for seq_tag, entry in sorted(d.items()):
                 if "#" in seq_tag:
@@ -390,9 +390,9 @@ class SearchWordsToCTMJob(Job):
     def run(self):
         corpus = Corpus()
         corpus.load(self.bliss_corpus.get_path())
-        d = eval(util.uopen(self.recog_words_file.get_path(), "r").read())
+        d = eval(util.uopen(self.recog_words_file.get_path(), "rt").read())
         assert isinstance(d, dict), "only search output file with dict format is supported"
-        with util.uopen(self.out_ctm_file.get_path(), "w") as out:
+        with util.uopen(self.out_ctm_file.get_path(), "wt") as out:
             out.write(";; <name> <track> <start> <duration> <word> <confidence> [<n-best>]\n")
             for seg in corpus.segments():
                 seg_start = 0.0 if seg.start == float("inf") else seg.start
@@ -497,10 +497,10 @@ class SearchTakeBestJob(Job):
 
     def run(self):
         """run"""
-        d = eval(util.uopen(self.search_py_output, "r").read())
+        d = eval(util.uopen(self.search_py_output, "rt").read())
         assert isinstance(d, dict)  # seq_tag -> bpe string
         assert not os.path.exists(self.out_best_search_results.get_path())
-        with util.uopen(self.out_best_search_results, "w") as out:
+        with util.uopen(self.out_best_search_results, "wt") as out:
             out.write("{\n")
             for seq_tag, entry in d.items():
                 assert isinstance(entry, list)
@@ -536,10 +536,10 @@ class SearchRemoveLabelJob(Job):
 
     def run(self):
         """run"""
-        d = eval(util.uopen(self.search_py_output, "r").read())
+        d = eval(util.uopen(self.search_py_output, "rt").read())
         assert isinstance(d, dict)  # seq_tag -> bpe string
         assert not os.path.exists(self.out_search_results.get_path())
-        with util.uopen(self.out_search_results, "w") as out:
+        with util.uopen(self.out_search_results, "wt") as out:
             out.write("{\n")
             for seq_tag, entry in d.items():
                 if isinstance(entry, list):
@@ -595,10 +595,10 @@ class SearchBeamJoinScoresJob(Job):
             lsp = numpy.log(sum(numpy.exp(a - a_max) for a in args))
             return a_max + lsp
 
-        d = eval(util.uopen(self.search_py_output, "r").read())
+        d = eval(util.uopen(self.search_py_output, "rt").read())
         assert isinstance(d, dict)  # seq_tag -> bpe string
         assert not os.path.exists(self.out_search_results.get_path())
-        with util.uopen(self.out_search_results, "w") as out:
+        with util.uopen(self.out_search_results, "wt") as out:
             out.write("{\n")
             for seq_tag, entry in d.items():
                 # n-best list as [(score, text), ...]
