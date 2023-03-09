@@ -562,12 +562,15 @@ class SearchBeamJoinScoresJob(Job):
     it will collapse them into a single hyp with the logsumexp of the scores.
     """
 
-    def __init__(self, search_py_output: tk.Path):
+    __sis_hash_exclude__ = {"output_gzip": False}
+
+    def __init__(self, search_py_output: tk.Path, *, output_gzip: bool = False):
         """
         :param search_py_output: a search output file from RETURNN in python format (single or n-best)
+        :param output_gzip: if True, will gzip the output
         """
         self.search_py_output = search_py_output
-        self.out_search_results = self.output_path("search_results.py")
+        self.out_search_results = self.output_path("search_results.py" + (".gz" if output_gzip else ""))
 
     def tasks(self):
         """task"""
