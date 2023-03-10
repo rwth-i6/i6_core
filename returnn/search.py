@@ -238,8 +238,8 @@ class ReturnnSearchFromFileJob(Job):
         :param tk.Path|str returnn_root: RETURNN source root
         """
 
-        self.returnn_python_exe = returnn_python_exe if returnn_python_exe is not None else gs.RETURNN_PYTHON_EXE
-        self.returnn_root = returnn_root if returnn_root is not None else gs.RETURNN_ROOT
+        self.returnn_python_exe = util.get_returnn_python_exe(returnn_python_exe)
+        self.returnn_root = util.get_returnn_root(returnn_root)
 
         self.returnn_config_file_in = returnn_config_file
         self.default_model_name = default_model_name
@@ -452,8 +452,8 @@ class ReturnnComputeWERJob(Job):
         self.hypothesis = hypothesis
         self.reference = reference
 
-        self.returnn_python_exe = returnn_python_exe if returnn_python_exe else gs.RETURNN_PYTHON_EXE
-        self.returnn_root = returnn_root if returnn_root else gs.RETURNN_ROOT
+        self.returnn_python_exe = util.get_returnn_python_exe(returnn_python_exe)
+        self.returnn_root = util.get_returnn_root(returnn_root)
 
         self.out_wer = self.output_var("wer")
 
