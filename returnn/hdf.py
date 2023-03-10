@@ -80,7 +80,10 @@ class ReturnnDumpHDFJob(Job):
         data = self.data
         if isinstance(data, dict):
             instanciate_delayed(data)
-            data = str(data)
+            with open("dataset.config", "wt") as dataset_file:
+                dataset_file.write("#!rnn.py\n")
+                dataset_file.write("train = %s\n" % str(data))
+            data = "dataset.config"
         elif isinstance(data, tk.Path):
             data = data.get_path()
 
