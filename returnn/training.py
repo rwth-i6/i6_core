@@ -518,8 +518,8 @@ class ReturnnTrainingFromFileJob(Job):
         self.learning_rates = self.output_path("learning_rates")
         self.model_dir = self.output_path("models", directory=True)
 
-        self.parameter_dict["ext_model"] = tk.uncached_path(self.model_dir) + "/epoch"
-        self.parameter_dict["ext_learning_rate_file"] = tk.uncached_path(self.learning_rates)
+        self.parameter_dict["ext_model"] = self.model_dir.get() + "/epoch"
+        self.parameter_dict["ext_learning_rate_file"] = self.learning_rates.get()
 
     def tasks(self):
         yield Task("create_files", mini_task=True)
@@ -554,10 +554,8 @@ class ReturnnTrainingFromFileJob(Job):
     def get_parameter_list(self):
         parameter_list = []
         for k, v in sorted(self.parameter_dict.items()):
-            if isinstance(v, tk.Variable):
+            if isinstance(v, (tk.Variable, tk.Path)):
                 v = v.get()
-            elif isinstance(v, tk.Path):
-                v = tk.uncached_path(v)
             elif isinstance(v, (list, dict, tuple)):
                 v = '"%s"' % str(v).replace(" ", "")
 
@@ -575,7 +573,7 @@ class ReturnnTrainingFromFileJob(Job):
         # returnn
         shutil.copy(
             tk.uncached_path(self.returnn_config_file_in),
-            tk.uncached_path(self.returnn_config_file),
+            self.returnn_config_file.get_path(),
         )
 
         parameter_list = self.get_parameter_list()

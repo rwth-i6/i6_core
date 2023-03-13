@@ -279,10 +279,8 @@ class ReturnnSearchFromFileJob(Job):
     def get_parameter_list(self):
         parameter_list = []
         for k, v in sorted(self.parameter_dict.items()):
-            if isinstance(v, tk.Variable):
+            if isinstance(v, (tk.Variable, tk.Path)):
                 v = v.get()
-            elif isinstance(v, tk.Path):
-                v = tk.uncached_path(v)
             elif isinstance(v, (list, dict, tuple)):
                 v = '"%s"' % str(v).replace(" ", "")
 
