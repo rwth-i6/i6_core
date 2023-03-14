@@ -34,15 +34,19 @@ class ExtractDatasetMeanStddevJob(Job):
     Path out_std_dev_file: a text file with #features entries for the standard deviation
     """
 
-    def __init__(self, returnn_config, returnn_python_exe=None, returnn_root=None):
+    __sis_hash_exclude__ = {"data_key": "data"}
+
+    def __init__(self, returnn_config, data_key="data", returnn_python_exe=None, returnn_root=None):
         """
 
         :param ReturnnConfig returnn_config:
+        :param str data_key: the data key to extract the mean and std-dev from
         :param Optional[Path] returnn_python_exe:
         :param Optional[Path] returnn_root:
         """
 
         self.returnn_config = returnn_config
+        self.data_key = data_key
         self.returnn_python_exe = get_returnn_python_exe(returnn_python_exe)
         self.returnn_root = get_returnn_root(returnn_root)
 
@@ -70,6 +74,8 @@ class ExtractDatasetMeanStddevJob(Job):
             "--stats",
             "--dump_stats",
             "stats",
+            "--key",
+            self.data_key,
         ]
 
         create_executable("rnn.sh", command)
