@@ -13,7 +13,9 @@ class CloneGitRepositoryJob(Job):
     Clone a git repository given optional branch name and commit hash
     """
 
-    def __init__(self, url, branch=None, commit=None, checkout_folder_name="repository"):
+    __sis_hash_exclude__ = {"clone_submodules": False}
+
+    def __init__(self, url, branch=None, commit=None, checkout_folder_name="repository", clone_submodules=False):
         """
 
         :param str url: git repository url
@@ -24,6 +26,7 @@ class CloneGitRepositoryJob(Job):
         self.url = url
         self.branch = branch
         self.commit = commit
+        self.clone_submodules = clone_submodules
 
         self.out_repository = self.output_path(checkout_folder_name, True)
 
@@ -38,6 +41,11 @@ class CloneGitRepositoryJob(Job):
         args += [repository_dir]
         logging.info("running command: %s" % " ".join(args))
         sp.run(args, check=True)
+
+        if self.clone_submodules:
+            args = ["git", "submodule", "update", "--init", "--recursive"]
+            sp.run(args, cwd=repository_dir, check=True)
+
         if self.commit is not None:
             args = ["git", "checkout", self.commit]
             logging.info("running command: %s" % " ".join(args))
