@@ -4,6 +4,7 @@ __all__ = [
     "NamedFlowAttribute",
     "FlagDependentFlowAttribute",
     "PathWithPrefixFlowAttribute",
+    "WriteFlowNetworkJob",
 ]
 
 import collections
@@ -12,6 +13,7 @@ import itertools as it
 import xml.etree.ElementTree as ET
 import xml.dom.minidom as minidom
 
+from sisyphus import Job, Task
 from sisyphus.tools import extract_paths
 
 from .config import RasrConfig
