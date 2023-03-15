@@ -409,3 +409,23 @@ def _smart_union(s, e):
     if type(e) == list or type(e) == set:
         return s.union(e)
     return s.union([e])
+
+
+class WriteFlowNetworkJob(Job):
+    """
+    Writes a flow network to a file
+    """
+
+    def __init__(
+        self,
+        flow: FlowNetwork,
+    ):
+        self.flow = flow
+
+        self.out_flow_file = self.output_path("network.flow")
+
+    def tasks(self):
+        yield Task("run", mini_task=True)
+
+    def run(self):
+        self.flow.write_to_file(self.out_flow_file.get_path())
