@@ -15,10 +15,15 @@ def acoustic_model_config(
     tying_type="global",
     nonword_phones="",
     tdp_nonword=(0.0, 3.0, "infinity", 6.0),
+    state_tying_file="",
+    phon_history_length=None,
+    phon_future_length=None,
 ):
     config = rasr.RasrConfig()
 
     config.state_tying.type = state_tying
+    if state_tying_file:
+        config.state_tying.file = state_tying_file
     config.allophones.add_from_lexicon = True
     config.allophones.add_all = False
 
@@ -51,5 +56,10 @@ def acoustic_model_config(
             config.tdp[k].forward = tdp_nonword[1]
             config.tdp[k].skip = tdp_nonword[2]
             config.tdp[k].exit = tdp_nonword[3]
+
+    if phon_history_length is not None:
+        config.phonology.history_length = phon_history_length
+    if phon_future_length is not None:
+        config.phonology.future_length = phon_future_length
 
     return config
