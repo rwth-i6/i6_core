@@ -1,24 +1,63 @@
 __all__ = ["acoustic_model_config"]
 
+from dataclasses import dataclass
+from typing import List, Literal, Tuple, Union, Optional
 import i6_core.rasr as rasr
+
+from sisyphus import tk
+
+TdpType = Union[float, Literal["infinity"]]
+
+
+@dataclass
+class TdpValues:
+    loop: TdpType
+    forward: TdpType
+    skip: TdpType
+    exit: TdpType
 
 
 def acoustic_model_config(
-    state_tying="monophone",
-    states_per_phone=3,
-    state_repetitions=1,
-    across_word_model=True,
-    early_recombination=False,
-    tdp_scale=1.0,
-    tdp_transition=(3.0, 0.0, 3.0, 2.0),
-    tdp_silence=(0.0, 3.0, "infinity", 6.0),
-    tying_type="global",
-    nonword_phones="",
-    tdp_nonword=(0.0, 3.0, "infinity", 6.0),
-):
+    state_tying: str = "monophone",
+    states_per_phone: int = 3,
+    state_repetitions: int = 1,
+    across_word_model: bool = True,
+    early_recombination: bool = False,
+    tdp_scale: float = 1.0,
+    tdp_transition: Union[TdpValues, Tuple[TdpType, ...]] = (3.0, 0.0, 3.0, 2.0),
+    tdp_silence: Union[TdpValues, Tuple[TdpType, ...]] = (0.0, 3.0, "infinity", 6.0),
+    tying_type: Literal["global", "global-and-nonword"] = "global",
+    nonword_phones: Union[str, List[str]] = "",
+    tdp_nonword: Union[TdpValues, Tuple[TdpType, ...]] = (0.0, 3.0, "infinity", 6.0),
+    state_tying_file: Optional[tk.Path] = None,
+    phon_history_length: int = 1,
+    phon_future_length: int = 1,
+) -> rasr.RasrConfig:
+    """
+    Create a RasrConfig object with common default values to be used as `acoustic_model_config`.
+
+    :param state_tying: Choice of state-tying type.
+    :param states_per_phone: Number of states per phoneme.
+    :param state_repetitions: Number of repetitions per state.
+    :param across_word_model: Enable co-articulation across word boundaries.
+    :param early_recombination: Enable recombination of word hypothesis before actual word end.
+    :param tdp_scale: Global scaling factor that is multiplied to all tdp values.
+    :param tdp_transition: tdp values assigned to transitions of regular states.
+    :param tdp_silence: tdp values assigned to transitions of the silence state.
+    :param tying_type: Choice of tying type for transition model.
+    :param nonword_phones: Nonword-phoneme(s), e.g. [NOISE]. They get extra tdp's if tying_tpe is "global-and-nonword".
+    :param tdp_nonword: tdp values assigned to transitions of nonword states. Only applied it tying_type is "global-and-nonword".
+    :param state_tying_file: File containing state-tying info for e.g. `cart` or `lookup` state-tying.
+    :param phon_history_length: maximum number of history tokens considered for allophone alphabet.
+    :param phon_future_length: maximum number of future tokens considered for allophone alphabet.
+
+    :return: RasrConfig using the specified values.
+    """
     config = rasr.RasrConfig()
 
     config.state_tying.type = state_tying
+    if state_tying_file is not None:
+        config.state_tying.file = state_tying_file
     config.allophones.add_from_lexicon = True
     config.allophones.add_all = False
 
@@ -29,15 +68,19 @@ def acoustic_model_config(
 
     config.tdp.scale = tdp_scale
 
-    config.tdp["*"].loop = tdp_transition[0]
-    config.tdp["*"].forward = tdp_transition[1]
-    config.tdp["*"].skip = tdp_transition[2]
-    config.tdp["*"].exit = tdp_transition[3]
+    if not isinstance(tdp_transition, TdpValues):
+        tdp_transition = TdpValues(*tdp_transition)
+    config.tdp["*"].loop = tdp_transition.loop
+    config.tdp["*"].forward = tdp_transition.forward
+    config.tdp["*"].skip = tdp_transition.skip
+    config.tdp["*"].exit = tdp_transition.exit
 
-    config.tdp.silence.loop = tdp_silence[0]
-    config.tdp.silence.forward = tdp_silence[1]
-    config.tdp.silence.skip = tdp_silence[2]
-    config.tdp.silence.exit = tdp_silence[3]
+    if not isinstance(tdp_silence, TdpValues):
+        tdp_silence = TdpValues(*tdp_silence)
+    config.tdp.silence.loop = tdp_silence.loop
+    config.tdp.silence.forward = tdp_silence.forward
+    config.tdp.silence.skip = tdp_silence.skip
+    config.tdp.silence.exit = tdp_silence.exit
 
     config.tdp["entry-m1"].loop = "infinity"
     config.tdp["entry-m2"].loop = "infinity"
@@ -45,11 +88,18 @@ def acoustic_model_config(
     if tying_type == "global-and-nonword":
         config.tdp.tying_type = "global-and-nonword"
         config.tdp.nonword_phones = nonword_phones
+        if not isinstance(tdp_nonword, TdpValues):
+            tdp_nonword = TdpValues(*tdp_nonword)
         for nw in [0, 1]:
-            k = "nonword-%d" % nw
-            config.tdp[k].loop = tdp_nonword[0]
-            config.tdp[k].forward = tdp_nonword[1]
-            config.tdp[k].skip = tdp_nonword[2]
-            config.tdp[k].exit = tdp_nonword[3]
+            k = f"nonword-{nw}"
+            config.tdp[k].loop = tdp_nonword.loop
+            config.tdp[k].forward = tdp_nonword.forward
+            config.tdp[k].skip = tdp_nonword.skip
+            config.tdp[k].exit = tdp_nonword.exit
+
+    if phon_history_length != 1:
+        config.phonology.history_length = phon_history_length
+    if phon_future_length != 1:
+        config.phonology.future_length = phon_future_length
 
     return config
