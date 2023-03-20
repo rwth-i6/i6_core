@@ -29,7 +29,7 @@ def acoustic_model_config(
     tying_type: Literal["global", "global-and-nonword"] = "global",
     nonword_phones: Union[str, List[str]] = "",
     tdp_nonword: Union[TdpValues, Tuple[TdpType, ...]] = (0.0, 3.0, "infinity", 6.0),
-    state_tying_file: Union[str, tk.Path] = "",
+    state_tying_file: Optional[tk.Path] = None,
     phon_history_length: int = 1,
     phon_future_length: int = 1,
 ) -> rasr.RasrConfig:
@@ -56,7 +56,7 @@ def acoustic_model_config(
     config = rasr.RasrConfig()
 
     config.state_tying.type = state_tying
-    if state_tying_file:
+    if state_tying_file is not None:
         config.state_tying.file = state_tying_file
     config.allophones.add_from_lexicon = True
     config.allophones.add_all = False
