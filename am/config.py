@@ -1,7 +1,7 @@
 __all__ = ["acoustic_model_config"]
 
 from dataclasses import dataclass
-from typing import List, Literal, Tuple, Union
+from typing import List, Literal, Tuple, Union, Optional
 import i6_core.rasr as rasr
 
 from sisyphus import tk
