@@ -3,7 +3,7 @@ __all__ = ["WriteLexiconJob", "MergeLexiconJob", "AddBoundaryMarkerToLexiconJob"
 import copy
 from collections import OrderedDict, defaultdict
 import itertools
-from typing import Generator, List, Set
+from typing import Generator, List, Optional, Set
 
 from sisyphus import Job, Task, tk
 
@@ -189,15 +189,21 @@ class MergeLexiconJob(Job):
 
 
 class AddEowPhonemesToLexiconJob(Job):
-    def __init__(self, bliss_lexicon: tk.Path):
+    def __init__(self, bliss_lexicon: tk.Path, nonword_phones: Optional[List] = None, boundary_marker: str = "#"):
         """
         Extends phoneme set of a lexicon by additional end-of-word (eow) versions
         of all regular phonemes. Modifies lemmata to use the new eow-version
         of the final phoneme in each pronunciation.
 
-        :param tk.Path bliss_lexicon: Base lexicon to be modified.
+        :param bliss_lexicon: Base lexicon to be modified.
+        :param nonword_phones: List of nonword-phones for which no eow-versions will be added, e.g. [noise].
+                               Phonemes that occur in special lemmata are found automatically and do not need
+                               to be specified here.
+        :param boundary_marker: String that is appended to phoneme symbols to mark eow-version.
         """
         self.bliss_lexicon = bliss_lexicon
+        self.nonword_phones = nonword_phones or []
+        self.boundary_marker = boundary_marker
 
         self.out_lexicon = self.output_path("lexicon.xml")
 
@@ -219,13 +225,14 @@ class AddEowPhonemesToLexiconJob(Job):
                 continue
             for phon in lemma.phon:
                 special_phonemes.update(phon.split())
+        special_phonemes.update(self.nonword_phones)
 
         # Add all phonemes to out_lexicon and create list of eow-phonemes
         eow_phonemes = []
         for phoneme, variation in in_lex.phonemes.items():
             out_lex.add_phoneme(phoneme, variation)
             if phoneme not in special_phonemes:
-                eow_phonemes.append((phoneme + "#", variation))
+                eow_phonemes.append((phoneme + self.boundary_marker, variation))
 
         # Add eow-phonemes to out_lexicon
         for eow_phoneme, variation in eow_phonemes:
@@ -234,7 +241,7 @@ class AddEowPhonemesToLexiconJob(Job):
         # Modify lemmata to include eow-phoneme
         for lemma in in_lex.lemmata:
             if lemma.special is None and lemma.phon is not None:
-                lemma.phon = [phon.rstrip() + "#" for phon in lemma.phon]
+                lemma.phon = [phon.rstrip() + self.boundary_marker for phon in lemma.phon]
             out_lex.add_lemma(lemma)
 
         # Write resulting lexicon to file
