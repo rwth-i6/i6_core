@@ -118,7 +118,7 @@ class CompileTFGraphJob(Job):
         if self.rec_step_by_step is not None:
             args.append(f"--rec_step_by_step={self.rec_step_by_step}")
             if self.rec_json_info:
-                args.append("--rec_step_by_step_output_file={self.out_rec_json_info.get()}")
+                args.append(f"--rec_step_by_step_output_file={self.out_rec_json_info.get_path()}")
 
         util.create_executable("run.sh", args)
 
