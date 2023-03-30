@@ -74,6 +74,7 @@ class CompileTFGraphJob(Job):
         self.out_model_params = self.output_var("model_params.pickle", pickle=True)
         self.out_state_vars = self.output_var("state_vars.pickle", pickle=True)
         self.out_returnn_config = self.output_path("returnn.config")
+        self.out_rec_json_info = self.output_path("rec.info")
 
         self.rqmt = None
 
@@ -117,7 +118,7 @@ class CompileTFGraphJob(Job):
         if self.rec_step_by_step is not None:
             args.append(f"--rec_step_by_step={self.rec_step_by_step}")
             if self.rec_json_info:
-                args.append("--rec_step_by_step_output_file=rec.info")
+                args.append("--rec_step_by_step_output_file={self.out_rec_json_info.get()}")
 
         util.create_executable("run.sh", args)
 
