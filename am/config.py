@@ -1,4 +1,4 @@
-__all__ = ["acoustic_model_config"]
+__all__ = ["acoustic_model_config", "adjust_am_config_for_corrected_applicator"]
 
 from dataclasses import dataclass
 from typing import List, Literal, Tuple, Union, Optional
@@ -103,3 +103,19 @@ def acoustic_model_config(
         config.phonology.future_length = phon_future_length
 
     return config
+
+
+def adjust_am_config_for_corrected_applicator(config: rasr.RasrConfig):
+    """
+    Set the correct type of applicator, default is "legacy". Moreover, set exit penalities to zero
+    For a given word sequence the exit penalty is constant with respect to the max/sum
+    :param config:
+    :return:
+    """
+    config.tdp.applicator_type = "corrected"
+    transition_types = ["*", "silence"]
+    if config.tdp.tying_type == "global-and-nonword":
+        for nw in [0, 1]:
+            transition_types.append(f"nonword-{nw}")
+    for t in transition_types:
+        config.tdp[t].exit = 0.0

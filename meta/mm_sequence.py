@@ -39,6 +39,7 @@ class AlignSplitAccumulateSequence:
         split_keep_values=None,
         accumulate_keep_values=None,
         feature_scorer=DiagonalMaximumScorer,
+        use_corrected_applicator=False,
         alias_path=None,
     ):
         """
@@ -69,6 +70,7 @@ class AlignSplitAccumulateSequence:
         :param dict accumulate_keep_values:
             keep values for accumulate jobs, which might be indexed by "default", "selected" or the action index number.
         :param feature_scorer:
+        :param bool set to True if you want to avoid using the legacy FSA with incorrect silence forward probabilities.
         :param str|None alias_path: adds an alias with the action name for each job in the sequence at the
             given path
         """
@@ -117,8 +119,23 @@ class AlignSplitAccumulateSequence:
 
         for a_idx, action in enumerate(action_sequence):
             if action.startswith("align"):
+                if use_corrected_applicator:
+                    from i6_core.am.config import adjust_am_config_for_corrected_applicator
+                    from i6_core.rasr.crp import CommonRasrParameters
+                    import copy
+
+                    align_crp = CommonRasrParameters(base=crp)
+                    adjust_am_config_for_corrected_applicator(align_crp.acoustic_model_config)
+                    align_crp.acoustic_model_config = copy.deepcopy(crp.acoustic_model_config)
+                    align_crp.acoustic_model_config["*"].allow_for_silence_repetitions = False
+                    align_crp.acoustic_model_config["*"].normalize_lemma_sequence_scores = False
+                    align_crp.acoustic_model_config["*"].fix_allophone_context_at_word_boundaries = True
+                    align_crp.acoustic_model_config["*"].transducer_builder_filter_out_invalid_allophones = True
+                else:
+                    align_crp = crp
+
                 args = {
-                    "crp": crp,
+                    "crp": align_crp,
                     "feature_flow": feature_flow,
                     "feature_scorer": feature_scorer(current_mixtures),
                 }
