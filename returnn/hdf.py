@@ -1,16 +1,18 @@
 __all__ = ["ReturnnDumpHDFJob", "ReturnnRasrDumpHDFJob", "BlissToPcmHDFJob"]
 
 from dataclasses import dataclass
+import numpy as np
 import os
 import shutil
 import soundfile as sf
 import subprocess as sp
 import tempfile
-from typing import Optional
+from typing import List, Optional
 
 from .rasr_training import ReturnnRasrTrainingJob
 from i6_core.lib import corpus
 from i6_core.lib.hdf import get_returnn_simple_hdf_writer
+from i6_core.lib.rasr_cache import FileArchive
 import i6_core.rasr as rasr
 from i6_core.util import instanciate_delayed, uopen
 from i6_core import util
@@ -293,35 +295,34 @@ class RasrAlignmentDumpHDFJob(Job):
         alignment_caches: List[tk.Path],
         allophone_file: tk.Path,
         state_tying_file: tk.Path,
+        data_type: type = np.uint16,
         returnn_root: Optional[tk.Path] = None,
     ):
         """
-        :param list[Path]: alignment_caches
-        :param Path: allophone_file
-        :param Path: state_tying_file
-        :param Optional[Path] returnn_root: file path to the RETURNN repository root folder
+        :param alignment_caches: e.g. output of an AlignmentJob
+        :param allophone_file
+        :param state_tying_file: e.g. output of a DumpStateTyingJob
+        :param returnn_root: file path to the RETURNN repository root folder
         """
         self.alignment_caches = alignment_caches
         self.allophone_file = allophone_file
         self.state_tying_file = state_tying_file
         self.out_hdf_files = [self.output_path(f"data.hdf.{d}", cached=False) for d in range(len(alignment_caches))]
         self.returnn_root = returnn_root
+        self.data_type = data_type
         self.rqmt = {"cpu": 1, "mem": 8, "time": 0.5}
 
     def tasks(self):
-        yield Task("run", resume="run", rqmt=self.rqmt, args=range(1, (len(self.alignment_caches) + 1)))
+        yield Task("run", rqmt=self.rqmt, args=range(1, (len(self.alignment_caches) + 1)))
 
     def run(self, task_id):
-        from i6_core.lib.rasr_cache import FileArchive
         import numpy as np
 
         state_tying = dict(
             (k, int(v)) for l in open(self.state_tying_file.get_path()) for k, v in [l.strip().split()[0:2]]
         )
 
-        alignment_cache = FileArchive(
-            self.alignment_caches[min(task_id - 1, len(self.alignment_caches) - 1)].get_path()
-        )
+        alignment_cache = FileArchive(self.alignment_caches[task_id - 1].get_path())
         alignment_cache.setAllophones(self.allophone_file.get_path())
 
         returnn_root = None if self.returnn_root is None else self.returnn_root.get_path()
@@ -341,7 +342,7 @@ class RasrAlignmentDumpHDFJob(Job):
             for allophone in alignmentStates:
                 targets.append(state_tying[allophone])
 
-            data = np.array(targets).astype("int32")
+            data = np.array(targets).astype(np.dtype(self.data_type))
             out_hdf.insert_batch(
                 inputs=data.reshape(1, -1, 1),
                 seq_len=[data.shape[0]],
