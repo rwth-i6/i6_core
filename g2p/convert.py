@@ -96,10 +96,10 @@ class G2POutputToBlissLexiconJob(Job):
         with uopen(self.g2p_lexicon, "rt", encoding="utf-8") as f:
             oov_words = dict()
             for orth, data in it.groupby(map(lambda line: line.strip().split("\t"), f), lambda t: t[0]):
-                oov_words[orth] = []
+                oov_words[orth] = {}
                 for d in data:
                     if len(d) == 4:
-                        oov_words[orth].append(d[3])
+                        oov_words[orth].add(d[3])
                     elif len(d) < 4:
                         logging.warning('No pronunciation found for orthography "{}"'.format(orth))
                     else:
@@ -118,7 +118,7 @@ class G2POutputToBlissLexiconJob(Job):
 
         for orth, prons in oov_words.items():
             if len(prons) > 0:
-                lemma = lexicon.Lemma(orth=[orth], phon=prons)
+                lemma = lexicon.Lemma(orth=[orth], phon=list(prons))
                 g2p_lexicon.add_lemma(lemma)
 
         write_xml(self.out_oov_lexicon.get_path(), g2p_lexicon.to_xml())
