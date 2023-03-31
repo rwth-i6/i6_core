@@ -233,6 +233,7 @@ class AddEowPhonemesToLexiconJob(Job):
             if phoneme in special_phonemes:
                 continue
             phoneme_list[i] = self._eow_phoneme(phoneme)
+            break
 
         return " ".join(phoneme_list)
 
