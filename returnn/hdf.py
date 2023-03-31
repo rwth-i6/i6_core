@@ -268,7 +268,7 @@ class BlissToPcmHDFJob(Job):
                         always_2d=True,
                         dtype=self.output_dtype,
                     )
-                    if isinstance(self.multi_channel_strategy, PickNth):
+                    if isinstance(self.multi_channel_strategy, self.PickNth):
                         data = data[:, self.multi_channel_strategy.channel]
                     else:
                         assert data.shape[-1] == 1, "Audio has more than one channel, choose a multi_channel_strategy"
