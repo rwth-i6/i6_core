@@ -300,7 +300,7 @@ class RasrAlignmentDumpHDFJob(Job):
     ):
         """
         :param alignment_caches: e.g. output of an AlignmentJob
-        :param allophone_file
+        :param allophone_file: e.g. output of a StoreAllophonesJob
         :param state_tying_file: e.g. output of a DumpStateTyingJob
         :param returnn_root: file path to the RETURNN repository root folder
         """
@@ -316,8 +316,6 @@ class RasrAlignmentDumpHDFJob(Job):
         yield Task("run", rqmt=self.rqmt, args=range(1, (len(self.alignment_caches) + 1)))
 
     def run(self, task_id):
-        import numpy as np
-
         state_tying = dict(
             (k, int(v)) for l in open(self.state_tying_file.get_path()) for k, v in [l.strip().split()[0:2]]
         )
