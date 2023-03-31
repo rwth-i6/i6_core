@@ -302,6 +302,7 @@ class RasrAlignmentDumpHDFJob(Job):
         :param alignment_caches: e.g. output of an AlignmentJob
         :param allophone_file: e.g. output of a StoreAllophonesJob
         :param state_tying_file: e.g. output of a DumpStateTyingJob
+        :param data_type: type that is used to store the data
         :param returnn_root: file path to the RETURNN repository root folder
         """
         self.alignment_caches = alignment_caches
