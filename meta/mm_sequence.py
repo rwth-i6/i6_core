@@ -121,16 +121,21 @@ class AlignSplitAccumulateSequence:
             if action.startswith("align"):
                 if use_corrected_applicator:
                     from i6_core.am.config import adjust_am_config_for_corrected_applicator
-                    from i6_core.rasr.crp import CommonRasrParameters
+                    import i6_core.rasr as rasr
                     import copy
 
-                    align_crp = CommonRasrParameters(base=crp)
+                    align_crp = rasr.CommonRasrParameters(base=crp)
                     adjust_am_config_for_corrected_applicator(align_crp.acoustic_model_config)
                     align_crp.acoustic_model_config = copy.deepcopy(crp.acoustic_model_config)
-                    align_crp.acoustic_model_config["*"].allow_for_silence_repetitions = False
-                    align_crp.acoustic_model_config["*"].normalize_lemma_sequence_scores = False
-                    align_crp.acoustic_model_config["*"].fix_allophone_context_at_word_boundaries = True
-                    align_crp.acoustic_model_config["*"].transducer_builder_filter_out_invalid_allophones = True
+                    align_crp.acoustic_model_config.fix_allophone_context_at_word_boundaries = True
+                    align_crp.acoustic_model_config.transducer_builder_filter_out_invalid_allophones = True
+
+                    pre_pattern = "acoustic-model-trainer.aligning-feature-extractor.feature-extraction.alignment.allophone-state-graph-builder.orthographic-parser"
+                    extra_config = rasr.RasrConfig()
+                    if "extra_config" not in align_extra_args:
+                        align_extra_args["extra_config"] = extra_config
+                    align_extra_args["extra_config"][f"{pre_pattern}.normalize-lemma-sequence-scores"] = False
+                    align_extra_args["extra_config"][f"{pre_pattern}.allow-for-silence-repetitions"] = False
                 else:
                     align_crp = crp
 
