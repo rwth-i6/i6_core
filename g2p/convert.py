@@ -96,7 +96,7 @@ class G2POutputToBlissLexiconJob(Job):
         with uopen(self.g2p_lexicon, "rt", encoding="utf-8") as f:
             oov_words = dict()
             for orth, data in it.groupby(map(lambda line: line.strip().split("\t"), f), lambda t: t[0]):
-                oov_words[orth] = {}
+                oov_words[orth] = set()
                 for d in data:
                     if len(d) == 4:
                         oov_words[orth].add(d[3])
