@@ -54,7 +54,7 @@ class CompileTFGraphJob(Job):
         :param str output_format: graph output format, one of ["pb", "pbtxt", "meta", "metatxt"]
         :param Optional[Path] returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
         :param Optional[Path] returnn_root: file path to the RETURNN repository root folder
-        :param str|None rec_step_by_step: name of rec layer for step-by-step graph
+        :param Optional[str] rec_step_by_step: name of rec layer for step-by-step graph
         :param bool rec_json_info: whether to enable rec json info for step-by-step graph compilation
         """
         self.returnn_config = returnn_config
