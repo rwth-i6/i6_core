@@ -73,9 +73,7 @@ class DownloadAndPrepareTfDatasetJob(Job):
 
             # https://github.com/tensorflow/datasets/issues/3885
             def _patched_get_downloader(*args, **kwargs):
-                kwargs.setdefault(
-                    "max_simultaneous_downloads", self.max_simultaneous_downloads
-                )
+                kwargs.setdefault("max_simultaneous_downloads", self.max_simultaneous_downloads)
                 return orig_get_downloader(*args, **kwargs)
 
             tfds.download.downloader.get_downloader = _patched_get_downloader

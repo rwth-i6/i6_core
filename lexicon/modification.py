@@ -50,9 +50,7 @@ class WriteLexiconJob(Job):
         static_lexicon.add_phoneme("[UNKNOWN]", variation="none")
     """
 
-    def __init__(
-        self, static_lexicon, sort_phonemes=False, sort_lemmata=False, compressed=True
-    ):
+    def __init__(self, static_lexicon, sort_phonemes=False, sort_lemmata=False, compressed=True):
         """
         :param lexicon.Lexicon static_lexicon: A Lexicon object
         :param bool sort_phonemes: sort phoneme inventory alphabetically
@@ -63,9 +61,7 @@ class WriteLexiconJob(Job):
         self.sort_phonemes = sort_phonemes
         self.sort_lemmata = sort_lemmata
 
-        self.out_bliss_lexicon = self.output_path(
-            "lexicon.xml.gz" if compressed else "lexicon.xml"
-        )
+        self.out_bliss_lexicon = self.output_path("lexicon.xml.gz" if compressed else "lexicon.xml")
 
     def tasks(self):
         yield Task("run", mini_task=True)
@@ -74,8 +70,7 @@ class WriteLexiconJob(Job):
         lex = lexicon.Lexicon()
         if self.sort_phonemes:
             sorted_phoneme_list = [
-                (k, self.static_lexicon.phonemes[k])
-                for k in sorted(self.static_lexicon.phonemes.keys())
+                (k, self.static_lexicon.phonemes[k]) for k in sorted(self.static_lexicon.phonemes.keys())
             ]
             for phoneme_tuple in sorted_phoneme_list:
                 lex.add_phoneme(symbol=phoneme_tuple[0], variation=phoneme_tuple[1])
@@ -117,9 +112,7 @@ class WriteLexiconJob(Job):
     @classmethod
     def hash(cls, parsed_args):
         parsed_args = parsed_args.copy()
-        parsed_args["static_lexicon"] = cls._fix_hash_for_lexicon(
-            parsed_args["static_lexicon"]
-        )
+        parsed_args["static_lexicon"] = cls._fix_hash_for_lexicon(parsed_args["static_lexicon"])
         return super().hash(parsed_args)
 
 
@@ -136,9 +129,7 @@ class MergeLexiconJob(Job):
     will create a new lexicon that might be incompatible to previously generated alignments.
     """
 
-    def __init__(
-        self, bliss_lexica, sort_phonemes=False, sort_lemmata=False, compressed=True
-    ):
+    def __init__(self, bliss_lexica, sort_phonemes=False, sort_lemmata=False, compressed=True):
         """
         :param list[Path] bliss_lexica: list of bliss lexicon files (plain or gz)
         :param bool sort_phonemes: sort phoneme inventory alphabetically
@@ -149,9 +140,7 @@ class MergeLexiconJob(Job):
         self.sort_phonemes = sort_phonemes
         self.sort_lemmata = sort_lemmata
 
-        self.out_bliss_lexicon = self.output_path(
-            "lexicon.xml.gz" if compressed else "lexicon.xml"
-        )
+        self.out_bliss_lexicon = self.output_path("lexicon.xml.gz" if compressed else "lexicon.xml")
 
     def tasks(self):
         yield Task("run", mini_task=True)
@@ -170,20 +159,14 @@ class MergeLexiconJob(Job):
         for lex in lexica:
             for symbol, variation in lex.phonemes.items():
                 if symbol in merged_phonemes.keys():
-                    assert variation == merged_phonemes[symbol], (
-                        "conflicting phoneme variant for phoneme: %s" % symbol
-                    )
+                    assert variation == merged_phonemes[symbol], "conflicting phoneme variant for phoneme: %s" % symbol
                 else:
                     merged_phonemes[symbol] = variation
 
         if self.sort_phonemes:
-            sorted_phoneme_list = [
-                (k, merged_phonemes[k]) for k in sorted(merged_phonemes.keys())
-            ]
+            sorted_phoneme_list = [(k, merged_phonemes[k]) for k in sorted(merged_phonemes.keys())]
             for phoneme_tuple in sorted_phoneme_list:
-                merged_lex.add_phoneme(
-                    symbol=phoneme_tuple[0], variation=phoneme_tuple[1]
-                )
+                merged_lex.add_phoneme(symbol=phoneme_tuple[0], variation=phoneme_tuple[1])
         else:
             merged_lex.phonemes = merged_phonemes
 
@@ -195,9 +178,7 @@ class MergeLexiconJob(Job):
                     # sort by first orth entry
                     orth_key = lemma.orth[0] if lemma.orth else ""
                     lemma_dict[orth_key].append(lemma)
-            merged_lex.lemmata = list(
-                itertools.chain(*[lemma_dict[key] for key in sorted(lemma_dict.keys())])
-            )
+            merged_lex.lemmata = list(itertools.chain(*[lemma_dict[key] for key in sorted(lemma_dict.keys())]))
         else:
             for lex in lexica:
                 # check for existing orths to avoid overlap

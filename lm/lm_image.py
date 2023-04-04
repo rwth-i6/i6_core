@@ -44,9 +44,7 @@ class CreateLmImageJob(rasr.RasrCommand, Job):
             ":${{THEANO_FLAGS:="
             "}}\n"
             'export THEANO_FLAGS="$THEANO_FLAGS,device={0},force_device=True"\n'
-            'export TF_DEVICE="{0}"'.format(
-                "gpu" if self.rqmt.get("gpu", 0) > 0 else "cpu"
-            )
+            'export TF_DEVICE="{0}"'.format("gpu" if self.rqmt.get("gpu", 0) > 0 else "cpu")
         )
         self.write_run_script(self.exe, "lm_image.config", extra_code=extra_code)
 
@@ -69,16 +67,12 @@ class CreateLmImageJob(rasr.RasrCommand, Job):
         config, post_config = rasr.build_config_from_mapping(
             crp, {"lexicon": "lm-util.lexicon", "language_model": "lm-util.lm"}
         )
-        del (
-            config.lm_util.lm.scale
-        )  # scale not considered here, delete to remove ambiguity
+        del config.lm_util.lm.scale  # scale not considered here, delete to remove ambiguity
 
         assert config.lm_util.lm.type == "ARPA"
 
         if "image" in post_config.lm_util.lm:
-            logging.warning(
-                "The LM image already exists, but a new one will be recreated."
-            )
+            logging.warning("The LM image already exists, but a new one will be recreated.")
             del post_config.lm_util.lm.image
 
         config.lm_util.action = "load-lm"

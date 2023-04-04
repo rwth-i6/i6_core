@@ -44,25 +44,19 @@ class BayesianInformationClusteringJob(rasr.RasrCommand, Job):
         kwargs = locals()
         del kwargs["self"]
 
-        self.config, self.post_config = BayesianInformationClusteringJob.create_config(
-            **kwargs
-        )
+        self.config, self.post_config = BayesianInformationClusteringJob.create_config(**kwargs)
         self.concurrent = crp.concurrent
         self.exe = (
             crp.feature_extraction_exe
             if crp.feature_extraction_exe is not None
             else self.default_exe("feature-extraction")
         )
-        self.cluster_flow = segment_clustering_flow(
-            file="cluster.map.$(TASK)", **kwargs
-        )
+        self.cluster_flow = segment_clustering_flow(file="cluster.map.$(TASK)", **kwargs)
 
         self.log_file = self.log_file_output_path("cluster", crp, True)
         self.num_speakers = self.output_var("num_speakers", True)
         self.segment_dir = self.output_path("segments", True)
-        self.segment_path = MultiOutputPath(
-            self, "segments/speaker.$(TASK)", self.segment_dir
-        )
+        self.segment_path = MultiOutputPath(self, "segments/speaker.$(TASK)", self.segment_dir)
         self.speaker_map_file = self.output_path("speaker.map")
         self.cluster_map_file = self.output_path("cluster.map.xml")
 
@@ -76,9 +70,7 @@ class BayesianInformationClusteringJob(rasr.RasrCommand, Job):
 
     def tasks(self):
         yield Task("create_files", mini_task=True)
-        yield Task(
-            "run", resume="run", rqmt=self.rqmt, args=range(1, self.concurrent + 1)
-        )
+        yield Task("run", resume="run", rqmt=self.rqmt, args=range(1, self.concurrent + 1))
         yield Task("merge", resume="merge", mini_task=True)
 
     def run(self, task_id):
@@ -108,10 +100,7 @@ class BayesianInformationClusteringJob(rasr.RasrCommand, Job):
                     ) as ssf:
                         for segment in speaker_map[speaker]:
                             ssf.write("%s\n" % segment)
-                            cmf.write(
-                                '  <map-item key="%s" value="cluster.%d"/>\n'
-                                % (segment, idx)
-                            )
+                            cmf.write('  <map-item key="%s" value="cluster.%d"/>\n' % (segment, idx))
                 cmf.write("</coprus-key-map>")  # misspelled on purpose
 
     def create_files(self):
@@ -120,12 +109,8 @@ class BayesianInformationClusteringJob(rasr.RasrCommand, Job):
         self.write_run_script(self.exe, "clustering.config")
 
     @classmethod
-    def create_config(
-        cls, crp, feature_flow, extra_config, extra_post_config, **kwargs
-    ):
-        config, post_config = rasr.build_config_from_mapping(
-            crp, {"corpus": "extraction.corpus"}, parallelize=True
-        )
+    def create_config(cls, crp, feature_flow, extra_config, extra_post_config, **kwargs):
+        config, post_config = rasr.build_config_from_mapping(crp, {"corpus": "extraction.corpus"}, parallelize=True)
         config.extraction.feature_extraction.file = "cluster.flow"
 
         config._update(extra_config)

@@ -97,9 +97,7 @@ fi
         :return: path to a rasr binary with the default path pattern inside the repsoitory
         :rtype: str
         """
-        exe = os.path.join(
-            rasr_root, "arch", rasr_arch, "%s.%s" % (exe_name, rasr_arch)
-        )
+        exe = os.path.join(rasr_root, "arch", rasr_arch, "%s.%s" % (exe_name, rasr_arch))
         return exe
 
     @classmethod
@@ -135,9 +133,7 @@ fi
         copy_tmp_ls: Optional[List] = None,
     ):
         args = [] if args is None else args
-        tmp_log_file = remove_suffix(
-            os.path.basename(tk.uncached_path(log_file)), ".gz"
-        )
+        tmp_log_file = remove_suffix(os.path.basename(tk.uncached_path(log_file)), ".gz")
 
         work_dir = os.path.abspath(os.curdir)
         if use_tmp_dir:
@@ -146,9 +142,7 @@ fi
                 print("using temp-dir: %s" % tmp_dir)
                 try:
                     if copy_tmp_ls is None:
-                        assert (
-                            task_id == 1
-                        ), "Concurrent Jobs need a list of files to copy due to race conditions"
+                        assert task_id == 1, "Concurrent Jobs need a list of files to copy due to race conditions"
                         copy_file_names = os.listdir(work_dir)
                     else:
                         copy_file_names = copy_tmp_ls
@@ -160,12 +154,8 @@ fi
                         if fn not in copy_file_names:
                             shutil.move("%s/%s" % (tmp_dir, fn), fn)
                 except Exception as e:
-                    print(
-                        "'%s' crashed - copy temporary work folder as 'crash_dir'" % cmd
-                    )
-                    shutil.copytree(
-                        tmp_dir, "crash_dir_" + str(task_id) + "_" + date_time_cur
-                    )
+                    print("'%s' crashed - copy temporary work folder as 'crash_dir'" % cmd)
+                    shutil.copytree(tmp_dir, "crash_dir_" + str(task_id) + "_" + date_time_cur)
                     raise e
         else:
             self.run_cmd(cmd, [task_id, tmp_log_file] + args, retries)
@@ -196,10 +186,7 @@ fi
                 sp.check_call([cmd] + [str(arg) for arg in args], cwd=cwd)
                 break
             except sp.CalledProcessError as e:
-                logging.warning(
-                    "cmd %s (args: %s) failed with exit code %d"
-                    % (cmd, str(args), e.returncode)
-                )
+                logging.warning("cmd %s (args: %s) failed with exit code %d" % (cmd, str(args), e.returncode))
                 elapsed = time.monotonic() - start_time
                 if t == retries or elapsed >= self.NO_RETRY_AFTER_TIME:
                     raise

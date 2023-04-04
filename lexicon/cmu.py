@@ -58,50 +58,34 @@ class CMUDictToBlissJob(Job):
         self.out_bliss_lexicon = self.output_path("lexicon.gz", cached=True)
 
     def tasks(self):
-        yield Task(
-            "run", mini_task=True, rqmt={"time": 10 / 60, "cpu": 1, "mem": "64M"}
-        )
+        yield Task("run", mini_task=True, rqmt={"time": 10 / 60, "cpu": 1, "mem": "64M"})
 
     def run(self):
-        with open(
-            tk.uncached_path(self.phoneme_list), "r", encoding="iso-8859-1"
-        ) as input_phonemes:
-            with open(
-                tk.uncached_path(self.cmu_lexicon), "r", encoding="iso-8859-1"
-            ) as input_lexicon:
+        with open(tk.uncached_path(self.phoneme_list), "r", encoding="iso-8859-1") as input_phonemes:
+            with open(tk.uncached_path(self.cmu_lexicon), "r", encoding="iso-8859-1") as input_lexicon:
                 with gzip.open(self.out_bliss_lexicon.get_path(), "wt") as out:
                     out.write('<?xml version="1.0" encoding="UTF-8"?>\n')
                     out.write("<lexicon>\n")
 
                     # Phoneme Inventory
                     out.write("  <phoneme-inventory>\n")
-                    out.write(
-                        "    <phoneme><symbol>sil</symbol><variation>none</variation></phoneme>\n"
-                    )
+                    out.write("    <phoneme><symbol>sil</symbol><variation>none</variation></phoneme>\n")
                     for line in input_phonemes:
                         out.write(
                             "    <phoneme><symbol>%s</symbol><variation>context</variation></phoneme>\n"
                             % line.split("\t")[0].lower()
                         )
                     if self.noise_lemmas is not None:
-                        out.write(
-                            "    <phoneme><symbol>noise</symbol><variation>none</variation></phoneme>\n"
-                        )
+                        out.write("    <phoneme><symbol>noise</symbol><variation>none</variation></phoneme>\n")
                     out.write("  </phoneme-inventory>\n")
 
-                    def write_lemma(
-                        word, pronounciations, special="", synts=None, empty_eval=False
-                    ):
+                    def write_lemma(word, pronounciations, special="", synts=None, empty_eval=False):
                         synts = [] if synts is None else synts
                         if type(word) not in [list, tuple]:
                             word = [word]
                         out.write("  <lemma%s>\n" % special)
                         for w in word:
-                            w = (
-                                w.replace("&", "&amp;")
-                                .replace("<", "&lt;")
-                                .replace(">", "&gt;")
-                            )
+                            w = w.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
                             out.write("    <orth>%s</orth>\n" % w)
                         for pron in sorted(pronounciations):
                             out.write("    <phon>%s</phon>\n" % pron)
@@ -112,9 +96,7 @@ class CMUDictToBlissJob(Job):
                         out.write("  </lemma>\n")
 
                     # special lemmas
-                    write_lemma(
-                        ("[SILENCE]", ""), {"sil"}, ' special="silence"', [""], True
-                    )
+                    write_lemma(("[SILENCE]", ""), {"sil"}, ' special="silence"', [""], True)
                     write_lemma(
                         "[SENTANCE_BEGIN]",
                         set(),
@@ -130,9 +112,7 @@ class CMUDictToBlissJob(Job):
                     if self.add_unknown:
                         write_lemma("[UNKNOWN]", set(), ' special="unknown"', [])
                     if self.noise_lemmas is not None:
-                        write_lemma(
-                            self.noise_lemmas, {"noise"}, synts=[""], empty_eval=True
-                        )
+                        write_lemma(self.noise_lemmas, {"noise"}, synts=[""], empty_eval=True)
                     last_word = None
                     pronounciations = None
 
@@ -141,18 +121,12 @@ class CMUDictToBlissJob(Job):
                         if line[0] == ";":
                             continue
 
-                        s = list(
-                            it.takewhile(lambda t: t != "#", line.strip().split(" "))
-                        )
+                        s = list(it.takewhile(lambda t: t != "#", line.strip().split(" ")))
                         word = re.sub("^(.*)\\(\\d+\\)$", "\\1", s[0])
                         if self.capitalize_words:
                             word = word.upper()
                         pronounciation = " ".join(
-                            [
-                                (p.lower()[:-1] if p[-1] in "012" else p.lower())
-                                for p in s[1:]
-                                if len(p) > 0
-                            ]
+                            [(p.lower()[:-1] if p[-1] in "012" else p.lower()) for p in s[1:] if len(p) > 0]
                         )
 
                         if word == last_word:

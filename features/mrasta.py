@@ -55,9 +55,7 @@ def mrasta_flow(
         "filterbank",
         {"warping-function": warping_function, "filter-width": filter_width},
     )
-    net.link(
-        fft_mapping[fft_net.get_output_links("amplitude-spectrum").pop()], filterbank
-    )
+    net.link(fft_mapping[fft_net.get_output_links("amplitude-spectrum").pop()], filterbank)
 
     nonlinear = net.add_node("generic-vector-f32-log", "nonlinear")
     net.link(filterbank, nonlinear)
@@ -102,12 +100,8 @@ def mrasta_flow(
     ranges_high = [(0, features_base - 1)]
     ranges_low = [(features_base, 2 * features_base - 1)]
     for i in range(derivatives):
-        ranges_high.append(
-            (ranges_low[-1][1] + 1, ranges_low[-1][1] + features_derivative)
-        )
-        ranges_low.append(
-            (ranges_high[-1][1] + 1, ranges_high[-1][1] + features_derivative)
-        )
+        ranges_high.append((ranges_low[-1][1] + 1, ranges_low[-1][1] + features_derivative))
+        ranges_low.append((ranges_high[-1][1] + 1, ranges_high[-1][1] + features_derivative))
 
     select0 = net.add_node(
         "generic-vector-f32-select",

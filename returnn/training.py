@@ -9,11 +9,12 @@ __all__ = [
 ]
 
 import copy
+from dataclasses import dataclass
 import sys
 import os
 import shutil
 import subprocess as sp
-from typing import List, Union
+from typing import Dict, List, Optional, Union
 
 from sisyphus import *
 
@@ -124,29 +125,21 @@ class ReturnnTrainingJob(Job):
             Currently only with Horovod,
             and horovod_num_processes should be set as well, usually to the same value.
             See https://returnn.readthedocs.io/en/latest/advanced/multi_gpu.html.
-        :param Path|str returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
-        :param Path|str returnn_root: file path to the RETURNN repository root folder
+        :param Optional[Path] returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
+        :param Optional[Path] returnn_root: file path to the RETURNN repository root folder
         """
         assert isinstance(returnn_config, ReturnnConfig)
         self.check_blacklisted_parameters(returnn_config)
         kwargs = locals()
         del kwargs["self"]
 
-        self.returnn_python_exe = (
-            returnn_python_exe
-            if returnn_python_exe is not None
-            else gs.RETURNN_PYTHON_EXE
-        )
-        self.returnn_root = (
-            returnn_root if returnn_root is not None else gs.RETURNN_ROOT
-        )
+        self.returnn_python_exe = util.get_returnn_python_exe(returnn_python_exe)
+        self.returnn_root = util.get_returnn_root(returnn_root)
         self.horovod_num_processes = horovod_num_processes
         self.multi_node_slots = multi_node_slots
         self.returnn_config = ReturnnTrainingJob.create_returnn_config(**kwargs)
 
-        stored_epochs = list(range(save_interval, num_epochs, save_interval)) + [
-            num_epochs
-        ]
+        stored_epochs = list(range(save_interval, num_epochs, save_interval)) + [num_epochs]
         if keep_epochs is None:
             self.keep_epochs = set(stored_epochs)
         else:
@@ -176,9 +169,7 @@ class ReturnnTrainingJob(Job):
         self.out_plot_se = self.output_path("score_and_error.png")
         self.out_plot_lr = self.output_path("learning_rate.png")
 
-        self.returnn_config.post_config["model"] = os.path.join(
-            self.out_model_dir.get_path(), "epoch"
-        )
+        self.returnn_config.post_config["model"] = os.path.join(self.out_model_dir.get_path(), "epoch")
 
         self.rqmt = {
             "gpu": 1 if device == "gpu" else 0,
@@ -188,29 +179,21 @@ class ReturnnTrainingJob(Job):
         }
 
         if self.multi_node_slots:
-            assert (
-                self.horovod_num_processes
-            ), "multi_node_slots only supported together with Horovod currently"
+            assert self.horovod_num_processes, "multi_node_slots only supported together with Horovod currently"
             assert self.horovod_num_processes >= self.multi_node_slots
             assert self.horovod_num_processes % self.multi_node_slots == 0
             self.rqmt["multi_node_slots"] = self.multi_node_slots
 
         if (self.horovod_num_processes or 1) > (self.multi_node_slots or 1):
             assert self.horovod_num_processes % (self.multi_node_slots or 1) == 0
-            self.rqmt["cpu"] *= self.horovod_num_processes // (
-                self.multi_node_slots or 1
-            )
-            self.rqmt["gpu"] *= self.horovod_num_processes // (
-                self.multi_node_slots or 1
-            )
-            self.rqmt["mem"] *= self.horovod_num_processes // (
-                self.multi_node_slots or 1
-            )
+            self.rqmt["cpu"] *= self.horovod_num_processes // (self.multi_node_slots or 1)
+            self.rqmt["gpu"] *= self.horovod_num_processes // (self.multi_node_slots or 1)
+            self.rqmt["mem"] *= self.horovod_num_processes // (self.multi_node_slots or 1)
 
     def _get_run_cmd(self):
         run_cmd = [
-            tk.uncached_path(self.returnn_python_exe),
-            os.path.join(tk.uncached_path(self.returnn_root), "rnn.py"),
+            self.returnn_python_exe.get_path(),
+            self.returnn_root.join_right("rnn.py").get_path(),
             self.out_returnn_config_file.get_path(),
         ]
 
@@ -236,6 +219,39 @@ class ReturnnTrainingJob(Job):
             ] + run_cmd
 
         return run_cmd
+
+    def info(self):
+        def try_load_lr_log(file_path: str) -> Optional[dict]:
+            # Used in parsing the learning rates
+            @dataclass
+            class EpochData:
+                learningRate: float
+                error: Dict[str, float]
+
+            try:
+                with open(file_path, "rt") as file:
+                    return eval(file.read().strip())
+            except FileNotFoundError:
+                return None
+
+        lr_file = os.path.join(
+            self._sis_path(gs.JOB_WORK_DIR),
+            self.returnn_config.get("learning_rate_file", "learning_rates"),
+        )
+        epochs = try_load_lr_log(lr_file)
+
+        if epochs is None:
+            return None
+
+        if not isinstance(epochs, dict):
+            raise TypeError(f"parsed learning rates must be a Dict[int, EpochData] but found {type(epochs)}")
+
+        available_epochs = {ep: data for ep, data in epochs.items() if len(data.error) > 0}
+
+        max_available_ep = max(available_epochs) if len(available_epochs) > 0 else 0
+        max_ep = max(self.out_checkpoints)
+
+        return f"ep {max_available_ep}/{max_ep}"
 
     def path_available(self, path):
         # if job is finished the path is available
@@ -308,38 +324,20 @@ class ReturnnTrainingJob(Job):
         data = eval(text)
 
         epochs = list(sorted(data.keys()))
-        train_score_keys = [
-            k for k in data[epochs[0]]["error"] if k.startswith("train_score")
-        ]
-        dev_score_keys = [
-            k for k in data[epochs[0]]["error"] if k.startswith("dev_score")
-        ]
-        dev_error_keys = [
-            k for k in data[epochs[0]]["error"] if k.startswith("dev_error")
-        ]
+        train_score_keys = [k for k in data[epochs[0]]["error"] if k.startswith("train_score")]
+        dev_score_keys = [k for k in data[epochs[0]]["error"] if k.startswith("dev_score")]
+        dev_error_keys = [k for k in data[epochs[0]]["error"] if k.startswith("dev_error")]
 
         train_scores = [
-            [
-                (epoch, data[epoch]["error"][tsk])
-                for epoch in epochs
-                if tsk in data[epoch]["error"]
-            ]
+            [(epoch, data[epoch]["error"][tsk]) for epoch in epochs if tsk in data[epoch]["error"]]
             for tsk in train_score_keys
         ]
         dev_scores = [
-            [
-                (epoch, data[epoch]["error"][dsk])
-                for epoch in epochs
-                if dsk in data[epoch]["error"]
-            ]
+            [(epoch, data[epoch]["error"][dsk]) for epoch in epochs if dsk in data[epoch]["error"]]
             for dsk in dev_score_keys
         ]
         dev_errors = [
-            [
-                (epoch, data[epoch]["error"][dek])
-                for epoch in epochs
-                if dek in data[epoch]["error"]
-            ]
+            [(epoch, data[epoch]["error"][dek]) for epoch in epochs if dek in data[epoch]["error"]]
             for dek in dev_error_keys
         ]
         learing_rates = [data[epoch]["learning_rate"] for epoch in epochs]
@@ -416,9 +414,7 @@ class ReturnnTrainingJob(Job):
             post_config.update(copy.deepcopy(returnn_config.post_config))
 
         if keep_epochs is not None:
-            if not "cleanup_old_models" in post_config or isinstance(
-                post_config["cleanup_old_models"], bool
-            ):
+            if not "cleanup_old_models" in post_config or isinstance(post_config["cleanup_old_models"], bool):
                 assert (
                     post_config.get("cleanup_old_models", True) == True
                 ), "'cleanup_old_models' can not be False if 'keep_epochs' is specified"
@@ -429,9 +425,7 @@ class ReturnnTrainingJob(Job):
                 ), "you can only provide either 'keep_epochs' or 'cleanup_old_models/keep', but not both"
                 post_config["cleanup_old_models"]["keep"] = keep_epochs
             else:
-                assert False, "invalid type of cleanup_old_models: %s" % type(
-                    post_config["cleanup_old_models"]
-                )
+                assert False, "invalid type of cleanup_old_models: %s" % type(post_config["cleanup_old_models"])
 
         res.config = config
         res.post_config = post_config
@@ -455,8 +449,7 @@ class ReturnnTrainingJob(Job):
         ]
         for key in blacklisted_keys:
             assert returnn_config.get(key) is None, (
-                "please define %s only as parameter to ReturnnTrainingJob directly"
-                % key
+                "please define %s only as parameter to ReturnnTrainingJob directly" % key
             )
 
     @classmethod
@@ -507,19 +500,12 @@ class ReturnnTrainingFromFileJob(Job):
         :param dict parameter_dict: provide external parameters to the rnn.py call
         :param int|str time_rqmt:
         :param int|str mem_rqmt:
-        :param Path|str returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
-        :param Path|str returnn_root: file path to the RETURNN repository root folder
+        :param Optional[Path] returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
+        :param Optional[Path] returnn_root: file path to the RETURNN repository root folder
         """
 
-        self.returnn_python_exe = (
-            returnn_python_exe
-            if returnn_python_exe is not None
-            else gs.RETURNN_PYTHON_EXE
-        )
-        self.returnn_root = (
-            returnn_root if returnn_root is not None else gs.RETURNN_ROOT
-        )
-
+        self.returnn_python_exe = util.get_returnn_python_exe(returnn_python_exe)
+        self.returnn_root = util.get_returnn_root(returnn_root)
         self.returnn_config_file_in = returnn_config_file
         self.parameter_dict = parameter_dict
         if self.parameter_dict is None:
@@ -532,10 +518,8 @@ class ReturnnTrainingFromFileJob(Job):
         self.learning_rates = self.output_path("learning_rates")
         self.model_dir = self.output_path("models", directory=True)
 
-        self.parameter_dict["ext_model"] = tk.uncached_path(self.model_dir) + "/epoch"
-        self.parameter_dict["ext_learning_rate_file"] = tk.uncached_path(
-            self.learning_rates
-        )
+        self.parameter_dict["ext_model"] = self.model_dir.get() + "/epoch"
+        self.parameter_dict["ext_learning_rate_file"] = self.learning_rates.get()
 
     def tasks(self):
         yield Task("create_files", mini_task=True)
@@ -570,10 +554,8 @@ class ReturnnTrainingFromFileJob(Job):
     def get_parameter_list(self):
         parameter_list = []
         for k, v in sorted(self.parameter_dict.items()):
-            if isinstance(v, tk.Variable):
+            if isinstance(v, (tk.Variable, tk.Path)):
                 v = v.get()
-            elif isinstance(v, tk.Path):
-                v = tk.uncached_path(v)
             elif isinstance(v, (list, dict, tuple)):
                 v = '"%s"' % str(v).replace(" ", "")
 
@@ -591,13 +573,13 @@ class ReturnnTrainingFromFileJob(Job):
         # returnn
         shutil.copy(
             tk.uncached_path(self.returnn_config_file_in),
-            tk.uncached_path(self.returnn_config_file),
+            self.returnn_config_file.get_path(),
         )
 
         parameter_list = self.get_parameter_list()
         cmd = [
-            tk.uncached_path(self.returnn_python_exe),
-            os.path.join(tk.uncached_path(self.returnn_root), "rnn.py"),
+            self.returnn_python_exe.get_path(),
+            self.returnn_root.join_right("rnn.py").get_path(),
             self.returnn_config_file.get_path(),
         ] + parameter_list
 
@@ -627,9 +609,7 @@ class GetBestEpochJob(Job):
 
     """
 
-    def __init__(
-        self, model_dir: tk.Path, learning_rates: tk.Path, key: str, index: int = 0
-    ):
+    def __init__(self, model_dir: tk.Path, learning_rates: tk.Path, key: str, index: int = 0):
         """
         :param model_dir: model_dir output from a RETURNNTrainingJob
         :param learning_rates: learning_rates output from a RETURNNTrainingJob
@@ -651,9 +631,7 @@ class GetBestEpochJob(Job):
         with open(self.learning_rates.get_path(), "rt") as f:
             text = f.read()
 
-        data = eval(
-            text, {"nan": float("nan"), "inf": float("inf"), "EpochData": EpochData}
-        )
+        data = eval(text, {"nan": float("nan"), "inf": float("inf"), "EpochData": EpochData})
 
         epochs = list(sorted(data.keys()))
 
@@ -665,11 +643,7 @@ class GetBestEpochJob(Job):
                 f"{self.key} is not available in the provided learning_rates file f{self.learning_rates.get_path()}"
             )
 
-        scores = [
-            (epoch, data[epoch]["error"][self.key])
-            for epoch in epochs
-            if self.key in data[epoch]["error"]
-        ]
+        scores = [(epoch, data[epoch]["error"][self.key]) for epoch in epochs if self.key in data[epoch]["error"]]
         sorted_scores = list(sorted(scores, key=lambda x: x[1]))
 
         self.out_epoch.set(sorted_scores[self.index][0])
@@ -685,9 +659,7 @@ class GetBestTFCheckpointJob(GetBestEpochJob):
     deleted in case that the training folder is removed.
     """
 
-    def __init__(
-        self, model_dir: tk.Path, learning_rates: tk.Path, key: str, index: int = 0
-    ):
+    def __init__(self, model_dir: tk.Path, learning_rates: tk.Path, key: str, index: int = 0):
         """
 
         :param Path model_dir: model_dir output from a RETURNNTrainingJob
@@ -711,18 +683,14 @@ class GetBestTFCheckpointJob(GetBestEpochJob):
 
         try:
             os.link(
-                os.path.join(
-                    self.model_dir.get_path(), "epoch.%.3d.index" % self.out_epoch.get()
-                ),
+                os.path.join(self.model_dir.get_path(), "epoch.%.3d.index" % self.out_epoch.get()),
                 os.path.join(
                     self._out_model_dir.get_path(),
                     "epoch.%.3d.index" % self.out_epoch.get(),
                 ),
             )
             os.link(
-                os.path.join(
-                    self.model_dir.get_path(), "epoch.%.3d.meta" % self.out_epoch.get()
-                ),
+                os.path.join(self.model_dir.get_path(), "epoch.%.3d.meta" % self.out_epoch.get()),
                 os.path.join(
                     self._out_model_dir.get_path(),
                     "epoch.%.3d.meta" % self.out_epoch.get(),
@@ -742,18 +710,14 @@ class GetBestTFCheckpointJob(GetBestEpochJob):
             # the hardlink will fail when there was an imported job on a different filesystem,
             # thus do a copy instead then
             shutil.copy(
-                os.path.join(
-                    self.model_dir.get_path(), "epoch.%.3d.index" % self.out_epoch.get()
-                ),
+                os.path.join(self.model_dir.get_path(), "epoch.%.3d.index" % self.out_epoch.get()),
                 os.path.join(
                     self._out_model_dir.get_path(),
                     "epoch.%.3d.index" % self.out_epoch.get(),
                 ),
             )
             shutil.copy(
-                os.path.join(
-                    self.model_dir.get_path(), "epoch.%.3d.meta" % self.out_epoch.get()
-                ),
+                os.path.join(self.model_dir.get_path(), "epoch.%.3d.meta" % self.out_epoch.get()),
                 os.path.join(
                     self._out_model_dir.get_path(),
                     "epoch.%.3d.meta" % self.out_epoch.get(),
@@ -778,9 +742,7 @@ class GetBestTFCheckpointJob(GetBestEpochJob):
             os.path.join(self._out_model_dir.get_path(), "checkpoint.index"),
         )
         os.symlink(
-            os.path.join(
-                self._out_model_dir.get_path(), "epoch.%.3d.meta" % self.out_epoch.get()
-            ),
+            os.path.join(self._out_model_dir.get_path(), "epoch.%.3d.meta" % self.out_epoch.get()),
             os.path.join(self._out_model_dir.get_path(), "checkpoint.meta"),
         )
         os.symlink(
@@ -788,9 +750,7 @@ class GetBestTFCheckpointJob(GetBestEpochJob):
                 self._out_model_dir.get_path(),
                 "epoch.%.3d.data-00000-of-00001" % self.out_epoch.get(),
             ),
-            os.path.join(
-                self._out_model_dir.get_path(), "checkpoint.data-00000-of-00001"
-            ),
+            os.path.join(self._out_model_dir.get_path(), "checkpoint.data-00000-of-00001"),
         )
 
 
@@ -832,9 +792,7 @@ class AverageTFCheckpointsJob(Job):
 
         # we are writing a checkpoint with the maximum epoch index in the file name because Returnn
         # resolves symlinks and reads the name to determine the "checkpoint epoch"
-        out_path = os.path.join(
-            self._out_model_dir.get_path(), "epoch.%03d" % max_epoch
-        )
+        out_path = os.path.join(self._out_model_dir.get_path(), "epoch.%03d" % max_epoch)
         args = [
             self.returnn_python_exe.get_path(),
             os.path.join(self.returnn_root.get_path(), "tools/tf_avg_checkpoints.py"),

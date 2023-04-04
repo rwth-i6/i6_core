@@ -407,9 +407,7 @@ class FileArchive:
                         t += 1
                     return alignment
             else:
-                raise Exception(
-                    "No valid alignment header found (found: %r). Wrong cache?" % typ
-                )
+                raise Exception("No valid alignment header found (found: %r). Wrong cache?" % typ)
 
     def has_entry(self, filename):
         """
@@ -671,9 +669,7 @@ class AllophoneLabeling(object):
         """
         assert phoneme_file or state_tying_file
         self.allophone_file = allophone_file
-        self.allophones = [
-            l for l in open(allophone_file).read().splitlines() if l and l[0] != "#"
-        ]
+        self.allophones = [l for l in open(allophone_file).read().splitlines() if l and l[0] != "#"]
         self.allophones_idx = {p: i for i, p in enumerate(self.allophones)}
         self.sil_allo_state_id = self.allophones_idx[silence_phone + "{#+#}@i@f"]
         if verbose_out:
@@ -700,11 +696,7 @@ class AllophoneLabeling(object):
                         file=verbose_out,
                     )
         if state_tying_file:
-            self.state_tying = {
-                k: int(v)
-                for l in open(state_tying_file).read().splitlines()
-                for (k, v) in [l.split()]
-            }
+            self.state_tying = {k: int(v) for l in open(state_tying_file).read().splitlines() for (k, v) in [l.split()]}
             self.sil_label_idx = self.state_tying[silence_phone + "{#+#}@i@f.0"]
             self.num_allo_states = self._get_num_allo_states()
             self.state_tying_by_allo_state_idx = {
@@ -753,15 +745,12 @@ class AllophoneLabeling(object):
         """
         if self.state_tying_by_allo_state_idx:
             try:
-                return self.state_tying_by_allo_state_idx[
-                    allo_idx + state_idx * (1 << 26)
-                ]
+                return self.state_tying_by_allo_state_idx[allo_idx + state_idx * (1 << 26)]
             except KeyError:
                 allo_str = self.allophones[allo_idx]
                 r = self.state_tying.get("%s.%i" % (allo_str, state_idx))
                 raise KeyError(
-                    "allo idx %i (%r), state idx %i not found; entry: %r"
-                    % (allo_idx, allo_str, state_idx, r)
+                    "allo idx %i (%r), state idx %i not found; entry: %r" % (allo_idx, allo_str, state_idx, r)
                 )
         allo_str = self.allophones[allo_idx]
         phone = allo_str[: allo_str.index("{")]

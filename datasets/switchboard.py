@@ -40,34 +40,20 @@ def _map_token(token):
     :rtype str
     """
 
-    mapped_token = re.sub(
-        "(|\-)^\[laughter-(.+)\](|\-)$", "\g<1>\g<2>\g<3>", token
-    )  # e.g. [laughter-story] -> story;
+    mapped_token = re.sub("(|\-)^\[laughter-(.+)\](|\-)$", "\g<1>\g<2>\g<3>", token)  # e.g. [laughter-story] -> story;
     # 1 and 3 relate to preserving trailing "-"
-    mapped_token = re.sub(
-        "^\[(.+)/.+\](|\-)$", "\g<1>\g<2>", mapped_token
-    )  # e.g. [it'n/isn't] -> it'n ... note
+    mapped_token = re.sub("^\[(.+)/.+\](|\-)$", "\g<1>\g<2>", mapped_token)  # e.g. [it'n/isn't] -> it'n ... note
     # 1st part may include partial-word stuff, which we process further below,
     # e.g. [LEM[GUINI]-/LINGUINI]
     # the (|\_) at the end is to accept and preserve trailing -'s.
-    mapped_token = re.sub(
-        "^(|\-)\[[^][]+\](.+)$", "-\g<2>", mapped_token
-    )  # e.g. -[an]y , note \047 is quote;
+    mapped_token = re.sub("^(|\-)\[[^][]+\](.+)$", "-\g<2>", mapped_token)  # e.g. -[an]y , note \047 is quote;
     # let the leading - be optional on input, as sometimes omitted.
-    mapped_token = re.sub(
-        "^(.+)\[[^][]+\](|\-)$", "\g<1>-", mapped_token
-    )  # e.g. ab[solute]- -> ab-;
+    mapped_token = re.sub("^(.+)\[[^][]+\](|\-)$", "\g<1>-", mapped_token)  # e.g. ab[solute]- -> ab-;
     # let the trailing - be optional on input, as sometimes omitted.
-    mapped_token = re.sub(
-        "([^][]+)\[.+\]$", "\g<1>", mapped_token
-    )  # e.g. ex[specially]-/especially] -> ex-
+    mapped_token = re.sub("([^][]+)\[.+\]$", "\g<1>", mapped_token)  # e.g. ex[specially]-/especially] -> ex-
     # which is a  mistake in the input.
-    mapped_token = re.sub(
-        "^\{(.+)\}$", "\g<1>", mapped_token
-    )  # e.g. {yuppiedom} -> yuppiedom
-    mapped_token = re.sub(
-        "([a-z])\[([^][])+\]([a-z])", "\g<1>-\g<3>", mapped_token
-    )  # e.g. ammu[n]it- -> ammu-it-
+    mapped_token = re.sub("^\{(.+)\}$", "\g<1>", mapped_token)  # e.g. {yuppiedom} -> yuppiedom
+    mapped_token = re.sub("([a-z])\[([^][])+\]([a-z])", "\g<1>-\g<3>", mapped_token)  # e.g. ammu[n]it- -> ammu-it-
     mapped_token = re.sub("_\d$", "", mapped_token)  # e.g. them_1 -> them
 
     return mapped_token
@@ -87,9 +73,7 @@ class DownloadSwitchboardTranscriptionAndDictJob(Job):
 
     def run(self):
         zipped_filename = "switchboard_word_alignments.tar.gz"
-        subprocess.check_call(
-            ["wget", "http://www.openslr.org/resources/5/" + zipped_filename]
-        )
+        subprocess.check_call(["wget", "http://www.openslr.org/resources/5/" + zipped_filename])
         subprocess.check_call(
             [
                 "tar",
@@ -138,9 +122,7 @@ class CreateSwitchboardSpeakersListJob(Job):
 
     def run(self):
         speaker_id, gender, rec_name = None, None, None
-        with uopen(self.speakers_stats_file) as read_f, uopen(
-            self.out_speakers_list, "w"
-        ) as out_f:
+        with uopen(self.speakers_stats_file) as read_f, uopen(self.out_speakers_list, "w") as out_f:
             for line in read_f:
                 l = line.strip().split()
                 if len(l) < 2:
@@ -155,9 +137,7 @@ class CreateSwitchboardSpeakersListJob(Job):
                     continue
 
                 if speaker_id:
-                    out_f.write(
-                        speaker_id + " " + gender + " " + rec_name + "\n"
-                    )  # speaker_id gender recording
+                    out_f.write(speaker_id + " " + gender + " " + rec_name + "\n")  # speaker_id gender recording
 
 
 class CreateLDCSwitchboardSpeakerListJob(Job):
@@ -263,9 +243,7 @@ class CreateSwitchboardBlissCorpusJob(Job):
             for line in f:
                 l = line.strip().split()
                 assert len(l) == 3
-                assert (
-                    l[2] not in rec_to_speaker
-                ), "duplicate recording name: {}?".format(l[2])
+                assert l[2] not in rec_to_speaker, "duplicate recording name: {}?".format(l[2])
                 assert l[1] in ["F", "M"]
 
                 # "sw0" prefix is added to match recording names
@@ -289,13 +267,9 @@ class CreateSwitchboardBlissCorpusJob(Job):
             recording.name = rec_name
             recording.audio = os.path.join(self.audio_dir.get_path(), rec_name + ".wav")
 
-            assert os.path.exists(
-                recording.audio
-            ), "recording {} does not exist?".format(recording.audio)
+            assert os.path.exists(recording.audio), "recording {} does not exist?".format(recording.audio)
 
-            assert (
-                rec_name in rec_to_speaker
-            ), "recording {} does not have speaker id?".format(rec_name)
+            assert rec_name in rec_to_speaker, "recording {} does not have speaker id?".format(rec_name)
             rec_speaker_id = rec_to_speaker[rec_name]["speaker_id"]
 
             for seg in segs:
@@ -341,9 +315,7 @@ class CreateSwitchboardBlissCorpusJob(Job):
             if token in removed_tokens:
                 continue
             elif token in SPECIAL_TOKENS:
-                filtered_orth.append(
-                    token.upper()
-                )  # make upper case for consistency with older setups
+                filtered_orth.append(token.upper())  # make upper case for consistency with older setups
             else:
                 filtered_orth.append(_map_token(token))
 
@@ -373,16 +345,12 @@ class CreateSwitchboardBlissCorpusJob(Job):
         Returns recording to list of segments mapping
         """
         rec_to_segs = defaultdict(list)
-        for trans_file in glob.glob(
-            os.path.join(self.trans_dir.get_path(), "*/*/*-trans.text")
-        ):
+        for trans_file in glob.glob(os.path.join(self.trans_dir.get_path(), "*/*/*-trans.text")):
             with uopen(trans_file, "rt") as f:
                 for line in f:
                     seg_info = line.strip().split(" ", 3)  # name start end orth
                     assert len(seg_info) == 4
-                    rec_name = (
-                        seg_info[0].split("-")[0].replace("sw", "sw0")
-                    )  # e.g: sw2001A-ms98-a-0022 -> sw02001A
+                    rec_name = seg_info[0].split("-")[0].replace("sw", "sw0")  # e.g: sw2001A-ms98-a-0022 -> sw02001A
                     rec_to_segs[rec_name].append(seg_info)
         return rec_to_segs
 
@@ -438,9 +406,7 @@ class SwitchboardSphereToWaveJob(Job):
         yield Task("run", rqmt=self.rqmt)
 
     def run(self):
-        for sph_file in glob.glob(
-            os.path.join(self.sph_audio_folder.get_path(), "**/*.sph"), recursive=True
-        ):
+        for sph_file in glob.glob(os.path.join(self.sph_audio_folder.get_path(), "**/*.sph"), recursive=True):
             sph_name, ext = os.path.splitext(os.path.basename(sph_file))
             subprocess.call(
                 [
@@ -453,14 +419,10 @@ class SwitchboardSphereToWaveJob(Job):
                     "pcm_s16le",
                     "-map",
                     "[left]",
-                    os.path.join(
-                        self.out_wave_audio_folder.get_path(), f"{sph_name}A.wav"
-                    ),
+                    os.path.join(self.out_wave_audio_folder.get_path(), f"{sph_name}A.wav"),
                     "-map",
                     "[right]",
-                    os.path.join(
-                        self.out_wave_audio_folder.get_path(), f"{sph_name}B.wav"
-                    ),
+                    os.path.join(self.out_wave_audio_folder.get_path(), f"{sph_name}B.wav"),
                 ]
             )
 
@@ -601,9 +563,7 @@ class CreateHub5e00CorpusJob(Job):
 
         segment_list_per_file = _get_segment_list_per_file(self.out_stm.get_path())
 
-        _fill_corpus_with_segments(
-            hub5_corpus, self.wav_audio_folder.get_path(), segment_list_per_file
-        )
+        _fill_corpus_with_segments(hub5_corpus, self.wav_audio_folder.get_path(), segment_list_per_file)
 
         hub5_corpus.dump(self.out_bliss_corpus.get_path())
         shutil.copy(glm_file, self.out_glm.get_path())
@@ -634,9 +594,7 @@ class CreateHub5e01CorpusJob(Job):
 
     def run(self):
         base_dir = self.hub5e_01_folder.get_path()
-        stm_file = os.path.join(
-            base_dir, "data", "transcr", "hub5e01.english.20010402.stm"
-        )
+        stm_file = os.path.join(base_dir, "data", "transcr", "hub5e01.english.20010402.stm")
         assert os.path.isfile(stm_file)
 
         _process_and_write_stm([stm_file], self.out_stm.get_path())
@@ -646,9 +604,7 @@ class CreateHub5e01CorpusJob(Job):
 
         segment_list_per_file = _get_segment_list_per_file(self.out_stm.get_path())
 
-        _fill_corpus_with_segments(
-            hub5_corpus, self.wav_audio_folder.get_path(), segment_list_per_file
-        )
+        _fill_corpus_with_segments(hub5_corpus, self.wav_audio_folder.get_path(), segment_list_per_file)
 
         hub5_corpus.dump(self.out_bliss_corpus.get_path())
 
@@ -677,9 +633,7 @@ class CreateRT03sCTSCorpusJob(Job):
 
     def run(self):
         base_dir = self.rt03_folder.get_path()
-        cts_path = os.path.join(
-            base_dir, "data", "references", "eval03", "english", "cts"
-        )
+        cts_path = os.path.join(base_dir, "data", "references", "eval03", "english", "cts")
         glm_file = os.path.join(base_dir, "data", "trans_rules", "en20030506.glm")
         assert os.path.isdir(cts_path)
         assert os.path.isfile(glm_file)
@@ -692,21 +646,19 @@ class CreateRT03sCTSCorpusJob(Job):
 
         segment_list_per_file = _get_segment_list_per_file(self.out_stm.get_path())
 
-        _fill_corpus_with_segments(
-            rt03s_corpus, self.wav_audio_folder.get_path(), segment_list_per_file
-        )
+        _fill_corpus_with_segments(rt03s_corpus, self.wav_audio_folder.get_path(), segment_list_per_file)
 
         rt03s_corpus.dump(self.out_bliss_corpus.get_path())
         shutil.copy(glm_file, self.out_glm.get_path())
 
 
-class CreateSwitchboardE2EBlissCorpusJob(Job):
+class CreateSwitchboardSpokenFormBlissCorpusJob(Job):
     """
-    Creates a special E2E version of switchboard-1 used for e.g. BPE or Sentencepiece based models.
+    Creates a special spoken form version of switchboard-1 used for e.g. BPE or Sentencepiece based models.
     It includes:
-     - lowercase everything
-     - conversion of numbers to written form
-     - conversion of some short forms into spoken forms
+     - make sure everything is lowercased
+     - conversion of numbers to written form (using a given conversion table)
+     - conversion of some short forms into spoken forms (also using the table)
      - making special tokens uppercase again
     """
 
@@ -716,7 +668,7 @@ class CreateSwitchboardE2EBlissCorpusJob(Job):
         """
         self.switchboard_bliss_corpus = switchboard_bliss_corpus
 
-        self.out_e2e_corpus = self.output_path("swb.e2e.corpus.xml.gz")
+        self.out_spoken_form_corpus = self.output_path("swb.spoken_form.corpus.xml.gz")
 
     def tasks(self):
         yield Task("run", mini_task=True)
@@ -730,9 +682,7 @@ class CreateSwitchboardE2EBlissCorpusJob(Job):
 
         with uopen(map_source_path) as map_source, uopen(map_target_path) as map_target:
             for source, target in zip(map_source, map_target):
-                assert (
-                    source is not None and target is not None
-                ), "invalid switchboard map files found"
+                assert source is not None and target is not None, "invalid switchboard map files found"
                 replacement_map[source.strip()] = target.strip().replace("#", " ")
 
         special_token_map = {token: token.upper() for token in SPECIAL_TOKENS}
@@ -755,12 +705,10 @@ class CreateSwitchboardE2EBlissCorpusJob(Job):
         for segment in c.segments():
             orth = segment.orth.lower()
             orth = map_regex.sub(lambda match: replacement_map[match.group(0)], orth)
-            orth = token_regex.sub(
-                lambda match: special_token_map[match.group(0)], orth
-            )
+            orth = token_regex.sub(lambda match: special_token_map[match.group(0)], orth)
             segment.orth = orth
 
-        c.dump(self.out_e2e_corpus.get_path())
+        c.dump(self.out_spoken_form_corpus.get_path())
 
 
 class CreateFisherTranscriptionsJob(Job):
@@ -789,16 +737,8 @@ class CreateFisherTranscriptionsJob(Job):
         yield Task("run", mini_task=True)
 
     def run(self):
-        files1 = glob.glob(
-            os.path.join(
-                self.fsh_trans1_folder.get_path(), "data", "trans", "*", "fe_03_*.txt"
-            )
-        )
-        files2 = glob.glob(
-            os.path.join(
-                self.fsh_trans1_folder.get_path(), "data", "trans", "*", "fe_03_*.txt"
-            )
-        )
+        files1 = glob.glob(os.path.join(self.fsh_trans1_folder.get_path(), "data", "trans", "*", "fe_03_*.txt"))
+        files2 = glob.glob(os.path.join(self.fsh_trans1_folder.get_path(), "data", "trans", "*", "fe_03_*.txt"))
         with uopen(self.out, "wt") as fout:
             for file in sorted(files1 + files2):
                 with uopen(file) as fin:

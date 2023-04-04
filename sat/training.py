@@ -35,9 +35,7 @@ class EstimateCMLLRJob(rasr.RasrCommand, Job):
 
         self.concurrent = crp.concurrent
         self.config, self.post_config = EstimateCMLLRJob.create_config(**kwargs)
-        self.exe = self.select_exe(
-            crp.acoustic_model_trainer_exe, "acoustic-model-trainer"
-        )
+        self.exe = self.select_exe(crp.acoustic_model_trainer_exe, "acoustic-model-trainer")
         self.feature_flow = EstimateCMLLRJob.create_flow(**kwargs)
         self.num_clusters = num_clusters
         self.log_suffix = ".gz" if crp.compress_log_file else ""
@@ -69,23 +67,16 @@ class EstimateCMLLRJob(rasr.RasrCommand, Job):
         self.write_run_script(self.exe, "estimate-cmllr.config")
 
     def run(self, task_id):
-        log_file = os.path.join(
-            self.log_dir.get_path(), "estimate-cmllr.%d%s" % (task_id, self.log_suffix)
-        )
+        log_file = os.path.join(self.log_dir.get_path(), "estimate-cmllr.%d%s" % (task_id, self.log_suffix))
         with tempfile.TemporaryDirectory() as tmp_dir:
-            args = [
-                "--affine-feature-transform-estimator.accumulator-cache.directory=%s"
-                % tmp_dir
-            ]
+            args = ["--affine-feature-transform-estimator.accumulator-cache.directory=%s" % tmp_dir]
             self.run_script(task_id, log_file, args=args)
             try:
                 os.mkdir("accumulator-cache")
             except FileExistsError:
                 pass
             for f in os.listdir(tmp_dir):
-                shutil.move(
-                    os.path.join(tmp_dir, f), os.path.join("accumulator-cache", f)
-                )
+                shutil.move(os.path.join(tmp_dir, f), os.path.join("accumulator-cache", f))
 
     def move_transforms(self):
         for f in os.listdir("transforms"):
@@ -137,9 +128,7 @@ class EstimateCMLLRJob(rasr.RasrCommand, Job):
         if min_observation_weight is not None:
             afte.min_observation_weight = min_observation_weight
 
-        config.acoustic_model_trainer.aligning_feature_extractor.feature_extraction.file = (
-            "alignment_and_feature.flow"
-        )
+        config.acoustic_model_trainer.aligning_feature_extractor.feature_extraction.file = "alignment_and_feature.flow"
 
         feature_flow.apply_config(
             "acoustic-model-trainer.aligning-feature-extractor.feature-extraction",

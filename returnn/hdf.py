@@ -1,5 +1,6 @@
 __all__ = ["ReturnnDumpHDFJob", "ReturnnRasrDumpHDFJob", "BlissToPcmHDFJob"]
 
+from dataclasses import dataclass
 import os
 import shutil
 import soundfile as sf
@@ -12,6 +13,7 @@ from i6_core.lib import corpus
 from i6_core.lib.hdf import get_returnn_simple_hdf_writer
 import i6_core.rasr as rasr
 from i6_core.util import instanciate_delayed, uopen
+from i6_core import util
 
 from sisyphus import *
 
@@ -47,8 +49,8 @@ class ReturnnDumpHDFJob(Job):
         :param int mem: RAM required in Gb
         :param int file_size: request file space on compute node in Gb
         :param int time: compute time in hours
-        :param Path|str returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
-        :param Path|str returnn_root: file path to the RETURNN repository root folder
+        :param Optional[Path] returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
+        :param Optional[Path] returnn_root: file path to the RETURNN repository root folder
         """
         self.data = data  # typing: dict|Path|str
         self.start_seq = start_seq
@@ -61,14 +63,8 @@ class ReturnnDumpHDFJob(Job):
             "file_size": file_size,
             "time": time,
         }
-        self.returnn_python_exe = (
-            returnn_python_exe
-            if returnn_python_exe is not None
-            else gs.RETURNN_PYTHON_EXE
-        )
-        self.returnn_root = (
-            returnn_root if returnn_root is not None else gs.RETURNN_ROOT
-        )
+        self.returnn_python_exe = util.get_returnn_python_exe(returnn_python_exe)
+        self.returnn_root = util.get_returnn_root(returnn_root)
 
         self.out_hdf = self.output_path("data.hdf")
 
@@ -87,8 +83,8 @@ class ReturnnDumpHDFJob(Job):
         os.close(fd)
 
         args = [
-            tk.uncached_path(self.returnn_python_exe),
-            os.path.join(tk.uncached_path(self.returnn_root), "tools/hdf_dump.py"),
+            self.returnn_python_exe.get_path(),
+            self.returnn_root.join_right("tools/hdf_dump.py").get_path(),
             data,
             tmp_hdf_file,
         ]
@@ -143,15 +139,13 @@ class ReturnnRasrDumpHDFJob(ReturnnDumpHDFJob):
         :param int mem: RAM required in Gb
         :param int file_size: request file space on compute node in Gb
         :param int time: compute time in hours
-        :param Path|str returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
-        :param Path|str returnn_root: file path to the RETURNN repository root folder
+        :param Optional[Path] returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
+        :param Optional[Path] returnn_root: file path to the RETURNN repository root folder
         """
 
         data = {
             "class": "ExternSprintDataset",
-            "sprintTrainerExecPath": rasr.RasrCommand.select_exe(
-                crp.nn_trainer_exe, "nn-trainer"
-            ),
+            "sprintTrainerExecPath": rasr.RasrCommand.select_exe(crp.nn_trainer_exe, "nn-trainer"),
             "sprintConfigStr": "--config=rasr.config --*.LOGFILE=nn-trainer.log --*.TASK=1",
             "partitionEpoch": 1,
         }
@@ -170,10 +164,7 @@ class ReturnnRasrDumpHDFJob(ReturnnDumpHDFJob):
         self.alignment = alignment
         self.rasr_exe = rasr.RasrCommand.select_exe(crp.nn_trainer_exe, "nn-trainer")
         self.feature_flow = ReturnnRasrTrainingJob.create_flow(feature_flow, alignment)
-        (
-            self.rasr_config,
-            self.rasr_post_config,
-        ) = ReturnnRasrTrainingJob.create_config(
+        (self.rasr_config, self.rasr_post_config,) = ReturnnRasrTrainingJob.create_config(
             crp=crp,
             alignment=alignment,
             num_classes=num_classes,
@@ -191,14 +182,10 @@ class ReturnnRasrDumpHDFJob(ReturnnDumpHDFJob):
         yield Task("run", rqmt=self.rqmt)
 
     def create_files(self):
-        rasr.RasrCommand.write_config(
-            self.rasr_config, self.rasr_post_config, "rasr.config"
-        )
+        rasr.RasrCommand.write_config(self.rasr_config, self.rasr_post_config, "rasr.config")
         self.feature_flow.write_to_file("feature.flow")
         with open("dummy.flow", "wt") as f:
-            f.write(
-                '<?xml version="1.0" ?>\n<network><out name="features" /></network>'
-            )
+            f.write('<?xml version="1.0" ?>\n<network><out name="features" /></network>')
 
 
 class BlissToPcmHDFJob(Job):
@@ -207,11 +194,25 @@ class BlissToPcmHDFJob(Job):
     compatible with the RETURNN HDFDataset
     """
 
+    class BaseStrategy:
+        def __eq__(self, other):
+            return type(other) == type(self)
+
+    @dataclass(frozen=True)
+    class PickNth(BaseStrategy):
+        channel: int
+
+        def __eq__(self, other):
+            return super().__eq__(other) and other.channel == self.channel
+
+    __sis_hash_exclude__ = {"multi_channel_strategy": BaseStrategy()}
+
     def __init__(
         self,
         bliss_corpus: tk.Path,
         segment_file: Optional[tk.Path] = None,
         output_dtype: str = "int16",
+        multi_channel_strategy: BaseStrategy = BaseStrategy(),
         returnn_root: Optional[tk.Path] = None,
     ):
         """
@@ -219,6 +220,10 @@ class BlissToPcmHDFJob(Job):
         :param bliss_corpus: Bliss corpus to read segments and audio files from
         :param segment_file: segment file that lists allowed segments
         :param output_dtype: dtype that should be written in the hdf (supports float64, float32, int32, int16)
+        :param multi_channel_strategy: defines what should happen to multi-channel audio files.
+            Currently implemented are:
+            BaseStrategy(): no handling, assume only one channel
+            PickNth(n): Takes audio from n-th channel
         :param returnn_root: RETURNN repository
         """
         self.set_vis_name("Dump audio to HDF")
@@ -227,6 +232,7 @@ class BlissToPcmHDFJob(Job):
         self.bliss_corpus = bliss_corpus
         self.segment_file = segment_file
         self.output_dtype = output_dtype
+        self.multi_channel_strategy = multi_channel_strategy
         self.returnn_root = returnn_root
         self.rqmt = {}
 
@@ -236,9 +242,7 @@ class BlissToPcmHDFJob(Job):
         yield Task("run", rqmt=self.rqmt)
 
     def run(self):
-        returnn_root = (
-            None if self.returnn_root is None else self.returnn_root.get_path()
-        )
+        returnn_root = None if self.returnn_root is None else self.returnn_root.get_path()
         SimpleHDFWriter = get_returnn_simple_hdf_writer(returnn_root)
 
         c = corpus.Corpus()
@@ -246,9 +250,7 @@ class BlissToPcmHDFJob(Job):
 
         if self.segment_file:
             with uopen(self.segment_file, "rt") as f:
-                segments_whitelist = set(
-                    l.strip() for l in f.readlines() if len(l.strip()) > 0
-                )
+                segments_whitelist = set(l.strip() for l in f.readlines() if len(l.strip()) > 0)
         else:
             segments_whitelist = None
 
@@ -257,17 +259,19 @@ class BlissToPcmHDFJob(Job):
         for recording in c.all_recordings():
             audio_file = recording.audio
             audio = sf.SoundFile(audio_file)
-            assert audio.channels == 1, "Multichannel audio not yet implemented"
 
             for segment in recording.segments:
-                if (not segments_whitelist) or (
-                    segment.fullname() in segments_whitelist
-                ):
+                if (not segments_whitelist) or (segment.fullname() in segments_whitelist):
                     audio.seek(int(segment.start * audio.samplerate))
                     data = audio.read(
                         int((segment.end - segment.start) * audio.samplerate),
+                        always_2d=True,
                         dtype=self.output_dtype,
                     )
+                    if isinstance(self.multi_channel_strategy, self.PickNth):
+                        data = data[:, self.multi_channel_strategy.channel]
+                    else:
+                        assert data.shape[-1] == 1, "Audio has more than one channel, choose a multi_channel_strategy"
                     out_hdf.insert_batch(
                         inputs=data.reshape(1, -1, 1),
                         seq_len=[data.shape[0]],

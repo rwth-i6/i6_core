@@ -81,26 +81,18 @@ class Lemma:
         if "special" in e.attrib:
             special = e.attrib["special"]
         for orth_element in e.findall(".//orth"):
-            orth.append(
-                orth_element.text.strip() if orth_element.text is not None else ""
-            )
+            orth.append(orth_element.text.strip() if orth_element.text is not None else "")
         for phon_element in e.findall(".//phon"):
-            phon.append(
-                phon_element.text.strip() if phon_element.text is not None else ""
-            )
+            phon.append(phon_element.text.strip() if phon_element.text is not None else "")
         for synt_element in e.findall(".//synt"):
             tokens = []
             for token_element in synt_element.findall(".//tok"):
-                tokens.append(
-                    token_element.text.strip() if token_element.text is not None else ""
-                )
+                tokens.append(token_element.text.strip() if token_element.text is not None else "")
             synt.append(tokens)
         for eval_element in e.findall(".//eval"):
             tokens = []
             for token_element in eval_element.findall(".//tok"):
-                tokens.append(
-                    token_element.text.strip() if token_element.text is not None else ""
-                )
+                tokens.append(token_element.text.strip() if token_element.text is not None else "")
             eval.append(tokens)
         synt = None if not synt else synt[0]
         return Lemma(orth, phon, synt, eval, special)
@@ -112,9 +104,7 @@ class Lexicon:
     """
 
     def __init__(self):
-        self.phonemes = (
-            OrderedDict()
-        )  # type: OrderedDict[str, str] # symbol => variation
+        self.phonemes = OrderedDict()  # type: OrderedDict[str, str] # symbol => variation
         self.lemmata = []  # type: List[Lemma]
 
     def add_phoneme(self, symbol, variation="context"):

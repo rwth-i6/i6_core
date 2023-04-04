@@ -77,9 +77,7 @@ class ComputePerplexityJob(rasr.RasrCommand, Job):
         config, post_config = rasr.build_config_from_mapping(
             crp, {"lexicon": "lm-util.lexicon", "language_model": "lm-util.lm"}
         )
-        del (
-            config.lm_util.lm.scale
-        )  # scale not considered here, delete to remove ambiguity
+        del config.lm_util.lm.scale  # scale not considered here, delete to remove ambiguity
 
         config.lm_util.action = "compute-perplexity-from-text-file"
         config.lm_util.file = text_file

@@ -50,8 +50,8 @@ class CompileTFGraphJob(Job):
             `returnn_conig`, or on the availability of a GPU on the execution host if not defined at all.
         :param summaries_tensor_name:
         :param str output_format: graph output format, one of ["pb", "pbtxt", "meta", "metatxt"]
-        :param Path|str returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
-        :param Path|str returnn_root: file path to the RETURNN repository root folder
+        :param Optional[Path] returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
+        :param Optional[Path] returnn_root: file path to the RETURNN repository root folder
         """
         self.returnn_config = returnn_config
         self.train = train
@@ -61,14 +61,8 @@ class CompileTFGraphJob(Job):
         self.verbosity = verbosity
         self.device = device
         self.summaries_tensor_name = summaries_tensor_name
-        self.returnn_python_exe = (
-            returnn_python_exe
-            if returnn_python_exe is not None
-            else gs.RETURNN_PYTHON_EXE
-        )
-        self.returnn_root = (
-            returnn_root if returnn_root is not None else gs.RETURNN_ROOT
-        )
+        self.returnn_python_exe = util.get_returnn_python_exe(returnn_python_exe)
+        self.returnn_root = util.get_returnn_root(returnn_root)
 
         self.out_graph = self.output_path("graph.%s" % output_format)
         self.out_model_params = self.output_var("model_params.pickle", pickle=True)
@@ -97,10 +91,8 @@ class CompileTFGraphJob(Job):
             shutil.copy(self.returnn_config, self.out_returnn_config.get_path())
 
         args = [
-            tk.uncached_path(self.returnn_python_exe),
-            os.path.join(
-                tk.uncached_path(self.returnn_root), "tools/compile_tf_graph.py"
-            ),
+            self.returnn_python_exe.get_path(),
+            self.returnn_root.join_right("tools/compile_tf_graph.py").get_path(),
             returnn_config_path,
             "--train=%d" % self.train,
             "--eval=%d" % self.eval,
@@ -152,20 +144,14 @@ class CompileNativeOpJob(Job):
     ):
         """
         :param str native_op: Name of the native op to compile (e.g. NativeLstm2)
-        :param Path|str returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
-        :param Path|str returnn_root: file path to the RETURNN repository root folder
+        :param Optional[Path] returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
+        :param Optional[Path] returnn_root: file path to the RETURNN repository root folder
         :param bool search_numpy_blas: search for blas lib in numpy's .libs folder
         :param Path|str blas_lib: explicit path to the blas library to use
         """
         self.native_op = native_op
-        self.returnn_python_exe = (
-            returnn_python_exe
-            if returnn_python_exe is not None
-            else gs.RETURNN_PYTHON_EXE
-        )
-        self.returnn_root = (
-            returnn_root if returnn_root is not None else gs.RETURNN_ROOT
-        )
+        self.returnn_python_exe = util.get_returnn_python_exe(returnn_python_exe)
+        self.returnn_root = util.get_returnn_root(returnn_root)
         self.search_numpy_blas = search_numpy_blas
         self.blas_lib = blas_lib
 
@@ -182,10 +168,8 @@ class CompileNativeOpJob(Job):
 
     def run(self):
         cmd = [
-            tk.uncached_path(self.returnn_python_exe),
-            os.path.join(
-                tk.uncached_path(self.returnn_root), "tools/compile_native_op.py"
-            ),
+            self.returnn_python_exe.get_path(),
+            self.returnn_root.join_right("tools/compile_native_op.py").get_path(),
             "--native_op",
             self.native_op,
             "--output_file",
@@ -197,9 +181,7 @@ class CompileNativeOpJob(Job):
             cmd += ["--blas_lib", tk.uncached_path(self.blas_lib)]
         logging.info(cmd)
 
-        util.create_executable(
-            "compile.sh", cmd
-        )  # convenience file for manual execution
+        util.create_executable("compile.sh", cmd)  # convenience file for manual execution
         sp.run(cmd, check=True)
 
         with open("compile.out", "rt") as f:

@@ -56,11 +56,7 @@ class ExtractOovWordsFromCorpusJob(Job):
 
         with uopen(self.bliss_lexicon, "rt", encoding="utf-8") as f:
             tree = ET.parse(f)
-            iv_words = {
-                change_casing(orth.text)
-                for orth in tree.findall(".//lemma/orth")
-                if orth.text
-            }
+            iv_words = {change_casing(orth.text) for orth in tree.findall(".//lemma/orth") if orth.text}
 
         with uopen(self.bliss_corpus, "rt", encoding="utf-8") as f:
             tree = ET.parse(f)
@@ -102,8 +98,4 @@ class CountCorpusWordFrequenciesJob(Job):
 
         counts = [(v, k) for k, v in words.items()]
         with uopen(self.out_word_counts, "wt") as f:
-            f.write(
-                "\n".join(
-                    "%d\t%s" % t for t in sorted(counts, key=lambda t: (-t[0], t[1]))
-                )
-            )
+            f.write("\n".join("%d\t%s" % t for t in sorted(counts, key=lambda t: (-t[0], t[1]))))

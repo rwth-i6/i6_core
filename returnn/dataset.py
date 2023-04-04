@@ -2,7 +2,6 @@ __all__ = ["ExtractDatasetMeanStddevJob"]
 
 from sisyphus import *
 
-import os
 import pickle
 import shutil
 import subprocess
@@ -13,7 +12,12 @@ import numpy
 from i6_core.returnn.config import ReturnnConfig
 from i6_core.lib import corpus
 from i6_core.lib.hdf import get_returnn_simple_hdf_writer
-from i6_core.util import create_executable, uopen
+from i6_core.util import (
+    create_executable,
+    get_returnn_python_exe,
+    get_returnn_root,
+    uopen,
+)
 
 
 class ExtractDatasetMeanStddevJob(Job):
@@ -30,23 +34,21 @@ class ExtractDatasetMeanStddevJob(Job):
     Path out_std_dev_file: a text file with #features entries for the standard deviation
     """
 
-    def __init__(self, returnn_config, returnn_python_exe=None, returnn_root=None):
+    __sis_hash_exclude__ = {"data_key": "data"}
+
+    def __init__(self, returnn_config, data_key="data", returnn_python_exe=None, returnn_root=None):
         """
 
         :param ReturnnConfig returnn_config:
-        :param Path|str|None returnn_python_exe:
-        :param Path|str|None returnn_root:
+        :param str data_key: the data key to extract the mean and std-dev from
+        :param Optional[Path] returnn_python_exe:
+        :param Optional[Path] returnn_root:
         """
 
         self.returnn_config = returnn_config
-        self.returnn_python_exe = (
-            returnn_python_exe
-            if returnn_python_exe is not None
-            else gs.RETURNN_PYTHON_EXE
-        )
-        self.returnn_root = (
-            returnn_root if returnn_root is not None else gs.RETURNN_ROOT
-        )
+        self.data_key = data_key
+        self.returnn_python_exe = get_returnn_python_exe(returnn_python_exe)
+        self.returnn_root = get_returnn_root(returnn_root)
 
         self.out_mean = self.output_var("mean_var")
         self.out_std_dev = self.output_var("std_dev_var")
@@ -62,8 +64,8 @@ class ExtractDatasetMeanStddevJob(Job):
         self.returnn_config.write("returnn.config")
 
         command = [
-            tk.uncached_path(self.returnn_python_exe),
-            os.path.join(tk.uncached_path(self.returnn_root), "tools/dump-dataset.py"),
+            self.returnn_python_exe.get_path(),
+            self.returnn_root.join_right("tools/dump-dataset.py").get_path(),
             "returnn.config",
             "--endseq",
             "-1",
@@ -72,6 +74,8 @@ class ExtractDatasetMeanStddevJob(Job):
             "--stats",
             "--dump_stats",
             "stats",
+            "--key",
+            self.data_key,
         ]
 
         create_executable("rnn.sh", command)
@@ -83,9 +87,7 @@ class ExtractDatasetMeanStddevJob(Job):
         total_mean = 0
         total_var = 0
 
-        with open(self.out_mean_file.get_path()) as mean_file, open(
-            self.out_std_dev_file.get_path()
-        ) as std_dev_file:
+        with open(self.out_mean_file.get_path()) as mean_file, open(self.out_std_dev_file.get_path()) as std_dev_file:
 
             # compute the total mean and std-dev in an iterative way
             for i, (mean, std_dev) in enumerate(zip(mean_file, std_dev_file)):
@@ -137,17 +139,13 @@ class SpeakerLabelHDFFromBlissJob(Job):
         SimpleHDFWriter = get_returnn_simple_hdf_writer(
             returnn_root=self.returnn_root.get_path() if self.returnn_root else None
         )
-        hdf_writer = SimpleHDFWriter(
-            self.out_speaker_hdf.get_path(), dim=num_speakers, ndim=1
-        )
+        hdf_writer = SimpleHDFWriter(self.out_speaker_hdf.get_path(), dim=num_speakers, ndim=1)
 
         for recording in bliss.all_recordings():
             for segment in recording.segments:
                 speaker_name = segment.speaker_name or recording.speaker_name
                 speaker_index = index_by_speaker[speaker_name]
                 segment_name = segment.fullname()
-                hdf_writer.insert_batch(
-                    numpy.asarray([[speaker_index]], dtype="int32"), [1], [segment_name]
-                )
+                hdf_writer.insert_batch(numpy.asarray([[speaker_index]], dtype="int32"), [1], [segment_name])
 
         hdf_writer.close()

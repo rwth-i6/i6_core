@@ -25,10 +25,7 @@ def write_table(f, data, header, row_names, col_names):
     :return: None
     """
     first_col_width = max(len(header), max(len(r) for r in row_names))
-    col_widths = [
-        max(len(c), max(len(data.get((c, r), "")) for r in row_names))
-        for c in col_names
-    ]
+    col_widths = [max(len(c), max(len(data.get((c, r), "")) for r in row_names)) for c in col_names]
 
     f.write("%*s" % (first_col_width, header))
     for w, c in zip(col_widths, col_names):
@@ -83,12 +80,8 @@ class PrintTableJob(Job):
         self.data = data
         self.header = header
         self.precision = precision
-        self.col_names = (
-            list(set([x[0] for x in data])) if col_names is None else col_names
-        )
-        self.row_names = (
-            list(set([x[1] for x in data])) if row_names is None else row_names
-        )
+        self.col_names = list(set([x[0] for x in data])) if col_names is None else col_names
+        self.row_names = list(set([x[1] for x in data])) if row_names is None else row_names
         if sort_cols:
             self.col_names.sort(key=natural_keys)
         if sort_rows:
@@ -284,9 +277,7 @@ class ScliteLurSummaryJob(Job):
 
         with open(self.summary.get_path(), "wt") as f:
             row_string = ""
-            row_string += "| {message: <{fill}}|".format(
-                message="Models", fill=max_model
-            )
+            row_string += "| {message: <{fill}}|".format(message="Models", fill=max_model)
             for c in cols:
                 row_string += " {message: <{fill}}|".format(message=c, fill=max_col)
             f.write(row_string + "\n")
@@ -294,9 +285,7 @@ class ScliteLurSummaryJob(Job):
                 row_string = ""
                 row_string += "| {message: <{fill}}|".format(message=r, fill=max_model)
                 for c in cols:
-                    row_string += " {message: <{fill}}|".format(
-                        message=grid[r, c], fill=max_col
-                    )
+                    row_string += " {message: <{fill}}|".format(message=grid[r, c], fill=max_col)
                 f.write(row_string + "\n")
 
 

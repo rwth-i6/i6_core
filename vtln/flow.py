@@ -73,9 +73,7 @@ def warp_filterbank_with_map_flow(
     return net
 
 
-def label_features_with_map_flow(
-    feature_net, map_file, map_key="$(id)", default_output=1.0
-):
+def label_features_with_map_flow(feature_net, map_file, map_key="$(id)", default_output=1.0):
     # copy original net
     net = rasr.FlowNetwork(name=feature_net.name)
     mapping = net.add_net(feature_net)
@@ -142,9 +140,7 @@ def recognized_warping_factor_flow(
     energy = net.add_node("generic-vector-f32-norm", "energy", {"value": 1})
     net.link(mapping[amplitude_spectrum_node], energy)
 
-    convert_energy_to_vector = net.add_node(
-        "generic-convert-f32-to-vector-f32", "convert-energy-to-vector"
-    )
+    convert_energy_to_vector = net.add_node("generic-convert-f32-to-vector-f32", "convert-energy-to-vector")
     net.link(energy, convert_energy_to_vector)
 
     energy_normalization = net.add_node(
@@ -154,9 +150,7 @@ def recognized_warping_factor_flow(
     )
     net.link(convert_energy_to_vector, energy_normalization)
 
-    convert_energy_to_scalar = net.add_node(
-        "generic-convert-vector-f32-to-f32", "convert-energy-vector-to-scalar"
-    )
+    convert_energy_to_scalar = net.add_node("generic-convert-vector-f32-to-f32", "convert-energy-vector-to-scalar")
     net.link(energy_normalization, convert_energy_to_scalar)
 
     energy_sync = net.add_node("generic-synchronization", "energy-sync")
