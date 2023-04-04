@@ -212,7 +212,7 @@ class AddEowPhonemesToLexiconJob(Job):
 
     def _eow_phoneme(self, phoneme: str) -> str:
         """
-        Creates the EOW version of a given phoneme.
+        Creates the eow-version of a given phoneme.
         """
         return phoneme + self.boundary_marker
 
