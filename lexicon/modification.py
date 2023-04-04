@@ -219,7 +219,7 @@ class AddEowPhonemesToLexiconJob(Job):
     def _modify_pronunciation(self, pronunciation: str, special_phonemes: Set[str]) -> str:
         """
         Find the rightmost phoneme in the pronunciation that is not special and replace it by its
-        EOW version. Might do nothing if all phonemes are special.
+        eow-version. Might do nothing if all phonemes are special.
 
         Example: "AA BB [noise]" -> "AA BB# [noise]"
 
