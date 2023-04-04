@@ -223,7 +223,7 @@ class AddEowPhonemesToLexiconJob(Job):
 
         Example: "AA BB [noise]" -> "AA BB# [noise]"
 
-        :param pron: Original pronunciation as a string containing phonemes separated by whitespaces
+        :param pronunciation: Original pronunciation as a string containing phonemes separated by whitespaces
         :param special_phonemes: Set of special phonemes that should be skipped over.
         :return: Modified pronunciation
         """
