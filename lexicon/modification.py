@@ -1,10 +1,11 @@
-__all__ = ["WriteLexiconJob", "MergeLexiconJob"]
+__all__ = ["WriteLexiconJob", "MergeLexiconJob", "AddEowPhonemesToLexiconJob"]
 
 import copy
 from collections import OrderedDict, defaultdict
 import itertools
+from typing import Generator, List, Optional, Set
 
-from sisyphus import Job, Task
+from sisyphus import Job, Task, tk
 
 from i6_core.lib import lexicon
 from i6_core.util import write_xml
@@ -185,3 +186,89 @@ class MergeLexiconJob(Job):
                 merged_lex.lemmata.extend(lex.lemmata)
 
         write_xml(self.out_bliss_lexicon.get_path(), merged_lex.to_xml())
+
+
+class AddEowPhonemesToLexiconJob(Job):
+    def __init__(self, bliss_lexicon: tk.Path, nonword_phones: Optional[List] = None, boundary_marker: str = "#"):
+        """
+        Extends phoneme set of a lexicon by additional end-of-word (eow) versions
+        of all regular phonemes. Modifies lemmata to use the new eow-version
+        of the final phoneme in each pronunciation.
+
+        :param bliss_lexicon: Base lexicon to be modified.
+        :param nonword_phones: List of nonword-phones for which no eow-versions will be added, e.g. [noise].
+                               Phonemes that occur in special lemmata are found automatically and do not need
+                               to be specified here.
+        :param boundary_marker: String that is appended to phoneme symbols to mark eow-version.
+        """
+        self.bliss_lexicon = bliss_lexicon
+        self.nonword_phones = nonword_phones or []
+        self.boundary_marker = boundary_marker
+
+        self.out_lexicon = self.output_path("lexicon.xml")
+
+    def tasks(self):
+        yield Task("run", mini_task=True)
+
+    def _eow_phoneme(self, phoneme: str) -> str:
+        """
+        Creates the eow-version of a given phoneme.
+        """
+        return phoneme + self.boundary_marker
+
+    def _modify_pronunciation(self, pronunciation: str, special_phonemes: Set[str]) -> str:
+        """
+        Find the rightmost phoneme in the pronunciation that is not special and replace it by its
+        eow-version. Might do nothing if all phonemes are special.
+
+        Example: "AA BB [noise]" -> "AA BB# [noise]"
+
+        :param pronunciation: Original pronunciation as a string containing phonemes separated by whitespaces
+        :param special_phonemes: Set of special phonemes that should be skipped over.
+        :return: Modified pronunciation
+        """
+        phoneme_list = pronunciation.split()
+
+        for i, phoneme in reversed(list(enumerate(phoneme_list))):
+            if phoneme in special_phonemes:
+                continue
+            phoneme_list[i] = self._eow_phoneme(phoneme)
+            break
+
+        return " ".join(phoneme_list)
+
+    def run(self):
+        in_lex = lexicon.Lexicon()
+        in_lex.load(self.bliss_lexicon.get_path())
+
+        out_lex = lexicon.Lexicon()
+
+        # Identify all 'special' phonemes in the given lexicon. A phoneme is
+        # deemed 'special' if it appears in the pronunciation of a special lemma.
+        # This should identify e.g. 'silence', 'blank', 'unknown' etc.
+        special_phonemes = set()
+        for lemma in in_lex.lemmata:
+            if lemma.special is None:
+                continue
+            for phon in lemma.phon:
+                special_phonemes.update(phon.split())
+        special_phonemes.update(self.nonword_phones)
+
+        # Add all phonemes to out_lexicon and create list of eow-phonemes
+        eow_phonemes = []
+        for phoneme, variation in in_lex.phonemes.items():
+            out_lex.add_phoneme(phoneme, variation)
+            if phoneme not in special_phonemes:
+                eow_phonemes.append((self._eow_phoneme(phoneme), variation))
+
+        # Add eow-phonemes to out_lexicon
+        for eow_phoneme, variation in eow_phonemes:
+            out_lex.add_phoneme(eow_phoneme, variation)
+
+        # Modify lemmata to include eow-phoneme
+        for lemma in in_lex.lemmata:
+            lemma.phon = [self._modify_pronunciation(phon, special_phonemes) for phon in lemma.phon]
+            out_lex.add_lemma(lemma)
+
+        # Write resulting lexicon to file
+        write_xml(self.out_lexicon.get_path(), out_lex.to_xml())
