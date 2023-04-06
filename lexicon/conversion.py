@@ -76,12 +76,17 @@ class FilterLexiconByWordListJob(Job):
         root = ET.Element("lexicon")
         root.append(old_lexicon.find("phoneme-inventory"))
         for lemma in old_lexicon.findall("lemma"):
+            all_synt_tok = lemma.findall("./synt/tok")
             if any(
                 transform(orth.text) in words
                 or "special" in lemma.attrib
                 or (orth.text is not None and orth.text.startswith("["))
                 for orth in lemma.findall("orth")
-            ) or (self.check_synt_tok and all([transform(tok.text) in words for tok in lemma.findall("./synt/tok")])):
+            ) or (
+                self.check_synt_tok
+                and len(all_synt_tok) > 0
+                and all([transform(tok.text) in words for tok in all_synt_tok])
+            ):
                 root.append(lemma)
 
         with uopen(self.out_bliss_lexicon.get_path(), "wt") as lexicon_file:
