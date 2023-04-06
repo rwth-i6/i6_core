@@ -309,12 +309,20 @@ class RasrAlignmentDumpHDFJob(Job):
         self.allophone_file = allophone_file
         self.state_tying_file = state_tying_file
         self.out_hdf_files = [self.output_path(f"data.hdf.{d}", cached=False) for d in range(len(alignment_caches))]
+        self.out_excluded_segments = [
+            self.output_path(f"excluded_segments.cache.{d}", cached=False) for d in range(len(alignment_caches))
+        ]
         self.returnn_root = returnn_root
         self.data_type = data_type
         self.rqmt = {"cpu": 1, "mem": 8, "time": 0.5}
 
     def tasks(self):
         yield Task("run", rqmt=self.rqmt, args=range(1, (len(self.alignment_caches) + 1)))
+
+    def _write_text(self, path, segment_list):
+        with open(path, "w") as f:
+            for item in segment_list:
+                f.write("%s\n" % item)
 
     def run(self, task_id):
         state_tying = dict(
@@ -328,6 +336,8 @@ class RasrAlignmentDumpHDFJob(Job):
         SimpleHDFWriter = get_returnn_simple_hdf_writer(returnn_root)
         out_hdf = SimpleHDFWriter(filename=self.out_hdf_files[task_id - 1], dim=1)
 
+        excluded_segments = []
+
         for file in alignment_cache.ft:
             info = alignment_cache.ft[file]
             if info.name.endswith(".attribs"):
@@ -337,6 +347,9 @@ class RasrAlignmentDumpHDFJob(Job):
             # alignment
             targets = []
             alignment = alignment_cache.read(file, "align")
+            if not len(alignment):
+                excluded_segments.append(seq_name)
+                continue
             alignmentStates = ["%s.%d" % (alignment_cache.allophones[t[1]], t[2]) for t in alignment]
             for allophone in alignmentStates:
                 targets.append(state_tying[allophone])
@@ -349,3 +362,6 @@ class RasrAlignmentDumpHDFJob(Job):
             )
 
         out_hdf.close()
+
+        if len(excluded_segments):
+            self._write_text(self.out_excluded_segments[task_id - 1], excluded_segments)
