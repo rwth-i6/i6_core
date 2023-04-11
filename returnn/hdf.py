@@ -309,9 +309,7 @@ class RasrAlignmentDumpHDFJob(Job):
         self.allophone_file = allophone_file
         self.state_tying_file = state_tying_file
         self.out_hdf_files = [self.output_path(f"data.hdf.{d}", cached=False) for d in range(len(alignment_caches))]
-        self.out_excluded_segments = [
-            self.output_path(f"excluded_segments.cache.{d}", cached=False) for d in range(len(alignment_caches))
-        ]
+        self.out_excluded_segments = self.output_path(f"excluded.segments", cached=False)
         self.returnn_root = returnn_root
         self.data_type = data_type
         self.rqmt = {"cpu": 1, "mem": 8, "time": 0.5}
@@ -320,7 +318,8 @@ class RasrAlignmentDumpHDFJob(Job):
         yield Task("run", rqmt=self.rqmt, args=range(1, (len(self.alignment_caches) + 1)))
 
     def _write_text(self, path, segment_list):
-        with open(path, "w") as f:
+        write_flag = "a" if os.path.isfile(path) else "w"
+        with open(path, write_flag) as f:
             for item in segment_list:
                 f.write("%s\n" % item)
 
@@ -363,5 +362,4 @@ class RasrAlignmentDumpHDFJob(Job):
 
         out_hdf.close()
 
-        if len(excluded_segments):
-            self._write_text(self.out_excluded_segments[task_id - 1], excluded_segments)
+        self._write_text(self.out_excluded_segments, excluded_segments)
