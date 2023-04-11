@@ -309,7 +309,9 @@ class RasrAlignmentDumpHDFJob(Job):
         self.allophone_file = allophone_file
         self.state_tying_file = state_tying_file
         self.out_hdf_files = [self.output_path(f"data.hdf.{d}", cached=False) for d in range(len(alignment_caches))]
-        self.excluded_segment_list = []
+        self.excluded_segment_sublists = [
+            self.output_path(f"excluded.segments.{d}", cached=False) for d in range(len(alignment_caches))
+        ]
         self.out_excluded_segments = self.output_path(f"excluded.segments", cached=False)
         self.returnn_root = returnn_root
         self.data_type = data_type
@@ -320,8 +322,14 @@ class RasrAlignmentDumpHDFJob(Job):
         yield Task("merge", mini_task=True)
 
     def merge(self):
-        paths = [self.out_excluded_segments]
-        write_paths_to_file(self.excluded_segment_list, paths)
+        excluded_segments = []
+        for p in self.excluded_segment_sublists:
+            if os.path.isfile(p):
+                with open(p, "r") as f:
+                    segments = f.read().splitlines()
+                excluded_segments.extend(segments)
+
+        write_paths_to_file(self.out_excluded_segments, excluded_segments)
 
     def run(self, task_id):
         state_tying = dict(
@@ -362,4 +370,5 @@ class RasrAlignmentDumpHDFJob(Job):
 
         out_hdf.close()
 
-        self.excluded_segment_list.extend(excluded_segments)
+        if len(excluded_segments):
+            write_paths_to_file(self.excluded_segment_sublists[task_id - 1], excluded_segments)
