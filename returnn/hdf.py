@@ -14,7 +14,7 @@ from i6_core.lib import corpus
 from i6_core.lib.hdf import get_returnn_simple_hdf_writer
 from i6_core.lib.rasr_cache import FileArchive
 import i6_core.rasr as rasr
-from i6_core.util import instanciate_delayed, uopen
+from i6_core.util import instanciate_delayed, uopen, write_paths_to_file
 from i6_core import util
 
 from sisyphus import *
@@ -309,6 +309,7 @@ class RasrAlignmentDumpHDFJob(Job):
         self.allophone_file = allophone_file
         self.state_tying_file = state_tying_file
         self.out_hdf_files = [self.output_path(f"data.hdf.{d}", cached=False) for d in range(len(alignment_caches))]
+        self.excluded_segment_list = []
         self.out_excluded_segments = self.output_path(f"excluded.segments", cached=False)
         self.returnn_root = returnn_root
         self.data_type = data_type
@@ -316,12 +317,11 @@ class RasrAlignmentDumpHDFJob(Job):
 
     def tasks(self):
         yield Task("run", rqmt=self.rqmt, args=range(1, (len(self.alignment_caches) + 1)))
+        yield Task("merge", mini_task=True)
 
-    def _write_text(self, path, segment_list):
-        write_flag = "a" if os.path.isfile(path) else "w"
-        with open(path, write_flag) as f:
-            for item in segment_list:
-                f.write("%s\n" % item)
+    def merge(self):
+        paths = [self.out_excluded_segments]
+        write_paths_to_file(self.excluded_segment_list, paths)
 
     def run(self, task_id):
         state_tying = dict(
@@ -362,4 +362,4 @@ class RasrAlignmentDumpHDFJob(Job):
 
         out_hdf.close()
 
-        self._write_text(self.out_excluded_segments, excluded_segments)
+        self.excluded_segment_list.extend(excluded_segments)
