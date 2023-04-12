@@ -27,11 +27,12 @@ Path = setup_path(__package__)
 
 
 class SegmentCorpusJob(Job):
-    def __init__(self, bliss_corpus, num_segments):
+    def __init__(self, bliss_corpus, num_segments, remove_prefix=""):
         self.set_vis_name("Segment Corpus")
 
         self.bliss_corpus = bliss_corpus
         self.num_segments = num_segments
+        self.remove_prefix = remove_prefix
         self.out_single_segment_files = dict(
             (i, self.output_path("segments.%d" % i)) for i in range(1, num_segments + 1)
         )
@@ -49,7 +50,16 @@ class SegmentCorpusJob(Job):
         for idx, segments in enumerate(chunks(all_segments, self.num_segments)):
             with open(self.out_single_segment_files[idx + 1].get_path(), "wt") as segment_file:
                 for segment in segments:
-                    segment_file.write(segment.fullname() + "\n")
+                    name = segment.fullname() + "\n"
+                    name = name[name.startswith(self.remove_prefix) and len(self.remove_prefix) :]
+                    segment_file.write(name)
+
+    @classmethod
+    def hash(cls, kwargs):
+        d = dict(**kwargs)
+        if not d["remove_prefix"]:
+            d.pop("remove_prefix")
+        return super().hash(d)
 
 
 class SegmentCorpusBySpeakerJob(Job):
