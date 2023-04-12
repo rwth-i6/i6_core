@@ -1,6 +1,7 @@
 __all__ = ["ReturnnDumpHDFJob", "ReturnnRasrDumpHDFJob", "BlissToPcmHDFJob", "RasrAlignmentDumpHDFJob"]
 
 from dataclasses import dataclass
+import glob
 import numpy as np
 import os
 import shutil
@@ -14,7 +15,7 @@ from i6_core.lib import corpus
 from i6_core.lib.hdf import get_returnn_simple_hdf_writer
 from i6_core.lib.rasr_cache import FileArchive
 import i6_core.rasr as rasr
-from i6_core.util import instanciate_delayed, uopen
+from i6_core.util import instanciate_delayed, uopen, write_paths_to_file
 from i6_core import util
 
 from sisyphus import *
@@ -308,13 +309,26 @@ class RasrAlignmentDumpHDFJob(Job):
         self.alignment_caches = alignment_caches
         self.allophone_file = allophone_file
         self.state_tying_file = state_tying_file
-        self.out_hdf_files = [self.output_path(f"data.hdf.{d}", cached=False) for d in range(len(alignment_caches))]
+        self.out_hdf_files = [self.output_path(f"data.hdf.{d}") for d in range(len(alignment_caches))]
+        self.out_excluded_segments = self.output_path(f"excluded.segments")
         self.returnn_root = returnn_root
         self.data_type = data_type
         self.rqmt = {"cpu": 1, "mem": 8, "time": 0.5}
 
     def tasks(self):
         yield Task("run", rqmt=self.rqmt, args=range(1, (len(self.alignment_caches) + 1)))
+        yield Task("merge", mini_task=True)
+
+    def merge(self):
+        excluded_segments = []
+        excluded_files = glob.glob("excluded_segments.*")
+        for p in excluded_files:
+            if os.path.isfile(p):
+                with open(p, "r") as f:
+                    segments = f.read().splitlines()
+                excluded_segments.extend(segments)
+
+        write_paths_to_file(self.out_excluded_segments, excluded_segments)
 
     def run(self, task_id):
         state_tying = dict(
@@ -328,6 +342,8 @@ class RasrAlignmentDumpHDFJob(Job):
         SimpleHDFWriter = get_returnn_simple_hdf_writer(returnn_root)
         out_hdf = SimpleHDFWriter(filename=self.out_hdf_files[task_id - 1], dim=1)
 
+        excluded_segments = []
+
         for file in alignment_cache.ft:
             info = alignment_cache.ft[file]
             if info.name.endswith(".attribs"):
@@ -337,6 +353,9 @@ class RasrAlignmentDumpHDFJob(Job):
             # alignment
             targets = []
             alignment = alignment_cache.read(file, "align")
+            if not len(alignment):
+                excluded_segments.append(seq_name)
+                continue
             alignmentStates = ["%s.%d" % (alignment_cache.allophones[t[1]], t[2]) for t in alignment]
             for allophone in alignmentStates:
                 targets.append(state_tying[allophone])
@@ -349,3 +368,6 @@ class RasrAlignmentDumpHDFJob(Job):
             )
 
         out_hdf.close()
+
+        if len(excluded_segments):
+            write_paths_to_file(f"excluded_segments.{task_id}", excluded_segments)
