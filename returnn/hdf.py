@@ -1,6 +1,7 @@
 __all__ = ["ReturnnDumpHDFJob", "ReturnnRasrDumpHDFJob", "BlissToPcmHDFJob", "RasrAlignmentDumpHDFJob"]
 
 from dataclasses import dataclass
+import glob
 import numpy as np
 import os
 import shutil
@@ -323,7 +324,8 @@ class RasrAlignmentDumpHDFJob(Job):
 
     def merge(self):
         excluded_segments = []
-        for p in self.excluded_segment_sublists:
+        excluded_files = glob.glob("excluded_segments.*")
+        for p in excluded_files:
             if os.path.isfile(p):
                 with open(p, "r") as f:
                     segments = f.read().splitlines()
@@ -371,4 +373,4 @@ class RasrAlignmentDumpHDFJob(Job):
         out_hdf.close()
 
         if len(excluded_segments):
-            write_paths_to_file(self.excluded_segment_sublists[task_id - 1], excluded_segments)
+            write_paths_to_file(f"excluded_segments.{task_id}", excluded_segments)
