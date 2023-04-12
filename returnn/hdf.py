@@ -310,7 +310,7 @@ class RasrAlignmentDumpHDFJob(Job):
         self.allophone_file = allophone_file
         self.state_tying_file = state_tying_file
         self.out_hdf_files = [self.output_path(f"data.hdf.{d}") for d in range(len(alignment_caches))]
-        self.out_excluded_segments = self.output_path(f"excluded.segments", cached=False)
+        self.out_excluded_segments = self.output_path(f"excluded.segments")
         self.returnn_root = returnn_root
         self.data_type = data_type
         self.rqmt = {"cpu": 1, "mem": 8, "time": 0.5}
