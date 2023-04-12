@@ -138,7 +138,6 @@ class BlissToOggZipJob(Job):
             for zip_subarchive in self.zip_subarchives.hidden_paths.values():
                 with zipfile.ZipFile(zip_subarchive, mode="r", compression=zipfile.ZIP_DEFLATED) as zip_file:
                     zip_file.extractall(tmp_dir)
-                os.remove(zip_subarchive)
 
             # create output folder
             assert self.out_ogg_zip.get().endswith(".zip")
@@ -191,7 +190,10 @@ class BlissToOggZipJob(Job):
                         print("Adding:", zip_path)
                         zip_file.write(path, zip_path)
 
+            # move final output and delete single subarchives
             shutil.move(zip_file.filename, self.out_ogg_zip.get())
+            for zip_subarchive in self.zip_subarchives.hidden_paths.values():
+                os.remove(zip_subarchive)
 
     @classmethod
     def hash(cls, parsed_args):
