@@ -13,19 +13,19 @@ from i6_core.util import uopen, write_xml
 
 
 class LexiconToWordListJob(Job):
-    def __init__(self, bliss_lexicon, apply_filter=True):
+    def __init__(self, bliss_lexicon: Path, apply_filter: bool = True):
         self.set_vis_name("Lexicon to Word List")
 
         self.bliss_lexicon = bliss_lexicon
         self.apply_filter = apply_filter
 
-        self.out_word_list = self.output_path("words")
+        self.out_word_list = self.output_path("words", cached=True)
 
     def tasks(self):
         yield Task("run", mini_task=True)
 
     def run(self):
-        with uopen(tk.uncached_path(self.bliss_lexicon), "r") as lexicon_file:
+        with uopen(self.bliss_lexicon.get_path(), "r") as lexicon_file:
             lexicon = ET.fromstring(lexicon_file.read())
             words = set()
             for e in lexicon.findall("./lemma/orth"):
