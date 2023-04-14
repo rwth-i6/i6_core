@@ -160,7 +160,7 @@ class FeatureExtractionJob(rasr.RasrCommand, Job):
     def cleanup_before_run(self, cmd, retry, task_id, *args):
         util.backup_if_exists("feature-extraction.log.%d" % task_id)
         for name in self.out_feature_bundle:
-            util.delete_if_zero("%s.cache.%d" % (name, task_id))
+            util.delete_if_exists("%s.cache.%d" % (name, task_id))
 
     @classmethod
     def create_config(cls, crp, feature_flow, extra_config, extra_post_config, **kwargs):
