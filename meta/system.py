@@ -620,7 +620,7 @@ class System:
         """
         :param str name:
         :param str corpus:
-        :param str|list[str]|tuple[str]|rasr.FlagDependentFlowAttribute flow:
+        :param str|list[str]|tuple[str]|rasr.FlagDependentFlowAttribute|rasr.FlowNetwork flow:
         :param str|list[str]|tuple[str]|rasr.FeatureScorer feature_scorer:
         :param float pronunciation_scale:
         :param float lm_scale:
