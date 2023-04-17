@@ -45,10 +45,7 @@ def word_to_subword_in_lexicon(lexicon, lm_tokens, subword_tokens):
             if l.synt:
                 l.synt = sum([w2s[token] for token in l.synt], [])
             if len(l.eval) > 0:
-                l.eval = [
-                    sum([w2s[t] for t in token_sequence], [])
-                    for token_sequence in l.eval
-                ]
+                l.eval = [sum([w2s[t] for t in token_sequence], []) for token_sequence in l.eval]
 
     elem = lexicon.to_xml()
     return ET.ElementTree(elem)
