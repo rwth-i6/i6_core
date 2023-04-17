@@ -831,9 +831,10 @@ class System:
         :param kwargs:
         :return:
         """
-        assert isinstance(
-            returnn_config, returnn.ReturnnConfig
-        ), "Passing returnn_config as dict to train_nn is no longer supported, please construct a ReturnnConfig object instead"
+        assert isinstance(returnn_config, returnn.ReturnnConfig), (
+            "Passing returnn_config as dict to train_nn is no longer supported, "
+            "please construct a ReturnnConfig object instead"
+        )
         j = returnn.ReturnnRasrTrainingJob(
             train_crp=self.crp[train_corpus],
             dev_crp=self.crp[dev_corpus],
