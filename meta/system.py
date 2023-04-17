@@ -71,7 +71,7 @@ class System:
         self.scorer_args = {}
         self.scorer_hyp_arg = {}
 
-        self.jobs = {"base": {}}  # type: Dict[str, Dict[str, Union[Job, AlignSplitAccumulateSequence]]]
+        self.jobs: Dict[str, Dict[str, Union[Job, AlignSplitAccumulateSequence]]] = {"base": {}}
 
     def set_corpus(
         self, name: str, corpus: CorpusObject, concurrent: int, segment_path: Optional[util.MultiOutputPath] = None
