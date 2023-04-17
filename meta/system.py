@@ -28,10 +28,10 @@ class CorpusObject(tk.Object):
     """
 
     def __init__(self):
-        self.corpus_file = None  # type: Optional[tk.Path] # bliss corpus xml
-        self.audio_dir = None  # type: Optional[tk.Path] # audio directory if paths are relative (usually not needed)
-        self.audio_format = None  # type: Optional[str] # format type of the audio files, see e.g. get_input_node_type()
-        self.duration = None  # type: Optional[float] # duration of the corpus, is used to determine job time
+        self.corpus_file: Optional[tk.Path] = None  # bliss corpus xml
+        self.audio_dir: Optional[tk.Path] = None  # audio directory if paths are relative (usually not needed)
+        self.audio_format: Optional[str] = None  # format type of the audio files, see e.g. get_input_node_type()
+        self.duration: Optional[float] = None  # duration of the corpus, is used to determine job time
 
 
 class System:
