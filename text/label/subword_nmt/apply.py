@@ -3,13 +3,16 @@ __all__ = ["ApplyBPEModelToLexiconJob", "ApplyBPEToTextJob"]
 import subprocess as sp
 import os
 import sys
-import xml.etree.ElementTree as ET
 
 from sisyphus import *
 
 Path = setup_path(__package__)
 
 from i6_core.lib.lexicon import Lexicon
+from i6_core.text.label.subword_utils import (
+    get_lm_tokens_from_lexicon,
+    word_to_subword_in_lexicon,
+)
 import i6_core.util as util
 
 
@@ -38,22 +41,9 @@ class ApplyBPEModelToLexiconJob(Job):
         yield Task("run", resume="run", mini_task=True)
 
     def run(self):
-        lexicon_path = self.bliss_lexicon.get_path()
-
         lexicon = Lexicon()
-        lexicon.load(lexicon_path)
-
-        lm_tokens = set()
-        for l in lexicon.lemmata:
-            for orth in l.orth:
-                lm_tokens.add(orth)
-            for token in l.synt or []:  # l.synt can be None
-                lm_tokens.add(token)
-            for eval in l.eval:
-                for t in eval:
-                    lm_tokens.add(t)
-
-        lm_tokens = list(lm_tokens)
+        lexicon.load(self.bliss_lexicon.get_path())
+        lm_tokens = get_lm_tokens_from_lexicon(lexicon)
 
         with util.uopen("words", "wt") as f:
             for t in lm_tokens:
@@ -79,24 +69,7 @@ class ApplyBPEModelToLexiconJob(Job):
         with util.uopen("bpes", "rt") as f:
             bpe_tokens = [l.strip().split() for l in f]
 
-        w2b = {w: b for w, b in zip(lm_tokens, bpe_tokens)}
-
-        for l in lexicon.lemmata:
-            if l.special is None and len(l.orth) > 0:
-                if not l.synt and len(l.eval) == 0:
-                    o = l.orth[0]
-                    l.synt = w2b[o]
-                    l.eval.append([o])
-                if l.synt:
-                    l.synt = sum([w2b[token] for token in l.synt], [])
-                if len(l.eval) > 0:
-                    l.eval = [
-                        sum([w2b[t] for t in token_sequence], [])
-                        for token_sequence in l.eval
-                    ]
-
-        elem = lexicon.to_xml()
-        tree = ET.ElementTree(elem)
+        tree = word_to_subword_in_lexicon(lexicon, lm_tokens, bpe_tokens)
         with util.uopen(self.out_converted_lexicon.get_path(), "wb") as f:
             tree.write(f, encoding="utf-8")
 
