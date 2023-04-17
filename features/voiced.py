@@ -54,14 +54,10 @@ def voiced_flow(
     )
     net.link(samples, win)
 
-    pad = net.add_node(
-        "signal-vector-f32-resize", "padded-window", {"new-size": window_duration}
-    )
+    pad = net.add_node("signal-vector-f32-resize", "padded-window", {"new-size": window_duration})
     net.link(win, pad)
 
-    norm = net.add_node(
-        "signal-vector-f32-mean-energy-normalization", "voiced-normalization"
-    )
+    norm = net.add_node("signal-vector-f32-mean-energy-normalization", "voiced-normalization")
     net.link(pad, norm)
 
     autocorrelation = net.add_node(

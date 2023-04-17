@@ -56,9 +56,7 @@ class MapSegmentsWithBundlesJob(Job):
                     seg_file = tk.uncached_path(self.files[segment_map[segment]])
                     seg_files.add(seg_file)
 
-            with open(
-                os.path.join(self.out_bundle_dir.get_path(), cluster + ".bundle"), "wt"
-            ) as f:
+            with open(os.path.join(self.out_bundle_dir.get_path(), cluster + ".bundle"), "wt") as f:
                 for seg_file in seg_files:
                     f.write("%s\n" % seg_file)
 
@@ -141,9 +139,7 @@ class ClusterMapToSegmentListJob(Job):
             cluster_map[mit.attrib["value"]].append(mit.attrib["key"])
 
         for cluster, segments in cluster_map.items():
-            with open(
-                os.path.join(self.out_segment_dir.get_path(), cluster), "wt"
-            ) as f:
+            with open(os.path.join(self.out_segment_dir.get_path(), cluster), "wt") as f:
                 for seg in segments:
                     f.write("%s\n" % seg)
 

@@ -31,12 +31,8 @@ if __name__ == "__main__":
     from optparse import OptionParser
 
     optparser = OptionParser(usage="usage: %prog [OPTION] <ref-file>")
-    optparser.add_option(
-        "-o", "--output", dest="out", default="-", help="output", metavar="FILE"
-    )
-    optparser.add_option(
-        "-p", "--pad", dest="padframes", default="0", help="output", metavar="NUMBER"
-    )
+    optparser.add_option("-o", "--output", dest="out", default="-", help="output", metavar="FILE")
+    optparser.add_option("-p", "--pad", dest="padframes", default="0", help="output", metavar="NUMBER")
 
     opts, args = optparser.parse_args()
     assert len(args) == 1

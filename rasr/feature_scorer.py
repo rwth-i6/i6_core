@@ -16,6 +16,7 @@ Path = setup_path(__package__)
 import os
 
 from .config import *
+from i6_core.util import get_returnn_root
 
 
 class FeatureScorer:
@@ -71,6 +72,7 @@ class ReturnnScorer(FeatureScorer):
         mixture_scale=1.0,
         prior_scale=1.0,
         prior_file=None,
+        returnn_root=None,
     ):
         super().__init__()
 
@@ -83,10 +85,9 @@ class ReturnnScorer(FeatureScorer):
         else:
             self.config.normalize_mixture_weights = False
         self.config.pymod_name = "returnn.SprintInterface"
-        self.config.pymod_path = os.path.join(tk.gs.RETURNN_ROOT, "..")
+        self.config.pymod_path = get_returnn_root(returnn_root).join_right("..")
         self.config.pymod_config = StringWrapper(
-            "epoch:%d,action:forward,configfile:%s"
-            % (model.epoch, model.returnn_config_file),
+            "epoch:%d,action:forward,configfile:%s" % (model.epoch, model.returnn_config_file),
             model,
         )
         self.config.scale = mixture_scale

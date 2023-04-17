@@ -30,6 +30,8 @@ class CodeWrapper:
         self.code = code
 
     def __repr__(self):
+        if isinstance(self.code, DelayedBase):
+            return self.code.get()
         return self.code
 
 
@@ -167,13 +169,9 @@ class ReturnnConfig:
             return [my_code, other_code]
 
         self.python_prolog = join_code(self.python_prolog, other.python_prolog)
-        self.python_prolog_hash = join_code(
-            self.python_prolog_hash, other.python_prolog_hash
-        )
+        self.python_prolog_hash = join_code(self.python_prolog_hash, other.python_prolog_hash)
         self.python_epilog = join_code(self.python_epilog, other.python_epilog)
-        self.python_epilog_hash = join_code(
-            self.python_epilog_hash, other.python_epilog_hash
-        )
+        self.python_epilog_hash = join_code(self.python_epilog_hash, other.python_epilog_hash)
 
         self.sort_config = other.sort_config
         self.pprint_kwargs.update(other.pprint_kwargs)
@@ -217,9 +215,8 @@ class ReturnnConfig:
             elif isinstance(network_definition, str):
                 content = network_definition
             else:
-                assert False, (
-                    "Invalid entry type in staged_network_dict: %s, use str or dict"
-                    % type(network_definition)
+                assert False, "Invalid entry type in staged_network_dict: %s, use str or dict" % type(
+                    network_definition
                 )
             with open(network_path, "wt", encoding="utf-8") as f:
                 if self.black_formatting:
@@ -329,8 +326,7 @@ class ReturnnConfig:
                 return (
                     "import types; import base64; import pickle; "
                     'code = types.CodeType(*pickle.loads(base64.b64decode("%s".encode("utf8")))); '
-                    '%s = types.FunctionType(code, globals(), "%s")'
-                    % (compiled, name, code.__name__)
+                    '%s = types.FunctionType(code, globals(), "%s")' % (compiled, name, code.__name__)
                 )
         if inspect.isclass(code):
             return inspect.getsource(code)
@@ -342,9 +338,7 @@ class ReturnnConfig:
         Also check for parameters that should never be hashed.
         """
         for key in self.config:
-            assert key not in self.post_config, (
-                "%s in post_config would overwrite existing entry in config" % key
-            )
+            assert key not in self.post_config, "%s in post_config would overwrite existing entry in config" % key
         assert not (self.staged_network_dict and "network" in self.config)
 
         # list of parameters that should never be hashed
@@ -353,9 +347,7 @@ class ReturnnConfig:
             "log_verbosity",
         ]
         for key in disallowed_in_config:
-            assert self.config.get(key) is None, (
-                "please define %s only as parameter in the post_config" % key
-            )
+            assert self.config.get(key) is None, "please define %s only as parameter in the post_config" % key
 
     def _sis_hash(self):
         h = {

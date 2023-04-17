@@ -13,9 +13,7 @@ class CloneGitRepositoryJob(Job):
     Clone a git repository given optional branch name and commit hash
     """
 
-    def __init__(
-        self, url, branch=None, commit=None, checkout_folder_name="repository"
-    ):
+    def __init__(self, url, branch=None, commit=None, checkout_folder_name="repository"):
         """
 
         :param str url: git repository url

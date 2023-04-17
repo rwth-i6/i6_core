@@ -37,16 +37,11 @@ class ScoreFeaturesWithWarpingFactorsJob(rasr.RasrCommand, Job):
             self.config,
             self.post_config,
         ) = ScoreFeaturesWithWarpingFactorsJob.create_config(**kwargs)
-        self.exe = self.select_exe(
-            crp.acoustic_model_trainer_exe, "acoustic-model-trainer"
-        )
+        self.exe = self.select_exe(crp.acoustic_model_trainer_exe, "acoustic-model-trainer")
         self.flow = ScoreFeaturesWithWarpingFactorsJob.create_flow(**kwargs)
         self.alphas = copy.copy(alphas)
 
-        self.log_file = {
-            idx: self.log_file_output_path("score_%d" % idx, crp, True)
-            for idx in range(len(self.alphas))
-        }
+        self.log_file = {idx: self.log_file_output_path("score_%d" % idx, crp, True) for idx in range(len(self.alphas))}
         self.alphas_file = self.output_path("alphas.xml")
         self.warping_map = self.output_path("warping_map.xml")
 
@@ -58,9 +53,7 @@ class ScoreFeaturesWithWarpingFactorsJob(rasr.RasrCommand, Job):
 
     def tasks(self):
         yield Task("create_files", mini_task=True)
-        yield Task(
-            "run", resume="run", rqmt=self.rqmt, args=range(1, self.concurrent + 1)
-        )
+        yield Task("run", resume="run", rqmt=self.rqmt, args=range(1, self.concurrent + 1))
         yield Task("build_map", mini_task=True)
 
     def create_files(self):
@@ -89,9 +82,7 @@ class ScoreFeaturesWithWarpingFactorsJob(rasr.RasrCommand, Job):
             for task_id in range(1, self.concurrent + 1):
                 tree = ET.parse("scores_%d_%d.log" % (idx, task_id))
                 for seg in tree.findall(".//score-accumulator"):
-                    segment_scores[seg.attrib["corpus-key"]].append(
-                        float(seg.find(".//weighted-sum-of-scores").text)
-                    )
+                    segment_scores[seg.attrib["corpus-key"]].append(float(seg.find(".//weighted-sum-of-scores").text))
 
         used_alphas = set()
         with open(self.warping_map.get_path(), "wt") as f:
@@ -101,9 +92,7 @@ class ScoreFeaturesWithWarpingFactorsJob(rasr.RasrCommand, Job):
             for seg in sorted(segment_scores):
                 scores = segment_scores[seg]
                 argmin = min(enumerate(scores), key=lambda e: e[1])[0]
-                f.write(
-                    '  <map-item key="%s" value="%s"/>\n' % (seg, self.alphas[argmin])
-                )
+                f.write('  <map-item key="%s" value="%s"/>\n' % (seg, self.alphas[argmin]))
                 used_alphas.add(self.alphas[argmin])
 
             f.write("</coprus-key-map>")
@@ -147,19 +136,11 @@ class ScoreFeaturesWithWarpingFactorsJob(rasr.RasrCommand, Job):
         post_config["*"].segment_map_channel.file = "$(SCORE-LOGFILE)"
         post_config["*"].segment_map_channel.unbuffered = False
 
-        config.acoustic_model_trainer.aligning_feature_extractor.feature_extraction.file = (
-            "feature_and_alignment.flow"
-        )
-        config.acoustic_model_trainer.aligning_feature_extractor.feature_extraction.warping_alpha = (
-            "$(WARPING-FACTOR)"
-        )
-        config.acoustic_model_trainer.aligning_feature_extractor.feature_extraction.warping_omega = (
-            omega
-        )
+        config.acoustic_model_trainer.aligning_feature_extractor.feature_extraction.file = "feature_and_alignment.flow"
+        config.acoustic_model_trainer.aligning_feature_extractor.feature_extraction.warping_alpha = "$(WARPING-FACTOR)"
+        config.acoustic_model_trainer.aligning_feature_extractor.feature_extraction.warping_omega = omega
         config.acoustic_model_trainer.feature_scorer.corpus_key.template = "<segment>"
-        post_config.acoustic_model_trainer.feature_scorer.output.channel = (
-            "segment-map-channel"
-        )
+        post_config.acoustic_model_trainer.feature_scorer.output.channel = "segment-map-channel"
 
         feature_flow.apply_config(
             "acoustic-model-trainer.aligning-feature-extractor.feature-extraction",
@@ -179,9 +160,7 @@ class ScoreFeaturesWithWarpingFactorsJob(rasr.RasrCommand, Job):
 
     @classmethod
     def create_flow(cls, feature_flow, alignment, filterbank_node, **kwargs):
-        feature_flow = add_static_warping_to_filterbank_flow(
-            feature_net=feature_flow, node_name=filterbank_node
-        )
+        feature_flow = add_static_warping_to_filterbank_flow(feature_net=feature_flow, node_name=filterbank_node)
         return mm.cached_alignment_flow(feature_flow, alignment)
 
     @classmethod
@@ -190,9 +169,7 @@ class ScoreFeaturesWithWarpingFactorsJob(rasr.RasrCommand, Job):
         return super().hash(
             {
                 "config": config,
-                "feature_flow": ScoreFeaturesWithWarpingFactorsJob.create_flow(
-                    **kwargs
-                ),
+                "feature_flow": ScoreFeaturesWithWarpingFactorsJob.create_flow(**kwargs),
                 "exe": kwargs["crp"].acoustic_model_trainer_exe,
             }
         )
@@ -213,21 +190,15 @@ class EstimateWarpingMixturesJob(mm.MergeMixturesJob):
         extra_config=None,
         extra_post_config=None,
     ):
-        self.set_vis_name(
-            "Split Warping Mixtures" if split_first else "Accumulate Warping Mixtures"
-        )
+        self.set_vis_name("Split Warping Mixtures" if split_first else "Accumulate Warping Mixtures")
 
         kwargs = locals()
         del kwargs["self"]
         super().__init__(**mm.EstimateMixturesJob.merge_args(**kwargs))
 
-        self.config, self.post_config = EstimateWarpingMixturesJob.create_config(
-            **kwargs
-        )
+        self.config, self.post_config = EstimateWarpingMixturesJob.create_config(**kwargs)
         self.label_flow = EstimateWarpingMixturesJob.create_flow(**kwargs)
-        self.exe = self.select_exe(
-            crp.acoustic_model_trainer_exe, "acoustic-model-trainer"
-        )
+        self.exe = self.select_exe(crp.acoustic_model_trainer_exe, "acoustic-model-trainer")
         self.split_first = split_first
         self.keep_accumulators = keep_accumulators
         self.concurrent = crp.concurrent
@@ -245,9 +216,7 @@ class EstimateWarpingMixturesJob(mm.MergeMixturesJob):
     def tasks(self):
         rqmt = self.accumulate_rqmt.copy()
         try:
-            mixture_size = os.stat(tk.uncached_path(self._old_mixtures)).st_size / (
-                1024.0**2
-            )
+            mixture_size = os.stat(tk.uncached_path(self._old_mixtures)).st_size / (1024.0**2)
             rqmt["mem"] += 2 if mixture_size > 500.0 else 0
         except OSError as e:
             if e.errno != 2:  # file does not exist
@@ -313,16 +282,10 @@ class EstimateWarpingMixturesJob(mm.MergeMixturesJob):
         config.acoustic_model_trainer.labeling.feature_extraction.file = "label.flow"
         config.acoustic_model_trainer.labeling.labels = warping_factors
         config.acoustic_model_trainer.mixture_set_trainer.split_first = split_first
-        config.acoustic_model_trainer.mixture_set_trainer.old_mixture_set_file = (
-            old_mixtures
-        )
-        config.acoustic_model_trainer.mixture_set_trainer.new_mixture_set_file = (
-            "am.acc.$(TASK)"
-        )
+        config.acoustic_model_trainer.mixture_set_trainer.old_mixture_set_file = old_mixtures
+        config.acoustic_model_trainer.mixture_set_trainer.new_mixture_set_file = "am.acc.$(TASK)"
 
-        label_flow.apply_config(
-            "acoustic-model-trainer.labeling.feature-extraction", config, post_config
-        )
+        label_flow.apply_config("acoustic-model-trainer.labeling.feature-extraction", config, post_config)
 
         config._update(extra_config)
         post_config._update(extra_post_config)
@@ -338,9 +301,7 @@ class EstimateWarpingMixturesJob(mm.MergeMixturesJob):
     def merge_args(cls, crp, extra_merge_args, **kwargs):
         merge_args = {
             "crp": crp,
-            "mixtures_to_combine": [
-                "am.acc.%d" % i for i in range(1, crp.concurrent + 1)
-            ],
+            "mixtures_to_combine": ["am.acc.%d" % i for i in range(1, crp.concurrent + 1)],
             "combine_per_step": 2,
             "estimator": "maximum-likelihood",
             "extra_config": None,

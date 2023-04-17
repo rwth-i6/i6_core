@@ -17,9 +17,7 @@ class TrainWarpingFactorsSequence:
         seq_extra_args=None,
     ):
         split_extra_args = {} if split_extra_args is None else split_extra_args
-        accumulate_extra_args = (
-            {} if accumulate_extra_args is None else accumulate_extra_args
-        )
+        accumulate_extra_args = {} if accumulate_extra_args is None else accumulate_extra_args
         seq_extra_args = {} if seq_extra_args is None else seq_extra_args
 
         self.action_sequence = action_sequence

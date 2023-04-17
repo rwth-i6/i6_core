@@ -25,9 +25,7 @@ class BasicCartQuestions:
 
     def load_phonemes_from_file(self):
         with open(tk.uncached_path(self.phoneme_path), "r") as phoneme_file:
-            phonemes = ["#"] + [
-                l.strip().lower().split("\t")[0] for l in phoneme_file.readlines()
-            ]
+            phonemes = ["#"] + [l.strip().lower().split("\t")[0] for l in phoneme_file.readlines()]
             if "sil" not in phonemes:
                 phonemes.append("sil")
         return phonemes
@@ -123,9 +121,7 @@ class CMUCartQuestions(BasicCartQuestions):
         questions = root.find('./step[@name="linguistics"]/questions')
         if questions is None:
             raise KeyError("could not find linguistics step")
-        k = "history[0] %sfuture[0]" % (
-            "central " if self.include_central_phoneme else ""
-        )
+        k = "history[0] %sfuture[0]" % ("central " if self.include_central_phoneme else "")
         fekey = ET.SubElement(questions, "for-each-key", keys=k)
         ET.SubElement(
             ET.SubElement(fekey, "for-each-value"),
@@ -133,9 +129,7 @@ class CMUCartQuestions(BasicCartQuestions):
             description="context-phone",
         )
         for k, g in phonemes:
-            ET.SubElement(
-                ET.SubElement(fekey, "question", description=k), "values"
-            ).text = " ".join(e[0] for e in g)
+            ET.SubElement(ET.SubElement(fekey, "question", description=k), "values").text = " ".join(e[0] for e in g)
 
         return root
 
@@ -198,9 +192,7 @@ class BeepCartQuestions(BasicCartQuestions):
         questions = root.find('./step[@name="linguistics"]/questions')
         if questions is None:
             raise KeyError("could not find linguistics step")
-        k = "history[0] %sfuture[0]" % (
-            "central " if self.include_central_phoneme else ""
-        )
+        k = "history[0] %sfuture[0]" % ("central " if self.include_central_phoneme else "")
         fekey = ET.SubElement(questions, "for-each-key", keys=k)
         ET.SubElement(
             ET.SubElement(fekey, "for-each-value"),
@@ -208,9 +200,7 @@ class BeepCartQuestions(BasicCartQuestions):
             description="context-phone",
         )
         for k, g in phonemes:
-            ET.SubElement(
-                ET.SubElement(fekey, "question", description=k), "values"
-            ).text = " ".join(g)
+            ET.SubElement(ET.SubElement(fekey, "question", description=k), "values").text = " ".join(g)
 
         return root
 
@@ -240,9 +230,7 @@ class PythonCartQuestions:
             ("future[0]", self.phonemes),
         ]
         if self.hmm_states > 1:
-            properties = [
-                ("hmm-state", [str(i) for i in range(self.hmm_states)])
-            ] + properties
+            properties = [("hmm-state", [str(i) for i in range(self.hmm_states)])] + properties
         properties = collections.OrderedDict(properties)
 
         for prop, values in properties.items():
@@ -256,9 +244,7 @@ class PythonCartQuestions:
         def process_questions(root, questions):
             for q in questions:
                 if q["type"] == "for-each-value":
-                    process_questions(
-                        ET.SubElement(root, "for-each-value"), q["questions"]
-                    )
+                    process_questions(ET.SubElement(root, "for-each-value"), q["questions"])
                 elif q["type"] == "for-each-key":
                     process_questions(
                         ET.SubElement(root, "for-each-key", keys=q["keys"]),

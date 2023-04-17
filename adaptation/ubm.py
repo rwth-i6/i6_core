@@ -15,9 +15,7 @@ import i6_core.rasr as rasr
 import i6_core.util as util
 
 
-def label_features_with_map_flow(
-    feature_net, map_file, map_key="$(id)", default_output=0.0
-):
+def label_features_with_map_flow(feature_net, map_file, map_key="$(id)", default_output=0.0):
     """
     augments a feature-net to outputs network:labels based on coprus-key-map
     :param feature_net: base feature-net
@@ -112,9 +110,7 @@ class TrainUniversalBackgroundModelSequence:
         seq_extra_args=None,
     ):
         split_extra_args = {} if split_extra_args is None else split_extra_args
-        accumulate_extra_args = (
-            {} if accumulate_extra_args is None else accumulate_extra_args
-        )
+        accumulate_extra_args = {} if accumulate_extra_args is None else accumulate_extra_args
         seq_extra_args = {} if seq_extra_args is None else seq_extra_args
 
         self.action_sequence = action_sequence
@@ -176,9 +172,7 @@ class EstimateUniversalBackgroundMixturesJob(mm.MergeMixturesJob):
         extra_config=None,
         extra_post_config=None,
     ):
-        self.set_vis_name(
-            "Split Warping Mixtures" if split_first else "Accumulate Warping Mixtures"
-        )
+        self.set_vis_name("Split Warping Mixtures" if split_first else "Accumulate Warping Mixtures")
 
         kwargs = locals()
         del kwargs["self"]
@@ -189,9 +183,7 @@ class EstimateUniversalBackgroundMixturesJob(mm.MergeMixturesJob):
             self.post_config,
         ) = EstimateUniversalBackgroundMixturesJob.create_config(**kwargs)
         self.label_flow = EstimateUniversalBackgroundMixturesJob.create_flow(**kwargs)
-        self.exe = self.select_exe(
-            crp.acoustic_model_trainer_exe, "acoustic-model-trainer"
-        )
+        self.exe = self.select_exe(crp.acoustic_model_trainer_exe, "acoustic-model-trainer")
         self.split_first = split_first
         self.keep_accumulators = keep_accumulators
         self.concurrent = crp.concurrent
@@ -209,9 +201,7 @@ class EstimateUniversalBackgroundMixturesJob(mm.MergeMixturesJob):
     def tasks(self):
         rqmt = self.accumulate_rqmt.copy()
         try:
-            mixture_size = os.stat(tk.uncached_path(self._old_mixtures)).st_size / (
-                1024.0**2
-            )
+            mixture_size = os.stat(tk.uncached_path(self._old_mixtures)).st_size / (1024.0**2)
             rqmt["mem"] += 2 if mixture_size > 500.0 else 0
         except OSError as e:
             if e.errno != 2:  # file does not exist
@@ -278,18 +268,12 @@ class EstimateUniversalBackgroundMixturesJob(mm.MergeMixturesJob):
         config.acoustic_model_trainer.labeling.feature_extraction.file = "label.flow"
         config.acoustic_model_trainer.labeling.labels = warping_factors
         config.acoustic_model_trainer.mixture_set_trainer.split_first = split_first
-        config.acoustic_model_trainer.mixture_set_trainer.old_mixture_set_file = (
-            old_mixtures
-        )
-        config.acoustic_model_trainer.mixture_set_trainer.new_mixture_set_file = (
-            "am.acc.$(TASK)"
-        )
+        config.acoustic_model_trainer.mixture_set_trainer.old_mixture_set_file = old_mixtures
+        config.acoustic_model_trainer.mixture_set_trainer.new_mixture_set_file = "am.acc.$(TASK)"
 
         config.acoustic_model_trainer.mixture_set_trainer.covariance_tying = "none"
         config.acoustic_model_trainer.mixture_set_trainer.force_covariance_tying = True
-        config.acoustic_model_trainer.mixture_set_trainer.minimum_observation_weight = (
-            min_observation_weight
-        )
+        config.acoustic_model_trainer.mixture_set_trainer.minimum_observation_weight = min_observation_weight
         config.acoustic_model_trainer.mixture_set_trainer.splitter.minimum_mean_observation_weight = (
             min_observation_weight
         )
@@ -297,9 +281,7 @@ class EstimateUniversalBackgroundMixturesJob(mm.MergeMixturesJob):
             min_observation_weight
         )
 
-        label_flow.apply_config(
-            "acoustic-model-trainer.labeling.feature-extraction", config, post_config
-        )
+        label_flow.apply_config("acoustic-model-trainer.labeling.feature-extraction", config, post_config)
 
         config._update(extra_config)
         post_config._update(extra_post_config)
@@ -315,9 +297,7 @@ class EstimateUniversalBackgroundMixturesJob(mm.MergeMixturesJob):
     def merge_args(cls, crp, extra_merge_args, **kwargs):
         merge_args = {
             "crp": crp,
-            "mixtures_to_combine": [
-                "am.acc.%d" % i for i in range(1, crp.concurrent + 1)
-            ],
+            "mixtures_to_combine": ["am.acc.%d" % i for i in range(1, crp.concurrent + 1)],
             "combine_per_step": 2,
             "estimator": "maximum-likelihood",
             "extra_config": None,

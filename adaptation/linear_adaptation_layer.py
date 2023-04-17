@@ -66,18 +66,14 @@ class MetaLinearAdaptationJob(Job):
         self.scorers = {}
         save_interval = returnn_training_args["save_interval"]
         num_epochs = returnn_training_args["num_epochs"]
-        self.epochs = list(range(save_interval, num_epochs, save_interval)) + [
-            num_epochs
-        ]
+        self.epochs = list(range(save_interval, num_epochs, save_interval)) + [num_epochs]
 
         # Outputs
         self.lattice_dir = self.output_path("lattice", True)
 
         self.models = {}
         self.model_dir = self.output_path("models", True)
-        self.model_path = MultiOutputPath(
-            self, "models/cluster.$(CLUSTER)", self.model_dir
-        )
+        self.model_path = MultiOutputPath(self, "models/cluster.$(CLUSTER)", self.model_dir)
 
         self.best_wer = 1000
         self.best_model = "none"
@@ -105,8 +101,7 @@ class MetaLinearAdaptationJob(Job):
 
     def collect_files(self):
         self.single_segments = {
-            i: self.segment_dir.get_path() + ("/speaker.%d" % i)
-            for i in range(1, util.get_val(self.num_clusters) + 1)
+            i: self.segment_dir.get_path() + ("/speaker.%d" % i) for i in range(1, util.get_val(self.num_clusters) + 1)
         }
 
     def modify_config(self):
@@ -119,9 +114,7 @@ class MetaLinearAdaptationJob(Job):
         if self.input_trans_args:
             self.insert_input_layer()
         if self.hidden_trans_args:
-            self.insert_hidden_layer(
-                network, self.original_model.model, self.hidden_trans_args
-            )
+            self.insert_hidden_layer(network, self.original_model.model, self.hidden_trans_args)
         if self.output_trans_args:
             self.insert_output_layer()
 
@@ -273,9 +266,7 @@ class MetaLinearAdaptationJob(Job):
 
                 eval_corpus.language_model_config.scale = self.recog_args["lm_scale"]
                 model_combination_config = rasr.RasrConfig()
-                model_combination_config.pronunciation_scale = self.recog_args[
-                    "pronunciation_scale"
-                ]
+                model_combination_config.pronunciation_scale = self.recog_args["pronunciation_scale"]
 
                 rec = recog.AdvancedTreeSearchJob(
                     crp=eval_corpus,

@@ -24,9 +24,7 @@ def test_corpus_to_stm():
         bliss_to_stm_job.out_stm_path = Path(os.path.join(tmpdir, "corpus.stm"))
         bliss_to_stm_job.run()
 
-        assert filecmp.cmp(
-            bliss_to_stm_job.out_stm_path.get_path(), stm_ref.get_path(), shallow=False
-        )
+        assert filecmp.cmp(bliss_to_stm_job.out_stm_path.get_path(), stm_ref.get_path(), shallow=False)
 
 
 def test_corpus_to_stm_non_speech():
@@ -45,9 +43,7 @@ def test_corpus_to_stm_non_speech():
         bliss_to_stm_job.out_stm_path = Path(os.path.join(tmpdir, "corpus.stm"))
         bliss_to_stm_job.run()
 
-        assert filecmp.cmp(
-            bliss_to_stm_job.out_stm_path.get_path(), stm_ref.get_path(), shallow=False
-        )
+        assert filecmp.cmp(bliss_to_stm_job.out_stm_path.get_path(), stm_ref.get_path(), shallow=False)
 
 
 def test_corpus_to_stm_punctuation():
@@ -66,9 +62,7 @@ def test_corpus_to_stm_punctuation():
         bliss_to_stm_job.out_stm_path = Path(os.path.join(tmpdir, "corpus.stm"))
         bliss_to_stm_job.run()
 
-        assert filecmp.cmp(
-            bliss_to_stm_job.out_stm_path.get_path(), stm_ref.get_path(), shallow=False
-        )
+        assert filecmp.cmp(bliss_to_stm_job.out_stm_path.get_path(), stm_ref.get_path(), shallow=False)
 
 
 def test_corpus_to_stm_whitespace():
@@ -87,9 +81,7 @@ def test_corpus_to_stm_whitespace():
         bliss_to_stm_job.out_stm_path = Path(os.path.join(tmpdir, "corpus.stm"))
         bliss_to_stm_job.run()
 
-        assert filecmp.cmp(
-            bliss_to_stm_job.out_stm_path.get_path(), stm_ref.get_path(), shallow=False
-        )
+        assert filecmp.cmp(bliss_to_stm_job.out_stm_path.get_path(), stm_ref.get_path(), shallow=False)
 
 
 def test_corpus_to_stm_none():
@@ -108,6 +100,4 @@ def test_corpus_to_stm_none():
         bliss_to_stm_job.out_stm_path = Path(os.path.join(tmpdir, "corpus.stm"))
         bliss_to_stm_job.run()
 
-        assert filecmp.cmp(
-            bliss_to_stm_job.out_stm_path.get_path(), stm_ref.get_path(), shallow=False
-        )
+        assert filecmp.cmp(bliss_to_stm_job.out_stm_path.get_path(), stm_ref.get_path(), shallow=False)

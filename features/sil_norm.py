@@ -15,9 +15,7 @@ import xml.etree.ElementTree as ET
 import i6_core.rasr as rasr
 
 
-def samples_with_silence_normalization_flow(
-    audio_format="wav", dc_detection=True, dc_params=None, silence_params=None
-):
+def samples_with_silence_normalization_flow(audio_format="wav", dc_detection=True, dc_params=None, silence_params=None):
     _dc_params = {
         "min-dc-length": 0.01,
         "max-dc-increment": 0.9,
@@ -51,9 +49,7 @@ def samples_with_silence_normalization_flow(
         },
     )
 
-    demultiplex = net.add_node(
-        "generic-vector-s16-demultiplex", "demultiplex", track="$(track)"
-    )
+    demultiplex = net.add_node("generic-vector-s16-demultiplex", "demultiplex", track="$(track)")
     net.link(samples, demultiplex)
 
     convert = net.add_node("generic-convert-vector-s16-to-vector-f32", "convert")
@@ -108,16 +104,12 @@ class ExtractSilenceNormalizationMapJob(Job):
                 for seg in rec.findall("segment"):
                     for info in seg.findall("information"):
                         comp = info.get("component")
-                        if comp.endswith(
-                            ".silence-normalization"
-                        ) and info.text.strip().startswith(normsil_label):
+                        if comp.endswith(".silence-normalization") and info.text.strip().startswith(normsil_label):
                             assert not had_warping_map
                             had_normsil_mal = True
                             for item in info.text.strip()[len(normsil_label) :].split():
                                 maps[recname].add(tuple(map(float, item.split(":"))))
-                        if comp.endswith(".warp-time") and info.text.strip().startswith(
-                            warping_label
-                        ):
+                        if comp.endswith(".warp-time") and info.text.strip().startswith(warping_label):
                             assert not had_normsil_mal
                             had_warping_map = True
                             for item in info.text.strip()[len(warping_label) :].split():
@@ -162,24 +154,16 @@ class ExtractSegmentSilenceNormalizationMapJob(Job):
                         maps[seg_full_name] = set()
                     for info in seg.findall("information"):
                         comp = info.get("component")
-                        if comp.endswith(
-                            ".silence-normalization"
-                        ) and info.text.strip().startswith(normsil_label):
+                        if comp.endswith(".silence-normalization") and info.text.strip().startswith(normsil_label):
                             assert not had_warping_map
                             had_normsil_mal = True
                             for item in info.text.strip()[len(normsil_label) :].split():
-                                maps[seg_full_name].add(
-                                    tuple(map(float, item.split(":")))
-                                )
-                        if comp.endswith(".warp-time") and info.text.strip().startswith(
-                            warping_label
-                        ):
+                                maps[seg_full_name].add(tuple(map(float, item.split(":"))))
+                        if comp.endswith(".warp-time") and info.text.strip().startswith(warping_label):
                             assert not had_normsil_mal
                             had_warping_map = True
                             for item in info.text.strip()[len(warping_label) :].split():
-                                maps[seg_full_name].add(
-                                    tuple(map(float, item.split(":")))
-                                )
+                                maps[seg_full_name].add(tuple(map(float, item.split(":"))))
 
         with open(self.sil_norm_map.get_path(), "wt") as f:
             for segname in maps.keys():
@@ -205,11 +189,7 @@ class UnwarpTimesInCTMJob(Job):
             for line in f:
                 items = line.strip().split()
                 if len(items) > 0:
-                    silence_map[items[0]] = [
-                        (float(a), float(b))
-                        for item in items[1:]
-                        for a, b in [item.split(":")]
-                    ]
+                    silence_map[items[0]] = [(float(a), float(b)) for item in items[1:] for a, b in [item.split(":")]]
 
         def apply(recname, time):
             time_offset = 0

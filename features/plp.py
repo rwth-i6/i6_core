@@ -67,9 +67,7 @@ def plp_flow(
     else:
         net.interconnect(samples_net, samples_mapping, fft_net, fft_mapping)
 
-    power_spectrum = net.add_node(
-        "generic-vector-f32-power", "power-spectrum", {"value": 2}
-    )
+    power_spectrum = net.add_node("generic-vector-f32-power", "power-spectrum", {"value": 2})
     net.link(
         fft_mapping[fft_net.get_output_links("amplitude-spectrum").pop()],
         power_spectrum,
@@ -97,14 +95,10 @@ def plp_flow(
     split_filterbank = net.add_node("generic-vector-f32-split", "split-filterbank")
     net.link(filterbank, split_filterbank)
 
-    reverse_split_filterbank = net.add_node(
-        "generic-vector-f32-split", "reverse-split-filterbank", {"reverse": "true"}
-    )
+    reverse_split_filterbank = net.add_node("generic-vector-f32-split", "reverse-split-filterbank", {"reverse": "true"})
     net.link(filterbank, reverse_split_filterbank)
 
-    copy_fl_filterbank = net.add_node(
-        "generic-vector-f32-concat", "copy-first-last-filterbank"
-    )
+    copy_fl_filterbank = net.add_node("generic-vector-f32-concat", "copy-first-last-filterbank")
     net.link(split_filterbank + ":0", copy_fl_filterbank + ":first")
     net.link(filterbank, copy_fl_filterbank + ":middle")
     net.link(reverse_split_filterbank + ":0", copy_fl_filterbank + ":last")
@@ -119,9 +113,7 @@ def plp_flow(
     )
     net.link(copy_fl_filterbank, equal_loudness_preemphasis)
 
-    intensity_loudness_law = net.add_node(
-        "generic-vector-f32-power", "intensity-loudness-law", {"value": "0.33"}
-    )
+    intensity_loudness_law = net.add_node("generic-vector-f32-power", "intensity-loudness-law", {"value": "0.33"})
     net.link(equal_loudness_preemphasis, intensity_loudness_law)
 
     autocorrelation = net.add_node(
@@ -131,9 +123,7 @@ def plp_flow(
     )
     net.link(intensity_loudness_law, autocorrelation)
 
-    autoregression = net.add_node(
-        "signal-autocorrelation-to-autoregression", "autoregression"
-    )
+    autoregression = net.add_node("signal-autocorrelation-to-autoregression", "autoregression")
     net.link(autocorrelation, autoregression)
 
     linear_cepstrum = net.add_node(
@@ -150,9 +140,7 @@ def plp_flow(
             "right": "infinity",
         }
         attr.update(normalization_options)
-        normalization = net.add_node(
-            "signal-normalization", "feature-normalization", attr
-        )
+        normalization = net.add_node("signal-normalization", "feature-normalization", attr)
         net.link(linear_cepstrum, normalization)
         net.link(normalization, "network:features")
     else:

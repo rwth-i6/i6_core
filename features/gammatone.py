@@ -97,9 +97,7 @@ def gammatone_flow(
     gammatone = net.add_node("signal-gammatone", "gammatone", gammatone_args)
 
     if preemphasis:
-        node_preemphasis = net.add_node(
-            "signal-preemphasis", "preemphasis", {"alpha": 1.00}
-        )
+        node_preemphasis = net.add_node("signal-preemphasis", "preemphasis", {"alpha": 1.00})
         net.link(sample_input, node_preemphasis)
         net.link(node_preemphasis, gammatone)
     else:
@@ -127,25 +125,19 @@ def gammatone_flow(
     else:
         specint = None  # this line is here just to silence a PyCharm warning
 
-    convert = net.add_node(
-        "generic-convert-vector-vector-f32-to-vector-f32", "typeconvert"
-    )
+    convert = net.add_node("generic-convert-vector-vector-f32-to-vector-f32", "typeconvert")
     if do_specint:
         net.link(specint, convert)
     else:
         net.link(tempint, convert)
 
-    scaling = net.add_node(
-        "generic-vector-f32-multiplication", "scaling", {"value": 0.00035}
-    )
+    scaling = net.add_node("generic-vector-f32-multiplication", "scaling", {"value": 0.00035})
     net.link(convert, scaling)
 
     nonlinear = net.add_node("generic-vector-f32-power", "nonlinear", {"value": 0.1})
     net.link(scaling, nonlinear)
 
-    cos_transform = net.add_node(
-        "signal-cosine-transform", "cos_transform", {"nr-outputs": channels}
-    )
+    cos_transform = net.add_node("signal-cosine-transform", "cos_transform", {"nr-outputs": channels})
     net.link(nonlinear, cos_transform)
 
     if normalize:
@@ -158,12 +150,8 @@ def gammatone_flow(
         normalization = net.add_node("signal-normalization", "gt-normalization", attr)
         net.link(cos_transform, normalization)
 
-        if (
-            legacy_scaling
-        ):  # In legacy setups, features were multiplied with a scalar of 3
-            post_norm_scaling = net.add_node(
-                "generic-vector-f32-multiplication", "post-norm-scaling", {"value": 3}
-            )
+        if legacy_scaling:  # In legacy setups, features were multiplied with a scalar of 3
+            post_norm_scaling = net.add_node("generic-vector-f32-multiplication", "post-norm-scaling", {"value": 3})
             net.link(normalization, post_norm_scaling)
             net.link(post_norm_scaling, "network:features")
         else:
