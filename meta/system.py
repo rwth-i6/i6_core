@@ -662,6 +662,8 @@ class System:
 
         self.jobs[corpus]["scorer_%s" % name] = scorer
         tk.register_output("%srecog_%s.reports" % (prefix, name), scorer.out_report_dir)
+        if scorer.out_wer:
+            tk.register_output("%s/wers/recog_%s.wer" % (prefix, name), scorer.out_wer)
 
     def optimize_am_lm(self, name, corpus, initial_am_scale, initial_lm_scale, prefix="", **kwargs):
         """
