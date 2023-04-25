@@ -124,6 +124,7 @@ class AlignSplitAccumulateSequence:
                     align_crp, align_extra_config = get_align_config_and_crp_for_corrected_applicator(crp)
                     if "extra_config" in align_extra_args:
                         align_extra_config._update(align_extra_args["extra_config"])
+                    align_extra_args["extra_config"] = align_extra_config
                 else:
                     align_crp = crp
                 args = {
@@ -132,7 +133,6 @@ class AlignSplitAccumulateSequence:
                     "feature_scorer": feature_scorer(current_mixtures),
                 }
 
-                align_extra_args["extra_config"] = align_extra_config
                 args.update(align_extra_args)
                 if a_idx in seq_extra_args:
                     args.update(seq_extra_args[a_idx])
