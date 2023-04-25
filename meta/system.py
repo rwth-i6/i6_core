@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 __all__ = ["System", "select_element", "CorpusObject"]
 
 import copy
@@ -132,7 +134,7 @@ class System:
 
         self.jobs[name] = {}
 
-    def copy_from_system(self, origin_system: "System", origin_name: str, target_name: Optional[str] = None):
+    def copy_from_system(self, origin_system: System, origin_name: str, target_name: Optional[str] = None):
         """
         Import the dictionaries from another System
 
