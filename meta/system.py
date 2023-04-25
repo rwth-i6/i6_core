@@ -605,7 +605,7 @@ class System:
         corpus: str,
         flow: str,
         old_mixtures: Optional[Union[selector_type, tk.Path]] = None,
-        alignment: Optional[Union[selector_type, rasr.FlagDependentFlowAttribute]] = None,
+        alignment: Optional[Union[selector_type, rasr.FlagDependentFlowAttribute, tk.Path]] = None,
         prefix: str = "",
         **kwargs,
     ):
