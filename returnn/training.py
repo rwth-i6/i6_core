@@ -72,6 +72,27 @@ class Checkpoint:
         return "'%s'" % self.ckpt_path
 
 
+class PtCheckpoint:
+    """
+    Checkpoint object pointing to a .pt file
+    """
+
+    def __init__(self, path: tk.Path):
+        """
+        :param path: .pt file
+        """
+        self.path = path
+
+    def _sis_hash(self):
+        return self.path._sis_hash()
+
+    def __str__(self):
+        return self.path.get()
+
+    def __repr__(self):
+        return "'%s'" % self.path
+
+
 class ReturnnTrainingJob(Job):
     """
     Train a RETURNN model using the rnn.py entry point.
@@ -159,13 +180,21 @@ class ReturnnTrainingJob(Job):
             for k in stored_epochs
             if k in self.keep_epochs
         }
-        if self.returnn_config.get("use_tensorflow", False):
+        if self.returnn_config.get("use_tensorflow", False) or self.returnn_config.get("backend") == "tensorflow":
             self.out_checkpoints = {
                 k: Checkpoint(index_path)
                 for k in stored_epochs
                 if k in self.keep_epochs
                 for index_path in [self.output_path("models/epoch.%.3d.index" % k)]
             }
+        if self.returnn_config.get("backend", None) == "torch":
+            self.out_checkpoints = {
+                k: PtCheckpoint(index_path)
+                for k in stored_epochs
+                if k in self.keep_epochs
+                for index_path in [self.output_path("models/epoch.%.3d.pt" % k)]
+            }
+
         self.out_plot_se = self.output_path("score_and_error.png")
         self.out_plot_lr = self.output_path("learning_rate.png")
 
