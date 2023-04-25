@@ -24,6 +24,9 @@ from .mm_sequence import AlignSplitAccumulateSequence
 Path = setup_path(__package__)
 
 
+selector_type = Union[str, List, Tuple[str], Tuple[str, str], Tuple[str, str, int]]
+
+
 class CorpusObject(tk.Object):
     """
     A simple container object to track additional information for a bliss corpus
@@ -49,7 +52,7 @@ class System:
 
         # collections which are a nested dict of corpus_key -> name -> some object / some container
         # the container can be list, tuple or dict
-        self.alignments = {}  # type: Dict[str,Dict[str,Union[List[Any], Any]]]
+        self.alignments = {}  # type: Dict[str, Dict[str, Union[List[Any], Any]]]
         # corpus_key -> alignment_name -> element or list of e.g. FlowAttributes
         # with cache_mode containing caches and bundle
         self.ctm_files = {}
@@ -571,8 +574,8 @@ class System:
         self,
         name: str,
         corpus: str,
-        flow: Union[str, List[str], Tuple[str], rasr.FlowNetwork],
-        feature_scorer: Union[str, List[str], Tuple[str], rasr.FeatureScorer],
+        flow: Union[selector_type, rasr.FlowNetwork],
+        feature_scorer: Union[selector_type, rasr.FeatureScorer],
         **kwargs,
     ):
         """
@@ -601,8 +604,8 @@ class System:
         name: str,
         corpus: str,
         flow: str,
-        old_mixtures: Optional[Union[str, List[str], Tuple[str], tk.Path]] = None,
-        alignment: Optional[Union[str, List[str], Tuple[str], rasr.FlagDependentFlowAttribute]] = None,
+        old_mixtures: Optional[Union[selector_type, tk.Path]] = None,
+        alignment: Optional[Union[selector_type, rasr.FlagDependentFlowAttribute]] = None,
         prefix: str = "",
         **kwargs,
     ):
@@ -635,7 +638,7 @@ class System:
         name: str,
         corpus: str,
         sequence: List[str],
-        flow: Union[str, List[str], Tuple[str], rasr.FlowNetwork],
+        flow: Union[selector_type, rasr.FlowNetwork],
         **kwargs,
     ):
         """
@@ -663,8 +666,8 @@ class System:
         self,
         name: str,
         corpus: str,
-        flow: Union[str, List[str], Tuple[str], rasr.FlowNetwork],
-        feature_scorer: Union[str, List[str], Tuple[str], rasr.FeatureScorer],
+        flow: Union[selector_type, rasr.FlowNetwork],
+        feature_scorer: Union[selector_type, rasr.FeatureScorer],
         pronunciation_scale: float,
         lm_scale: float,
         parallelize_conversion: bool = False,
@@ -747,8 +750,8 @@ class System:
         self,
         name: str,
         corpus: str,
-        flow: Union[str, List[str], Tuple[str], rasr.FlowNetwork],
-        feature_scorer: Union[str, List[str], Tuple[str], rasr.FeatureScorer],
+        flow: Union[selector_type, rasr.FlowNetwork],
+        feature_scorer: Union[selector_type, rasr.FeatureScorer],
         pronunciation_scale: float,
         lm_scale: float,
         parallelize_conversion: bool = False,
@@ -816,7 +819,7 @@ class System:
         train_corpus: str,
         dev_corpus: str,
         feature_flow: str,
-        alignment: Union[str, List[str], Tuple[str], rasr.FlagDependentFlowAttribute],
+        alignment: Union[selector_type, rasr.FlagDependentFlowAttribute],
         returnn_config: returnn.ReturnnConfig,
         num_classes: Union[int, types.FunctionType],
         **kwargs,
@@ -856,8 +859,8 @@ class System:
         corpus: str,
         feature_dimension: Union[int, types.FunctionType],
         output_dimension: Union[int, types.FunctionType],
-        prior_mixtures: Union[str, List[str], Tuple[str], tk.Path],
-        model: Union[str, List[str], Tuple[str], returnn.ReturnnModel],
+        prior_mixtures: Union[selector_type, tk.Path],
+        model: Union[selector_type, returnn.ReturnnModel],
         prior_scale: float,
         prior_file: tk.Path = None,
         **kwargs,
