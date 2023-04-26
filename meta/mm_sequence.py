@@ -9,6 +9,7 @@ __all__ = [
 import os
 from typing import Union, List, Tuple
 
+from i6_core.am.config import get_align_config_and_crp_for_corrected_applicator
 from i6_core.mm.alignment import AlignmentJob, AMScoresFromAlignmentLogJob
 from i6_core.mm.flow import FlowNetwork
 from i6_core.mm.mixtures import EstimateMixturesJob
@@ -39,6 +40,7 @@ class AlignSplitAccumulateSequence:
         split_keep_values=None,
         accumulate_keep_values=None,
         feature_scorer=DiagonalMaximumScorer,
+        use_corrected_applicator=False,
         alias_path=None,
     ):
         """
@@ -69,6 +71,7 @@ class AlignSplitAccumulateSequence:
         :param dict accumulate_keep_values:
             keep values for accumulate jobs, which might be indexed by "default", "selected" or the action index number.
         :param feature_scorer:
+        :param bool set to True if you want to avoid using the legacy FSA with incorrect silence forward probabilities.
         :param str|None alias_path: adds an alias with the action name for each job in the sequence at the
             given path
         """
@@ -117,11 +120,19 @@ class AlignSplitAccumulateSequence:
 
         for a_idx, action in enumerate(action_sequence):
             if action.startswith("align"):
+                if use_corrected_applicator:
+                    align_crp, align_extra_config = get_align_config_and_crp_for_corrected_applicator(crp)
+                    if "extra_config" in align_extra_args:
+                        align_extra_config._update(align_extra_args["extra_config"])
+                    align_extra_args["extra_config"] = align_extra_config
+                else:
+                    align_crp = crp
                 args = {
-                    "crp": crp,
+                    "crp": align_crp,
                     "feature_flow": feature_flow,
                     "feature_scorer": feature_scorer(current_mixtures),
                 }
+
                 args.update(align_extra_args)
                 if a_idx in seq_extra_args:
                     args.update(seq_extra_args[a_idx])

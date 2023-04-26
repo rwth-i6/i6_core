@@ -1,7 +1,9 @@
-__all__ = ["acoustic_model_config"]
+__all__ = ["acoustic_model_config", "get_align_config_and_crp_for_corrected_applicator"]
 
+import copy
 from dataclasses import dataclass
 from typing import List, Literal, Tuple, Union, Optional
+
 import i6_core.rasr as rasr
 
 from sisyphus import tk
@@ -103,3 +105,33 @@ def acoustic_model_config(
         config.phonology.future_length = phon_future_length
 
     return config
+
+
+def get_align_config_and_crp_for_corrected_applicator(
+    crp: rasr.CommonRasrParameters, exit_penalty: float = 0.0
+) -> [rasr.CommonRasrParameters, rasr.RasrConfig]:
+    """
+    Set the correct type of applicator, default is "legacy". Moreover, set exit penalities to zero
+    For a given word sequence the exit penalty is constant with respect to the max/sum
+    :param config:
+    :return:
+    """
+
+    align_crp = rasr.CommonRasrParameters(base=crp)
+    align_crp.acoustic_model_config.tdp.applicator_type = "corrected"
+    transition_types = ["*", "silence"]
+    if align_crp.acoustic_model_config.tdp.tying_type == "global-and-nonword":
+        for nw in [0, 1]:
+            transition_types.append(f"nonword-{nw}")
+    for t in transition_types:
+        align_crp.acoustic_model_config.tdp[t].exit = exit_penalty
+
+    align_crp.acoustic_model_config.fix_allophone_context_at_word_boundaries = True
+    align_crp.acoustic_model_config.transducer_builder_filter_out_invalid_allophones = True
+
+    pre_pattern = "acoustic-model-trainer.aligning-feature-extractor.feature-extraction.alignment.allophone-state-graph-builder.orthographic-parser"
+    extra_config = rasr.RasrConfig()
+    extra_config[f"{pre_pattern}.normalize-lemma-sequence-scores"] = False
+    extra_config[f"{pre_pattern}.allow-for-silence-repetitions"] = False
+
+    return align_crp, extra_config
