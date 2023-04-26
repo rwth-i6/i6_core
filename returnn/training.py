@@ -171,15 +171,6 @@ class ReturnnTrainingJob(Job):
         self.out_returnn_config_file = self.output_path("returnn.config")
         self.out_learning_rates = self.output_path("learning_rates")
         self.out_model_dir = self.output_path("models", directory=True)
-        self.out_models = {
-            k: ReturnnModel(
-                self.out_returnn_config_file,
-                self.output_path("models/epoch.%.3d%s" % (k, suffix)),
-                k,
-            )
-            for k in stored_epochs
-            if k in self.keep_epochs
-        }
         if self.returnn_config.get("use_tensorflow", False) or self.returnn_config.get("backend", None) == "tensorflow":
             self.out_checkpoints = {
                 k: Checkpoint(index_path)
@@ -187,12 +178,23 @@ class ReturnnTrainingJob(Job):
                 if k in self.keep_epochs
                 for index_path in [self.output_path("models/epoch.%.3d.index" % k)]
             }
-        if self.returnn_config.get("backend", None) == "torch":
-            self.out_checkpoints = {
-                k: PtCheckpoint(index_path)
+
+            # Deprecated, remove when possible
+            self.out_models = {
+                k: ReturnnModel(
+                    self.out_returnn_config_file,
+                    self.output_path("models/epoch.%.3d%s" % (k, suffix)),
+                    k,
+                )
                 for k in stored_epochs
                 if k in self.keep_epochs
-                for index_path in [self.output_path("models/epoch.%.3d.pt" % k)]
+            }
+        if self.returnn_config.get("backend", None) == "torch":
+            self.out_checkpoints = {
+                k: PtCheckpoint(pt_path)
+                for k in stored_epochs
+                if k in self.keep_epochs
+                for pt_path in [self.output_path("models/epoch.%.3d.pt" % k)]
             }
 
         self.out_plot_se = self.output_path("score_and_error.png")
