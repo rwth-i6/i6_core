@@ -180,7 +180,7 @@ class ReturnnTrainingJob(Job):
             for k in stored_epochs
             if k in self.keep_epochs
         }
-        if self.returnn_config.get("use_tensorflow", False) or self.returnn_config.get("backend") == "tensorflow":
+        if self.returnn_config.get("use_tensorflow", False) or self.returnn_config.get("backend", None) == "tensorflow":
             self.out_checkpoints = {
                 k: Checkpoint(index_path)
                 for k in stored_epochs
