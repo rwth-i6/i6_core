@@ -91,7 +91,7 @@ class BlissFfmpegJob(Job):
         :param ffmpeg_binary: path to a ffmpeg binary, uses system "ffmpeg" if None
         :param hash_binary: In some cases it might be required to work with a specific ffmpeg version,
                             in which case the binary needs to be hashed
-
+        :param ffmpeg_in_options: list of ffmpeg parameters thare are applied for reading the input files
         """
         self.corpus_file = corpus_file
         self.ffmpeg_in_options = ffmpeg_in_options
@@ -150,9 +150,7 @@ class BlissFfmpegJob(Job):
             assert r.audio is not None
             data, sample_rate = soundfile.read(open(r.audio, "rb"))
             new_duration = len(data) / sample_rate
-            logging.info(
-                f"{segment.name}: adjusted from {old_duration} to {new_duration} seconds"
-            )
+            logging.info(f"{segment.name}: adjusted from {old_duration} to {new_duration} seconds")
             segment.end = new_duration
 
         c.dump(self.out_corpus.get_path())

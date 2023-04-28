@@ -55,6 +55,8 @@ class BlissChangeEncodingJob(BlissFfmpegJob):
             There might be minimal differences when converting the encoding, so only set this to `False` if you're
             willing to accept this risk. `None` (default) means that the duration is recovered if either `output_format`
             or `codec` is specified because this might possibly lead to duration mismatches.
+        :param in_codec: specify the codec of the input file
+        :param in_codec_options: specify additional codec specific options for the in_codec
         """
         ffmpeg_in_options = []
         ffmpeg_options = []
@@ -63,8 +65,7 @@ class BlissChangeEncodingJob(BlissFfmpegJob):
             assert isinstance(select_channels, tuple) and len(select_channels) == 2
             ffmpeg_options += [
                 "-filter_complex",
-                "[0:a]channelsplit=channel_layout=%s:channels=%s[out]"
-                % select_channels,
+                "[0:a]channelsplit=channel_layout=%s:channels=%s[out]" % select_channels,
                 "-map",
                 "[out]",
             ]
