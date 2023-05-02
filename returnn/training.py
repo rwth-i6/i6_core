@@ -74,7 +74,7 @@ class Checkpoint:
 
 class PtCheckpoint:
     """
-    Checkpoint object pointing to a .pt file
+    Checkpoint object pointing to a PyTorch checkpoint .pt file
     """
 
     def __init__(self, path: tk.Path):
