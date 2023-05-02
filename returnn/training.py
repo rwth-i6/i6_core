@@ -189,13 +189,16 @@ class ReturnnTrainingJob(Job):
                 for k in stored_epochs
                 if k in self.keep_epochs
             }
-        if self.returnn_config.get("backend", None) == "torch":
+        elif self.returnn_config.get("backend", None) == "torch":
             self.out_checkpoints = {
                 k: PtCheckpoint(pt_path)
                 for k in stored_epochs
                 if k in self.keep_epochs
                 for pt_path in [self.output_path("models/epoch.%.3d.pt" % k)]
             }
+            self.out_models = None
+        else:
+            raise ValueError("'backend' not specified in config")
 
         self.out_plot_se = self.output_path("score_and_error.png")
         self.out_plot_lr = self.output_path("learning_rate.png")
