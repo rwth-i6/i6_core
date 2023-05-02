@@ -1,8 +1,9 @@
 __all__ = ["BlissChangeEncodingJob"]
 
-from sisyphus import Path
+from typing import List, Optional, Tuple, Union
 
 from i6_core.audio.ffmpeg import BlissFfmpegJob
+from sisyphus import tk
 
 
 class BlissChangeEncodingJob(BlissFfmpegJob):
@@ -10,45 +11,54 @@ class BlissChangeEncodingJob(BlissFfmpegJob):
     Uses ffmpeg to convert all audio files of a bliss corpus (file format, encoding, channel layout)
     """
 
-    __sis_hash_exclude__ = {"recover_duration": None}
+    __sis_hash_exclude__ = {
+        "recover_duration": None,
+        "input_codec": None,
+        "input_codec_options": None,
+    }
 
     def __init__(
         self,
-        corpus_file,
-        output_format,
-        sample_rate=None,
-        codec=None,
-        codec_options=None,
-        fixed_bitrate=None,
-        force_num_channels=None,
-        select_channels=None,
-        ffmpeg_binary=None,
-        hash_binary=False,
-        recover_duration=None,
+        corpus_file: tk.Path,
+        output_format: Optional[str],
+        sample_rate: Optional[int] = None,
+        codec: Optional[str] = None,
+        codec_options: Optional[List[str]] = None,
+        fixed_bitrate: Optional[Union[str, int]] = None,
+        force_num_channels: Optional[int] = None,
+        select_channels: Optional[Tuple[str, str]] = None,
+        ffmpeg_binary: Optional[tk.Path] = None,
+        hash_binary: bool = False,
+        recover_duration: Optional[bool] = None,
+        input_codec: Optional[str] = None,
+        input_codec_options: Optional[List[str]] = None,
     ):
         """
         For all parameter holds that "None" means to use the ffmpeg defaults, which depend on the input file
         and the output format specified.
 
-        :param Path corpus_file: bliss corpus
-        :param str|None output_format: output file ending to determine container format (without dot)
-        :param int|None sample_rate: target sample rate of the audio
-        :param str|None codec: specify the codec, codecs are listed with `ffmpeg -codecs`
-        :param list(str)|None codec_options: specify additional codec specific options
+        :param corpus_file: bliss corpus
+        :param output_format: output file ending to determine container format (without dot)
+        :param sample_rate: target sample rate of the audio
+        :param codec: specify the codec, codecs are listed with `ffmpeg -codecs`
+        :param codec_options: specify additional codec specific options
             (be aware of potential conflicts with "fixed bitrate" and "sample_rate")
-        :param int|str|None: fixed_bitrate: a target bitrate (be aware that not all codecs support all bitrates)
-        :param int|None force_num_channels: specify the channel number, exceeding channels will be merged
-        :param tuple(str)|None select_channels: tuple of (channel_layout, channel_name), see `ffmpeg -layouts`
+        :param fixed_bitrate: a target bitrate (be aware that not all codecs support all bitrates)
+        :param force_num_channels: specify the channel number, exceeding channels will be merged
+        :param select_channels: tuple of (channel_layout, channel_name), see `ffmpeg -layouts`
             this is useful if the new encoding might have an effect on the duration, or if no duration was specified
             in the source corpus
-        :param Path|str|None ffmpeg_binary: path to a ffmpeg binary, uses system "ffmpeg" if None
-        :param bool hash_binary: In some cases it might be required to work with a specific ffmpeg version,
+        :param ffmpeg_binary: path to a ffmpeg binary, uses system "ffmpeg" if None
+        :param hash_binary: In some cases it might be required to work with a specific ffmpeg version,
                                  in which case the binary needs to be hashed
-        :param bool|None recover_duration: This will open all files with "soundfile" and extract the length information.
+        :param recover_duration: This will open all files with "soundfile" and extract the length information.
             There might be minimal differences when converting the encoding, so only set this to `False` if you're
             willing to accept this risk. `None` (default) means that the duration is recovered if either `output_format`
             or `codec` is specified because this might possibly lead to duration mismatches.
+        :param in_codec: specify the codec of the input file
+        :param in_codec_options: specify additional codec specific options for the in_codec
         """
+        ffmpeg_input_options = []
         ffmpeg_options = []
 
         if select_channels:
@@ -64,6 +74,12 @@ class BlissChangeEncodingJob(BlissFfmpegJob):
 
         if codec_options:
             ffmpeg_options += codec_options
+
+        if input_codec:
+            ffmpeg_input_options += ["-c:a", input_codec]
+
+        if input_codec_options:
+            ffmpeg_input_options += input_codec_options
 
         if fixed_bitrate:
             ffmpeg_options += ["-b:a", str(fixed_bitrate)]
@@ -82,6 +98,7 @@ class BlissChangeEncodingJob(BlissFfmpegJob):
 
         super().__init__(
             corpus_file=corpus_file,
+            ffmpeg_input_options=ffmpeg_input_options,
             ffmpeg_options=ffmpeg_options,
             recover_duration=recover_duration,
             output_format=output_format,
