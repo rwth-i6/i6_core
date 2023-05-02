@@ -70,7 +70,7 @@ class BlissFfmpegJob(Job):
 
     """
 
-    __sis_hash_exclude__ = {"ffmpeg_in_options": None}
+    __sis_hash_exclude__ = {"ffmpeg_input_options": None}
 
     def __init__(
         self,

@@ -13,8 +13,8 @@ class BlissChangeEncodingJob(BlissFfmpegJob):
 
     __sis_hash_exclude__ = {
         "recover_duration": None,
-        "in_codec": None,
-        "in_codec_options": None,
+        "input_codec": None,
+        "input_codec_options": None,
     }
 
     def __init__(
