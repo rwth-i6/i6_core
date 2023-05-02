@@ -80,7 +80,7 @@ class BlissFfmpegJob(Job):
         output_format: Optional[str] = None,
         ffmpeg_binary: Optional[Union[str, tk.Path]] = None,
         hash_binary: bool = False,
-        ffmpeg_in_options: Optional[List[str]] = None,
+        ffmpeg_input_options: Optional[List[str]] = None,
     ):
         """
 
@@ -91,10 +91,10 @@ class BlissFfmpegJob(Job):
         :param ffmpeg_binary: path to a ffmpeg binary, uses system "ffmpeg" if None
         :param hash_binary: In some cases it might be required to work with a specific ffmpeg version,
                             in which case the binary needs to be hashed
-        :param ffmpeg_in_options: list of ffmpeg parameters thare are applied for reading the input files
+        :param ffmpeg_input_options: list of ffmpeg parameters thare are applied for reading the input files
         """
         self.corpus_file = corpus_file
-        self.ffmpeg_in_options = ffmpeg_in_options
+        self.ffmpeg_input_options = ffmpeg_input_options
         self.ffmpeg_options = ffmpeg_options
         self.recover_duration = recover_duration
         self.output_format = output_format
@@ -192,7 +192,7 @@ class BlissFfmpegJob(Job):
             command_out = [
                 os.path.join(self.out_audio_folder.get_path(), audio_filename),
             ]
-            in_options = self.ffmpeg_in_options or []
+            in_options = self.ffmpeg_input_options or []
             out_options = self.ffmpeg_options or []
             command = command_head + in_options + command_in + out_options + command_out
             subprocess.check_call(command)

@@ -30,8 +30,8 @@ class BlissChangeEncodingJob(BlissFfmpegJob):
         ffmpeg_binary: Optional[tk.Path] = None,
         hash_binary: bool = False,
         recover_duration: Optional[bool] = None,
-        in_codec: Optional[str] = None,
-        in_codec_options: Optional[List[str]] = None,
+        input_codec: Optional[str] = None,
+        input_codec_options: Optional[List[str]] = None,
     ):
         """
         For all parameter holds that "None" means to use the ffmpeg defaults, which depend on the input file
@@ -58,7 +58,7 @@ class BlissChangeEncodingJob(BlissFfmpegJob):
         :param in_codec: specify the codec of the input file
         :param in_codec_options: specify additional codec specific options for the in_codec
         """
-        ffmpeg_in_options = []
+        ffmpeg_input_options = []
         ffmpeg_options = []
 
         if select_channels:
@@ -75,11 +75,11 @@ class BlissChangeEncodingJob(BlissFfmpegJob):
         if codec_options:
             ffmpeg_options += codec_options
 
-        if in_codec:
-            ffmpeg_in_options += ["-c:a", in_codec]
+        if input_codec:
+            ffmpeg_input_options += ["-c:a", input_codec]
 
-        if in_codec_options:
-            ffmpeg_in_options += in_codec_options
+        if input_codec_options:
+            ffmpeg_input_options += input_codec_options
 
         if fixed_bitrate:
             ffmpeg_options += ["-b:a", str(fixed_bitrate)]
@@ -98,7 +98,7 @@ class BlissChangeEncodingJob(BlissFfmpegJob):
 
         super().__init__(
             corpus_file=corpus_file,
-            ffmpeg_in_options=ffmpeg_in_options,
+            ffmpeg_input_options=ffmpeg_input_options,
             ffmpeg_options=ffmpeg_options,
             recover_duration=recover_duration,
             output_format=output_format,
