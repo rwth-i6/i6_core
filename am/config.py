@@ -34,6 +34,7 @@ def acoustic_model_config(
     state_tying_file: Optional[tk.Path] = None,
     phon_history_length: int = 1,
     phon_future_length: int = 1,
+    use_corrected_fsa: bool = False,
 ) -> rasr.RasrConfig:
     """
     Create a RasrConfig object with common default values to be used as `acoustic_model_config`.
@@ -52,6 +53,7 @@ def acoustic_model_config(
     :param state_tying_file: File containing state-tying info for e.g. `cart` or `lookup` state-tying.
     :param phon_history_length: maximum number of history tokens considered for allophone alphabet.
     :param phon_future_length: maximum number of future tokens considered for allophone alphabet.
+    :param use_corrected_fsa: default [False] uses the legacy FSA with incorrect silence forward probabilities
 
     :return: RasrConfig using the specified values.
     """
@@ -69,6 +71,8 @@ def acoustic_model_config(
     config.hmm.early_recombination = early_recombination
 
     config.tdp.scale = tdp_scale
+    if use_corrected_fsa:
+        config.tdp.applicator_type = "corrected"
 
     if not isinstance(tdp_transition, TdpValues):
         tdp_transition = TdpValues(*tdp_transition)
