@@ -107,7 +107,7 @@ class BlissFfmpegJob(Job):
         self.rqmt = {"time": 4, "cpu": 4, "mem": 8}
 
     def tasks(self):
-        yield Task("run", resume="run", rqmt=self.rqmt)
+        yield Task("run", rqmt=self.rqmt)
         if self.recover_duration:
             # recovering is not multi-threaded, so force cpu=1
             recover_rqmt = copy.copy(self.rqmt)
