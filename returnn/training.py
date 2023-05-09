@@ -14,7 +14,7 @@ import sys
 import os
 import shutil
 import subprocess as sp
-from typing import Dict, List, Optional, Union
+from typing import Dict, Iterable, List, Optional, Union
 
 from sisyphus import *
 
@@ -72,6 +72,27 @@ class Checkpoint:
         return "'%s'" % self.ckpt_path
 
 
+class PtCheckpoint:
+    """
+    Checkpoint object pointing to a PyTorch checkpoint .pt file
+    """
+
+    def __init__(self, path: tk.Path):
+        """
+        :param path: .pt file
+        """
+        self.path = path
+
+    def _sis_hash(self):
+        return self.path._sis_hash()
+
+    def __str__(self):
+        return self.path.get()
+
+    def __repr__(self):
+        return "'%s'" % self.path
+
+
 class ReturnnTrainingJob(Job):
     """
     Train a RETURNN model using the rnn.py entry point.
@@ -91,42 +112,42 @@ class ReturnnTrainingJob(Job):
 
     def __init__(
         self,
-        returnn_config,
+        returnn_config: ReturnnConfig,
         *,  # args below are keyword only
-        log_verbosity=3,
-        device="gpu",
-        num_epochs=1,
-        save_interval=1,
-        keep_epochs=None,
-        time_rqmt=4,
-        mem_rqmt=4,
-        cpu_rqmt=2,
-        horovod_num_processes=None,
-        multi_node_slots=None,
-        returnn_python_exe=None,
-        returnn_root=None,
+        log_verbosity: int = 3,
+        device: str = "gpu",
+        num_epochs: int = 1,
+        save_interval: int = 1,
+        keep_epochs: Optional[Iterable[int]] = None,
+        time_rqmt: float = 4,
+        mem_rqmt: float = 4,
+        cpu_rqmt: int = 2,
+        horovod_num_processes: Optional[int] = None,
+        multi_node_slots: Optional[int] = None,
+        returnn_python_exe: Optional[tk.Path] = None,
+        returnn_root: Optional[tk.Path] = None,
     ):
         """
 
-        :param ReturnnConfig returnn_config:
-        :param int log_verbosity: RETURNN log verbosity from 1 (least verbose) to 5 (most verbose)
-        :param str device: "cpu" or "gpu"
-        :param int num_epochs: number of epochs to run, will also set `num_epochs` in the config file.
+        :param returnn_config:
+        :param log_verbosity: RETURNN log verbosity from 1 (least verbose) to 5 (most verbose)
+        :param device: "cpu" or "gpu"
+        :param num_epochs: number of epochs to run, will also set `num_epochs` in the config file.
             Note that this value is NOT HASHED, so that this number can be increased to continue the training.
-        :param int save_interval: save a checkpoint each n-th epoch
-        :param list[int]|set[int]|None keep_epochs: specify which checkpoints are kept, use None for the RETURNN default
+        :param save_interval: save a checkpoint each n-th epoch
+        :param keep_epochs: specify which checkpoints are kept, use None for the RETURNN default
             This will also limit the available output checkpoints to those defined. If you want to specify the keep
             behavior without this limitation, provide `cleanup_old_models/keep` in the post-config and use `None` here.
-        :param int|float time_rqmt:
-        :param int|float mem_rqmt:
-        :param int cpu_rqmt:
-        :param int horovod_num_processes: If used without multi_node_slots, then single node, otherwise multi node.
-        :param int multi_node_slots: multi-node multi-GPU training. See Sisyphus rqmt documentation.
+        :param time_rqmt:
+        :param mem_rqmt:
+        :param cpu_rqmt:
+        :param horovod_num_processes: If used without multi_node_slots, then single node, otherwise multi node.
+        :param multi_node_slots: multi-node multi-GPU training. See Sisyphus rqmt documentation.
             Currently only with Horovod,
             and horovod_num_processes should be set as well, usually to the same value.
             See https://returnn.readthedocs.io/en/latest/advanced/multi_gpu.html.
-        :param Optional[Path] returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
-        :param Optional[Path] returnn_root: file path to the RETURNN repository root folder
+        :param returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
+        :param returnn_root: file path to the RETURNN repository root folder
         """
         assert isinstance(returnn_config, ReturnnConfig)
         self.check_blacklisted_parameters(returnn_config)
@@ -150,22 +171,35 @@ class ReturnnTrainingJob(Job):
         self.out_returnn_config_file = self.output_path("returnn.config")
         self.out_learning_rates = self.output_path("learning_rates")
         self.out_model_dir = self.output_path("models", directory=True)
-        self.out_models = {
-            k: ReturnnModel(
-                self.out_returnn_config_file,
-                self.output_path("models/epoch.%.3d%s" % (k, suffix)),
-                k,
-            )
-            for k in stored_epochs
-            if k in self.keep_epochs
-        }
-        if self.returnn_config.get("use_tensorflow", False):
+        if self.returnn_config.get("use_tensorflow", False) or self.returnn_config.get("backend", None) == "tensorflow":
             self.out_checkpoints = {
                 k: Checkpoint(index_path)
                 for k in stored_epochs
                 if k in self.keep_epochs
                 for index_path in [self.output_path("models/epoch.%.3d.index" % k)]
             }
+
+            # Deprecated, remove when possible
+            self.out_models = {
+                k: ReturnnModel(
+                    self.out_returnn_config_file,
+                    self.output_path("models/epoch.%.3d%s" % (k, suffix)),
+                    k,
+                )
+                for k in stored_epochs
+                if k in self.keep_epochs
+            }
+        elif self.returnn_config.get("backend", None) == "torch":
+            self.out_checkpoints = {
+                k: PtCheckpoint(pt_path)
+                for k in stored_epochs
+                if k in self.keep_epochs
+                for pt_path in [self.output_path("models/epoch.%.3d.pt" % k)]
+            }
+            self.out_models = None
+        else:
+            raise ValueError("'backend' not specified in config")
+
         self.out_plot_se = self.output_path("score_and_error.png")
         self.out_plot_lr = self.output_path("learning_rate.png")
 
