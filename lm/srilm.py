@@ -12,7 +12,7 @@ import os
 import shutil
 
 from enum import Enum
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional
 
 from sisyphus import tk, Job, Task
 
@@ -374,11 +374,9 @@ class ComputeNgramLmPerplexityJob(Job):
 
 
 class ComputeBestMixJob(Job):
-    def __init__(self, ppl_log: List[tk.Path], compute_best_mix_exe: Optional[tk.Path] = None):
+    def __init__(self, ppl_log: List[tk.Path], compute_best_mix_exe: tk.Path):
         self.ppl_log = ppl_log
-        self.compute_best_mix_exe = (
-            compute_best_mix_exe if compute_best_mix_exe is not None else tk.Path("compute-best-mix")
-        )
+        self.compute_best_mix_exe = compute_best_mix_exe
 
         self.out_lambdas = [self.output_var(f"lambdas{i}") for i, p in enumerate(ppl_log)]
         self.out_cbm_file = self.output_path("cbm.log")
