@@ -21,7 +21,7 @@ from i6_core.util import create_executable, relink, get_ngram_count_exe, get_ngr
 
 class CountNgramsJob(Job):
     """
-    count ngrams with SRILM
+    Count ngrams with SRILM
     """
 
     def __init__(
@@ -293,7 +293,9 @@ class ComputeNgramLmJob(Job):
 
 
 class ComputeNgramLmPerplexityJob(Job):
-    """Calculate the Perplexity of an Ngram LM via SRILM"""
+    """
+    Calculate the Perplexity of a Ngram LM via SRILM
+    """
 
     def __init__(
         self,
@@ -402,7 +404,9 @@ class ComputeNgramLmPerplexityJob(Job):
 
 
 class ComputeBestMixJob(Job):
-    """Compute the best mixture weights from given PPL logs"""
+    """
+    Compute the best mixture weights from given PPL logs
+    """
 
     def __init__(self, ppl_log: List[tk.Path], compute_best_mix_exe: Optional[tk.Path] = None):
         """
@@ -455,7 +459,9 @@ class ComputeBestMixJob(Job):
 
 
 class InterpolateNgramLmJob(Job):
-    """Uses SRILM to interpolate different LMs with previously calculated weights"""
+    """
+    Uses SRILM to interpolate different LMs with previously calculated weights
+    """
 
     def __init__(
         self,
