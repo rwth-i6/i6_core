@@ -21,7 +21,7 @@ from i6_core.util import create_executable, relink, get_ngram_count_exe, get_ngr
 
 class CountNgramsJob(Job):
     """
-    count ngrams with SRILM
+    count ngrams with srlim
     """
 
     def __init__(
@@ -95,7 +95,7 @@ class CountNgramsJob(Job):
 
 class OptimizeKNDiscountsJob(Job):
     """
-    Uses SRILM to optimize Kneser-Ney discounts for a given dataset
+    Uses srlim to optimize Kneser-Ney discounts for a given dataset
     """
 
     def __init__(
@@ -173,7 +173,7 @@ class OptimizeKNDiscountsJob(Job):
 
 class ComputeNgramLmJob(Job):
     """
-    Generate count based LM with SRILM
+    Generate count based LM with srlim
     """
 
     class DataMode(Enum):
@@ -292,6 +292,7 @@ class ComputeNgramLmJob(Job):
 
 
 class ComputeNgramLmPerplexityJob(Job):
+    """Calculate the Perplexity of an Ngram LM via srlim"""
     def __init__(
         self,
         ngram_order: int,
@@ -307,16 +308,18 @@ class ComputeNgramLmPerplexityJob(Job):
         fs_rqmt: str = "10G",
     ):
         """
-        :param ngram_order:
-        :param lm:
-        :param vocab:
-        :param eval_data:
-        :param ppl_args: -debug 2
-        :param ngram_exe:
-        :param mem_rqmt:
-        :param time_rqmt:
-        :param cpu_rqmt:
+        :param ngram_order: Maximum n gram order
+        :param lm: LM to evaluate
+        :param vocab: Vocabulary file
+        :param eval_data: Data to calculate PPL on
+        :param ppl_args: Extra arguments for the execution call e.g. '-debug 2'
+        :param ngram_exe: Path to srilm ngram exe
+        :param mem_rqmt: Memory requirements of Job (not hashed)
+        :param time_rqmt: Time requirements of Job (not hashed)
+        :param cpu_rqmt: Amount of Cpus required for Job (not hashed)
+        :param fs_rqmt: Space on fileserver required for Job, example: "200G" (not hashed)
         """
+
         self.ngram_order = ngram_order
         self.lm = lm
         self.vocab = vocab
@@ -345,6 +348,7 @@ class ComputeNgramLmPerplexityJob(Job):
         yield Task("get_ppl", mini_task=True)
 
     def create_files(self):
+        """creates bash script that will be executed in the run Task"""
         cmd = [
             f"{self.ngram_exe.get_path()} \\\n",
             f"  -order {self.ngram_order} \\\n",
@@ -365,10 +369,12 @@ class ComputeNgramLmPerplexityJob(Job):
         create_executable("run.sh", cmd)
 
     def run(self):
+        """executes the previously created script and relinks the log file from work folder to output folder"""
         self.sh("./run.sh")
         relink("ppl.log", self.out_ppl_log.get_path())
 
     def get_ppl(self):
+        """extracts various outputs from the ppl.log file"""
         with open(self.out_ppl_log.get_cached_path(), "rt") as f:
             lines = f.readlines()[-2:]
             for line in lines:
@@ -385,6 +391,7 @@ class ComputeNgramLmPerplexityJob(Job):
 
     @classmethod
     def hash(cls, kwargs):
+        """delete the queue requirements from the hashing"""
         del kwargs["mem_rqmt"]
         del kwargs["cpu_rqmt"]
         del kwargs["time_rqmt"]
@@ -393,7 +400,13 @@ class ComputeNgramLmPerplexityJob(Job):
 
 
 class ComputeBestMixJob(Job):
+    """Compute the best mixture weights from given PPL logs"""
     def __init__(self, ppl_log: List[tk.Path], compute_best_mix_exe: Optional[tk.Path] = None):
+        """
+
+        :param ppl_log: List of PPL Logs to compute the weights from
+        :param compute_best_mix_exe: Path to srilm compute_best_mix executable (not hashed)
+        """
         self.ppl_log = ppl_log
         self.compute_best_mix_exe = get_compute_best_mix_exe(compute_best_mix_exe)
 
@@ -404,6 +417,7 @@ class ComputeBestMixJob(Job):
         yield Task("run", mini_task=True)
 
     def _get_cmd(self) -> str:
+        """creates command string for the bash call"""
         cmd = self.compute_best_mix_exe.get_path()
 
         cmd += " "
@@ -417,6 +431,7 @@ class ComputeBestMixJob(Job):
         return cmd
 
     def run(self):
+        """Call the srilm script and extracts the different weights from the log, then relinks log to output folder"""
         cmd = self._get_cmd()
         self.sh(cmd)
 
@@ -431,15 +446,16 @@ class ComputeBestMixJob(Job):
 
     @classmethod
     def hash(cls, parsed_args):
+        """delete the executable from the hashing"""
         del parsed_args["compute_best_mix_exe"]
         return super().hash(parsed_args)
 
 
 class InterpolateNgramLmJob(Job):
+    """Uses srlim to interpolate different LMs with previously calculated weights"""
     def __init__(
         self,
         ngram_lms: List[tk.Path],
-        dev_corpus: tk.Path,
         lambdas: List[tk.Variable],  # List[float]
         ngram_order: int,
         interpolation_args: Optional[Dict] = None,
@@ -449,8 +465,19 @@ class InterpolateNgramLmJob(Job):
         time_rqmt: int = 4,
         fs_rqmt: str = "50G",
     ):
+        """
+
+        :param ngram_lms: List of language models to interpolate
+        :param lambdas: Weights of different language models, has to be same order as LMs
+        :param ngram_order: Maximum n gram order
+        :param interpolation_args: Additional arguments for interpolation
+        :param ngram_exe: Path to srilm ngram executable
+        :param mem_rqmt: Memory requirements of Job (not hashed)
+        :param time_rqmt: Time requirements of Job (not hashed)
+        :param cpu_rqmt: Amount of Cpus required for Job (not hashed)
+        :param fs_rqmt: Space on fileserver required for Job, example: "200G" (not hashed)
+        """
         self.ngram_lms = ngram_lms
-        self.dev_corpus = dev_corpus
         self.lambdas = lambdas
         self.ngram_order = ngram_order
         self.interpolation_args = interpolation_args if interpolation_args is not None else {}
@@ -479,6 +506,7 @@ class InterpolateNgramLmJob(Job):
         yield Task("run", rqmt=self.rqmt)
 
     def _get_cmd(self) -> str:
+        """creates command string for the bash call"""
         cmd = self.ngram_exe.get_path()
         cmd += f" -order {self.ngram_order} -unk"
 
@@ -504,12 +532,14 @@ class InterpolateNgramLmJob(Job):
         return cmd
 
     def run(self):
+        """delete the executable from the hashing"""
         cmd = self._get_cmd()
         self.sh(cmd)
         shutil.move("interpolated.lm.gz", self.out_interpolated_lm.get_path())
 
     @classmethod
     def hash(cls, parsed_args):
+        """delete the queue requirements from the hashing"""
         del parsed_args["cpu_rqmt"]
         del parsed_args["mem_rqmt"]
         del parsed_args["time_rqmt"]
@@ -528,18 +558,30 @@ class PruneLMWithHelperLMJob(Job):
         lm: tk.Path,
         prune_thresh: float,
         helper_lm: tk.Path,
-        count_exe: Optional[tk.Path] = None,
+        ngram_exe: Optional[tk.Path] = None,
         mem_rqmt: int = 48,
         time_rqmt: float = 24,
         cpu_rqmt: int = 1,
         fs_rqmt: str = "100G",
     ):
+        """
+
+        :param ngram_order: Maximum n gram order
+        :param lm: LM to be pruned
+        :param prune_thresh: Pruning threshold
+        :param helper_lm: helper/'Katz' LM to prune the other LM with
+        :param ngram_exe: Path to srilm ngram-count executable
+        :param mem_rqmt: Memory requirements of Job (not hashed)
+        :param time_rqmt: Time requirements of Job (not hashed)
+        :param cpu_rqmt: Amount of Cpus required for Job (not hashed)
+        :param fs_rqmt: Space on fileserver required for Job, example: "200G" (not hashed)
+        """
 
         self.ngram_order = ngram_order
         self.lm = lm
         self.prune_thresh = prune_thresh
         self.helper_lm = helper_lm
-        self.count_exe = get_ngram_count_exe(count_exe)
+        self.ngram_exe = get_ngram_exe(ngram_exe)
 
         self.out_lm = self.output_path("pruned_lm.gz")
         self.rqmt_run = {
@@ -554,8 +596,9 @@ class PruneLMWithHelperLMJob(Job):
         yield Task("run", resume="run", rqmt=self.rqmt_run)
 
     def create_files(self):
+        """creates bash script that will be executed in the run Task"""
         cmd = [
-            f"{self.count_exe} \\\n",
+            f"{self.ngram_exe} \\\n",
             f"  -order {self.ngram_order} \\\n",
             f"  -renorm -unk \\\n",
             f"  -lm {self.lm.get_path()} \\\n",
@@ -567,11 +610,13 @@ class PruneLMWithHelperLMJob(Job):
         create_executable("run.sh", cmd)
 
     def run(self):
+        """executes the previously created script and relinks the lm from work folder to output folder"""
         self.sh("./run.sh")
         relink("pruned.lm.gz", self.out_lm.get_path())
 
     @classmethod
     def hash(cls, kwargs):
+        """delete the queue requirements from the hashing"""
         del kwargs["mem_rqmt"]
         del kwargs["cpu_rqmt"]
         del kwargs["time_rqmt"]
