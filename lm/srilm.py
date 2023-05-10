@@ -21,7 +21,7 @@ from i6_core.util import create_executable, relink, get_ngram_count_exe, get_ngr
 
 class CountNgramsJob(Job):
     """
-    count ngrams with srlim
+    count ngrams with SRILM
     """
 
     def __init__(
@@ -95,7 +95,7 @@ class CountNgramsJob(Job):
 
 class OptimizeKNDiscountsJob(Job):
     """
-    Uses srlim to optimize Kneser-Ney discounts for a given dataset
+    Uses SRILM to optimize Kneser-Ney discounts for a given dataset
     """
 
     def __init__(
@@ -173,7 +173,7 @@ class OptimizeKNDiscountsJob(Job):
 
 class ComputeNgramLmJob(Job):
     """
-    Generate count based LM with srlim
+    Generate count based LM with SRILM
     """
 
     class DataMode(Enum):
@@ -226,6 +226,7 @@ class ComputeNgramLmJob(Job):
             "cpu": cpu_rqmt,
             "qsub_args": f"-l h_fsize={fs_rqmt}",
         }
+        self.fs_rqmt = fs_rqmt
 
         self.out_vocab = self.output_path("vocab", cached=True)
         self.out_ngram_lm = self.output_path("ngram.lm.gz", cached=True)
@@ -292,7 +293,7 @@ class ComputeNgramLmJob(Job):
 
 
 class ComputeNgramLmPerplexityJob(Job):
-    """Calculate the Perplexity of an Ngram LM via srlim"""
+    """Calculate the Perplexity of an Ngram LM via SRILM"""
 
     def __init__(
         self,
@@ -454,7 +455,7 @@ class ComputeBestMixJob(Job):
 
 
 class InterpolateNgramLmJob(Job):
-    """Uses srlim to interpolate different LMs with previously calculated weights"""
+    """Uses SRILM to interpolate different LMs with previously calculated weights"""
 
     def __init__(
         self,
