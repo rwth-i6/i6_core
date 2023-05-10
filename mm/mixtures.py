@@ -18,6 +18,7 @@ from sisyphus import *
 Path = setup_path(__package__)
 
 from .flow import linear_segmentation_flow, cached_alignment_flow
+import i6_core.am as am
 import i6_core.rasr as rasr
 import i6_core.util as util
 
@@ -158,6 +159,8 @@ class LinearAlignmentJob(MergeMixturesJob):
         minimum_speech_proportion=0.7,
         save_alignment=False,
         keep_accumulators=False,
+        use_corrected_applicator: bool = False,
+        exit_penalty_for_corrected_applicator: float = 0.0,
         extra_merge_args=None,
         extra_config=None,
         extra_post_config=None,
@@ -247,10 +250,19 @@ class LinearAlignmentJob(MergeMixturesJob):
         penalty,
         minimum_speech_proportion,
         save_alignment,
+        use_corrected_applicator,
+        exit_penalty_for_corrected_applicator,
         extra_config,
         extra_post_config,
         **kwargs,
     ):
+        if use_corrected_applicator:
+            crp, _extra_config = am.get_align_config_and_crp_for_corrected_applicator(
+                crp=crp,
+                exit_penalty=exit_penalty_for_corrected_applicator,
+            )
+            extra_config._update(_extra_config)
+
         segmentation_flow = cls.create_flow(feature_energy_flow, save_alignment)
         mapping = {
             "corpus": "acoustic-model-trainer.corpus",
