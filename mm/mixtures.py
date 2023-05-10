@@ -148,6 +148,8 @@ class MergeMixturesJob(rasr.RasrCommand, Job):
 
 
 class LinearAlignmentJob(MergeMixturesJob):
+    __sis_hash_exclude__ = {"use_corrected_applicator": False}
+
     def __init__(
         self,
         crp,
