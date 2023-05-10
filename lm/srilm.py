@@ -16,7 +16,7 @@ from typing import Dict, List, Optional
 
 from sisyphus import tk, Job, Task
 
-from i6_core.util import create_executable, relink
+from i6_core.util import create_executable, relink, get_ngram_count_exe, get_ngram_exe, get_compute_best_mix_exe
 
 
 class CountNgramsJob(Job):
@@ -29,7 +29,7 @@ class CountNgramsJob(Job):
         ngram_order: int,
         data: tk.Path,
         count_args: Optional[List] = None,
-        count_exe: tk.Path = None,
+        count_exe: Optional[tk.Path] = None,
         mem_rqmt: int = 48,
         time_rqmt: float = 24,
         cpu_rqmt: int = 1,
@@ -51,7 +51,7 @@ class CountNgramsJob(Job):
         self.ngram_order = ngram_order
         self.data = data
         self.count_args = count_args if count_args is not None else "-unk"
-        self.count_exe = count_exe
+        self.count_exe = get_ngram_count_exe(count_exe)
 
         self.rqmt = {
             "mem": mem_rqmt,
@@ -102,7 +102,7 @@ class OptimizeKNDiscountsJob(Job):
         vocab: tk.Path,
         num_discounts: int,
         count_file: tk.Path,
-        count_exe: tk.Path,
+        count_exe: Optional[tk.Path] = None,
         mem_rqmt: int = 48,
         time_rqmt: float = 24,
         cpu_rqmt: int = 1,
@@ -114,7 +114,7 @@ class OptimizeKNDiscountsJob(Job):
         self.vocab = vocab
         self.num_discounts = num_discounts
         self.count_file = count_file
-        self.count_exe = count_exe
+        self.count_exe = get_ngram_count_exe(count_exe)
 
         self.rqmt = {
             "mem": mem_rqmt,
@@ -203,7 +203,7 @@ class ComputeNgramLmJob(Job):
         self.ngram_args = ngram_args if ngram_args is not None else []
         self.multi_kn_file = multi_kn_file
 
-        self.count_exe = count_exe if count_exe is not None else tk.Path("ngram-count")
+        self.count_exe = get_ngram_count_exe(count_exe)
 
         self.rqmt_run = {
             "mem": mem_rqmt,
@@ -305,7 +305,7 @@ class ComputeNgramLmPerplexityJob(Job):
         self.set_unknown_flag = set_unknown_flag
         self.ppl_args = ppl_args if ppl_args is not None else ""
 
-        self.ngram_exe = ngram_exe if ngram_exe is not None else "ngram"
+        self.ngram_exe = get_ngram_exe(ngram_exe)
 
         self.rqmt = {
             "mem": mem_rqmt,
@@ -374,9 +374,9 @@ class ComputeNgramLmPerplexityJob(Job):
 
 
 class ComputeBestMixJob(Job):
-    def __init__(self, ppl_log: List[tk.Path], compute_best_mix_exe: tk.Path):
+    def __init__(self, ppl_log: List[tk.Path], compute_best_mix_exe: Optional[tk.Path] = None):
         self.ppl_log = ppl_log
-        self.compute_best_mix_exe = compute_best_mix_exe
+        self.compute_best_mix_exe = get_compute_best_mix_exe(compute_best_mix_exe)
 
         self.out_lambdas = [self.output_var(f"lambdas{i}") for i, p in enumerate(ppl_log)]
         self.out_cbm_file = self.output_path("cbm.log")
@@ -435,7 +435,7 @@ class InterpolateNgramLmJob(Job):
         self.lambdas = lambdas
         self.ngram_order = ngram_order
         self.interpolation_args = interpolation_args if interpolation_args is not None else {}
-        self.ngram_exe = ngram_exe if ngram_exe is not None else tk.Path("ngram")
+        self.ngram_exe = get_ngram_exe(ngram_exe)
 
         assert len(ngram_lms) >= 2
         assert len(ngram_lms) == len(lambdas), (
@@ -509,7 +509,7 @@ class PruneLMWithHelperLMJob(Job):
         lm: tk.Path,
         prune_thresh: float,
         helper_lm: tk.Path,
-        count_exe: tk.Path,
+        count_exe: Optional[tk.Path] = None,
         mem_rqmt: int = 48,
         time_rqmt: float = 24,
         cpu_rqmt: int = 1,
@@ -520,7 +520,7 @@ class PruneLMWithHelperLMJob(Job):
         self.lm = lm
         self.prune_thresh = prune_thresh
         self.helper_lm = helper_lm
-        self.count_exe = count_exe
+        self.count_exe = get_ngram_count_exe(count_exe)
 
         self.out_lm = self.output_path("pruned_lm.gz")
         self.rqmt_run = {

@@ -372,3 +372,15 @@ def get_g2p_python(g2p_python: tk.Path) -> tk.Path:
 def get_subword_nmt_repo(subword_nmt_repo: tk.Path) -> tk.Path:
     """gets the path to the root folder of subword-nmt repo"""
     return get_executable_path(subword_nmt_repo, "SUBWORD_NMT_PATH")
+
+
+def get_ngram_count_exe(count_exe: tk.Path):
+    return get_executable_path(count_exe, "SRILM_COUNT_EXE", tk.Path("ngram-count"))
+
+
+def get_ngram_exe(ngram_exe: tk.Path):
+    return get_executable_path(ngram_exe, "SRILM_NGRAM_EXE", tk.Path("ngram"))
+
+
+def get_compute_best_mix_exe(ngram_exe: tk.Path):
+    return get_executable_path(ngram_exe, "SRILM_COMPUTE_BEST_MIX_EXE", tk.Path("compute-best-mix"))
