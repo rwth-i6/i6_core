@@ -28,7 +28,7 @@ class CountNgramsJob(Job):
         self,
         ngram_order: int,
         data: tk.Path,
-        count_args: Optional[List] = None,
+        count_args: Optional[List[str]] = None,
         count_exe: Optional[tk.Path] = None,
         mem_rqmt: int = 48,
         time_rqmt: float = 24,
@@ -36,21 +36,21 @@ class CountNgramsJob(Job):
         fs_rqmt: str = "100G",
     ):
         """
-        :param ngram_order:
-        :param data:
-        :param count_args: -unk
-        :param count_exe:
-        :param mem_rqmt:
-        :param time_rqmt:
-        :param cpu_rqmt:
-        :param fs_rqmt: example: "200G"
+        :param ngram_order: Maximum n gram order
+        :param data: Input data to be read as textfile
+        :param count_args: Extra arguments for the execution call e.g. ['-unk']
+        :param count_exe: Path to srilm ngram-count executable
+        :param mem_rqmt: Memory requirements of Job (not hashed)
+        :param time_rqmt: Time requirements of Job (not hashed)
+        :param cpu_rqmt: Amount of Cpus required for Job (not hashed)
+        :param fs_rqmt: Space on fileserver required for Job, example: "200G" (not hashed)
 
-        options for count_args:
+        Example options/parameters for count_args:
         -unk
         """
         self.ngram_order = ngram_order
         self.data = data
-        self.count_args = count_args if count_args is not None else "-unk"
+        self.count_args = count_args if count_args is not None else ["-unk"]
         self.count_exe = get_ngram_count_exe(count_exe)
 
         self.rqmt = {
@@ -67,6 +67,7 @@ class CountNgramsJob(Job):
         yield Task("run", resume="run", rqmt=self.rqmt)
 
     def create_files(self):
+        """creates bash script that will be executed in the run Task"""
         cmd = [
             f"{self.count_exe} \\\n",
             f"  -text {self.data.get_path()} \\\n",
@@ -78,11 +79,13 @@ class CountNgramsJob(Job):
         create_executable("run.sh", cmd)
 
     def run(self):
+        """executes the previously created bash script and relinks outputs from work folder to output folder"""
         self.sh("./run.sh")
         relink("counts", self.out_counts.get_path())
 
     @classmethod
     def hash(cls, kwargs):
+        """delete the queue requirements from the hashing"""
         del kwargs["mem_rqmt"]
         del kwargs["cpu_rqmt"]
         del kwargs["time_rqmt"]
@@ -92,7 +95,7 @@ class CountNgramsJob(Job):
 
 class OptimizeKNDiscountsJob(Job):
     """
-    optimizes Kneser-Ney counts for a given dataset
+    Uses SRILM to optimize Kneser-Ney discounts for a given dataset
     """
 
     def __init__(
@@ -108,7 +111,18 @@ class OptimizeKNDiscountsJob(Job):
         cpu_rqmt: int = 1,
         fs_rqmt: str = "100G",
     ):
-
+        """
+        :param ngram_order: Maximum n gram order
+        :param data: Held-out dataset to optimize discounts on
+        :param vocab: Vocabulary file
+        :param num_discounts: Number of discounts to optimize
+        :param count_file: File to read counts from
+        :param count_exe: Path to srilm ngram-count executable
+        :param mem_rqmt: Memory requirements of Job (not hashed)
+        :param time_rqmt: Time requirements of Job (not hashed)
+        :param cpu_rqmt: Amount of Cpus required for Job (not hashed)
+        :param fs_rqmt: Space on fileserver required for Job, example: "200G" (not hashed)
+        """
         self.ngram_order = ngram_order
         self.data = data
         self.vocab = vocab
@@ -130,6 +144,7 @@ class OptimizeKNDiscountsJob(Job):
         yield Task("run", resume="run", rqmt=self.rqmt)
 
     def create_files(self):
+        """creates bash script that will be executed in the run Task"""
         cmd = [
             f"{self.count_exe} \\\n",
             f"  -order {self.ngram_order} \\\n",
@@ -142,11 +157,13 @@ class OptimizeKNDiscountsJob(Job):
         create_executable("run.sh", cmd)
 
     def run(self):
+        """executes the previously created bash script and relinks outputs from work folder to output folder"""
         self.sh("./run.sh")
         relink("kn-file.txt", self.out_multi_kn_file.get_path())
 
     @classmethod
     def hash(cls, kwargs):
+        """delete the queue requirements from the hashing"""
         del kwargs["mem_rqmt"]
         del kwargs["cpu_rqmt"]
         del kwargs["time_rqmt"]
@@ -156,7 +173,7 @@ class OptimizeKNDiscountsJob(Job):
 
 class ComputeNgramLmJob(Job):
     """
-    generate count based LM with SRILM
+    Generate count based LM with SRILM
     """
 
     class DataMode(Enum):
@@ -178,21 +195,19 @@ class ComputeNgramLmJob(Job):
         fs_rqmt: str = "100G",
     ):
         """
-        :param ngram_order:
-        :param data:
-        :param vocab:
-        :param ngram_args: -kndiscount -interpolate -debug <int> -addsmooth <int>
-        :param count_exe:
-        :param mem_rqmt:
-        :param time_rqmt:
-        :param cpu_rqmt:
-        :param fs_rqmt: either
+        :param ngram_order: Maximum n gram order
+        :param data: Either text file or counts file to read from, set data mode accordingly
+        :param data_mode: Defines whether input format is text based or count based
+        :param vocab: Vocabulary file
+        :param ngram_args: Extra arguments for the execution call e.g. ['-kndiscount']
+        :param count_exe: Path to srilm ngram-count exe
+        :param mem_rqmt: Memory requirements of Job (not hashed)
+        :param time_rqmt: Time requirements of Job (not hashed)
+        :param cpu_rqmt: Amount of Cpus required for Job (not hashed)
+        :param fs_rqmt: Space on fileserver required for Job, example: "200G" (not hashed)
 
-        options for count_args:
-        -unk
-
-        options for ngram_args
-        -kndiscount
+        Example options for ngram_args:
+        -kndiscount -interpolate -debug <int> -addsmooth <int>
         """
         self.ngram_order = ngram_order
         self.data = data
@@ -225,6 +240,7 @@ class ComputeNgramLmJob(Job):
         )
 
     def create_files(self):
+        """creates bash script for lm creation and compression that will be executed in the run Task"""
         vocab_str = (
             f"  -vocab {self.vocab.get_cached_path()} \\\n" if self.vocab is not None else "  -write-vocab vocab \\\n"
         )
@@ -251,6 +267,7 @@ class ComputeNgramLmJob(Job):
         create_executable("compress.sh", [f"gzip -c -9 ngram.lm > ngram.lm.gz\n"])
 
     def run(self):
+        """executes the previously created lm script and relinks the vocabulary from work folder to output folder"""
         self.sh("./run.sh")
         if self.vocab is None:
             relink("vocab", self.out_vocab.get_path())
@@ -258,6 +275,7 @@ class ComputeNgramLmJob(Job):
             relink(self.vocab.get_path(), self.out_vocab.get_path())
 
     def compress(self):
+        """executes the previously created compression script and relinks the lm from work folder to output folder"""
         self.sh("./compress.sh")
         relink("ngram.lm.gz", self.out_ngram_lm.get_path())
         if os.path.exists("ngram.lm") and os.path.exists("ngram.lm.gz"):
@@ -265,6 +283,7 @@ class ComputeNgramLmJob(Job):
 
     @classmethod
     def hash(cls, kwargs):
+        """delete the queue requirements from the hashing"""
         del kwargs["mem_rqmt"]
         del kwargs["cpu_rqmt"]
         del kwargs["time_rqmt"]
