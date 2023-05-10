@@ -175,7 +175,7 @@ class ComputeNgramLmJob(Job):
         mem_rqmt: int = 48,
         time_rqmt: float = 24,
         cpu_rqmt: int = 1,
-        fs_rqmt: Union[str, int] = "100G",
+        fs_rqmt: str = "100G",
     ):
         """
         :param ngram_order:
@@ -205,15 +205,12 @@ class ComputeNgramLmJob(Job):
 
         self.count_exe = count_exe if count_exe is not None else tk.Path("ngram-count")
 
-        fs_rqmt = fs_rqmt if isinstance(fs_rqmt, str) else f"{fs_rqmt}G"
-
         self.rqmt_run = {
             "mem": mem_rqmt,
             "time": time_rqmt,
             "cpu": cpu_rqmt,
             "qsub_args": f"-l h_fsize={fs_rqmt}",
         }
-        self.fs_rqmt = fs_rqmt
 
         self.out_vocab = self.output_path("vocab", cached=True)
         self.out_ngram_lm = self.output_path("ngram.lm.gz", cached=True)
@@ -518,7 +515,7 @@ class PruneLMWithHelperLMJob(Job):
         mem_rqmt: int = 48,
         time_rqmt: float = 24,
         cpu_rqmt: int = 1,
-        fs_rqmt: Union[str, int] = "100G",
+        fs_rqmt: str = "100G",
     ):
 
         self.ngram_order = ngram_order
@@ -534,7 +531,6 @@ class PruneLMWithHelperLMJob(Job):
             "cpu": cpu_rqmt,
             "qsub_args": f"-l h_fsize={fs_rqmt}",
         }
-        self.fs_rqmt = fs_rqmt
 
     def tasks(self):
         yield Task("create_files", mini_task=True)
