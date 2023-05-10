@@ -293,6 +293,7 @@ class ComputeNgramLmJob(Job):
 
 class ComputeNgramLmPerplexityJob(Job):
     """Calculate the Perplexity of an Ngram LM via srlim"""
+
     def __init__(
         self,
         ngram_order: int,
@@ -401,6 +402,7 @@ class ComputeNgramLmPerplexityJob(Job):
 
 class ComputeBestMixJob(Job):
     """Compute the best mixture weights from given PPL logs"""
+
     def __init__(self, ppl_log: List[tk.Path], compute_best_mix_exe: Optional[tk.Path] = None):
         """
 
@@ -453,6 +455,7 @@ class ComputeBestMixJob(Job):
 
 class InterpolateNgramLmJob(Job):
     """Uses srlim to interpolate different LMs with previously calculated weights"""
+
     def __init__(
         self,
         ngram_lms: List[tk.Path],
