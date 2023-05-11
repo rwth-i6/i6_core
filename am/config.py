@@ -1,14 +1,14 @@
 __all__ = ["acoustic_model_config", "get_align_config_and_crp_for_corrected_applicator"]
 
-import copy
 from dataclasses import dataclass
 from typing import List, Literal, Tuple, Union, Optional
 
-import i6_core.rasr as rasr
-
 from sisyphus import tk
 
+import i6_core.rasr as rasr
+
 TdpType = Union[float, Literal["infinity"]]
+TyingType = Literal["global", "global-and-nonword"]
 
 
 @dataclass
@@ -28,7 +28,7 @@ def acoustic_model_config(
     tdp_scale: float = 1.0,
     tdp_transition: Union[TdpValues, Tuple[TdpType, ...]] = (3.0, 0.0, 3.0, 2.0),
     tdp_silence: Union[TdpValues, Tuple[TdpType, ...]] = (0.0, 3.0, "infinity", 6.0),
-    tying_type: Literal["global", "global-and-nonword"] = "global",
+    tying_type: TyingType = "global",
     nonword_phones: Union[str, List[str]] = "",
     tdp_nonword: Union[TdpValues, Tuple[TdpType, ...]] = (0.0, 3.0, "infinity", 6.0),
     state_tying_file: Optional[tk.Path] = None,
@@ -111,9 +111,10 @@ def get_align_config_and_crp_for_corrected_applicator(
     crp: rasr.CommonRasrParameters, exit_penalty: float = 0.0
 ) -> [rasr.CommonRasrParameters, rasr.RasrConfig]:
     """
-    Set the correct type of applicator, default is "legacy". Moreover, set exit penalities to zero
+    Set the correct type of applicator, default is "legacy". Moreover, set exit penalties to zero
     For a given word sequence the exit penalty is constant with respect to the max/sum
-    :param config:
+    :param crp: common rasr parameters
+    :param exit_penalty: exit penalty for speech phonemes, silence, and non word phonemes
     :return:
     """
 
