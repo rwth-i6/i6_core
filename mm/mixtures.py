@@ -21,7 +21,7 @@ from .flow import linear_segmentation_flow, cached_alignment_flow
 import i6_core.rasr as rasr
 import i6_core.util as util
 
-from i6_core.am import get_align_config_and_crp_for_corrected_applicator
+from i6_core.am.config import get_align_config_and_crp_for_corrected_applicator
 
 
 class MergeMixturesJob(rasr.RasrCommand, Job):
