@@ -5,6 +5,7 @@ from typing import List, Tuple, Union, Optional
 
 try:
     from typing import Literal
+
     TdpType = Union[float, Literal["infinity"]]
 except ImportError:
     TdpType = Union[float, str]  # str must be: "infinity"
@@ -12,8 +13,6 @@ except ImportError:
 import i6_core.rasr as rasr
 
 from sisyphus import tk
-
-
 
 
 @dataclass
