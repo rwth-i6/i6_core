@@ -1,20 +1,14 @@
 __all__ = ["acoustic_model_config", "get_align_config_and_crp_for_corrected_applicator"]
 
 from dataclasses import dataclass
-from typing import List, Tuple, Union, Optional
+from typing import List, Literal, Tuple, Union, Optional
 
-try:
-    from typing import Literal
-
-    TdpType = Union[float, Literal["infinity"]]
-    TyingType = Literal["global", "global-and-nonword"]
-except ImportError:
-    TdpType = Union[float, str]  # str must be: "infinity"
-    TyingType = str  # str must be : "global", "global-and-nonword"
+from sisyphus import tk
 
 import i6_core.rasr as rasr
 
-from sisyphus import tk
+TdpType = Union[float, Literal["infinity"]]
+TyingType = Literal["global", "global-and-nonword"]
 
 
 @dataclass
