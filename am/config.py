@@ -7,8 +7,10 @@ try:
     from typing import Literal
 
     TdpType = Union[float, Literal["infinity"]]
+    TyingType = Literal["global", "global-and-nonword"]
 except ImportError:
     TdpType = Union[float, str]  # str must be: "infinity"
+    TyingType = str  # str must be : "global", "global-and-nonword"
 
 import i6_core.rasr as rasr
 
@@ -32,7 +34,7 @@ def acoustic_model_config(
     tdp_scale: float = 1.0,
     tdp_transition: Union[TdpValues, Tuple[TdpType, ...]] = (3.0, 0.0, 3.0, 2.0),
     tdp_silence: Union[TdpValues, Tuple[TdpType, ...]] = (0.0, 3.0, "infinity", 6.0),
-    tying_type: Literal["global", "global-and-nonword"] = "global",
+    tying_type: TyingType = "global",
     nonword_phones: Union[str, List[str]] = "",
     tdp_nonword: Union[TdpValues, Tuple[TdpType, ...]] = (0.0, 3.0, "infinity", 6.0),
     state_tying_file: Optional[tk.Path] = None,
