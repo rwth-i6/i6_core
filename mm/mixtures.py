@@ -264,6 +264,8 @@ class LinearAlignmentJob(MergeMixturesJob):
                 crp=crp,
                 exit_penalty=exit_penalty_for_corrected_applicator,
             )
+            if extra_config is None:
+                extra_config = rasr.RasrConfig()
             extra_config._update(_extra_config)
 
         segmentation_flow = cls.create_flow(feature_energy_flow, save_alignment)
