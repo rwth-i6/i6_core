@@ -1,14 +1,19 @@
 __all__ = ["acoustic_model_config", "get_align_config_and_crp_for_corrected_applicator"]
 
-import copy
 from dataclasses import dataclass
-from typing import List, Literal, Tuple, Union, Optional
+from typing import List, Tuple, Union, Optional
+
+try:
+    from typing import Literal
+    TdpType = Union[float, Literal["infinity"]]
+except ImportError:
+    TdpType = Union[float, str]  # str must be: "infinity"
 
 import i6_core.rasr as rasr
 
 from sisyphus import tk
 
-TdpType = Union[float, Literal["infinity"]]
+
 
 
 @dataclass
