@@ -117,10 +117,10 @@ def get_align_config_and_crp_for_corrected_applicator(
     crp: rasr.CommonRasrParameters, exit_penalty: float = 0.0
 ) -> [rasr.CommonRasrParameters, rasr.RasrConfig]:
     """
-    Set the correct type of applicator, default is "legacy". Moreover, set exit penalities to zero
+    Set the correct type of applicator, default is "legacy". Moreover, set exit penalties to zero
     For a given word sequence the exit penalty is constant with respect to the max/sum
-    :param crp:
-    :param exit_penalty:
+    :param crp: common rasr parameters
+    :param exit_penalty: exit penalty for speech phonemes, silence, and non word phonemes
     :return:
     """
 
