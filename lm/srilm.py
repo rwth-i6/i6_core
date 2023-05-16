@@ -478,7 +478,7 @@ class InterpolateNgramLmJob(Job):
         """
 
         :param ngram_lms: List of language models to interpolate
-        :param lambdas: Weights of different language models, has to be same order as LMs
+        :param lambdas: Weights of different language models, has to be same order as ngram_lms
         :param ngram_order: Maximum n gram order
         :param interpolation_args: Additional arguments for interpolation
         :param ngram_exe: Path to srilm ngram executable
