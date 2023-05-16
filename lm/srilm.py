@@ -405,7 +405,7 @@ class ComputeNgramLmPerplexityJob(Job):
 
 class ComputeBestMixJob(Job):
     """
-    Compute the best mixture weights from given PPL logs
+    Compute the best mixture weights for a combination of count LMs based on the given PPL logs
     """
 
     def __init__(self, ppl_log: List[tk.Path], compute_best_mix_exe: Optional[tk.Path] = None):
