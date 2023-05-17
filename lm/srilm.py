@@ -332,7 +332,6 @@ class ComputeNgramLmPerplexityJob(Job):
         self.eval_data = eval_data
         self.set_unknown_flag = set_unknown_flag
         self.ppl_args = extra_ppl_args if extra_ppl_args is not None else ""
-
         self.ngram_exe = get_ngram_exe(ngram_exe)
 
         self.out_ppl_log = self.output_path("perplexity.log", cached=True)
