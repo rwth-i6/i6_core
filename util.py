@@ -300,7 +300,7 @@ already_printed_gs_warnings = set()
 
 def get_executable_path(
     path: Optional[tk.Path],
-    gs_member_name: str,
+    gs_member_name: Optional[str],
     default_exec_path: Optional[tk.Path] = None,
 ) -> tk.Path:
     """
@@ -375,12 +375,12 @@ def get_subword_nmt_repo(subword_nmt_repo: tk.Path) -> tk.Path:
 
 
 def get_ngram_count_exe(count_exe: tk.Path):
-    return get_executable_path(count_exe, "SRILM_COUNT_EXE", tk.Path("ngram-count"))
+    return get_executable_path(count_exe, None, shutil.which("ngram-count"))
 
 
 def get_ngram_exe(ngram_exe: tk.Path):
-    return get_executable_path(ngram_exe, "SRILM_NGRAM_EXE", tk.Path("ngram"))
+    return get_executable_path(ngram_exe, None, shutil.which("ngram"))
 
 
 def get_compute_best_mix_exe(ngram_exe: tk.Path):
-    return get_executable_path(ngram_exe, "SRILM_COMPUTE_BEST_MIX_EXE", tk.Path("compute-best-mix"))
+    return get_executable_path(ngram_exe, None, shutil.which("compute-best-mix"))

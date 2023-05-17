@@ -28,7 +28,7 @@ class CountNgramsJob(Job):
         self,
         ngram_order: int,
         data: tk.Path,
-        count_args: Optional[List[str]] = None,
+        extra_count_args: Optional[List[str]] = None,
         count_exe: Optional[tk.Path] = None,
         mem_rqmt: int = 48,
         time_rqmt: float = 24,
@@ -38,7 +38,7 @@ class CountNgramsJob(Job):
         """
         :param ngram_order: Maximum n gram order
         :param data: Input data to be read as textfile
-        :param count_args: Extra arguments for the execution call e.g. ['-unk']
+        :param extra_count_args: Extra arguments for the execution call e.g. ['-unk']
         :param count_exe: Path to srilm ngram-count executable
         :param mem_rqmt: Memory requirements of Job (not hashed)
         :param time_rqmt: Time requirements of Job (not hashed)
@@ -50,8 +50,10 @@ class CountNgramsJob(Job):
         """
         self.ngram_order = ngram_order
         self.data = data
-        self.count_args = count_args if count_args is not None else ["-unk"]
+        self.count_args = extra_count_args if extra_count_args is not None else ["-unk"]
         self.count_exe = get_ngram_count_exe(count_exe)
+
+        self.out_counts = self.output_path("counts", cached=True)
 
         self.rqmt = {
             "mem": mem_rqmt,
@@ -59,8 +61,6 @@ class CountNgramsJob(Job):
             "cpu": cpu_rqmt,
             "qsub_args": f"-l h_fsize={fs_rqmt}",
         }
-
-        self.out_counts = self.output_path("counts", cached=True)
 
     def tasks(self):
         yield Task("create_files", mini_task=True)
@@ -130,14 +130,14 @@ class OptimizeKNDiscountsJob(Job):
         self.count_file = count_file
         self.count_exe = get_ngram_count_exe(count_exe)
 
+        self.out_multi_kn_file = self.output_path("multi_kn_file")
+
         self.rqmt = {
             "mem": mem_rqmt,
             "time": time_rqmt,
             "cpu": cpu_rqmt,
             "qsub_args": f"-l h_fsize={fs_rqmt}",
         }
-
-        self.out_multi_kn_file = self.output_path("multi_kn_file")
 
     def tasks(self):
         yield Task("create_files", mini_task=True)
@@ -186,7 +186,7 @@ class ComputeNgramLmJob(Job):
         data: tk.Path,
         data_mode: DataMode,
         vocab: Optional[tk.Path] = None,
-        ngram_args: Optional[List[str]] = None,
+        extra_ngram_args: Optional[List[str]] = None,
         count_exe: Optional[tk.Path] = None,
         multi_kn_file: Optional[tk.Path] = None,
         mem_rqmt: int = 48,
@@ -199,8 +199,9 @@ class ComputeNgramLmJob(Job):
         :param data: Either text file or counts file to read from, set data mode accordingly
         :param data_mode: Defines whether input format is text based or count based
         :param vocab: Vocabulary file
-        :param ngram_args: Extra arguments for the execution call e.g. ['-kndiscount']
+        :param extra_ngram_args: Extra arguments for the execution call e.g. ['-kndiscount']
         :param count_exe: Path to srilm ngram-count exe
+        :param multi_kn_file: Kneser-Ney file
         :param mem_rqmt: Memory requirements of Job (not hashed)
         :param time_rqmt: Time requirements of Job (not hashed)
         :param cpu_rqmt: Amount of Cpus required for Job (not hashed)
@@ -213,12 +214,15 @@ class ComputeNgramLmJob(Job):
         self.data = data
         self.data_mode = data_mode
         self.vocab = vocab
-        if ngram_order == 1 and ngram_args is None:
-            ngram_args = "-debug 0 -addsmooth 0"
-        self.ngram_args = ngram_args if ngram_args is not None else []
+        if ngram_order == 1 and extra_ngram_args is None:
+            extra_ngram_args = "-debug 0 -addsmooth 0"
+        self.ngram_args = extra_ngram_args if extra_ngram_args is not None else []
         self.multi_kn_file = multi_kn_file
 
         self.count_exe = get_ngram_count_exe(count_exe)
+
+        self.out_vocab = self.output_path("vocab", cached=True)
+        self.out_ngram_lm = self.output_path("ngram.lm.gz", cached=True)
 
         self.rqmt_run = {
             "mem": mem_rqmt,
@@ -227,9 +231,6 @@ class ComputeNgramLmJob(Job):
             "qsub_args": f"-l h_fsize={fs_rqmt}",
         }
         self.fs_rqmt = fs_rqmt
-
-        self.out_vocab = self.output_path("vocab", cached=True)
-        self.out_ngram_lm = self.output_path("ngram.lm.gz", cached=True)
 
     def tasks(self):
         yield Task("create_files", mini_task=True)
@@ -304,7 +305,7 @@ class ComputeNgramLmPerplexityJob(Job):
         eval_data: tk.Path,
         vocab: Optional[tk.Path] = None,
         set_unknown_flag: bool = True,
-        ppl_args: Optional[str] = None,
+        extra_ppl_args: Optional[str] = None,
         ngram_exe: Optional[tk.Path] = None,
         mem_rqmt: int = 16,
         time_rqmt: float = 12,
@@ -314,9 +315,10 @@ class ComputeNgramLmPerplexityJob(Job):
         """
         :param ngram_order: Maximum n gram order
         :param lm: LM to evaluate
-        :param vocab: Vocabulary file
         :param eval_data: Data to calculate PPL on
-        :param ppl_args: Extra arguments for the execution call e.g. '-debug 2'
+        :param vocab: Vocabulary file
+        :param set_unknown_flag: sets unknown lemma
+        :param extra_ppl_args: Extra arguments for the execution call e.g. '-debug 2'
         :param ngram_exe: Path to srilm ngram exe
         :param mem_rqmt: Memory requirements of Job (not hashed)
         :param time_rqmt: Time requirements of Job (not hashed)
@@ -329,9 +331,15 @@ class ComputeNgramLmPerplexityJob(Job):
         self.vocab = vocab
         self.eval_data = eval_data
         self.set_unknown_flag = set_unknown_flag
-        self.ppl_args = ppl_args if ppl_args is not None else ""
+        self.ppl_args = extra_ppl_args if extra_ppl_args is not None else ""
 
         self.ngram_exe = get_ngram_exe(ngram_exe)
+
+        self.out_ppl_log = self.output_path("perplexity.log", cached=True)
+        self.out_ppl_score = self.output_var("perplexity.score")
+        self.out_num_sentences = self.output_var("num_sentences")
+        self.out_num_words = self.output_var("num_words")
+        self.out_num_oovs = self.output_var("num_oovs")
 
         self.rqmt = {
             "mem": mem_rqmt,
@@ -339,12 +347,6 @@ class ComputeNgramLmPerplexityJob(Job):
             "cpu": cpu_rqmt,
             "qsub_args": f"-l h_fsize={fs_rqmt}",
         }
-
-        self.out_ppl_log = self.output_path("perplexity.log", cached=True)
-        self.out_ppl_score = self.output_var("perplexity.score")
-        self.out_num_sentences = self.output_var("num_sentences")
-        self.out_num_words = self.output_var("num_words")
-        self.out_num_oovs = self.output_var("num_oovs")
 
     def tasks(self):
         yield Task("create_files", mini_task=True)
@@ -408,16 +410,16 @@ class ComputeBestMixJob(Job):
     Compute the best mixture weights for a combination of count LMs based on the given PPL logs
     """
 
-    def __init__(self, ppl_log: List[tk.Path], compute_best_mix_exe: Optional[tk.Path] = None):
+    def __init__(self, ppl_logs: List[tk.Path], compute_best_mix_exe: Optional[tk.Path] = None):
         """
 
-        :param ppl_log: List of PPL Logs to compute the weights from
-        :param compute_best_mix_exe: Path to srilm compute_best_mix executable (not hashed)
+        :param ppl_logs: List of PPL Logs to compute the weights from
+        :param compute_best_mix_exe: Path to srilm compute_best_mix executable
         """
-        self.ppl_log = ppl_log
+        self.ppl_logs = ppl_logs
         self.compute_best_mix_exe = get_compute_best_mix_exe(compute_best_mix_exe)
 
-        self.out_lambdas = [self.output_var(f"lambdas{i}") for i, p in enumerate(ppl_log)]
+        self.out_weights = [self.output_var(f"weights{i}") for i, p in enumerate(ppl_logs)]
         self.out_cbm_file = self.output_path("cbm.log")
 
     def tasks(self):
@@ -429,7 +431,7 @@ class ComputeBestMixJob(Job):
 
         cmd += " "
 
-        ppl_log = [x.get_path() for x in self.ppl_log]
+        ppl_log = [x.get_path() for x in self.ppl_logs]
 
         cmd += " ".join(ppl_log)
 
@@ -447,14 +449,12 @@ class ComputeBestMixJob(Job):
         lbds = lbds.split()
 
         for i, v in enumerate(lbds):
-            self.out_lambdas[i].set(float(v))
+            self.out_weights[i].set(float(v))
 
         relink("cbm.log", self.out_cbm_file.get_path())
 
     @classmethod
     def hash(cls, parsed_args):
-        """delete the executable from the hashing"""
-        del parsed_args["compute_best_mix_exe"]
         return super().hash(parsed_args)
 
 
@@ -466,9 +466,9 @@ class InterpolateNgramLmJob(Job):
     def __init__(
         self,
         ngram_lms: List[tk.Path],
-        lambdas: List[tk.Variable],  # List[float]
+        weights: List[tk.Variable[float]],
         ngram_order: int,
-        interpolation_args: Optional[Dict] = None,
+        extra_interpolation_args: Optional[Dict] = None,
         ngram_exe: Optional[tk.Path] = None,
         cpu_rqmt: int = 1,
         mem_rqmt: int = 32,
@@ -478,9 +478,9 @@ class InterpolateNgramLmJob(Job):
         """
 
         :param ngram_lms: List of language models to interpolate
-        :param lambdas: Weights of different language models, has to be same order as ngram_lms
+        :param weights: Weights of different language models, has to be same order as ngram_lms
         :param ngram_order: Maximum n gram order
-        :param interpolation_args: Additional arguments for interpolation
+        :param extra_interpolation_args: Additional arguments for interpolation
         :param ngram_exe: Path to srilm ngram executable
         :param mem_rqmt: Memory requirements of Job (not hashed)
         :param time_rqmt: Time requirements of Job (not hashed)
@@ -488,20 +488,22 @@ class InterpolateNgramLmJob(Job):
         :param fs_rqmt: Space on fileserver required for Job, example: "200G" (not hashed)
         """
         self.ngram_lms = ngram_lms
-        self.lambdas = lambdas
+        self.weights = weights
         self.ngram_order = ngram_order
-        self.interpolation_args = interpolation_args if interpolation_args is not None else {}
+        self.interpolation_args = extra_interpolation_args if extra_interpolation_args is not None else {}
         self.ngram_exe = get_ngram_exe(ngram_exe)
 
         assert len(ngram_lms) >= 2
-        assert len(ngram_lms) == len(lambdas), (
+        assert len(ngram_lms) == len(weights), (
             "ngram list len:",
             len(ngram_lms),
             ngram_lms,
             "\nlambda weight list len:",
-            len(lambdas),
-            lambdas,
+            len(weights),
+            weights,
         )
+
+        self.out_interpolated_lm = self.output_path("interpolated.txt.gz")
 
         self.rqmt = {
             "cpu": cpu_rqmt,
@@ -509,8 +511,6 @@ class InterpolateNgramLmJob(Job):
             "time": time_rqmt,
             "qsub_args": f"-l h_fsize={fs_rqmt}",
         }
-
-        self.out_interpolated_lm = self.output_path("interpolated.txt.gz")
 
     def tasks(self):
         yield Task("run", rqmt=self.rqmt)
@@ -529,7 +529,7 @@ class InterpolateNgramLmJob(Job):
                 c = f" -mix-lm{i} {lm.get_path()}"
             cmd += c
 
-        for i, lmbd in enumerate(self.lambdas):
+        for i, lmbd in enumerate(self.weights):
             if i == 0:
                 c = f" -lambda {lmbd.get()}"
             elif i == 1:
@@ -594,6 +594,7 @@ class PruneLMWithHelperLMJob(Job):
         self.ngram_exe = get_ngram_exe(ngram_exe)
 
         self.out_lm = self.output_path("pruned_lm.gz")
+
         self.rqmt_run = {
             "mem": mem_rqmt,
             "time": time_rqmt,
