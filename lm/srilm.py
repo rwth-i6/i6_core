@@ -1,6 +1,5 @@
 __all__ = [
     "CountNgramsJob",
-    "OptimizeKNDiscountsJob",
     "ComputeNgramLmJob",
     "ComputeNgramLmPerplexityJob",
     "ComputeBestMixJob",
@@ -93,84 +92,6 @@ class CountNgramsJob(Job):
         return super().hash(kwargs)
 
 
-class OptimizeKNDiscountsJob(Job):
-    """
-    Uses SRILM to optimize Kneser-Ney discounts for a given dataset
-    """
-
-    def __init__(
-        self,
-        ngram_order: int,
-        data: tk.Path,
-        vocab: tk.Path,
-        num_discounts: int,
-        count_file: tk.Path,
-        count_exe: Optional[tk.Path] = None,
-        mem_rqmt: int = 48,
-        time_rqmt: float = 24,
-        cpu_rqmt: int = 1,
-        fs_rqmt: str = "100G",
-    ):
-        """
-        :param ngram_order: Maximum n gram order
-        :param data: Held-out dataset to optimize discounts on
-        :param vocab: Vocabulary file
-        :param num_discounts: Number of discounts to optimize
-        :param count_file: File to read counts from
-        :param count_exe: Path to srilm ngram-count executable
-        :param mem_rqmt: Memory requirements of Job (not hashed)
-        :param time_rqmt: Time requirements of Job (not hashed)
-        :param cpu_rqmt: Amount of Cpus required for Job (not hashed)
-        :param fs_rqmt: Space on fileserver required for Job, example: "200G" (not hashed)
-        """
-        self.ngram_order = ngram_order
-        self.data = data
-        self.vocab = vocab
-        self.num_discounts = num_discounts
-        self.count_file = count_file
-        self.count_exe = get_ngram_count_exe(count_exe)
-
-        self.out_multi_kn_file = self.output_path("multi_kn_file")
-
-        self.rqmt = {
-            "mem": mem_rqmt,
-            "time": time_rqmt,
-            "cpu": cpu_rqmt,
-            "qsub_args": f"-l h_fsize={fs_rqmt}",
-        }
-
-    def tasks(self):
-        yield Task("create_files", mini_task=True)
-        yield Task("run", resume="run", rqmt=self.rqmt)
-
-    def create_files(self):
-        """creates bash script that will be executed in the run Task"""
-        cmd = [
-            f"{self.count_exe} \\\n",
-            f"  -order {self.ngram_order} \\\n",
-            f"  -optimize-discounts {self.data.get_path()} \\\n",
-            f"  -multi-kn-file kn-file.txt \\\n",
-            f"  -vocab {self.vocab.get_path()} \\\n",
-            f"  -num-discounts {self.num_discounts} \\\n",
-            f"  -read {self.count_file.get_path()}\n",
-        ]
-        create_executable("run.sh", cmd)
-
-    def run(self):
-        """executes the previously created bash script and relinks outputs from work folder to output folder"""
-        self.sh("./run.sh")
-        relink("kn-file.txt", self.out_multi_kn_file.get_path())
-
-    @classmethod
-    def hash(cls, kwargs):
-        """delete the queue requirements from the hashing"""
-        del kwargs["mem_rqmt"]
-        del kwargs["cpu_rqmt"]
-        del kwargs["time_rqmt"]
-        del kwargs["fs_rqmt"]
-        return super().hash(kwargs)
-
-
 class ComputeNgramLmJob(Job):
     """
     Generate count based LM with SRILM
@@ -188,7 +109,6 @@ class ComputeNgramLmJob(Job):
         vocab: Optional[tk.Path] = None,
         extra_ngram_args: Optional[List[str]] = None,
         count_exe: Optional[tk.Path] = None,
-        multi_kn_file: Optional[tk.Path] = None,
         mem_rqmt: int = 48,
         time_rqmt: float = 24,
         cpu_rqmt: int = 1,
@@ -201,7 +121,6 @@ class ComputeNgramLmJob(Job):
         :param vocab: Vocabulary file
         :param extra_ngram_args: Extra arguments for the execution call e.g. ['-kndiscount']
         :param count_exe: Path to srilm ngram-count exe
-        :param multi_kn_file: Kneser-Ney file
         :param mem_rqmt: Memory requirements of Job (not hashed)
         :param time_rqmt: Time requirements of Job (not hashed)
         :param cpu_rqmt: Amount of Cpus required for Job (not hashed)
@@ -217,7 +136,6 @@ class ComputeNgramLmJob(Job):
         if ngram_order == 1 and extra_ngram_args is None:
             extra_ngram_args = "-debug 0 -addsmooth 0"
         self.ngram_args = extra_ngram_args if extra_ngram_args is not None else []
-        self.multi_kn_file = multi_kn_file
 
         self.count_exe = get_ngram_count_exe(count_exe)
 
@@ -246,9 +164,6 @@ class ComputeNgramLmJob(Job):
         vocab_str = (
             f"  -vocab {self.vocab.get_cached_path()} \\\n" if self.vocab is not None else "  -write-vocab vocab \\\n"
         )
-        multi_kn_str = (
-            f"  -multi-kn-file {self.multi_kn_file.get_path()} \\\n" if self.multi_kn_file is not None else ""
-        )
         if self.data_mode == ComputeNgramLmJob.DataMode.TEXT:
             data_str = "-text"
         elif self.data_mode == ComputeNgramLmJob.DataMode.COUNT:
@@ -262,7 +177,6 @@ class ComputeNgramLmJob(Job):
             f"{vocab_str}",
             f"  -order {self.ngram_order} \\\n",
             f"  -lm ngram.lm \\\n",
-            f"{multi_kn_str}",
             f"  {' '.join(self.ngram_args)} -unk -memuse\n",
         ]
         create_executable("run.sh", cmd)
@@ -444,7 +358,7 @@ class ComputeBestMixJob(Job):
         self.sh(cmd)
 
         lines = open("cbm.log", "rt").readlines()
-        lbds = lines[-1].split("(")[1].replace(")", "")
+        lbds = lines[-2].split("(")[1].replace(")", "")
         lbds = lbds.split()
 
         for i, v in enumerate(lbds):
@@ -465,7 +379,7 @@ class InterpolateNgramLmJob(Job):
     def __init__(
         self,
         ngram_lms: List[tk.Path],
-        weights: List[tk.Variable[float]],
+        weights: List[tk.Variable],
         ngram_order: int,
         extra_interpolation_args: Optional[Dict] = None,
         ngram_exe: Optional[tk.Path] = None,
