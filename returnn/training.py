@@ -265,6 +265,8 @@ class ReturnnTrainingJob(Job):
             try:
                 with open(file_path, "rt") as file:
                     return eval(file.read().strip())
+            except FileExistsError:
+                return None
             except FileNotFoundError:
                 return None
 
