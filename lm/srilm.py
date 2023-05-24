@@ -294,7 +294,7 @@ class ComputeNgramLmPerplexityJob(Job):
 
     def get_ppl(self):
         """extracts various outputs from the ppl.log file"""
-        with open(self.out_ppl_log.get_cached_path(), "rt") as f:
+        with open(self.out_ppl_log.get_path(), "rt") as f:
             lines = f.readlines()[-2:]
             for line in lines:
                 line = line.split(" ")
