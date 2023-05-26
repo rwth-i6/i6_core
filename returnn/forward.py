@@ -111,9 +111,7 @@ class ReturnnForwardJob(Job):
 
         # check here if model actually exists
         if self.model_checkpoint is not None:
-            assert os.path.exists(
-                self.model_checkpoint.index_path.get_path()
-            ), "Provided model does not exists: %s" % str(self.model_checkpoint)
+            assert self.model_checkpoint.exists(), "Provided model does not exists: %s" % str(self.model_checkpoint)
 
     def run(self):
         # run everything in a TempDir as writing HDFs can cause heavy load
