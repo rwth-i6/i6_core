@@ -121,7 +121,7 @@ class ComputeNgramLmJob(Job):
         :param data: Either text file or counts file to read from, set data mode accordingly
                      the counts file can come from the `CountNgramsJob.out_counts`
         :param data_mode: Defines whether input format is text based or count based
-        :param vocab: Vocabulary file
+        :param vocab: Vocabulary file, one word per line
         :param extra_ngram_args: Extra arguments for the execution call e.g. ['-kndiscount']
         :param count_exe: Path to srilm ngram-count exe
         :param mem_rqmt: Memory requirements of Job (not hashed)
@@ -394,7 +394,7 @@ class InterpolateNgramLmJob(Job):
     ):
         """
 
-        :param ngram_lms: List of language models to interpolate
+        :param ngram_lms: List of language models to interpolate, format: ARPA, compressed ARPA
         :param weights: Weights of different language models, has to be same order as ngram_lms
         :param ngram_order: Maximum n gram order
         :param extra_interpolation_args: Additional arguments for interpolation
