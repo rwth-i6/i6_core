@@ -15,7 +15,7 @@ from typing import Dict, List, Optional
 
 from sisyphus import tk, Job, Task
 
-from i6_core.util import create_executable, relink, get_ngram_count_exe, get_ngram_exe, get_compute_best_mix_exe
+from i6_core.util import create_executable, relink
 
 
 class CountNgramsJob(Job):
@@ -27,8 +27,9 @@ class CountNgramsJob(Job):
         self,
         ngram_order: int,
         data: tk.Path,
+        count_exe: tk.Path,
+        *,
         extra_count_args: Optional[List[str]] = None,
-        count_exe: Optional[tk.Path] = None,
         mem_rqmt: int = 48,
         time_rqmt: float = 24,
         cpu_rqmt: int = 1,
@@ -50,7 +51,7 @@ class CountNgramsJob(Job):
         self.ngram_order = ngram_order
         self.data = data
         self.count_args = extra_count_args if extra_count_args is not None else ["-unk"]
-        self.count_exe = get_ngram_count_exe(count_exe)
+        self.count_exe = count_exe
 
         self.out_counts = self.output_path("counts", cached=True)
 
@@ -106,9 +107,10 @@ class ComputeNgramLmJob(Job):
         ngram_order: int,
         data: tk.Path,
         data_mode: DataMode,
+        count_exe: tk.Path,
+        *,
         vocab: Optional[tk.Path] = None,
         extra_ngram_args: Optional[List[str]] = None,
-        count_exe: Optional[tk.Path] = None,
         mem_rqmt: int = 48,
         time_rqmt: float = 24,
         cpu_rqmt: int = 1,
@@ -137,7 +139,7 @@ class ComputeNgramLmJob(Job):
             extra_ngram_args = "-debug 0 -addsmooth 0"
         self.ngram_args = extra_ngram_args if extra_ngram_args is not None else []
 
-        self.count_exe = get_ngram_count_exe(count_exe)
+        self.count_exe = count_exe
 
         self.out_vocab = self.output_path("vocab", cached=True)
         self.out_ngram_lm = self.output_path("ngram.lm.gz", cached=True)
@@ -217,10 +219,11 @@ class ComputeNgramLmPerplexityJob(Job):
         ngram_order: int,
         lm: tk.Path,
         eval_data: tk.Path,
+        ngram_exe: tk.Path,
+        *,
         vocab: Optional[tk.Path] = None,
         set_unknown_flag: bool = True,
         extra_ppl_args: Optional[str] = None,
-        ngram_exe: Optional[tk.Path] = None,
         mem_rqmt: int = 16,
         time_rqmt: float = 12,
         cpu_rqmt: int = 1,
@@ -246,7 +249,7 @@ class ComputeNgramLmPerplexityJob(Job):
         self.eval_data = eval_data
         self.set_unknown_flag = set_unknown_flag
         self.ppl_args = extra_ppl_args if extra_ppl_args is not None else ""
-        self.ngram_exe = get_ngram_exe(ngram_exe)
+        self.ngram_exe = ngram_exe
 
         self.out_ppl_log = self.output_path("perplexity.log", cached=True)
         self.out_ppl_score = self.output_var("perplexity.score")
@@ -323,14 +326,14 @@ class ComputeBestMixJob(Job):
     Compute the best mixture weights for a combination of count LMs based on the given PPL logs
     """
 
-    def __init__(self, ppl_logs: List[tk.Path], compute_best_mix_exe: Optional[tk.Path] = None):
+    def __init__(self, ppl_logs: List[tk.Path], compute_best_mix_exe: tk.Path):
         """
 
         :param ppl_logs: List of PPL Logs to compute the weights from
         :param compute_best_mix_exe: Path to srilm compute_best_mix executable
         """
         self.ppl_logs = ppl_logs
-        self.compute_best_mix_exe = get_compute_best_mix_exe(compute_best_mix_exe)
+        self.compute_best_mix_exe = compute_best_mix_exe
 
         self.out_weights = [self.output_var(f"weights{i}") for i, p in enumerate(ppl_logs)]
         self.out_cbm_file = self.output_path("cbm.log")
@@ -381,8 +384,9 @@ class InterpolateNgramLmJob(Job):
         ngram_lms: List[tk.Path],
         weights: List[tk.Variable],
         ngram_order: int,
+        ngram_exe: tk.Path,
+        *,
         extra_interpolation_args: Optional[Dict] = None,
-        ngram_exe: Optional[tk.Path] = None,
         cpu_rqmt: int = 1,
         mem_rqmt: int = 32,
         time_rqmt: int = 4,
@@ -404,7 +408,7 @@ class InterpolateNgramLmJob(Job):
         self.weights = weights
         self.ngram_order = ngram_order
         self.interpolation_args = extra_interpolation_args if extra_interpolation_args is not None else {}
-        self.ngram_exe = get_ngram_exe(ngram_exe)
+        self.ngram_exe = ngram_exe
 
         assert len(ngram_lms) >= 2
         assert len(ngram_lms) == len(weights), (
@@ -481,7 +485,8 @@ class PruneLMWithHelperLMJob(Job):
         lm: tk.Path,
         prune_thresh: float,
         helper_lm: tk.Path,
-        ngram_exe: Optional[tk.Path] = None,
+        ngram_exe: tk.Path,
+        *,
         mem_rqmt: int = 48,
         time_rqmt: float = 24,
         cpu_rqmt: int = 1,
@@ -504,7 +509,7 @@ class PruneLMWithHelperLMJob(Job):
         self.lm = lm
         self.prune_thresh = prune_thresh
         self.helper_lm = helper_lm
-        self.ngram_exe = get_ngram_exe(ngram_exe)
+        self.ngram_exe = ngram_exe
 
         self.out_lm = self.output_path("pruned_lm.gz")
 
