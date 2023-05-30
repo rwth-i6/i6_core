@@ -237,10 +237,12 @@ class FlowNetwork:
 
         # now add all the links
         for l in internal_links:
-            name_in = l[0].split(":")[0]
-            name_out = l[1].split(":")[0]
+            split_in = l[0].split(":")
+            split_out = l[1].split(":")
+            name_in = split_in[0]
+            name_out = split_out[0]
             if name_in in processed_nodes:
-                net.link(mapping[l[0]], mapping[l[1]])
+                net.link(":".join([mapping[name_in]] + split_in[1:]), ":".join([mapping[name_out]] + split_out[1:]))
             elif name_out in processed_nodes:
                 broken_links.append((l[0], mapping[l[1]]))
 
