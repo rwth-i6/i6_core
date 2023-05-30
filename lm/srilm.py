@@ -119,6 +119,7 @@ class ComputeNgramLmJob(Job):
         """
         :param ngram_order: Maximum n gram order
         :param data: Either text file or counts file to read from, set data mode accordingly
+                     the counts file can come from the `CountNgramsJob.out_counts`
         :param data_mode: Defines whether input format is text based or count based
         :param vocab: Vocabulary file
         :param extra_ngram_args: Extra arguments for the execution call e.g. ['-kndiscount']
