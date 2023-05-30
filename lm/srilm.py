@@ -64,7 +64,7 @@ class CountNgramsJob(Job):
 
     def tasks(self):
         yield Task("create_files", mini_task=True)
-        yield Task("run", resume="run", rqmt=self.rqmt)
+        yield Task("run", rqmt=self.rqmt)
 
     def create_files(self):
         """creates bash script that will be executed in the run Task"""
@@ -155,10 +155,9 @@ class ComputeNgramLmJob(Job):
 
     def tasks(self):
         yield Task("create_files", mini_task=True)
-        yield Task("run", resume="run", rqmt=self.rqmt_run)
+        yield Task("run", rqmt=self.rqmt_run)
         yield Task(
             "compress",
-            resume="compress",
             rqmt={"mem": 2, "time": 2, "cpu": 1, "fs": self.fs_rqmt},
         )
 
@@ -267,7 +266,7 @@ class ComputeNgramLmPerplexityJob(Job):
 
     def tasks(self):
         yield Task("create_files", mini_task=True)
-        yield Task("run", resume="run", rqmt=self.rqmt)
+        yield Task("run", rqmt=self.rqmt)
         yield Task("get_ppl", mini_task=True)
 
     def create_files(self):
@@ -523,7 +522,7 @@ class PruneLMWithHelperLMJob(Job):
 
     def tasks(self):
         yield Task("create_files", mini_task=True)
-        yield Task("run", resume="run", rqmt=self.rqmt_run)
+        yield Task("run", rqmt=self.rqmt_run)
 
     def create_files(self):
         """creates bash script that will be executed in the run Task"""
