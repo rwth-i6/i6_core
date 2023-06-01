@@ -370,10 +370,6 @@ class ComputeBestMixJob(Job):
 
         relink("cbm.log", self.out_cbm_file.get_path())
 
-    @classmethod
-    def hash(cls, parsed_args):
-        return super().hash(parsed_args)
-
 
 class InterpolateNgramLmJob(Job):
     """
