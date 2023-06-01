@@ -9,6 +9,7 @@ __all__ = [
 
 import os
 import shutil
+import subprocess
 
 from enum import Enum
 from typing import Dict, List, Optional
@@ -80,7 +81,7 @@ class CountNgramsJob(Job):
 
     def run(self):
         """executes the previously created bash script and relinks outputs from work folder to output folder"""
-        self.sh("./run.sh")
+        subprocess.check_call("./run.sh")
         relink("counts", self.out_counts.get_path())
 
     @classmethod
@@ -186,7 +187,7 @@ class ComputeNgramLmJob(Job):
 
     def run(self):
         """executes the previously created lm script and relinks the vocabulary from work folder to output folder"""
-        self.sh("./run.sh")
+        subprocess.check_call("./run.sh")
         if self.vocab is None:
             relink("vocab", self.out_vocab.get_path())
         else:
@@ -194,7 +195,7 @@ class ComputeNgramLmJob(Job):
 
     def compress(self):
         """executes the previously created compression script and relinks the lm from work folder to output folder"""
-        self.sh("./compress.sh")
+        subprocess.check_call("./compress.sh")
         relink("ngram.lm.gz", self.out_ngram_lm.get_path())
         if os.path.exists("ngram.lm") and os.path.exists("ngram.lm.gz"):
             os.remove("ngram.lm")
@@ -292,7 +293,7 @@ class ComputeNgramLmPerplexityJob(Job):
 
     def run(self):
         """executes the previously created script and relinks the log file from work folder to output folder"""
-        self.sh("./run.sh")
+        subprocess.check_call("./run.sh")
         relink("ppl.log", self.out_ppl_log.get_path())
 
     def get_ppl(self):
@@ -358,7 +359,7 @@ class ComputeBestMixJob(Job):
     def run(self):
         """Call the srilm script and extracts the different weights from the log, then relinks log to output folder"""
         cmd = self._get_cmd()
-        self.sh(cmd)
+        subprocess.check_call(cmd)
 
         lines = open("cbm.log", "rt").readlines()
         lbds = lines[-2].split("(")[1].replace(")", "")
@@ -461,7 +462,7 @@ class InterpolateNgramLmJob(Job):
     def run(self):
         """delete the executable from the hashing"""
         cmd = self._get_cmd()
-        self.sh(cmd)
+        subprocess.check_call(cmd)
         shutil.move("interpolated.lm.gz", self.out_interpolated_lm.get_path())
 
     @classmethod
@@ -540,7 +541,7 @@ class PruneLMWithHelperLMJob(Job):
 
     def run(self):
         """executes the previously created script and relinks the lm from work folder to output folder"""
-        self.sh("./run.sh")
+        subprocess.check_call("./run.sh")
         relink("pruned.lm.gz", self.out_lm.get_path())
 
     @classmethod
