@@ -137,8 +137,6 @@ class ComputeNgramLmJob(Job):
         self.data = data
         self.data_mode = data_mode
         self.vocab = vocab
-        if ngram_order == 1 and extra_ngram_args is None:
-            extra_ngram_args = "-debug 0 -addsmooth 0"
         self.ngram_args = extra_ngram_args if extra_ngram_args is not None else []
 
         self.count_exe = count_exe
