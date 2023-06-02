@@ -382,11 +382,14 @@ class System:
         :param corpus: corpus identifier
         :param name: feature identifier, like "mfcc". Also used in the naming of the output feature caches.
         :param feature_flow: definition of the RASR feature flow network
-        :param port_name: output port of the flow network to use
+        :param port_name: output port of the flow network to use, e.g., for samples_flow() this is "samples"
         :param prefix: prefix for the alias job symlink
         :param kwargs:
         :return:
         """
+        assert (
+            port_name in feature_flow.outputs
+        ), f"port name '{port_name}' not available in feature flow (available are: {feature_flow.outputs})"
         port_name_mapping = {port_name: name}
         self.jobs[corpus][f"{name}_features"] = f = features.FeatureExtractionJob(
             self.crp[corpus], feature_flow, port_name_mapping, job_name=name, **kwargs
