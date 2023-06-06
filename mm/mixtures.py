@@ -520,9 +520,10 @@ class CreateDummyMixturesJob(Job):
         with open(tk.uncached_path(self.out_mixtures), "wb") as f:
             f.write(b"MIXSET\0\0")
             f.write(struct.pack("II", 2, num_features))
-            args = [1, num_features] + [0.0] * num_features + [1.0]
-            f.write(struct.pack("II%ddd" % num_features, *args))  # mean accumulator
-            f.write(struct.pack("II%ddd" % num_features, *args))  # var  accumulator
+            mean_args = [1, num_features] + [0.0] * num_features + [1.0]  # mean 0.0
+            var_args = [1, num_features] + [1.0] * num_features + [1.0]  # variance 1.0
+            f.write(struct.pack("II%ddd" % num_features, *mean_args))  # mean accumulator
+            f.write(struct.pack("II%ddd" % num_features, *var_args))  # var accumulator
             f.write(struct.pack("IIII", 1, 0, 0, num_mixtures))  # num density + density mean/var idx + num of mixtures
             single_mixture = struct.pack("IId", 1, 0, 1.0)
             for i in range(num_mixtures):
