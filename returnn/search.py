@@ -24,7 +24,7 @@ from i6_core.lib.corpus import Corpus
 import i6_core.util as util
 
 from i6_core.returnn.config import ReturnnConfig
-from i6_core.returnn.training import Checkpoint
+from i6_core.returnn.training import Checkpoint, PtCheckpoint
 
 Path = setup_path(__package__)
 
@@ -53,7 +53,7 @@ class ReturnnSearchJobV2(Job):
     def __init__(
         self,
         search_data: Dict[str, Any],
-        model_checkpoint: Checkpoint,
+        model_checkpoint: Union[Checkpoint, PtCheckpoint],
         returnn_config: ReturnnConfig,
         returnn_python_exe: tk.Path,
         returnn_root: tk.Path,
@@ -68,7 +68,7 @@ class ReturnnSearchJobV2(Job):
     ):
         """
         :param search_data: Returnn Dataset definition in dictionary form to be used for search
-        :param model_checkpoint:  TF model checkpoint. see `ReturnnTrainingJob`.
+        :param model_checkpoint:  TF or PyTorch model checkpoint. see `ReturnnTrainingJob`.
         :param ReturnnConfig returnn_config: object representing RETURNN config
         :param tk.Path returnn_python_exe: path to the RETURNN executable (python binary or launch script)
         :param tk.Path returnn_root: path to the RETURNN src folder
@@ -119,9 +119,7 @@ class ReturnnSearchJobV2(Job):
         util.create_executable("rnn.sh", cmd)
 
         # check here if model actually exists
-        assert os.path.exists(self.model_checkpoint.index_path.get_path()), "Provided model does not exists: %s" % str(
-            self.model_checkpoint
-        )
+        assert self.model_checkpoint.exists(), "Provided model does not exists: %s" % str(self.model_checkpoint)
 
     def run(self):
         call = [
