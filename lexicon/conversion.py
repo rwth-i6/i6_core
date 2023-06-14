@@ -1,8 +1,10 @@
 import collections
-import gzip
+import json
+import logging
 import os.path
+import re
+import xml.dom.minidom
 import xml.etree.ElementTree as ET
-import xml.dom.minidom as minidom
 
 from sisyphus import *
 
@@ -296,3 +298,190 @@ class GraphemicLexiconFromWordListJob(Job):
         with uopen(self.out_bliss_lexicon.get_path(), "w") as lexicon_file:
             lexicon_file.write('<?xml version="1.0" encoding="utf-8"?>\n')
             lexicon_file.write(ET.tostring(lex.to_xml(), "unicode"))
+
+
+class SpellingConversionJob(Job):
+    """Spelling conversion for lexicon."""
+
+    def __init__(
+        self,
+        bliss_lexicon,
+        orth_mapping_file,
+        mapping_file_delimiter=" ",
+        mapping_rules=None,
+        invert_mapping=False,
+    ):
+        """
+        :param Path bliss_lexicon:
+            input lexicon, whose lemmata all have unique PRIMARY orth
+            to reach the above requirements apply LexiconUniqueOrthJob
+        :param str orth_mapping_file:
+            orthography mapping file: *.json *.json.gz *.txt *.gz
+            in case of plain text file
+                one can adjust mapping_delimiter
+                a line starting with "#" is a comment line
+        :param str mapping_file_delimiter:
+            delimiter of source and target orths in the mapping file
+            relevant only if mapping is provided with a plain text file
+        :param Optional[List[Tuple[str, str, str]]] mapping_rules
+            a list of mapping rules, each rule is represented by 3 strings
+                (source orth-substring, target orth-substring, pos)
+                where
+                pos should be one of ["leading", "trailing", "any"]
+            e.g. the rule ("zation", "sation", "trailing") will convert orth
+            ending with -zation to orth ending with -sation
+            set this ONLY when it's clearly defined rules which can not
+            generate any kind of ambiguities
+        :param bool invert_mapping:
+            invert the input orth mapping
+            NOTE: this also affects the pairs which are inferred from mapping_rules
+        """
+        self.set_vis_name("Convert Between Regional Orth Spellings")
+
+        self.bliss_lexicon = bliss_lexicon
+        self.orth_mapping_file = orth_mapping_file
+        self.invert_mapping = invert_mapping
+        self.mapping_file_delimiter = mapping_file_delimiter
+        self.mapping_rules = mapping_rules
+
+        self.out_bliss_lexicon = self.output_path("lexicon.xml.gz")
+
+    def tasks(self):
+        yield Task("run", mini_task=True)
+
+    @staticmethod
+    def _lemma_to_str(lemma, description):
+        """Convert a lemma instance to a logging string
+        :param Lemma lemma:
+            the lemma to be converted to str representation
+        :param str description:
+            extra description for this lemma
+        :return:
+            str
+        """
+        xml_string = xml.dom.minidom.parseString(ET.tostring(lemma.to_xml())).toprettyxml(indent=" " * 2)
+        lemma_str = "\n".join(xml_string.split("\n")[1:])
+        lemma_str = description + "\n" + lemma_str
+        return lemma_str
+
+    def run(self):
+        # load mapping from json or plain text file
+        is_json = self.orth_mapping_file.endswith(".json")
+        is_json |= self.orth_mapping_file.endswith(".json.gz")
+        if is_json:
+            with uopen(self.orth_mapping_file, "rt") as f:
+                mapping = json.load(f)
+            if self.invert_mapping:
+                mapping = {v: k for k, v in mapping.items()}
+        else:
+            mapping = dict()
+            with uopen(self.orth_mapping_file, "rt") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line or line.startswith("#"):
+                        continue
+                    orths = line.split(self.mapping_file_delimiter)
+                    if len(orths) != 2:
+                        raise ValueError(
+                            "The selected mapping delimiter is not valid, it "
+                            "generates {} orths for line "
+                            "'{}'!".format(len(orths), line)
+                        )
+                    source_orth, target_orth = orths
+                    if self.invert_mapping:
+                        source_orth, target_orth = target_orth, source_orth
+                    mapping[source_orth] = target_orth
+        num_mappings = len(mapping)
+        logging.info("A total of {} word mapping paris".format(num_mappings))
+
+        # compile mapping patterns from extra mapping_rules
+        mapping_patterns = []
+        if self.mapping_rules:
+            for sub_source, sub_target, pos in self.mapping_rules:
+                if pos not in ["leading", "trailing", "any"]:
+                    raise ValueError(
+                        "position of a mapping rule must be one of "
+                        "['leading', 'trailing', 'any'], got '{}' for rule "
+                        "{} ==> {}.".format(pos, sub_source, sub_target)
+                    )
+                if self.invert_mapping:
+                    sub_source, sub_target = sub_target, sub_source
+                pattern = re.escape(sub_source)
+                replacement = sub_target
+                if pos == "leading":
+                    pattern = r"^" + pattern + r"(\S{3,})$"
+                    replacement = r"{}\1".format(sub_target)
+                if pos == "trailing":
+                    pattern = r"^(\S{3,})" + pattern + r"$"
+                    replacement = r"\1{}".format(sub_target)
+                pattern = re.compile(pattern, re.IGNORECASE)
+                mapping_patterns.append((pattern, replacement))
+
+        # load input lexicon and build "orth to lemma" dict
+        # extend mapping dict if extra mapping_rules were defined
+        lex = lexicon.Lexicon()
+        lex.load(self.bliss_lexicon.get_path())
+        orth2lemma = {}
+        for lemma in lex.lemmata:
+            primary_orth = lemma.orth[0]
+            if primary_orth in orth2lemma:
+                raise ValueError(
+                    "There shouldn't be two lemmata with the same primary "
+                    "orth, apply LexiconUniqueOrthJob before doing spelling "
+                    "conversion!"
+                )
+            orth2lemma[primary_orth] = lemma
+            if primary_orth in mapping:
+                continue
+            for pattern, replacement in mapping_patterns:
+                if pattern.search(primary_orth):
+                    target_orth = pattern.sub(replacement, primary_orth)
+                    mapping[primary_orth] = target_orth
+                    logging.info(
+                        "added mapping pair through mapping rule: {} ==> " "{}".format(primary_orth, target_orth)
+                    )
+                    break
+        if len(mapping) > num_mappings:
+            logging.info(
+                "A total of {} mapping pairs added through extra mapping " "rules".format(len(mapping) - num_mappings)
+            )
+
+        # spelling conversion
+        for source_orth, target_orth in mapping.items():
+            target_lemma = orth2lemma.get(target_orth, None)
+            source_lemma = orth2lemma.get(source_orth, None)
+            if target_lemma:
+                logging.info(self._lemma_to_str(target_lemma, "target lemma"))
+            else:
+                logging.info("No target lemma for: {}".format(target_orth))
+            if source_lemma:
+                logging.info(self._lemma_to_str(source_lemma, "source lemma"))
+            else:
+                logging.info("No source lemma for: {}".format(source_orth))
+            if target_lemma:
+                if source_lemma:
+                    for orth in source_lemma.orth:
+                        if orth not in target_lemma.orth:
+                            target_lemma.orth.append(orth)
+                    for phon in source_lemma.phon:
+                        if phon not in target_lemma.phon:
+                            target_lemma.phon.append(phon)
+                    for eval in source_lemma.eval:
+                        if eval not in target_lemma.eval:
+                            target_lemma.eval.append(eval)
+                    if source_lemma in lex.lemmata:
+                        lex.lemmata.remove(source_lemma)
+                if not target_lemma.synt:
+                    if source_lemma and source_lemma.synt:
+                        target_lemma.synt = source_lemma.synt
+                    else:
+                        target_lemma.synt = source_orth.split()
+                logging.info(self._lemma_to_str(target_lemma, "final lemma"))
+            elif source_lemma:
+                source_lemma.orth.insert(0, target_orth)
+                if not source_lemma.synt:
+                    source_lemma.synt = source_orth.split()
+                logging.info(self._lemma_to_str(source_lemma, "final lemma"))
+            logging.info("-" * 60)
+
+        write_xml(self.out_bliss_lexicon.get_path(), lex.to_xml())
