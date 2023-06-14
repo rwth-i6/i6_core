@@ -359,9 +359,7 @@ class SpellingConversionJob(Job):
         :return:
             str
         """
-        xml_string = xml.dom.minidom.parseString(
-            ET.tostring(lemma.to_xml())
-        ).toprettyxml(indent=" " * 2)
+        xml_string = xml.dom.minidom.parseString(ET.tostring(lemma.to_xml())).toprettyxml(indent=" " * 2)
         lemma_str = "\n".join(xml_string.split("\n")[1:])
         lemma_str = description + "\n" + lemma_str
         return lemma_str
@@ -440,14 +438,12 @@ class SpellingConversionJob(Job):
                     target_orth = pattern.sub(replacement, primary_orth)
                     mapping[primary_orth] = target_orth
                     logging.info(
-                        "added mapping pair through mapping rule: {} ==> "
-                        "{}".format(primary_orth, target_orth)
+                        "added mapping pair through mapping rule: {} ==> " "{}".format(primary_orth, target_orth)
                     )
                     break
         if len(mapping) > num_mappings:
             logging.info(
-                "A total of {} mapping pairs added through extra mapping "
-                "rules".format(len(mapping) - num_mappings)
+                "A total of {} mapping pairs added through extra mapping " "rules".format(len(mapping) - num_mappings)
             )
 
         # spelling conversion
