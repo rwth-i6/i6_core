@@ -715,7 +715,7 @@ class System:
             parallelize=parallelize_conversion,
             **lattice_to_ctm_kwargs,
         )
-        lat2ctm.add_alias("%s%s_conv_to_ctm_" % (prefix, name))
+        lat2ctm.add_alias("%s%s_conv_to_ctm" % (prefix, name))
         self.ctm_files[corpus]["recog_%s" % name] = lat2ctm.out_ctm_file
 
         kwargs = copy.deepcopy(self.scorer_args[corpus])
