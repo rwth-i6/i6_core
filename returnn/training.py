@@ -6,6 +6,7 @@ __all__ = [
     "GetBestEpochJob",
     "GetBestTFCheckpointJob",
     "AverageTFCheckpointsJob",
+    "PtCheckpoint"
 ]
 
 import copy
