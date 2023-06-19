@@ -715,6 +715,7 @@ class System:
             parallelize=parallelize_conversion,
             **lattice_to_ctm_kwargs,
         )
+        lat2ctm.add_alias("%s%s_conv_to_ctm_" % (prefix, name))
         self.ctm_files[corpus]["recog_%s" % name] = lat2ctm.out_ctm_file
 
         kwargs = copy.deepcopy(self.scorer_args[corpus])
@@ -748,6 +749,7 @@ class System:
             scorer_hyp_param_name=self.scorer_hyp_arg[corpus],
             **kwargs,
         )
+        j.add_alias("%s_optimize_am_and_lm_scale" % name)
         self.jobs[corpus]["optimize_%s" % name] = j
         tk.register_output("%soptimize_%s.log" % (prefix, name), j.out_log_file)
 
