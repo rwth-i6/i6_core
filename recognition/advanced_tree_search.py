@@ -148,6 +148,7 @@ class AdvancedTreeSearchLmImageAndGlobalCacheJob(rasr.RasrCommand, Job):
 
 
 class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
+    __sis_hash_exclude__ = {"lmgc_alias": None}
     def __init__(
         self,
         crp,
@@ -164,6 +165,7 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
         mem=4,
         cpu=1,
         lmgc_mem=12,
+        lmgc_alias=None,
         model_combination_config=None,
         model_combination_post_config=None,
         extra_config=None,
@@ -258,6 +260,7 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
         mem,
         cpu,
         lmgc_mem,
+        lmgc_alias,
         model_combination_config,
         model_combination_post_config,
         extra_config,
@@ -265,6 +268,8 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
         **kwargs,
     ):
         lm_gc = AdvancedTreeSearchLmImageAndGlobalCacheJob(crp, feature_scorer, extra_config, extra_post_config)
+        if lmgc_alias is not None:
+            lm_gc.add_alias(lmgc_alias)
         lm_gc.rqmt["mem"] = lmgc_mem
 
         search_parameters = cls.update_search_parameters(search_parameters)
