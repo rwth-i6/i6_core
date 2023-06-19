@@ -1,12 +1,12 @@
 __all__ = [
-    "ReturnnModel",
+    "AverageTFCheckpointsJob",
     "Checkpoint",
-    "ReturnnTrainingJob",
-    "ReturnnTrainingFromFileJob",
     "GetBestEpochJob",
     "GetBestTFCheckpointJob",
-    "AverageTFCheckpointsJob",
-    "PtCheckpoint"
+    "PtCheckpoint",
+    "ReturnnModel",
+    "ReturnnTrainingFromFileJob",
+    "ReturnnTrainingJob",
 ]
 
 import copy
