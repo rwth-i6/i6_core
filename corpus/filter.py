@@ -148,12 +148,13 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
 
 
 class FilterCorpusBySegmentsJob(Job):
-    def __init__(self, bliss_corpus, segment_file, compressed=False, invert_match=False):
+    def __init__(self, bliss_corpus, segment_file, compressed=False, invert_match=False, delete_empty_recordings=False):
         """
         :param Path bliss_corpus:
         :param list[Path]|Path segment_file: a single segment file or a list of segment files
         :param bool compressed:
         :param bool invert_match:
+        :param bool delete_empty_recordings: if true, empty recordings will be removed
         """
         self.bliss_corpus = bliss_corpus
         self.segment_file_list = [segment_file] if isinstance(segment_file, tk.Path) else segment_file
@@ -176,11 +177,20 @@ class FilterCorpusBySegmentsJob(Job):
         segments = set(segments)
         c = corpus.Corpus()
         c.load(tk.uncached_path(self.bliss_corpus))
+
+        to_delete = []
         for rec in c.all_recordings():
             if self.invert_match:
                 rec.segments = [x for x in rec.segments if x.fullname() not in segments and x.name not in segments]
             else:
                 rec.segments = [x for x in rec.segments if x.fullname() in segments or x.name in segments]
+
+            if not rec.segments:
+                to_delete.append(idx)
+
+        if delete_empty_recordings:
+            for idx in reversed(to_delete):
+                del c.subcorpora[0].recordings[idx]
 
         c.dump(tk.uncached_path(self.out_corpus))
 
