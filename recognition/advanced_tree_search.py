@@ -148,8 +148,6 @@ class AdvancedTreeSearchLmImageAndGlobalCacheJob(rasr.RasrCommand, Job):
 
 
 class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
-    __sis_hash_exclude__ = {"lmgc_alias": None}
-
     def __init__(
         self,
         crp,
