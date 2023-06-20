@@ -749,7 +749,7 @@ class System:
             scorer_hyp_param_name=self.scorer_hyp_arg[corpus],
             **kwargs,
         )
-        j.add_alias("%s%s_optimize_am_and_lm_scale" % (prefix, name))
+        j.add_alias("%soptimize_%s" % (prefix, name))
         self.jobs[corpus]["optimize_%s" % name] = j
         tk.register_output("%soptimize_%s.log" % (prefix, name), j.out_log_file)
 
