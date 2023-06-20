@@ -215,7 +215,6 @@ class ReturnnComputePriorJobV2(Job):
         """
         assert device in ["gpu", "cpu"]
         original_config = returnn_config.config
-        assert "network" in original_config
 
         config = copy.deepcopy(original_config)
         config["load"] = model_checkpoint
