@@ -148,6 +148,8 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
 
 
 class FilterCorpusBySegmentsJob(Job):
+    __sis_hash_exclude__ = {"delete_empty_recordings": False}
+
     def __init__(self, bliss_corpus, segment_file, compressed=False, invert_match=False, delete_empty_recordings=False):
         """
         :param Path bliss_corpus:
