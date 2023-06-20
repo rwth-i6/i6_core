@@ -159,6 +159,7 @@ class FilterCorpusBySegmentsJob(Job):
         self.bliss_corpus = bliss_corpus
         self.segment_file_list = [segment_file] if isinstance(segment_file, tk.Path) else segment_file
         self.invert_match = invert_match
+        self.delete_empty_recordings = delete_empty_recordings
 
         self.out_corpus = self.output_path("corpus.xml" + (".gz" if compressed else ""))
 
@@ -179,7 +180,7 @@ class FilterCorpusBySegmentsJob(Job):
         c.load(tk.uncached_path(self.bliss_corpus))
 
         to_delete = []
-        for rec in c.all_recordings():
+        for idx, rec in enumerate(c.all_recordings()):
             if self.invert_match:
                 rec.segments = [x for x in rec.segments if x.fullname() not in segments and x.name not in segments]
             else:
@@ -188,7 +189,7 @@ class FilterCorpusBySegmentsJob(Job):
             if not rec.segments:
                 to_delete.append(idx)
 
-        if delete_empty_recordings:
+        if self.delete_empty_recordings:
             for idx in reversed(to_delete):
                 del c.subcorpora[0].recordings[idx]
 
