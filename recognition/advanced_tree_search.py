@@ -13,7 +13,7 @@ Path = setup_path(__package__)
 import math
 import os
 import shutil
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 
 import i6_core.lm as lm
 import i6_core.rasr as rasr
@@ -154,9 +154,9 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
         crp: rasr.CommonRasrParameters,
         feature_flow: rasr.FlowNetwork,
         feature_scorer: rasr.FeatureScorer,
-        search_parameters: Dict[str, Any] = None,
+        search_parameters: Optional[Dict[str, Any]] = None,
         lm_lookahead: bool = True,
-        lookahead_options: Dict[str, Any] = None,
+        lookahead_options: Optional[Dict[str, Any]] = None,
         create_lattice: bool = True,
         eval_single_best: bool = True,
         eval_best_in_lattice: bool = True,
@@ -166,32 +166,32 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
         cpu: int = 1,
         lmgc_mem: int = 12,
         lmgc_alias: Optional[str] = None,
-        model_combination_config=None,
-        model_combination_post_config=None,
-        extra_config=None,
-        extra_post_config=None,
+        model_combination_config: Optional[rasr.RasrConfig] = None,
+        model_combination_post_config: Optional[rasr.RasrConfig] = None,
+        extra_config: Optional[rasr.RasrConfig] = None,
+        extra_post_config: Optional[rasr.RasrConfig] = None,
     ):
         """
 
-        :param crp:
-        :param feature_flow:
-        :param feature_scorer:
-        :param search_parameters:
-        :param lm_lookahead:
-        :param lookahead_options:
-        :param create_lattice:
-        :param eval_single_best:
+        :param crp: Common Rasr parameters for recognition
+        :param feature_flow: Flow network for recognition
+        :param feature_scorer: Feature scorer used in recognition used for AdvancedTreeSearchLmImageAndGlobalCacheJob
+        :param search_parameters: Parameters for search e.g. beam-pruning, uses defaults defined below if not set
+        :param lm_lookahead: Whether to perform language model lookahead or not
+        :param lookahead_options: Options for the lm lookahead
+        :param create_lattice: Recognizer option to produde lattices. Stored as FST
+        :param eval_single_best: Extract the best path from the lattice
         :param eval_best_in_lattice:
-        :param use_gpu:
-        :param rtf:
-        :param mem:
-        :param cpu:
-        :param lmgc_mem:
-        :param lmgc_alias:
-        :param model_combination_config:
-        :param model_combination_post_config:
-        :param extra_config:
-        :param extra_post_config:
+        :param use_gpu: Flag to enable GPU decoding
+        :param rtf: Expected rtf value to predict time requirement for the job
+        :param mem: Memory requirement for the job
+        :param cpu: CPU requirement for the job
+        :param lmgc_mem: Memory requirement for the AdvancedTreeSearchLmImageAndGlobalCacheJob
+        :param lmgc_alias: Alias for the AdvancedTreeSearchLmImageAndGlobalCacheJob
+        :param model_combination_config: Configuration for model combination
+        :param model_combination_post_config: Post config for model combination
+        :param extra_config: Additional Config for recognition
+        :param extra_post_config: Post config of additional config for recognition
         """
         assert isinstance(feature_scorer, rasr.FeatureScorer)
 
@@ -270,23 +270,23 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
     @classmethod
     def create_config(
         cls,
-        crp,
-        feature_flow,
-        feature_scorer,
-        search_parameters,
-        lm_lookahead,
-        lookahead_options,
-        create_lattice,
-        eval_single_best,
-        eval_best_in_lattice,
-        mem,
-        cpu,
-        lmgc_mem,
-        lmgc_alias,
-        model_combination_config,
-        model_combination_post_config,
-        extra_config,
-        extra_post_config,
+        crp: rasr.CommonRasrParameters,
+        feature_flow: rasr.FlowNetwork,
+        feature_scorer: rasr.FeatureScorer,
+        search_parameters: Union[None, Dict[str, Any]],
+        lm_lookahead: bool,
+        lookahead_options: Union[None, Dict[str, Any]],
+        create_lattice: bool,
+        eval_single_best: bool,
+        eval_best_in_lattice: bool,
+        mem: int,
+        cpu: int,
+        lmgc_mem: int,
+        lmgc_alias: Union[None, str],
+        model_combination_config: Union[None, rasr.RasrConfig],
+        model_combination_post_config: Union[None, rasr.RasrConfig],
+        extra_config: Union[None, rasr.RasrConfig],
+        extra_post_config: Union[None, rasr.RasrConfig],
         **kwargs,
     ):
         lm_gc = AdvancedTreeSearchLmImageAndGlobalCacheJob(crp, feature_scorer, extra_config, extra_post_config)
