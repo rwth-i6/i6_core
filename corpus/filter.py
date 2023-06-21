@@ -164,6 +164,7 @@ class FilterCorpusBySegmentsJob(Job):
         self.delete_empty_recordings = delete_empty_recordings
 
         self.out_corpus = self.output_path("corpus.xml" + (".gz" if compressed else ""))
+        self.out_removed_recordings = self.output_path("removed_recordings.log")
 
     def tasks(self):
         yield Task("run", resume="run", mini_task=True)
@@ -194,6 +195,8 @@ class FilterCorpusBySegmentsJob(Job):
         if self.delete_empty_recordings:
             for rec in to_delete:
                 c.remove_recording(rec)
+            with open(self.out_removed_recordings, "w") as f:
+                f.write("\n".join(rec.fullname() for rec in to_delete))
 
         c.dump(tk.uncached_path(self.out_corpus))
 
