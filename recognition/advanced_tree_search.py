@@ -13,6 +13,7 @@ Path = setup_path(__package__)
 import math
 import os
 import shutil
+from typing import Any, Dict, Optional
 
 import i6_core.lm as lm
 import i6_core.rasr as rasr
@@ -150,26 +151,48 @@ class AdvancedTreeSearchLmImageAndGlobalCacheJob(rasr.RasrCommand, Job):
 class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
     def __init__(
         self,
-        crp,
-        feature_flow,
-        feature_scorer,
-        search_parameters=None,
-        lm_lookahead=True,
-        lookahead_options=None,
-        create_lattice=True,
-        eval_single_best=True,
-        eval_best_in_lattice=True,
-        use_gpu=False,
-        rtf=10,
-        mem=4,
-        cpu=1,
-        lmgc_mem=12,
-        lmgc_alias=None,
+        crp: rasr.CommonRasrParameters,
+        feature_flow: rasr.FlowNetwork,
+        feature_scorer: rasr.FeatureScorer,
+        search_parameters: Dict[str, Any] = None,
+        lm_lookahead: bool = True,
+        lookahead_options: Dict[str, Any] = None,
+        create_lattice: bool = True,
+        eval_single_best: bool = True,
+        eval_best_in_lattice: bool = True,
+        use_gpu: bool = False,
+        rtf: int = 10,
+        mem: int = 4,
+        cpu: int = 1,
+        lmgc_mem: int = 12,
+        lmgc_alias: Optional[str] = None,
         model_combination_config=None,
         model_combination_post_config=None,
         extra_config=None,
         extra_post_config=None,
     ):
+        """
+
+        :param crp:
+        :param feature_flow:
+        :param feature_scorer:
+        :param search_parameters:
+        :param lm_lookahead:
+        :param lookahead_options:
+        :param create_lattice:
+        :param eval_single_best:
+        :param eval_best_in_lattice:
+        :param use_gpu:
+        :param rtf:
+        :param mem:
+        :param cpu:
+        :param lmgc_mem:
+        :param lmgc_alias:
+        :param model_combination_config:
+        :param model_combination_post_config:
+        :param extra_config:
+        :param extra_post_config:
+        """
         assert isinstance(feature_scorer, rasr.FeatureScorer)
 
         self.set_vis_name("Advanced Beam Search")
