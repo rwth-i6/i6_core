@@ -175,7 +175,7 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
 
         :param crp: Common Rasr parameters for recognition
         :param feature_flow: Flow network for recognition
-        :param feature_scorer: Feature scorer used in recognition used for AdvancedTreeSearchLmImageAndGlobalCacheJob
+        :param feature_scorer: Feature scorer used in recognition. For AdvancedTreeSearchLmImageAndGlobalCacheJob RASR requires setting the feature scorer while actually not using it.
         :param search_parameters: Parameters for search e.g. beam-pruning, uses defaults defined below if not set
         :param lm_lookahead: Whether to perform language model lookahead or not
         :param lookahead_options: Options for the lm lookahead
