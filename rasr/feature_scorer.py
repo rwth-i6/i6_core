@@ -123,8 +123,6 @@ class PrecomputedHybridFeatureScorer(FeatureScorer):
         if prior_file is not None:
             self.config.prior_file = prior_file
         self.config.priori_scale = priori_scale
-        if prior_file is not None:
-            self.config.prior_file = prior_file
         self.config.normalize_mixture_weights = False
 
 
