@@ -164,7 +164,8 @@ class FilterCorpusBySegmentsJob(Job):
         self.delete_empty_recordings = delete_empty_recordings
 
         self.out_corpus = self.output_path("corpus.xml" + (".gz" if compressed else ""))
-        self.out_removed_recordings = self.output_path("removed_recordings.log")
+        if self.delete_empty_recordings:
+            self.out_removed_recordings = self.output_path("removed_recordings.log")
 
     def tasks(self):
         yield Task("run", resume="run", mini_task=True)
