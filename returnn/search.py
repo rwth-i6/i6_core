@@ -127,7 +127,10 @@ class ReturnnSearchJobV2(Job):
             os.path.join(self.returnn_root.get_path(), "rnn.py"),
             self.out_returnn_config_file.get_path(),
         ]
-        sp.check_call(call)
+        env = os.environ.copy()
+        env["OMP_NUM_THREADS"] = str(self.rqmt["cpu"])
+        env["MKL_NUM_THREADS"] = str(self.rqmt["cpu"])
+        sp.check_call(call, env=env)
 
     @classmethod
     def create_returnn_config(

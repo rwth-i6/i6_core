@@ -352,7 +352,10 @@ class ReturnnTrainingJob(Job):
                         print("Cannot read:", exc)
             sys.stdout.flush()
 
-        sp.check_call(self._get_run_cmd())
+        env = os.environ.copy()
+        env["OMP_NUM_THREADS"] = str(self.rqmt["cpu"])
+        env["MKL_NUM_THREADS"] = str(self.rqmt["cpu"])
+        sp.check_call(self._get_run_cmd(), env=env)
 
         lrf = self.returnn_config.get("learning_rate_file", "learning_rates")
         self._relink(lrf, self.out_learning_rates.get_path())

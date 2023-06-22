@@ -163,7 +163,10 @@ class ReturnnComputePriorJobV2(Job):
 
     def run(self):
         cmd = self._get_run_cmd()
-        sp.check_call(cmd)
+        env = os.environ.copy()
+        env["OMP_NUM_THREADS"] = str(self.rqmt["cpu"])
+        env["MKL_NUM_THREADS"] = str(self.rqmt["cpu"])
+        sp.check_call(cmd, env=env)
 
         merged_scores = np.loadtxt(self.out_prior_txt_file.get_path(), delimiter=" ")
 
