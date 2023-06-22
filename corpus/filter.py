@@ -148,18 +148,24 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
 
 
 class FilterCorpusBySegmentsJob(Job):
-    def __init__(self, bliss_corpus, segment_file, compressed=False, invert_match=False):
+    __sis_hash_exclude__ = {"delete_empty_recordings": False}
+
+    def __init__(self, bliss_corpus, segment_file, compressed=False, invert_match=False, delete_empty_recordings=False):
         """
         :param Path bliss_corpus:
         :param list[Path]|Path segment_file: a single segment file or a list of segment files
         :param bool compressed:
         :param bool invert_match:
+        :param bool delete_empty_recordings: if true, empty recordings will be removed
         """
         self.bliss_corpus = bliss_corpus
         self.segment_file_list = [segment_file] if isinstance(segment_file, tk.Path) else segment_file
         self.invert_match = invert_match
+        self.delete_empty_recordings = delete_empty_recordings
 
         self.out_corpus = self.output_path("corpus.xml" + (".gz" if compressed else ""))
+        if self.delete_empty_recordings:
+            self.out_removed_recordings = self.output_path("removed_recordings.log")
 
     def tasks(self):
         yield Task("run", resume="run", mini_task=True)
@@ -176,11 +182,22 @@ class FilterCorpusBySegmentsJob(Job):
         segments = set(segments)
         c = corpus.Corpus()
         c.load(tk.uncached_path(self.bliss_corpus))
+
+        to_delete = []
         for rec in c.all_recordings():
             if self.invert_match:
                 rec.segments = [x for x in rec.segments if x.fullname() not in segments and x.name not in segments]
             else:
                 rec.segments = [x for x in rec.segments if x.fullname() in segments or x.name in segments]
+
+            if not rec.segments:
+                to_delete.append(rec)
+
+        if self.delete_empty_recordings:
+            for rec in to_delete:
+                c.remove_recording(rec)
+            with open(self.out_removed_recordings, "w") as f:
+                f.write("\n".join(rec.fullname() for rec in to_delete))
 
         c.dump(tk.uncached_path(self.out_corpus))
 
