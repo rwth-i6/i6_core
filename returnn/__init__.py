@@ -5,4 +5,5 @@ from .forward import *
 from .hdf import *
 from .oggzip import *
 from .rasr_training import *
+from .search import *
 from .training import *
