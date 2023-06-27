@@ -145,7 +145,9 @@ class AdvancedTreeSearchLmImageAndGlobalCacheJob(rasr.RasrCommand, Job):
     @classmethod
     def hash(cls, kwargs):
         config, post_config, num_images = cls.create_config(**kwargs)
-        return super().hash({"config": config, "exe": kwargs["crp"].flf_tool_exe})
+        return super().hash(
+            {"config": config, "exe": kwargs["crp"].flf_tool_exe, "post_config": post_config},
+        )
 
 
 class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
@@ -166,6 +168,7 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
         cpu: int = 1,
         lmgc_mem: float = 12.0,
         lmgc_alias: Optional[str] = None,
+        lmgc_scorer: Optional[rasr.FeatureScorer] = None,
         model_combination_config: Optional[rasr.RasrConfig] = None,
         model_combination_post_config: Optional[rasr.RasrConfig] = None,
         extra_config: Optional[rasr.RasrConfig] = None,
@@ -188,6 +191,7 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
         :param cpu: CPU requirement for the job
         :param lmgc_mem: Memory requirement for the AdvancedTreeSearchLmImageAndGlobalCacheJob
         :param lmgc_alias: Alias for the AdvancedTreeSearchLmImageAndGlobalCacheJob
+        :param lmgc_scorer: Dummy scorer for the AdvancedTreeSearchLmImageAndGlobalCacheJob which is required but unused
         :param model_combination_config: Configuration for model combination
         :param model_combination_post_config: Post config for model combination
         :param extra_config: Additional Config for recognition
@@ -283,13 +287,16 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
         cpu: int,
         lmgc_mem: float,
         lmgc_alias: Union[None, str],
+        lmgc_scorer: Union[None, rasr.FeatureScorer],
         model_combination_config: Union[None, rasr.RasrConfig],
         model_combination_post_config: Union[None, rasr.RasrConfig],
         extra_config: Union[None, rasr.RasrConfig],
         extra_post_config: Union[None, rasr.RasrConfig],
         **kwargs,
     ):
-        lm_gc = AdvancedTreeSearchLmImageAndGlobalCacheJob(crp, feature_scorer, extra_config, extra_post_config)
+        lm_gc = AdvancedTreeSearchLmImageAndGlobalCacheJob(
+            crp, lmgc_scorer if lmgc_scorer is not None else feature_scorer, extra_config, extra_post_config
+        )
         if lmgc_alias is not None:
             lm_gc.add_alias(lmgc_alias)
         lm_gc.rqmt["mem"] = lmgc_mem
