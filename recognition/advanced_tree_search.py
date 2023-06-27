@@ -145,9 +145,7 @@ class AdvancedTreeSearchLmImageAndGlobalCacheJob(rasr.RasrCommand, Job):
     @classmethod
     def hash(cls, kwargs):
         config, post_config, num_images = cls.create_config(**kwargs)
-        return super().hash(
-            {"config": config, "exe": kwargs["crp"].flf_tool_exe},
-        )
+        return super().hash({"config": config, "exe": kwargs["crp"].flf_tool_exe})
 
 
 class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
