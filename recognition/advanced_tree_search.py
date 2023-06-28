@@ -13,7 +13,7 @@ Path = setup_path(__package__)
 import math
 import os
 import shutil
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional
 
 import i6_core.lm as lm
 import i6_core.rasr as rasr
@@ -275,21 +275,21 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
         crp: rasr.CommonRasrParameters,
         feature_flow: rasr.FlowNetwork,
         feature_scorer: rasr.FeatureScorer,
-        search_parameters: Union[None, Dict[str, Any]],
+        search_parameters: Optional[Dict[str, Any]],
         lm_lookahead: bool,
-        lookahead_options: Union[None, Dict[str, Any]],
+        lookahead_options: Optional[Dict[str, Any]],
         create_lattice: bool,
         eval_single_best: bool,
         eval_best_in_lattice: bool,
         mem: float,
         cpu: int,
         lmgc_mem: float,
-        lmgc_alias: Union[None, str],
-        lmgc_scorer: Union[None, rasr.FeatureScorer],
-        model_combination_config: Union[None, rasr.RasrConfig],
-        model_combination_post_config: Union[None, rasr.RasrConfig],
-        extra_config: Union[None, rasr.RasrConfig],
-        extra_post_config: Union[None, rasr.RasrConfig],
+        lmgc_alias: Optional[str],
+        lmgc_scorer: Optional[rasr.FeatureScorer],
+        model_combination_config: Optional[rasr.RasrConfig],
+        model_combination_post_config: Optional[rasr.RasrConfig],
+        extra_config: Optional[rasr.RasrConfig],
+        extra_post_config: Optional[rasr.RasrConfig],
         **kwargs,
     ):
         lm_gc = AdvancedTreeSearchLmImageAndGlobalCacheJob(
