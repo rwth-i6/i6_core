@@ -44,6 +44,7 @@ def filterbank_flow(
     normalization_options=None,
     without_samples=False,
     samples_options=None,
+    resample_options=None,
     fft_options=None,
     apply_log=False,
     add_epsilon=False,
@@ -57,6 +58,7 @@ def filterbank_flow(
     :param dict[str, Any]|None normalization_options: option dict for `signal-normalization` flow node
     :param bool without_samples: creates the flow network without a sample flow, but expects "samples" as input
     :param dict[str, Any]|None samples_options: parameter dict for :func:`samples_flow`
+    :param dict[str, Any]|None resample_options: parameter dict for :func:`samples_flow`
     :param dict[str, Any]|None fft_options: parameter dict for :func:`fft_flow`
     :param bool apply_log: adds a logarithm before normalization
     :param bool add_epsilon: if a logarithm should be applied, add a small epsilon to prohibit zeros
@@ -69,6 +71,8 @@ def filterbank_flow(
         normalization_options = {}
     if samples_options is None:
         samples_options = {}
+    if resample_options is None:
+        resample_options = {}
     if fft_options is None:
         fft_options = {}
 
@@ -79,7 +83,7 @@ def filterbank_flow(
     if without_samples:
         net.add_input("samples")
     else:
-        samples_net = samples_flow(**samples_options)
+        samples_net = samples_flow(**samples_options, **resample_options)
         samples_mapping = net.add_net(samples_net)
 
     fft_net = fft_flow(**fft_options)

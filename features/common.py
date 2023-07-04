@@ -76,6 +76,7 @@ def samples_flow(
         "min-non-dc-segment-length": 0.021,
     },
     input_options=None,
+    resample_rate=None,
     scale_input=None,
 ):
     """
@@ -122,6 +123,7 @@ def samples_flow(
     input_node_type = get_input_node_type(audio_format)
 
     samples = net.add_node("audio-input-file-" + input_node_type, "samples", input_opts)
+
     if input_node_type == "ffmpeg":
         samples_out = samples
     else:
@@ -131,7 +133,19 @@ def samples_flow(
         net.link(samples, demultiplex)
 
         convert = net.add_node("generic-convert-vector-s16-to-vector-f32", "convert")
-        net.link(demultiplex, convert)
+
+        if resample_rate:
+            resample = net.add_node(
+                "signal-resampling",
+                "resampling",
+                {
+                    "resample-rate": resample_rate,
+                },
+            )
+            net.link(demultiplex, resample)
+            net.link(resample, convert)
+        else:
+            net.link(demultiplex, convert)
         samples_out = convert
 
     if scale_input:
