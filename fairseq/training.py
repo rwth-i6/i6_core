@@ -13,7 +13,7 @@ import recipe.i6_core.util as util
 
 class FairseqHydraConfig:
     """
-    An object that manages a Fairseq hydra config (inspired by the ReturnnConfig).
+    An object that manages a Fairseq hydra config.
     """
 
     def __init__(self, config_dict, *, yaml_prefix=""):
