@@ -6,7 +6,7 @@ import sys
 import copy
 import re
 
-from sisyphus import *
+from sisyphus import Job, tk
 
 import recipe.i6_core.util as util
 
@@ -229,10 +229,11 @@ class FairseqHydraTrainingJob(Job):
                         manifest_lines[0] = os.path.commonpath(bundle_lines)
                         manifest_lines[1:] = map(
                             lambda line: os.path.relpath(line, manifest_lines[0]),
-                            manifest_lines[1:]
+                            manifest_lines[1:],
                         )
                     with open(
-                        os.path.join(self.out_cached_audio_manifest.get_path(), name), "w"
+                        os.path.join(self.out_cached_audio_manifest.get_path(), name),
+                        "w",
                     ) as cached_audio_manifest_file:
                         cached_audio_manifest_file.write("\n".join(manifest_lines))
             else:  # zipped audio data is given and we cache and unzip the zip file(s) instead
@@ -240,11 +241,11 @@ class FairseqHydraTrainingJob(Job):
                 for zip_dir in self.zipped_audio_dir:
                     try:
                         cached_audio_zip_dir = (
-                            sp.check_output(["cf", zip_dir])
-                            .strip()
-                            .decode("utf8")
+                            sp.check_output(["cf", zip_dir]).strip().decode("utf8")
                         )
-                        local_unzipped_dir.append(os.path.join(os.path.dirname(cached_audio_zip_dir), "audio"))
+                        local_unzipped_dir.append(
+                            os.path.join(os.path.dirname(cached_audio_zip_dir), "audio")
+                        )
                         sp.check_call(
                             [
                                 "unzip",
@@ -265,15 +266,16 @@ class FairseqHydraTrainingJob(Job):
                     with open(os.path.join(manifest_path, name), "r") as manifest_file:
                         manifest_lines = manifest_file.read().splitlines()
                     for i in range(1, len(manifest_lines)):
-                        to_check = (
-                            os.path.join(common_audio_dir, manifest_lines[i].split()[0])
+                        to_check = os.path.join(
+                            common_audio_dir, manifest_lines[i].split()[0]
                         )
                         assert os.path.exists(
                             to_check
                         ), f"Manifest file {to_check} not found in unzipped directory"
                     manifest_lines[0] = common_audio_dir
                     with open(
-                        os.path.join(self.out_cached_audio_manifest.get_path(), name), "w"
+                        os.path.join(self.out_cached_audio_manifest.get_path(), name),
+                        "w",
                     ) as cached_audio_manifest_file:
                         cached_audio_manifest_file.write("\n".join(manifest_lines))
 
@@ -298,7 +300,7 @@ class FairseqHydraTrainingJob(Job):
                         line = lines[i]
                         if 'begin validation on "valid" subset' in line:
                             split = re.sub('[{,":]', "", lines[i + 1]).split(" ")
-                            #  Exception handling for cases in which accuracy and loss 
+                            #  Exception handling for cases in which accuracy and loss
                             #  are not logged in next line
                             try:
                                 epoch = int(split[split.index("epoch") + 1])
