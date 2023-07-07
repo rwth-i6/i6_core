@@ -72,7 +72,6 @@ class FairseqHydraTrainingJob(Job):
         cpu_rqmt=2,
         gpu_rqmt=1,
         fairseq_python_exe=None,
-        fairseq_hydra_exe=None,
         fairseq_root=None,
         use_cache_manager=True,
         zipped_audio_dir=None,
@@ -90,8 +89,6 @@ class FairseqHydraTrainingJob(Job):
         :param int cpu_rqmt: Required number of CPUs (per GPU)
         :param int gpu_rqmt: Number of required GPUs
         :param Path fairseq_python_exe: File path to the executable for running python
-        :param Path fairseq_hydra_exe: File path to the python executable for running fairseq-hydra-train.
-            (usually in the same folder as python exe '.../bin/')
         :param Path fairseq_root: File path to the fairseq git for alternative call of fairseq-hydra-train
             (no need to install fairseq here)
         :param bool use_cache_manager: enables caching of data given in the manifest with the i6 cache manager
@@ -136,10 +133,9 @@ class FairseqHydraTrainingJob(Job):
             if fairseq_python_exe is not None
             else getattr(gs, "FAIRSEQ_PYTHON_EXE", None)
         )
-        self.fairseq_hydra_exe = fairseq_hydra_exe
         self.fairseq_root = fairseq_root
         # We assume that only one of the two possible entry points is given as an input
-        assert (self.fairseq_root is not None) ^ (self.fairseq_hydra_exe is not None)
+        assert self.fairseq_root is not None
         if self.fairseq_root is not None:
             assert self.fairseq_python_exe is not None
         self.use_cache_manager = use_cache_manager
@@ -274,7 +270,9 @@ class FairseqHydraTrainingJob(Job):
 
         my_env = os.environ
         if self.fairseq_root is not None:
-            my_env["PYTHONPATH"] = self.fairseq_root
+            my_env["PYTHONPATH"] = ":".join(
+                [self.fairseq_root] + my_env.get("PYTHONPATH", "").split(":")
+            )
         sp.check_call(self._get_run_cmd(), env=my_env)
 
     def plot(self):
@@ -407,12 +405,10 @@ class FairseqHydraTrainingJob(Job):
         if self.use_cache_manager:
             run_cmd += ["task.data=" + self.out_cached_audio_manifest.get_path()]
 
-        if self.fairseq_root is not None:
-            sys.path.insert(0, self.fairseq_root)
-            hydra_train_entry = self.fairseq_root + "fairseq_cli/hydra_train.py"
-            run_cmd.insert(0, tk.uncached_path(hydra_train_entry))
-        else:
-            run_cmd.insert(0, tk.uncached_path(self.fairseq_hydra_exe))
+        sys.path.insert(0, self.fairseq_root)
+        hydra_train_entry = self.fairseq_root + "fairseq_cli/hydra_train.py"
+        run_cmd.insert(0, tk.uncached_path(hydra_train_entry))
+
         if self.fairseq_python_exe is not None:
             run_cmd.insert(0, tk.uncached_path(self.fairseq_python_exe))
         return run_cmd
