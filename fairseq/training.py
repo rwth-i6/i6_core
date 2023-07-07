@@ -8,7 +8,7 @@ import re
 
 from sisyphus import Job, tk
 
-import recipe.i6_core.util as util
+import i6_core.util as util
 
 
 class FairseqHydraConfig:
@@ -16,31 +16,24 @@ class FairseqHydraConfig:
     An object that manages a Fairseq hydra config.
     """
 
-    def __init__(self, config_dict, *, yaml_prefix=""):
+    def __init__(self, config_dict: Dict[str, Any], *, package_name: str = ""):
         """
-        :param dict config_dict: Contains the information which is needed for fairseq-hydra-train. Will be converted and dumped into a .yaml
-        :param str yaml_prefix: Prefix which should be written to the beginning of the config, for example "# @package _group_"
+        :param config_dict: Contains the information which is needed for fairseq-hydra-train. Will be converted and dumped into a .yaml
+        :param package_name: The @package directory that is required to be added to the top of Hydra config, for example "# @package _group_"
         """
         assert isinstance(config_dict, dict)
         self.config_dict = config_dict
-        self.yaml_prefix = yaml_prefix
+        self.package_name = package_name
 
-    def write(self, path):
-        # recursively go through config dictionary to get all sisyphus paths inplace
-        def get_sis_paths(cnfg_d):
-            for k in cnfg_d.keys():
-                if type(cnfg_d[k]) == dict:
-                    get_sis_paths(cnfg_d[k])
-                elif type(cnfg_d[k]) == tk.Path:
-                    cnfg_d[k] = cnfg_d[k].get_path()
-
+    def write(self, path: str):
         path_corrected_config = self.config_dict.copy()
-        get_sis_paths(path_corrected_config)
+        # recursively go through config dictionary to get all sisyphus paths inplace
+        path_corrected_config = util.instanciate_delayed(path_corrected_config)
 
         config_yaml = yaml.dump(path_corrected_config)
         # "# @package _group_" was written at the beginning in the example .yaml from fairseq:
-        if self.yaml_prefix != "":
-            config_yaml = self.yaml_prefix + "\n" + config_yaml
+        if self.package_name != "":
+            config_yaml = f"# @package {self.package_name}\n" + config_yaml
         with open(path, "w") as file:
             file.write(config_yaml)
 
@@ -50,11 +43,11 @@ class PytorchHydraModel:
     Defines a Pytorch hydra model as yaml config, pytorch checkpoint file and epoch
     """
 
-    def __init__(self, fairseq_hydra_config_file, model, epoch):
+    def __init__(self, fairseq_hydra_config_file: tk.Path, model: tk.Path, epoch: int):
         """
-        :param Path fairseq_hydra_config_file: Path to a returnn config file
-        :param Path model: Path to a pytorch checkpoint
-        :param int epoch:
+        :param fairseq_hydra_config_file: Path to a returnn config file
+        :param model: Path to a pytorch checkpoint
+        :param epoch: Number of epochs this model was trained
         """
         self.returnn_config_file = fairseq_hydra_config_file
         self.model = model
@@ -96,13 +89,13 @@ class FairseqHydraTrainingJob(Job):
         :param int|float mem_rqmt: Memory requirements (per GPU)
         :param int cpu_rqmt: Required number of CPUs (per GPU)
         :param int gpu_rqmt: Number of required GPUs
-        :param Path|str python_exe: File path to the executable for running python
-        :param Path|str fairseq_hydra_exe: File path to the python executable for running fairseq-hydra-train.
+        :param Path fairseq_python_exe: File path to the executable for running python
+        :param Path fairseq_hydra_exe: File path to the python executable for running fairseq-hydra-train.
             (usually in the same folder as python exe '.../bin/')
-        :param Path|str fairseq_root: File path to the fairseq git for alternative call of fairseq-hydra-train
+        :param Path fairseq_root: File path to the fairseq git for alternative call of fairseq-hydra-train
             (no need to install fairseq here)
         :param bool use_cache_manager: enables caching of data given in the manifest with the i6 cache manager
-        :param [tk.Path]|[str]|tk.Path|str zipped_audio_dir: using a bundle file for caching is very slow for large manifests. For
+        :param [tk.Path]|tk.Path zipped_audio_dir: using a bundle file for caching is very slow for large manifests. For
             speeding up the audio file transfer using the cache manager, a zipped audio directory might be provided.
             The zipped audio directory is then used for caching instead and unzipped on the node for training
         """
@@ -150,7 +143,7 @@ class FairseqHydraTrainingJob(Job):
         if self.fairseq_root is not None:
             assert self.fairseq_python_exe is not None
         self.use_cache_manager = use_cache_manager
-        if isinstance(zipped_audio_dir, tk.Path) or isinstance(zipped_audio_dir, str):
+        if isinstance(zipped_audio_dir, tk.Path):
             self.zipped_audio_dir = [zipped_audio_dir]
         else:
             self.zipped_audio_dir = zipped_audio_dir
