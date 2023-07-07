@@ -6,26 +6,26 @@ import sys
 import copy
 import re
 
-from sisyphus import *
+from sisyphus import Job, tk
 
 import recipe.i6_core.util as util
 
 
 class FairseqHydraConfig:
     """
-    An object that manages a Fairseq hydra config (inspired by the ReturnnConfig).
+    An object that manages a Fairseq hydra config.
     """
 
-    def __init__(self, config_dict, *, yaml_prefix=""):
+    def __init__(self, config_dict: Dict[str, Any], *, yaml_prefix: str = ""):
         """
-        :param dict config_dict: Contains the information which is needed for fairseq-hydra-train. Will be converted and dumped into a .yaml
-        :param str yaml_prefix: Prefix which should be written to the beginning of the config, for example "# @package _group_"
+        :param config_dict: Contains the information which is needed for fairseq-hydra-train. Will be converted and dumped into a .yaml
+        :param yaml_prefix: Prefix which should be written to the beginning of the config, for example "# @package _group_"
         """
         assert isinstance(config_dict, dict)
         self.config_dict = config_dict
         self.yaml_prefix = yaml_prefix
 
-    def write(self, path):
+    def write(self, path: str):
         # recursively go through config dictionary to get all sisyphus paths inplace
         def get_sis_paths(cnfg_d):
             for k in cnfg_d.keys():
@@ -50,11 +50,11 @@ class PytorchHydraModel:
     Defines a Pytorch hydra model as yaml config, pytorch checkpoint file and epoch
     """
 
-    def __init__(self, fairseq_hydra_config_file, model, epoch):
+    def __init__(self, fairseq_hydra_config_file: tk.Path, model: tk.Path, epoch: int):
         """
-        :param Path fairseq_hydra_config_file: Path to a returnn config file
-        :param Path model: Path to a pytorch checkpoint
-        :param int epoch:
+        :param fairseq_hydra_config_file: Path to a returnn config file
+        :param model: Path to a pytorch checkpoint
+        :param epoch: Number of epochs this model was trained
         """
         self.returnn_config_file = fairseq_hydra_config_file
         self.model = model
