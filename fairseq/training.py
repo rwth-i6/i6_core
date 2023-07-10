@@ -287,7 +287,8 @@ class FairseqHydraTrainingJob(Job):
             if "hydra_train.log" in files:
                 with open(f"{dir_path}/hydra_train.log", "r") as f:
                     lines = f.readlines()
-                    for i in range(len(lines) - 1):
+                    i = 0
+                    while i < len(lines):
                         line = lines[i]
                         if "begin validation on" in line or "end of epoch" in line:
                             epoch_dict = eval(lines[i + 1][lines[i + 1].index("{") :])
@@ -317,7 +318,7 @@ class FairseqHydraTrainingJob(Job):
                                     train_loss[k].update(losses[k])
                                 for k in accuracy.keys():
                                     train_accuracy[k].update(accuracy[k])
-                            i += 1
+                        i += 1
 
         colors = [
             "#2a4d6e",
