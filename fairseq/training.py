@@ -156,8 +156,8 @@ class FairseqHydraTrainingJob(Job):
         :param int|float mem_rqmt: Memory requirements (per GPU)
         :param int cpu_rqmt: Required number of CPUs (per GPU)
         :param int gpu_rqmt: Number of required GPUs
-        :param Path fairseq_python_exe: File path to the executable for running python
-        :param Path fairseq_root: File path to the fairseq git for alternative call of fairseq-hydra-train
+        :param tk.Path fairseq_python_exe: File path to the executable for running python
+        :param tk.Path fairseq_root: File path to the fairseq git for alternative call of fairseq-hydra-train
             (no need to install fairseq here)
         :param bool use_cache_manager: enables caching of data given in the manifest with the i6 cache manager
         :param [tk.Path]|tk.Path zipped_audio_dir: using a bundle file for caching is very slow for large manifests. For
@@ -494,12 +494,10 @@ class FairseqHydraTrainingJob(Job):
         if self.use_cache_manager:
             run_cmd += ["task.data=" + self.out_cached_audio_manifest.get_path()]
 
-        sys.path.insert(0, self.fairseq_root)
-        hydra_train_entry = self.fairseq_root + "fairseq_cli/hydra_train.py"
-        run_cmd.insert(0, tk.uncached_path(hydra_train_entry))
+        run_cmd.insert(0, self.fairseq_root.get_path() + "fairseq_cli/hydra_train.py")
 
         if self.fairseq_python_exe is not None:
-            run_cmd.insert(0, tk.uncached_path(self.fairseq_python_exe))
+            run_cmd.insert(0, self.fairseq_python_exe.get_path())
         return run_cmd
 
     @classmethod
