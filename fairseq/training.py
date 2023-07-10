@@ -5,17 +5,26 @@ import yaml
 import sys
 import copy
 import re
+from typing import Dict, Any
 
-from sisyphus import Job, tk
+from sisyphus import Task, Job, tk
+from sisyphus.hash import sis_hash_helper
 
 import i6_core.util as util
+
 
 class FairseqHydraConfig:
     """
     An object that manages a Fairseq hydra config.
     """
 
-    def __init__(self, config_dict: Dict[str, Any], post_config_dict: Dict[str, Any], *, package_name: str = ""):
+    def __init__(
+        self,
+        config_dict: Dict[str, Any],
+        post_config_dict: Dict[str, Any],
+        *,
+        package_name: str = "",
+    ):
         """
         :param config_dict: Contains the information which is needed for fairseq-hydra-train. Will be converted and dumped into a .yaml
         :param dict post_config_dict: dictionary of the FairseqHydraConfig config variables that are not hashed
@@ -24,13 +33,24 @@ class FairseqHydraConfig:
         assert isinstance(config_dict, dict)
         assert isinstance(post_config_dict, dict)
         self.config_dict = config_dict
-        self.post_config_dict = post_config if post_config_dict is not None else {}
+        self.post_config_dict = post_config_dict if post_config_dict is not None else {}
         self.package_name = package_name
+        self.check_consistency()
+
+    @staticmethod
+    def update_nested_dict(dict1, dict2):
+        for g in dict2:
+            if g in dict1:
+                dict1[g].update(dict2[g])
+            else:
+                dict1.update({g: dict2[g]})
 
     def write(self, path: str):
-        self.check_consistency()
         path_corrected_config = self.config_dict.copy()
-        path_corrected_config.update(self.post_config_dict)
+        FairseqHydraConfig.update_nested_dict(
+            path_corrected_config, self.post_config_dict
+        )
+
         # recursively go through config dictionary to get all sisyphus paths inplace
         path_corrected_config = util.instanciate_delayed(path_corrected_config)
 
@@ -47,8 +67,10 @@ class FairseqHydraConfig:
           * config_dict, post_config_dict use dict.update
         :param FairseqHydraConfig other:
         """
-        self.config_dict.update(other.config_dict)
-        self.post_config_dict.update(other.post_config_dict)
+        FairseqHydraConfig.update_nested_dict(self.config_dict, other.config_dict)
+        FairseqHydraConfig.update_nested_dict(
+            self.post_config_dict, other.post_config_dict
+        )
         self.check_consistency()
 
     def check_consistency(self):
@@ -59,26 +81,30 @@ class FairseqHydraConfig:
         for group in self.config_dict:
             if isinstance(self.config_dict[group], dict):
                 for key in self.config_dict[group]:
-                    assert key not in self.post_config_dict, (
-                        "%s in post_config would overwrite existing entry in config" % key
+                    assert key not in [
+                        k
+                        for g in self.post_config_dict
+                        for k in self.post_config_dict[g].keys()
+                    ], (
+                        "%s in post_config would overwrite existing entry in config"
+                        % key
                     )
 
         # list of parameters that should never be hashed
-        disallowed_in_config = [
-            "save_interval",
-            "max_epoch"
-        ]
+        disallowed_in_config = ["save_interval", "max_epoch"]
 
         for group in self.config_dict:
             if isinstance(self.config_dict[group], dict):
                 for key in disallowed_in_config:
-                    assert self.config.get(key) is None, (
-                        "please define %s only as parameter in the post_config_dict" % key
+                    assert self.config_dict[group].get(key) is None, (
+                        "please define %s only as parameter in the post_config_dict"
+                        % key
                     )
 
     def _sis_hash(self):
         h = {"fairseq_hydra_config": self.config_dict}
         return sis_hash_helper(h)
+
 
 class PytorchHydraModel:
     """
@@ -140,22 +166,23 @@ class FairseqHydraTrainingJob(Job):
         """
 
         # Inputs:
-        self.fairseq_hydra_config = fairseq_hydra_config
-        self.command_line_args = command_line_args or []
-        self.save_interval = save_interval
-        self.max_epoch = max_epoch
-        stored_epochs = list(
-            range(self.save_interval, self.max_epoch, self.save_interval)
-        ) + [self.max_epoch]
+        kwargs = locals()
+        del kwargs["self"]
 
-        self.keep_epochs = set(stored_epochs) if keep_epochs is None else set(keep_epochs)
+        self.command_line_args = command_line_args or []
+        stored_epochs = list(range(save_interval, max_epoch, save_interval)) + [
+            max_epoch
+        ]
+
+        self.keep_epochs = (
+            set(stored_epochs) if keep_epochs is None else set(keep_epochs)
+        )
         self.fairseq_python_exe = (
             fairseq_python_exe
             if fairseq_python_exe is not None
             else getattr(gs, "FAIRSEQ_PYTHON_EXE", None)
         )
         self.fairseq_root = fairseq_root
-        # We assume that only one of the two possible entry points is given as an input
         assert self.fairseq_root is not None
         if self.fairseq_root is not None:
             assert self.fairseq_python_exe is not None
@@ -169,6 +196,9 @@ class FairseqHydraTrainingJob(Job):
                 self.use_cache_manager
             ), "cache manager must be used for zipped audio input"
 
+        self.fairseq_hydra_config = FairseqHydraTrainingJob.create_fairseq_hydra_config(
+            **kwargs
+        )
         # Outputs:
         self.out_fairseq_hydra_yaml = self.output_path("fairseq_hydra_config.yaml")
         self.out_checkpoint_dir = self.output_path("checkpoints", directory=True)
@@ -203,10 +233,20 @@ class FairseqHydraTrainingJob(Job):
         yield Task("run", resume="run", rqmt=self.rqmt)
         yield Task("plot", mini_task=True)
 
-    def create_files(self):
+    @classmethod
+    def create_fairseq_hydra_config(
+        cls, fairseq_hydra_config, max_epoch, save_interval, **kwargs
+    ):
+        res = copy.deepcopy(fairseq_hydra_config)
         config_dict = {}
-        post_config_dict = {"optimization": {"max_epoch": self.max_epoch}, "checkpoint": {"save_interval": self.save_interval}}
-        self.fairseq_hydra_config.update(FairseqHydraConfig(config_dict, post_config_dict))
+        post_config_dict = {
+            "optimization": {"max_epoch": max_epoch},
+            "checkpoint": {"save_interval": save_interval},
+        }
+        res.update(FairseqHydraConfig(config_dict, post_config_dict))
+        return res
+
+    def create_files(self):
         self.fairseq_hydra_config.write(self.out_fairseq_hydra_yaml.get_path())
         util.create_executable("fairseq.sh", self._get_run_cmd())
 
@@ -434,8 +474,22 @@ class FairseqHydraTrainingJob(Job):
         ]
         run_cmd += self.command_line_args
         run_cmd += ["checkpoint.save_dir=" + self.out_checkpoint_dir.get_path()]
-        run_cmd += ["checkpoint.save_interval=" + str(self.save_interval)]
-        run_cmd += ["optimization.max_epoch=" + str(self.max_epoch)]
+        run_cmd += [
+            "checkpoint.save_interval="
+            + str(
+                self.fairseq_hydra_config.post_config_dict.get("checkpoint").get(
+                    "save_interval"
+                )
+            )
+        ]
+        run_cmd += [
+            "optimization.max_epoch="
+            + str(
+                self.fairseq_hydra_config.config_dict.get("optimization").get(
+                    "max_epoch"
+                )
+            )
+        ]
 
         if self.use_cache_manager:
             run_cmd += ["task.data=" + self.out_cached_audio_manifest.get_path()]
@@ -451,8 +505,10 @@ class FairseqHydraTrainingJob(Job):
     @classmethod
     def hash(cls, kwargs):
         d = {
-            "fairseq_hydra_config": self.fairseq_hydra_config,
-            "fairseq_python_exe": kwargs['fairseq_python_exe'],
-            "fairseq_root": kwargs['fairseq_root'],
+            "fairseq_hydra_config": FairseqHydraTrainingJob.create_fairseq_hydra_config(
+                **kwargs
+            ),
+            "fairseq_python_exe": kwargs["fairseq_python_exe"],
+            "fairseq_root": kwargs["fairseq_root"],
         }
         return super().hash(d)
