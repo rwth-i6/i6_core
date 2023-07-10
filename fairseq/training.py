@@ -10,7 +10,6 @@ from sisyphus import Job, tk
 
 import i6_core.util as util
 
-
 class FairseqHydraConfig:
     """
     An object that manages a Fairseq hydra config.
@@ -76,6 +75,10 @@ class FairseqHydraConfig:
                     assert self.config.get(key) is None, (
                         "please define %s only as parameter in the post_config_dict" % key
                     )
+
+    def _sis_hash(self):
+        h = {"fairseq_hydra_config": self.config_dict}
+        return sis_hash_helper(h)
 
 class PytorchHydraModel:
     """
@@ -431,14 +434,8 @@ class FairseqHydraTrainingJob(Job):
         ]
         run_cmd += self.command_line_args
         run_cmd += ["checkpoint.save_dir=" + self.out_checkpoint_dir.get_path()]
-        if self.save_interval != self.fairseq_hydra_config.config_dict.get(
-            "checkpoint", {}
-        ).get("save_interval", None):
-            run_cmd += ["checkpoint.save_interval=" + str(self.save_interval)]
-        if self.max_epoch != self.fairseq_hydra_config.config_dict.get(
-            "optimization", {}
-        ).get("max_epoch", None):
-            run_cmd += ["optimization.max_epoch=" + str(self.max_epoch)]
+        run_cmd += ["checkpoint.save_interval=" + str(self.save_interval)]
+        run_cmd += ["optimization.max_epoch=" + str(self.max_epoch)]
 
         if self.use_cache_manager:
             run_cmd += ["task.data=" + self.out_cached_audio_manifest.get_path()]
@@ -453,11 +450,9 @@ class FairseqHydraTrainingJob(Job):
 
     @classmethod
     def hash(cls, kwargs):
-        d = copy.copy(kwargs)
-        d.pop("use_cache_manager", None)
-        d.pop("zipped_audio_dir", None)
-        d.pop("time_rqmt", None)
-        d.pop("mem_rqmt", None)
-        d.pop("cpu_rqmt", None)
-        d.pop("gpu_rqmt", None)
+        d = {
+            "fairseq_hydra_config": self.fairseq_hydra_config,
+            "fairseq_python_exe": kwargs['fairseq_python_exe'],
+            "fairseq_root": kwargs['fairseq_root'],
+        }
         return super().hash(d)
