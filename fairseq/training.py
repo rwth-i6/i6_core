@@ -505,6 +505,7 @@ class FairseqHydraTrainingJob(Job):
     @classmethod
     def hash(cls, kwargs):
         d = {
+            "command_line_args": kwargs["command_line_args"],
             "fairseq_hydra_config": FairseqHydraTrainingJob.create_fairseq_hydra_config(
                 **kwargs
             ),
