@@ -163,7 +163,7 @@ class FairseqHydraTrainingJob(Job):
         self.out_cached_audio_manifest = self.output_path(
             "cached_audio_manifest", directory=True
         )
-        self.out_plot_se = self.output_path("score_and_error.svg")
+        self.out_plot_se = self.output_path("loss_and_accuracy.svg")
         self.out_plot_lr = self.output_path("learning_rate.svg")
 
         # Requirements:
@@ -385,7 +385,7 @@ class FairseqHydraTrainingJob(Job):
         axs[1].set_ylabel("accuracy")
         axs[1].set_xlabel("epochs")
         axs[1].legend()
-        plt.savefig("score_error.svg")
+        plt.savefig(self.out_plot_se)
 
         fig, axs = plt.subplots()
         axs.plot(
@@ -399,7 +399,7 @@ class FairseqHydraTrainingJob(Job):
         axs.set_xlabel("epochs")
         axs.legend()
 
-        plt.savefig("learning_rate.svg")
+        plt.savefig(self.out_plot_lr)
 
     def _get_run_cmd(self):
         run_cmd = [
