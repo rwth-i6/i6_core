@@ -163,8 +163,8 @@ class FairseqHydraTrainingJob(Job):
         self.out_cached_audio_manifest = self.output_path(
             "cached_audio_manifest", directory=True
         )
-        self.out_plot_se = self.output_path("score_and_error.png")
-        self.out_plot_lr = self.output_path("learning_rate.png")
+        self.out_plot_se = self.output_path("score_and_error.svg")
+        self.out_plot_lr = self.output_path("learning_rate.svg")
 
         # Requirements:
         self.gpu_rqmt = gpu_rqmt
@@ -277,8 +277,8 @@ class FairseqHydraTrainingJob(Job):
 
     def plot(self):
         directory = "./outputs"
-        train_score, train_error = {}, {}
-        valid_score, valid_error = {}, {}
+        train_loss, train_accuracy = defaultdict(dict), defaultdict(dict)
+        valid_loss, valid_accuracy = defaultdict(dict), defaultdict(dict)
         learning_rates = {}
 
         for cur in os.walk(directory):
@@ -289,91 +289,108 @@ class FairseqHydraTrainingJob(Job):
                     lines = f.readlines()
                     for i in range(len(lines) - 1):
                         line = lines[i]
-                        if 'begin validation on "valid" subset' in line:
-                            split = re.sub('[{,":]', "", lines[i + 1]).split(" ")
-                            #  Exception handling for cases in which accuracy and loss
-                            #  are not logged in next line
+                        if "begin validation on" in line or "end of epoch" in line:
+                            epoch_dict = eval(lines[i + 1][lines[i + 1].index("{") :])
                             try:
-                                epoch = int(split[split.index("epoch") + 1])
-                                score = float(split[split.index("valid_loss") + 1])
-                                error = 1 - float(
-                                    split[split.index("valid_accuracy") + 1]
-                                )
+                                epoch = int(epoch_dict["epoch"])
+                                losses = {
+                                    k: {epoch: float(v)}
+                                    for k, v in epoch_dict.items()
+                                    if k.endswith("_loss")
+                                }
+                                accuracy = {
+                                    k: {epoch: float(v)}
+                                    for k, v in epoch_dict.items()
+                                    if k.endswith("_accuracy")
+                                }
                             except ValueError:
                                 continue
-                            valid_score[epoch] = score
-                            valid_error[epoch] = error
-                            i += 1
-                        elif "end of epoch" in line:
-                            split = re.sub('[{,":]', "", lines[i + 1]).split(" ")
-                            #  Exception handling for cases in which accuracy, loss and
-                            #  learningrate are not logged in next line
-                            try:
-                                epoch = int(split[split.index("epoch") + 1])
-                                score = float(split[split.index("train_loss") + 1])
-                                error = 1 - float(
-                                    split[split.index("train_accuracy") + 1]
-                                )
-                                lr = float(split[split.index("train_lr") + 1])
-                            except ValueError:
-                                continue
-                            train_score[epoch] = score
-                            train_error[epoch] = error
-                            learning_rates[epoch] = lr
+                            if "train_lr" in epoch_dict:
+                                learning_rates[epoch] = float(epoch_dict["train_lr"])
+                            if "begin validation on" in line:
+                                for k in losses.keys():
+                                    valid_loss[k].update(losses[k])
+                                for k in accuracy.keys():
+                                    valid_accuracy[k].update(accuracy[k])
+                            else:
+                                for k in losses.keys():
+                                    train_loss[k].update(losses[k])
+                                for k in accuracy.keys():
+                                    train_accuracy[k].update(accuracy[k])
                             i += 1
 
-        colors = ["#2a4d6e", "#aa3c39"]
+        colors = [
+            "#2a4d6e",
+            "#aa3c39",
+            "#11aa00",
+            "#1f77b4",
+            "#ff7f0e",
+            "#2ca02c",
+            "#d62728",
+            "#9467bd",
+            "#8c564b",
+            "#e377c2",
+            "#7f7f7f",
+            "#bcbd22",
+            "#17becf",
+        ]
         import matplotlib.pyplot as plt
 
         fig, axs = plt.subplots(2, sharex=True, figsize=(12, 9))
-        train_epochs = list(train_score.keys())
-        valid_epochs = list(valid_score.keys())
-        lr_epochs = list(learning_rates.keys())
-        train_epochs.sort()
-        valid_epochs.sort()
-        lr_epochs.sort()
 
-        axs[0].plot(
-            train_epochs,
-            [train_score[e] for e in train_epochs],
-            "o-",
-            color=colors[0],
-            label="train score",
-        )
-        axs[0].plot(
-            valid_epochs,
-            [valid_score[e] for e in valid_epochs],
-            "o-",
-            color=colors[1],
-            label="valid score",
-        )
-        axs[0].set_ylabel("score")
+        color_index = 0
+        for k in train_loss.keys():
+            axs[0].plot(
+                train_loss[k].keys(),
+                train_loss[k].values(),
+                "o-",
+                color=colors[color_index],
+                label=k,
+            )
+            color_index += 1
+
+        for k in valid_loss.keys():
+            axs[0].plot(
+                valid_loss[k].keys(),
+                valid_loss[k].values(),
+                "o-",
+                color=colors[color_index],
+                label=k,
+            )
+            color_index += 1
+
+        axs[0].set_ylabel("loss")
         axs[0].legend()
 
-        axs[1].plot(
-            train_epochs,
-            [train_error[e] for e in train_epochs],
-            "o-",
-            color=colors[0],
-            label="train error",
-        )
-        axs[1].plot(
-            valid_epochs,
-            [valid_error[e] for e in valid_epochs],
-            "o-",
-            color=colors[1],
-            label="valid error",
-        )
-        axs[1].set_ylabel("error")
+        color_index = 0
+        for k in train_accuracy.keys():
+            axs[1].plot(
+                train_accuracy[k].keys(),
+                train_accuracy[k].values(),
+                "o-",
+                color=colors[color_index],
+                label=k,
+            )
+            color_index += 1
+
+        for k in valid_accuracy.keys():
+            axs[1].plot(
+                valid_accuracy[k].keys(),
+                valid_accuracy[k].values(),
+                "o-",
+                color=colors[color_index],
+                label=k,
+            )
+            color_index += 1
+        axs[1].set_ylabel("accuracy")
         axs[1].set_xlabel("epochs")
         axs[1].legend()
-
-        plt.savefig(self.out_plot_se)
+        plt.savefig("score_error.svg")
 
         fig, axs = plt.subplots()
         axs.plot(
-            lr_epochs,
-            [learning_rates[e] for e in lr_epochs],
+            learning_rates.keys(),
+            learning_rates.values(),
             "o-",
             color=colors[0],
             label="learning rate",
@@ -382,7 +399,7 @@ class FairseqHydraTrainingJob(Job):
         axs.set_xlabel("epochs")
         axs.legend()
 
-        plt.savefig(self.out_plot_lr)
+        plt.savefig("learning_rate.svg")
 
     def _get_run_cmd(self):
         run_cmd = [
