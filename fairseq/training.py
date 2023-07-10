@@ -16,17 +16,22 @@ class FairseqHydraConfig:
     An object that manages a Fairseq hydra config.
     """
 
-    def __init__(self, config_dict: Dict[str, Any], *, package_name: str = ""):
+    def __init__(self, config_dict: Dict[str, Any], post_config_dict: Dict[str, Any], *, package_name: str = ""):
         """
         :param config_dict: Contains the information which is needed for fairseq-hydra-train. Will be converted and dumped into a .yaml
+        :param dict post_config_dict: dictionary of the FairseqHydraConfig config variables that are not hashed
         :param package_name: The @package directory that is required to be added to the top of Hydra config, for example "# @package _group_"
         """
         assert isinstance(config_dict, dict)
+        assert isinstance(post_config_dict, dict)
         self.config_dict = config_dict
+        self.post_config_dict = post_config if post_config_dict is not None else {}
         self.package_name = package_name
 
     def write(self, path: str):
+        self.check_consistency()
         path_corrected_config = self.config_dict.copy()
+        path_corrected_config.update(self.post_config_dict)
         # recursively go through config dictionary to get all sisyphus paths inplace
         path_corrected_config = util.instanciate_delayed(path_corrected_config)
 
@@ -37,6 +42,40 @@ class FairseqHydraConfig:
         with open(path, "w") as file:
             file.write(config_yaml)
 
+    def update(self, other):
+        """
+        updates a FairseqHydraConfig with another FairseqHydraConfig:
+          * config_dict, post_config_dict use dict.update
+        :param FairseqHydraConfig other:
+        """
+        self.config_dict.update(other.config_dict)
+        self.post_config_dict.update(other.post_config_dict)
+        self.check_consistency()
+
+    def check_consistency(self):
+        """
+        Check that there is no config key overwritten by post_config.
+        Also check for parameters that should never be hashed.
+        """
+        for group in self.config_dict:
+            if isinstance(self.config_dict[group], dict):
+                for key in self.config_dict[group]:
+                    assert key not in self.post_config_dict, (
+                        "%s in post_config would overwrite existing entry in config" % key
+                    )
+
+        # list of parameters that should never be hashed
+        disallowed_in_config = [
+            "save_interval",
+            "max_epoch"
+        ]
+
+        for group in self.config_dict:
+            if isinstance(self.config_dict[group], dict):
+                for key in disallowed_in_config:
+                    assert self.config.get(key) is None, (
+                        "please define %s only as parameter in the post_config_dict" % key
+                    )
 
 class PytorchHydraModel:
     """
@@ -64,8 +103,8 @@ class FairseqHydraTrainingJob(Job):
         fairseq_hydra_config,
         *,  # args below are keyword only
         command_line_args=None,
-        max_epoch=None,
-        save_interval=None,
+        max_epoch=1,
+        save_interval=1,
         keep_epochs=None,
         time_rqmt=4,
         mem_rqmt=4,
@@ -80,8 +119,8 @@ class FairseqHydraTrainingJob(Job):
         :param FairseqHydraConfig fairseq_hydra_config:
         :param list command_line_args: Additional command line arguments (starting with "--*"),
             to configure the Fairseq-hydra task
-        :param int|None max_epoch: maximum number of epochs to run. Note that this value IS currently HASHED.
-        :param int|None save_interval: save a checkpoint each n-th epoch
+        :param int max_epoch: maximum number of epochs to run. Note that this value IS currently HASHED.
+        :param int save_interval: save a checkpoint each n-th epoch
         :param list[int]|set[int]|None keep_epochs: specify which checkpoints are kept in self.out_models.
             Use None for each save_interval-th epoch
         :param int|float time_rqmt: Overall time requirements
@@ -100,34 +139,13 @@ class FairseqHydraTrainingJob(Job):
         # Inputs:
         self.fairseq_hydra_config = fairseq_hydra_config
         self.command_line_args = command_line_args or []
-        warning_text = "is specified as input arg and in fairseq_hydra_config. We take the input arg"
-        save_interval_config = fairseq_hydra_config.config_dict.get(
-            "checkpoint", {}
-        ).get("save_interval", None)
-        if save_interval is not None and save_interval_config is not None:
-            logging.warning(
-                "'save_interval' {}: {}".format(warning_text, save_interval)
-            )
-        self.save_interval = save_interval or save_interval_config
-        assert (
-            self.save_interval is not None
-        ), "save_interval has to be set explicitly or via fairseq_hydra_config"
-        max_epoch_config = fairseq_hydra_config.config_dict.get("optimization", {}).get(
-            "max_epoch", None
-        )
-        if max_epoch is not None and max_epoch_config is not None:
-            logging.warning("'max_epoch' {}: {}".format(warning_text, max_epoch))
-        self.max_epoch = max_epoch or max_epoch_config
-        assert (
-            self.max_epoch is not None
-        ), "max_epoch has to be set explicitly or via fairseq_hydra_config"
+        self.save_interval = save_interval
+        self.max_epoch = max_epoch
         stored_epochs = list(
             range(self.save_interval, self.max_epoch, self.save_interval)
         ) + [self.max_epoch]
-        if keep_epochs is None:
-            self.keep_epochs = set(stored_epochs)
-        else:
-            self.keep_epochs = set(keep_epochs)
+
+        self.keep_epochs = set(stored_epochs) if keep_epochs is None else set(keep_epochs)
         self.fairseq_python_exe = (
             fairseq_python_exe
             if fairseq_python_exe is not None
@@ -157,8 +175,7 @@ class FairseqHydraTrainingJob(Job):
                 self.output_path("checkpoints/checkpoint{}.pt".format(k)),
                 k,
             )
-            for k in stored_epochs
-            if k in self.keep_epochs
+            for k in self.keep_epochs
         }
         self.out_cached_audio_manifest = self.output_path(
             "cached_audio_manifest", directory=True
@@ -184,6 +201,9 @@ class FairseqHydraTrainingJob(Job):
         yield Task("plot", mini_task=True)
 
     def create_files(self):
+        config_dict = {}
+        post_config_dict = {"optimization": {"max_epoch": self.max_epoch}, "checkpoint": {"save_interval": self.save_interval}}
+        self.fairseq_hydra_config.update(FairseqHydraConfig(config_dict, post_config_dict))
         self.fairseq_hydra_config.write(self.out_fairseq_hydra_yaml.get_path())
         util.create_executable("fairseq.sh", self._get_run_cmd())
 
