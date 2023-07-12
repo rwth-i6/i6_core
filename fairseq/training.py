@@ -4,6 +4,7 @@ import subprocess as sp
 import yaml
 import sys
 import copy
+import collections.abc
 import re
 from typing import Dict, Any
 
@@ -39,11 +40,12 @@ class FairseqHydraConfig:
 
     @staticmethod
     def update_nested_dict(dict1, dict2):
-        for g in dict2:
-            if g in dict1:
-                dict1[g].update(dict2[g])
+        for k, v in dict2.items():
+            if isinstance(v, collections.abc.Mapping):
+                dict1[k] = update_nested_dict(dict1.get(k, {}), v)
             else:
-                dict1[g] = dict2[g]
+                dict1[k] = v
+        return dict1
 
     def write(self, path: str):
         path_corrected_config = self.config_dict.copy()
