@@ -21,7 +21,7 @@ class FairseqHydraConfig:
     def __init__(
         self,
         config_dict: Dict[str, Any],
-        post_config_dict: Dict[str, Any],
+        post_config_dict: Optional[Dict[str, Any]] = None,
         *,
         package_name: str = "",
     ):
@@ -31,7 +31,7 @@ class FairseqHydraConfig:
         :param package_name: The @package directory that is required to be added to the top of Hydra config, for example "# @package _group_"
         """
         assert isinstance(config_dict, dict)
-        assert isinstance(post_config_dict, dict)
+        assert isinstance(post_config_dict, dict) or post_config_dict is None
         self.config_dict = config_dict
         self.post_config_dict = post_config_dict if post_config_dict is not None else {}
         self.package_name = package_name
@@ -43,7 +43,7 @@ class FairseqHydraConfig:
             if g in dict1:
                 dict1[g].update(dict2[g])
             else:
-                dict1.update({g: dict2[g]})
+                dict1[g] = dict2[g]
 
     def write(self, path: str):
         path_corrected_config = self.config_dict.copy()
@@ -71,6 +71,7 @@ class FairseqHydraConfig:
         FairseqHydraConfig.update_nested_dict(
             self.post_config_dict, other.post_config_dict
         )
+        self.package_name = other.package_name
         self.check_consistency()
 
     def check_consistency(self):
@@ -81,14 +82,14 @@ class FairseqHydraConfig:
         for group in self.config_dict:
             if isinstance(self.config_dict[group], dict):
                 for key in self.config_dict[group]:
-                    assert key not in [
-                        k
-                        for g in self.post_config_dict
-                        for k in self.post_config_dict[g].keys()
-                    ], (
-                        "%s in post_config would overwrite existing entry in config"
-                        % key
-                    )
+                    if group in self.post_config_dict:
+                        assert (
+                            key not in self.post_config_dict[group].keys()
+                        ), f"{key} of {group} in post_config would overwrite existing entry in config"
+            else:
+                assert (
+                    group not in self.post_config_dict
+                ), f"{group} in post_config would overwrite existing entry in config"
 
         # list of parameters that should never be hashed
         disallowed_in_config = ["save_interval", "max_epoch"]
@@ -96,10 +97,13 @@ class FairseqHydraConfig:
         for group in self.config_dict:
             if isinstance(self.config_dict[group], dict):
                 for key in disallowed_in_config:
-                    assert self.config_dict[group].get(key) is None, (
-                        "please define %s only as parameter in the post_config_dict"
-                        % key
-                    )
+                    assert (
+                        self.config_dict[group].get(key) is None
+                    ), f"please define {key} of {group} only as parameter in the post_config_dict"
+            else:
+                assert (
+                    self.config_dict[group].get(group) is None
+                ), f"please define {group} only as parameter in the post_config_dict"
 
     def _sis_hash(self):
         h = {"fairseq_hydra_config": self.config_dict}
@@ -140,7 +144,7 @@ class FairseqHydraTrainingJob(Job):
         cpu_rqmt=2,
         gpu_rqmt=1,
         fairseq_python_exe=None,
-        fairseq_root=None,
+        fairseq_root,
         use_cache_manager=True,
         zipped_audio_dir=None,
     ):
@@ -180,12 +184,10 @@ class FairseqHydraTrainingJob(Job):
         self.fairseq_python_exe = (
             fairseq_python_exe
             if fairseq_python_exe is not None
-            else getattr(gs, "FAIRSEQ_PYTHON_EXE", None)
+            else tk.Path("/usr/bin/python3")
         )
         self.fairseq_root = fairseq_root
         assert self.fairseq_root is not None
-        if self.fairseq_root is not None:
-            assert self.fairseq_python_exe is not None
         self.use_cache_manager = use_cache_manager
         if isinstance(zipped_audio_dir, tk.Path):
             self.zipped_audio_dir = [zipped_audio_dir]
@@ -210,9 +212,10 @@ class FairseqHydraTrainingJob(Job):
             )
             for k in self.keep_epochs
         }
-        self.out_cached_audio_manifest = self.output_path(
-            "cached_audio_manifest", directory=True
-        )
+        if use_cache_manager:
+            self.out_cached_audio_manifest = self.output_path(
+                "cached_audio_manifest", directory=True
+            )
         self.out_plot_se = self.output_path("loss_and_accuracy.svg")
         self.out_plot_lr = self.output_path("learning_rate.svg")
 
@@ -474,22 +477,6 @@ class FairseqHydraTrainingJob(Job):
         ]
         run_cmd += self.command_line_args
         run_cmd += ["checkpoint.save_dir=" + self.out_checkpoint_dir.get_path()]
-        run_cmd += [
-            "checkpoint.save_interval="
-            + str(
-                self.fairseq_hydra_config.post_config_dict.get("checkpoint").get(
-                    "save_interval"
-                )
-            )
-        ]
-        run_cmd += [
-            "optimization.max_epoch="
-            + str(
-                self.fairseq_hydra_config.config_dict.get("optimization").get(
-                    "max_epoch"
-                )
-            )
-        ]
 
         if self.use_cache_manager:
             run_cmd += ["task.data=" + self.out_cached_audio_manifest.get_path()]
