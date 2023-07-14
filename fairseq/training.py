@@ -48,16 +48,15 @@ class FairseqHydraConfig:
         return dict1
 
     def write(self, path: str):
-        path_corrected_config = self.config_dict.copy()
-        FairseqHydraConfig.update_nested_dict(
-            path_corrected_config, self.post_config_dict
+        config_dict = self.config_dict.copy()
+        config_dict = FairseqHydraConfig.update_nested_dict(
+            config_dict, self.post_config_dict
         )
 
         # recursively go through config dictionary to get all sisyphus paths inplace
-        path_corrected_config = util.instanciate_delayed(path_corrected_config)
+        config_dict = util.instanciate_delayed(config_dict)
 
-        config_yaml = yaml.dump(path_corrected_config)
-        # "# @package _group_" was written at the beginning in the example .yaml from fairseq:
+        config_yaml = yaml.dump(config_dict)
         if self.package_name != "":
             config_yaml = f"# @package {self.package_name}\n" + config_yaml
         with open(path, "w") as file:
@@ -69,8 +68,10 @@ class FairseqHydraConfig:
           * config_dict, post_config_dict use dict.update
         :param FairseqHydraConfig other:
         """
-        FairseqHydraConfig.update_nested_dict(self.config_dict, other.config_dict)
-        FairseqHydraConfig.update_nested_dict(
+        self.config_dict = FairseqHydraConfig.update_nested_dict(
+            self.config_dict, other.config_dict
+        )
+        self.post_config_dict = FairseqHydraConfig.update_nested_dict(
             self.post_config_dict, other.post_config_dict
         )
         self.package_name = other.package_name
@@ -154,7 +155,7 @@ class FairseqHydraTrainingJob(Job):
         :param FairseqHydraConfig fairseq_hydra_config:
         :param list command_line_args: Additional command line arguments (starting with "--*"),
             to configure the Fairseq-hydra task
-        :param int max_epoch: maximum number of epochs to run. Note that this value IS currently HASHED.
+        :param int max_epoch: maximum number of epochs to run.
         :param int save_interval: save a checkpoint each n-th epoch
         :param list[int]|set[int]|None keep_epochs: specify which checkpoints are kept in self.out_models.
             Use None for each save_interval-th epoch
