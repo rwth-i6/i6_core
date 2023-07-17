@@ -216,6 +216,7 @@ class OnnxExportJob(Job):
 
     def __init__(
         self,
+        *,
         returnn_config: ReturnnConfig,
         checkpoint: Union[Checkpoint, PtCheckpoint],
         device: str = "cpu",
