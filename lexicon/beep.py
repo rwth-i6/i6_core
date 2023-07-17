@@ -11,9 +11,7 @@ Path = setup_path(__package__)
 
 
 class DownloadBeepJob(Job):
-    def __init__(
-        self, url="ftp://svr-ftp.eng.cam.ac.uk/pub/comp.speech/dictionaries/beep.tar.gz"
-    ):
+    def __init__(self, url="ftp://svr-ftp.eng.cam.ac.uk/pub/comp.speech/dictionaries/beep.tar.gz"):
         self.set_vis_name("Download Beep Lexicon")
 
         self.url = url
@@ -37,9 +35,7 @@ class DownloadBeepJob(Job):
                 os.path.join(temp, "beep", "phone45.tab"),
                 self.out_phoneme_list.get_path(),
             )
-            shutil.copyfile(
-                os.path.join(temp, "beep", "beep-1.0"), self.out_beep_lexicon.get_path()
-            )
+            shutil.copyfile(os.path.join(temp, "beep", "beep-1.0"), self.out_beep_lexicon.get_path())
 
 
 class BeepToBlissLexiconJob(Job):
@@ -74,9 +70,7 @@ class BeepToBlissLexiconJob(Job):
                         if word == "[SIL]":
                             return
                         special = ""
-                        if (
-                            word == "[PAUSE]"
-                        ):  # pause appears first in the lexicon, but we want to name it silence
+                        if word == "[PAUSE]":  # pause appears first in the lexicon, but we want to name it silence
                             special = ' special="silence"'
                             word = "[SILENCE]"
                         out.write("  <lemma%s>\n" % special)
@@ -96,8 +90,7 @@ class BeepToBlissLexiconJob(Job):
                         line = line.strip()
                         variation = "none" if line == "sil" else "context"
                         out.write(
-                            "    <phoneme><symbol>%s</symbol><variation>%s</variation></phoneme>\n"
-                            % (line, variation)
+                            "    <phoneme><symbol>%s</symbol><variation>%s</variation></phoneme>\n" % (line, variation)
                         )
                     out.write("  </phoneme-inventory>\n")
 

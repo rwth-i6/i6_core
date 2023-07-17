@@ -41,9 +41,7 @@ class CNDecodingJob(rasr.RasrCommand, Job):
         )
         self.out_ctm_file = self.output_path("lattice.ctm")
         if self.write_cn:
-            self.out_lattice_bundle = self.output_path(
-                "confusion_lattice.bundle", cached=True
-            )
+            self.out_lattice_bundle = self.output_path("confusion_lattice.bundle", cached=True)
             self.out_lattice_path = util.MultiOutputPath(
                 self,
                 "confusion_lattice.cache.$(TASK)",
@@ -60,18 +58,14 @@ class CNDecodingJob(rasr.RasrCommand, Job):
 
     def tasks(self):
         yield Task("create_files", mini_task=True)
-        yield Task(
-            "run", resume="run", rqmt=self.rqmt, args=range(1, self.concurrent + 1)
-        )
+        yield Task("run", resume="run", rqmt=self.rqmt, args=range(1, self.concurrent + 1))
         yield Task("merge", mini_task=True)
 
     def create_files(self):
         self.write_config(self.config, self.post_config, "cn_decoding.config")
         self.write_run_script(self.exe, "cn_decoding.config")
         if self.write_cn:
-            util.write_paths_to_file(
-                self.out_lattice_bundle, self.out_single_lattice_caches.values()
-            )
+            util.write_paths_to_file(self.out_lattice_bundle, self.out_single_lattice_caches.values())
 
     def run(self, task_id):
         self.run_script(task_id, self.out_log_file[task_id])
@@ -114,9 +108,7 @@ class CNDecodingJob(rasr.RasrCommand, Job):
         config.flf_lattice_tool.network.initial_nodes = "segment"
 
         config.flf_lattice_tool.network.segment.type = "speech-segment"
-        config.flf_lattice_tool.network.segment.links = (
-            "0->archive-reader:1 0->dump-ctm:1"
-        )
+        config.flf_lattice_tool.network.segment.links = "0->archive-reader:1 0->dump-ctm:1"
         if write_cn:
             config.flf_lattice_tool.network.segment.links += " 0->archive-writer:1"
 
@@ -132,14 +124,10 @@ class CNDecodingJob(rasr.RasrCommand, Job):
         config.flf_lattice_tool.network.rescale.am.scale = 1.0
         config.flf_lattice_tool.network.rescale.links = "scale-pronunciation"
 
-        config.flf_lattice_tool.network.scale_pronunciation.type = (
-            "extend-by-pronunciation-score"
-        )
+        config.flf_lattice_tool.network.scale_pronunciation.type = "extend-by-pronunciation-score"
         config.flf_lattice_tool.network.scale_pronunciation.key = "am"
         config.flf_lattice_tool.network.scale_pronunciation.scale = pron_scale
-        config.flf_lattice_tool.network.scale_pronunciation.rescore_mode = (
-            "in-place-cached"
-        )
+        config.flf_lattice_tool.network.scale_pronunciation.rescore_mode = "in-place-cached"
         config.flf_lattice_tool.network.scale_pronunciation.links = "to-lemma"
 
         config.flf_lattice_tool.network.to_lemma.type = "map-alphabet"
@@ -155,12 +143,8 @@ class CNDecodingJob(rasr.RasrCommand, Job):
         config.flf_lattice_tool.network.cn_builder.confidence_key = "confidence"
         config.flf_lattice_tool.network.cn_builder.map = False
         config.flf_lattice_tool.network.cn_builder.distance = "weighted-pivot-time"
-        config.flf_lattice_tool.network.cn_builder.weighted_pivot_time.posterior_impact = (
-            0.1
-        )
-        config.flf_lattice_tool.network.cn_builder.weighted_pivot_time.edit_distance = (
-            False
-        )
+        config.flf_lattice_tool.network.cn_builder.weighted_pivot_time.posterior_impact = 0.1
+        config.flf_lattice_tool.network.cn_builder.weighted_pivot_time.edit_distance = False
         config.flf_lattice_tool.network.cn_builder.weighted_pivot_time.fast = False
         config.flf_lattice_tool.network.cn_builder.links = "0->dump-ctm:0"
 

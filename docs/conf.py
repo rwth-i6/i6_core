@@ -20,9 +20,7 @@ if not os.path.exists("i6_core"):
         if fn.endswith(".py"):
             os.symlink("../../%s" % fn, "i6_core/%s" % fn)
             continue
-        if os.path.isdir(os.path.join("..", fn)) and os.path.exists(
-            os.path.join("..", fn, "__init__.py")
-        ):
+        if os.path.isdir(os.path.join("..", fn)) and os.path.exists(os.path.join("..", fn, "__init__.py")):
             os.symlink("../../%s" % fn, "i6_core/%s" % fn)
             continue
 
@@ -51,9 +49,7 @@ extensions = [
     "sphinx.ext.intersphinx",  # link other projects
 ]
 
-intersphinx_mapping = {
-    "sisyphus": ("https://sisyphus-workflow-manager.readthedocs.io/en/latest/", None)
-}
+intersphinx_mapping = {"sisyphus": ("https://sisyphus-workflow-manager.readthedocs.io/en/latest/", None)}
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]

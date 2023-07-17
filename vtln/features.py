@@ -15,9 +15,7 @@ def VTLNFeaturesJob(
     if extra_warp_args is None:
         extra_warp_args = {}
 
-    feature_flow = warp_filterbank_with_map_flow(
-        feature_flow, map_file, **extra_warp_args
-    )
+    feature_flow = warp_filterbank_with_map_flow(feature_flow, map_file, **extra_warp_args)
 
     return features.FeatureExtractionJob(
         crp=crp,

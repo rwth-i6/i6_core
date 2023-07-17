@@ -59,15 +59,11 @@ class LatticePruningJob(rasr.RasrCommand, Job):
 
     def tasks(self):
         yield Task("create_files", mini_task=True)
-        yield Task(
-            "run", resume="run", rqmt=self.rqmt, args=range(1, self.concurrent + 1)
-        )
+        yield Task("run", resume="run", rqmt=self.rqmt, args=range(1, self.concurrent + 1))
 
     def create_files(self):
         self.write_config(self.config, self.post_config, "pruning.config")
-        util.write_paths_to_file(
-            self.out_lattice_bundle, self.out_single_lattice_caches.values()
-        )
+        util.write_paths_to_file(self.out_lattice_bundle, self.out_single_lattice_caches.values())
         self.write_run_script(self.exe, "pruning.config")
 
     def run(self, task_id):
@@ -108,9 +104,7 @@ class LatticePruningJob(rasr.RasrCommand, Job):
         config.flf_lattice_tool.network.initial_nodes = "segment"
 
         config.flf_lattice_tool.network.segment.type = "speech-segment"
-        config.flf_lattice_tool.network.segment.links = (
-            "0->archive-reader:1 0->archive-writer:1"
-        )
+        config.flf_lattice_tool.network.segment.links = "0->archive-reader:1 0->archive-writer:1"
 
         config.flf_lattice_tool.network.archive_reader.type = "archive-reader"
         config.flf_lattice_tool.network.archive_reader.format = "flf"
@@ -122,13 +116,9 @@ class LatticePruningJob(rasr.RasrCommand, Job):
         config.flf_lattice_tool.network.prune.nonword_phones = nonword_phones
         config.flf_lattice_tool.network.prune.min_phone_coverage = phone_coverage
         if max_arcs_per_second is not None:
-            config.flf_lattice_tool.network.prune.max_arcs_per_second = (
-                max_arcs_per_second
-            )
+            config.flf_lattice_tool.network.prune.max_arcs_per_second = max_arcs_per_second
         if max_arcs_per_segment is not None:
-            config.flf_lattice_tool.network.prune.max_arcs_per_segment = (
-                max_arcs_per_segment
-            )
+            config.flf_lattice_tool.network.prune.max_arcs_per_segment = max_arcs_per_segment
         config.flf_lattice_tool.network.prune.links = "apply-pruning"
 
         config.flf_lattice_tool.network.apply_pruning.type = "copy"
@@ -138,17 +128,13 @@ class LatticePruningJob(rasr.RasrCommand, Job):
         config.flf_lattice_tool.network.apply_pruning.links = "archive-writer"
 
         config.flf_lattice_tool.network.archive_writer.type = "archive-writer"
-        config.flf_lattice_tool.network.archive_writer.path = (
-            "pruned_lattice.cache.$(TASK)"
-        )
+        config.flf_lattice_tool.network.archive_writer.path = "pruned_lattice.cache.$(TASK)"
         config.flf_lattice_tool.network.archive_writer.format = output_format
         config.flf_lattice_tool.network.archive_writer.flf.partial.keys = "am lm"
         config.flf_lattice_tool.network.archive_writer.flf.partial.add = False
         config.flf_lattice_tool.network.archive_writer.links = "sink"
         if output_format == "lattice-processor":
-            config.flf_lattice_tool.network.archive_writer.lattice_processor.pronunciation_scale = (
-                pronunciation_scale
-            )
+            config.flf_lattice_tool.network.archive_writer.lattice_processor.pronunciation_scale = pronunciation_scale
 
         config.flf_lattice_tool.network.sink.type = "sink"
         config.flf_lattice_tool.network.sink.warn_on_empty_lattice = True

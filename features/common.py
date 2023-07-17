@@ -125,9 +125,7 @@ def samples_flow(
     if input_node_type == "ffmpeg":
         samples_out = samples
     else:
-        demultiplex = net.add_node(
-            "generic-vector-s16-demultiplex", "demultiplex", track="$(track)"
-        )
+        demultiplex = net.add_node("generic-vector-s16-demultiplex", "demultiplex", track="$(track)")
         net.link(samples, demultiplex)
 
         convert = net.add_node("generic-convert-vector-s16-to-vector-f32", "convert")
@@ -135,9 +133,7 @@ def samples_flow(
         samples_out = convert
 
     if scale_input:
-        scale = net.add_node(
-            "generic-vector-f32-multiplication", "scale", value=str(scale_input)
-        )
+        scale = net.add_node("generic-vector-f32-multiplication", "scale", value=str(scale_input))
         net.link(samples_out, scale)
         pre_dc_out = scale
     else:
@@ -153,9 +149,7 @@ def samples_flow(
     return net
 
 
-def feature_extraction_cache_flow(
-    feature_net, port_name_mapping, one_dimensional_outputs=None
-):
+def feature_extraction_cache_flow(feature_net, port_name_mapping, one_dimensional_outputs=None):
     """
     :param rasr.FlowNetwork feature_net: feature flow to extract features from
     :param dict[str,str] port_name_mapping: maps output ports to names of the cache files
@@ -175,16 +169,12 @@ def feature_extraction_cache_flow(
     caches = []
     for port, name in port_name_mapping.items():
         node_name = "feature-cache-" + name
-        fc = net.add_node(
-            "generic-cache", node_name, {"id": "$(id)", "path": name + ".cache.$(TASK)"}
-        )
+        fc = net.add_node("generic-cache", node_name, {"id": "$(id)", "path": name + ".cache.$(TASK)"})
         for src in feature_net.get_output_links(port):
             net.link(node_mapping[src], fc)
 
         if port in one_dimensional_outputs:
-            convert = net.add_node(
-                "generic-convert-f32-to-vector-f32", "convert-" + name
-            )
+            convert = net.add_node("generic-convert-f32-to-vector-f32", "convert-" + name)
             net.link(fc, convert)
             caches.append(convert)
         else:
@@ -261,9 +251,7 @@ def external_file_feature_flow(flow_file):
     return net
 
 
-def fft_flow(
-    preemphasis=1.0, window_type="hamming", window_shift=0.01, window_length=0.025
-):
+def fft_flow(preemphasis=1.0, window_type="hamming", window_shift=0.01, window_length=0.025):
     net = rasr.FlowNetwork()
 
     net.add_input("samples")
@@ -280,9 +268,7 @@ def fft_flow(
         "fft",
         {"maximum-input-size": window_length},
     )
-    spectrum = net.add_node(
-        "signal-vector-alternating-complex-f32-amplitude", "amplitude-spectrum"
-    )
+    spectrum = net.add_node("signal-vector-alternating-complex-f32-amplitude", "amplitude-spectrum")
 
     net.link("network:samples", preemphasis)
     net.link(preemphasis, window)
@@ -300,14 +286,10 @@ def cepstrum_flow(normalize=True, outputs=16, add_epsilon=False, epsilon=1.17549
     net.add_output("out")
 
     if add_epsilon:
-        nonlinear = net.add_node(
-            "generic-vector-f32-log-plus", "nonlinear", {"value": str(epsilon)}
-        )
+        nonlinear = net.add_node("generic-vector-f32-log-plus", "nonlinear", {"value": str(epsilon)})
     else:
         nonlinear = net.add_node("generic-vector-f32-log", "nonlinear")
-    cepstrum = net.add_node(
-        "signal-cosine-transform", "cepstrum", {"nr-outputs": outputs}
-    )
+    cepstrum = net.add_node("signal-cosine-transform", "cepstrum", {"nr-outputs": outputs})
 
     net.link("network:in", nonlinear)
     net.link(nonlinear, cepstrum)
@@ -343,23 +325,17 @@ def add_derivatives(feature_net, derivatives=1):
     )
     net.link(mapping[feature_net.get_output_links("features").pop()], delay)
 
-    delta = net.add_node(
-        "signal-regression", "delta", {"order": 1, "timestamp-port": 0}
-    )
+    delta = net.add_node("signal-regression", "delta", {"order": 1, "timestamp-port": 0})
     for i in range(-2, 3):
         net.link("%s:%d" % (delay, i), "%s:%d" % (delta, i))
 
     if derivatives == 2:
-        deltadelta = net.add_node(
-            "signal-regression", "deltadelta", {"order": 2, "timestamp-port": 0}
-        )
+        deltadelta = net.add_node("signal-regression", "deltadelta", {"order": 2, "timestamp-port": 0})
         for i in range(-2, 3):
             net.link("%s:%d" % (delay, i), "%s:%d" % (deltadelta, i))
 
     concat = net.add_node("generic-vector-f32-concat", "concat")
-    net.link(
-        mapping[feature_net.get_output_links("features").pop()], "%s:in-1" % concat
-    )
+    net.link(mapping[feature_net.get_output_links("features").pop()], "%s:in-1" % concat)
     net.link(delta, "%s:in-2" % concat)
     if derivatives == 2:
         net.link(deltadelta, "%s:in-3" % concat)
@@ -376,18 +352,14 @@ def add_linear_transform(feature_net, matrix_path):
     mapping = net.add_net(feature_net)
     net.interconnect_inputs(feature_net, mapping)
 
-    transform = net.add_node(
-        "signal-matrix-multiplication-f32", "linear-transform", {"file": matrix_path}
-    )
+    transform = net.add_node("signal-matrix-multiplication-f32", "linear-transform", {"file": matrix_path})
     net.link(mapping[feature_net.get_output_links("features").pop()], transform)
     net.link(transform, "network:features")
 
     return net
 
 
-def normalize_features(
-    feature_net, length="infinite", right="infinite", norm_type="mean-and-variance"
-):
+def normalize_features(feature_net, length="infinite", right="infinite", norm_type="mean-and-variance"):
     """
     Add normalization of the specfified type to the feature flow
     :param feature_net rasr.FlowNetwork: the unnormalized flow network, must have an output named 'features'
@@ -456,9 +428,7 @@ def sync_energy_features(feature_net, energy_net):
     return net
 
 
-def sync_features(
-    feature_net, target_net, feature_output="features", target_output="features"
-):
+def sync_features(feature_net, target_net, feature_output="features", target_output="features"):
     net = rasr.FlowNetwork()
 
     feature_mapping = net.add_net(feature_net)
@@ -486,9 +456,7 @@ def select_features(feature_net, select_range):
     mapping = net.add_net(feature_net)
     net.interconnect_inputs(feature_net, mapping)
 
-    select = net.add_node(
-        "generic-vector-f32-select", "select", {"select": select_range}
-    )
+    select = net.add_node("generic-vector-f32-select", "select", {"select": select_range})
     net.link(mapping[feature_net.get_output_links("features").pop()], select)
     net.link(select, "network:features")
 

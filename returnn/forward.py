@@ -8,10 +8,10 @@ import os
 import shutil
 import subprocess as sp
 import tempfile
-from typing import List, Optional
+from typing import List, Optional, Union
 
 from i6_core.returnn.config import ReturnnConfig
-from i6_core.returnn.training import Checkpoint
+from i6_core.returnn.training import Checkpoint, PtCheckpoint
 import i6_core.util as util
 
 Path = setup_path(__package__)
@@ -32,7 +32,7 @@ class ReturnnForwardJob(Job):
 
     def __init__(
         self,
-        model_checkpoint: Optional[Checkpoint],
+        model_checkpoint: Optional[Union[Checkpoint, PtCheckpoint]],
         returnn_config: ReturnnConfig,
         returnn_python_exe: tk.Path,
         returnn_root: tk.Path,
@@ -47,8 +47,8 @@ class ReturnnForwardJob(Job):
     ):
         """
 
-        :param model_checkpoint: Checkpoint object pointing to a stored RETURNN Tensorflow model or None if network has
-          no parameters or should be randomly initialized
+        :param model_checkpoint: Checkpoint object pointing to a stored RETURNN Tensorflow/PyTorch model
+            or None if network has no parameters or should be randomly initialized
         :param returnn_config: RETURNN config object
         :param returnn_python_exe: path to the RETURNN executable (python binary or launch script)
         :param returnn_root: path to the RETURNN src folder
@@ -111,9 +111,7 @@ class ReturnnForwardJob(Job):
 
         # check here if model actually exists
         if self.model_checkpoint is not None:
-            assert os.path.exists(
-                self.model_checkpoint.index_path.get_path()
-            ), "Provided model does not exists: %s" % str(self.model_checkpoint)
+            assert self.model_checkpoint.exists(), "Provided model does not exists: %s" % str(self.model_checkpoint)
 
     def run(self):
         # run everything in a TempDir as writing HDFs can cause heavy load

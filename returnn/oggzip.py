@@ -6,7 +6,12 @@ import subprocess as sp
 import tempfile
 import zipfile
 
-from i6_core.util import MultiOutputPath, relink
+from i6_core.util import (
+    MultiOutputPath,
+    relink,
+    get_returnn_python_exe,
+    get_returnn_root,
+)
 
 from sisyphus import *
 
@@ -52,8 +57,8 @@ class BlissToOggZipJob(Job):
         :param bool no_conversion: do not call the actual conversion, assume the audio files are already correct
         :param bool no_audio: do not add audio files
         :param str ffmpeg_acodec: force audio codec for ffmpeg calls
-        :param Path|str returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
-        :param Path|str returnn_root: file path to the RETURNN repository root folder
+        :param Optional[Path] returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
+        :param Optional[Path] returnn_root: file path to the RETURNN repository root folder
         """
         self.bliss_corpus = bliss_corpus
         self.segments = segments
@@ -63,18 +68,10 @@ class BlissToOggZipJob(Job):
         self.no_conversion = no_conversion
         self.no_audio = no_audio
         self.ffmpeg_acodec = ffmpeg_acodec
-        self.concurrent = (
-            len(segments.hidden_paths) if isinstance(segments, MultiOutputPath) else 1
-        )
+        self.concurrent = len(segments.hidden_paths) if isinstance(segments, MultiOutputPath) else 1
 
-        self.returnn_python_exe = (
-            returnn_python_exe
-            if returnn_python_exe is not None
-            else gs.RETURNN_PYTHON_EXE
-        )
-        self.returnn_root = (
-            returnn_root if returnn_root is not None else gs.RETURNN_ROOT
-        )
+        self.returnn_python_exe = get_returnn_python_exe(returnn_python_exe)
+        self.returnn_root = get_returnn_root(returnn_root)
 
         self.zip_subarchives = (
             MultiOutputPath(
@@ -104,16 +101,10 @@ class BlissToOggZipJob(Job):
                 yield Task("merge", mini_task=True)
 
     def run(self, task_id):
-        output = (
-            self.zip_subarchives.hidden_paths[task_id]
-            if self.concurrent > 1
-            else "out.ogg.zip"
-        )
+        output = self.zip_subarchives.hidden_paths[task_id] if self.concurrent > 1 else "out.ogg.zip"
         args = [
-            tk.uncached_path(self.returnn_python_exe),
-            os.path.join(
-                tk.uncached_path(self.returnn_root), "tools/bliss-to-ogg-zip.py"
-            ),
+            self.returnn_python_exe.get_path(),
+            self.returnn_root.join_right("tools/bliss-to-ogg-zip.py").get_path(),
             tk.uncached_path(self.bliss_corpus),
             "--output",
             output,
@@ -145,17 +136,12 @@ class BlissToOggZipJob(Job):
         with tempfile.TemporaryDirectory(prefix=gs.TMP_PREFIX) as tmp_dir:
             # extract all subarchives
             for zip_subarchive in self.zip_subarchives.hidden_paths.values():
-                with zipfile.ZipFile(
-                    zip_subarchive, mode="r", compression=zipfile.ZIP_DEFLATED
-                ) as zip_file:
+                with zipfile.ZipFile(zip_subarchive, mode="r", compression=zipfile.ZIP_DEFLATED) as zip_file:
                     zip_file.extractall(tmp_dir)
-                os.remove(zip_subarchive)
 
             # create output folder
             assert self.out_ogg_zip.get().endswith(".zip")
-            output_folder = os.path.join(
-                tmp_dir, os.path.basename(self.out_ogg_zip.get())[: -len(".zip")]
-            )
+            output_folder = os.path.join(tmp_dir, os.path.basename(self.out_ogg_zip.get())[: -len(".zip")])
             os.mkdir(output_folder)
 
             # merge meta files, remove from subarchives
@@ -163,9 +149,7 @@ class BlissToOggZipJob(Job):
             with open(meta_file, "w") as mf:
                 mf.write("[\n")
                 for zip_subarchive in self.zip_subarchives.hidden_paths.values():
-                    sub_meta_file = os.path.join(
-                        tmp_dir, zip_subarchive.replace(".zip", ".txt")
-                    )
+                    sub_meta_file = os.path.join(tmp_dir, zip_subarchive.replace(".zip", ".txt"))
                     with open(sub_meta_file, "r") as smf:
                         for line in smf.readlines():
                             if not (line.startswith("[") or line.startswith("]")):
@@ -179,9 +163,7 @@ class BlissToOggZipJob(Job):
                 "-av",
                 os.path.join(
                     tmp_dir,
-                    os.path.basename(self.zip_subarchives.path_template).replace(
-                        ".$(TASK).zip", ".*/*"
-                    ),
+                    os.path.basename(self.zip_subarchives.path_template).replace(".$(TASK).zip", ".*/*"),
                 ),
                 output_folder,
             ]
@@ -208,7 +190,10 @@ class BlissToOggZipJob(Job):
                         print("Adding:", zip_path)
                         zip_file.write(path, zip_path)
 
+            # move final output and delete single subarchives
             shutil.move(zip_file.filename, self.out_ogg_zip.get())
+            for zip_subarchive in self.zip_subarchives.hidden_paths.values():
+                os.remove(zip_subarchive)
 
     @classmethod
     def hash(cls, parsed_args):

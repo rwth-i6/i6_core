@@ -37,21 +37,16 @@ class ConfidenceBasedAlignmentJob(rasr.RasrCommand, Job):
         kwargs = locals()
         del kwargs["self"]
 
-        self.config, self.post_config = ConfidenceBasedAlignmentJob.create_config(
-            **kwargs
-        )
+        self.config, self.post_config = ConfidenceBasedAlignmentJob.create_config(**kwargs)
         self.alignment_flow = ConfidenceBasedAlignmentJob.create_flow(**kwargs)
         self.concurrent = crp.concurrent
-        self.exe = self.select_exe(
-            crp.acoustic_model_trainer_exe, "acoustic-model-trainer"
-        )
+        self.exe = self.select_exe(crp.acoustic_model_trainer_exe, "acoustic-model-trainer")
         self.feature_scorer = feature_scorer
         self.use_gpu = use_gpu
 
         self.out_log_file = self.log_file_output_path("alignment", crp, True)
         self.out_single_alignment_caches = dict(
-            (i, self.output_path("alignment.cache.%d" % i, cached=True))
-            for i in range(1, self.concurrent + 1)
+            (i, self.output_path("alignment.cache.%d" % i, cached=True)) for i in range(1, self.concurrent + 1)
         )
         self.out_alignment_path = util.MultiOutputPath(
             self,
@@ -59,9 +54,7 @@ class ConfidenceBasedAlignmentJob(rasr.RasrCommand, Job):
             self.out_single_alignment_caches,
             cached=True,
         )
-        self.out_alignment_bundle = self.output_path(
-            "alignment.cache.bundle", cached=True
-        )
+        self.out_alignment_bundle = self.output_path("alignment.cache.bundle", cached=True)
 
         self.rqmt = {
             "time": max(rtf * crp.corpus_duration / crp.concurrent, 0.5),
@@ -73,9 +66,7 @@ class ConfidenceBasedAlignmentJob(rasr.RasrCommand, Job):
     def tasks(self):
         rqmt = self.rqmt.copy()
         if isinstance(self.feature_scorer, rasr.GMMFeatureScorer):
-            mixture_size = os.stat(
-                tk.uncached_path(self.feature_scorer.config["file"])
-            ).st_size / (1024.0**2)
+            mixture_size = os.stat(tk.uncached_path(self.feature_scorer.config["file"])).st_size / (1024.0**2)
             rqmt["mem"] += int(math.ceil((mixture_size - 200.0) / 750.0))
 
         yield Task("create_files", mini_task=True)
@@ -84,9 +75,7 @@ class ConfidenceBasedAlignmentJob(rasr.RasrCommand, Job):
     def create_files(self):
         self.write_config(self.config, self.post_config, "alignment.config")
         self.alignment_flow.write_to_file("alignment.flow")
-        util.write_paths_to_file(
-            self.out_alignment_bundle, self.out_single_alignment_caches.values()
-        )
+        util.write_paths_to_file(self.out_alignment_bundle, self.out_single_alignment_caches.values())
         extra_code = (
             ":${{THEANO_FLAGS:="
             "}}\n"
@@ -150,18 +139,14 @@ class ConfidenceBasedAlignmentJob(rasr.RasrCommand, Job):
                     % node
                 )
 
-        config, post_config = rasr.build_config_from_mapping(
-            crp, mapping, parallelize=True
-        )
+        config, post_config = rasr.build_config_from_mapping(crp, mapping, parallelize=True)
 
         for node_type in [
             "model-combination",
             "alignment-weights-by-tied-state-alignment-weights",
         ]:
             for node in alignment_flow.get_node_names_by_filter(node_type):
-                node_config = config.acoustic_model_trainer.aligning_feature_extractor.feature_extraction[
-                    node
-                ]
+                node_config = config.acoustic_model_trainer.aligning_feature_extractor.feature_extraction[node]
                 node_post_config = post_config.acoustic_model_trainer.aligning_feature_extractor.feature_extraction[
                     node
                 ]
@@ -178,9 +163,7 @@ class ConfidenceBasedAlignmentJob(rasr.RasrCommand, Job):
         )
 
         config.action = "dry"
-        config.acoustic_model_trainer.aligning_feature_extractor.feature_extraction.file = (
-            "alignment.flow"
-        )
+        config.acoustic_model_trainer.aligning_feature_extractor.feature_extraction.file = "alignment.flow"
         post_config["*"].allow_overwrite = True
 
         config._update(extra_config)

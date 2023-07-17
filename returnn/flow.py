@@ -66,26 +66,20 @@ def make_precomputed_hybrid_tf_feature_flow(
     tf_flow.config[tf_fwd].input_map.info_0.param_name = "input"
     tf_flow.config[
         tf_fwd
-    ].input_map.info_0.tensor_name = (
-        f"extern_data/placeholders/{extern_data_name}/{extern_data_name}"
-    )
+    ].input_map.info_0.tensor_name = f"extern_data/placeholders/{extern_data_name}/{extern_data_name}"
     tf_flow.config[tf_fwd].input_map.info_0.seq_length_tensor_name = (
         f"extern_data/placeholders/" f"{extern_data_name}/{extern_data_name}_dim0_size"
     )
 
     tf_flow.config[tf_fwd].output_map.info_0.param_name = "log-posteriors"
-    tf_flow.config[
-        tf_fwd
-    ].output_map.info_0.tensor_name = f"{output_layer_name}/output_batch_major"
+    tf_flow.config[tf_fwd].output_map.info_0.tensor_name = f"{output_layer_name}/output_batch_major"
 
     tf_flow.config[tf_fwd].loader.type = "meta"
     tf_flow.config[tf_fwd].loader.meta_graph_file = tf_graph
     tf_flow.config[tf_fwd].loader.saved_model_file = tf_checkpoint
     if native_ops is not None:
         if isinstance(native_ops, list):
-            tf_flow.config[tf_fwd].loader.required_libraries = DelayedJoin(
-                native_ops, ";"
-            )
+            tf_flow.config[tf_fwd].loader.required_libraries = DelayedJoin(native_ops, ";")
         else:
             tf_flow.config[tf_fwd].loader.required_libraries = native_ops
 
@@ -105,9 +99,7 @@ def add_tf_flow_to_base_flow(
     :param str tf_fwd_input_name: see: get_tf_flow()
     :rtype: Combined FlowNetwork
     """
-    assert (
-        len(base_flow.outputs) == 1
-    ), "Not implemented otherwise"  # see hard coded tf-fwd input
+    assert len(base_flow.outputs) == 1, "Not implemented otherwise"  # see hard coded tf-fwd input
     base_output = list(base_flow.outputs)[0]
 
     input_name = tf_fwd_input_name
@@ -116,9 +108,7 @@ def add_tf_flow_to_base_flow(
     base_mapping = feature_flow.add_net(base_flow)
     tf_mapping = feature_flow.add_net(tf_flow)
     feature_flow.interconnect_inputs(base_flow, base_mapping)
-    feature_flow.interconnect(
-        base_flow, base_mapping, tf_flow, tf_mapping, {base_output: input_name}
-    )
+    feature_flow.interconnect(base_flow, base_mapping, tf_flow, tf_mapping, {base_output: input_name})
     feature_flow.interconnect_outputs(tf_flow, tf_mapping)
 
     # ensure cache_mode as base feature net

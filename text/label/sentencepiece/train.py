@@ -8,10 +8,7 @@ from sisyphus import *
 try:
     import sentencepiece
 except ImportError:
-    if (
-        not hasattr(gs, "WARNING_NO_SENTENCEPIECE")
-        or gs.WARNING_NO_SENTENCEPIECE is True
-    ):
+    if not hasattr(gs, "WARNING_NO_SENTENCEPIECE") or gs.WARNING_NO_SENTENCEPIECE is True:
         logging.warning(
             "The package 'sentencepiece' is not installed in the manager python env. Please make sure it is installed "
             "in the python environment running the Sisyphus worker. To suppress this warning set "

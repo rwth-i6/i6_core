@@ -35,9 +35,7 @@ class CartAndLDA:
         lda_scatter_args = {} if lda_scatter_args is None else lda_scatter_args
         lda_estimate_args = {} if lda_estimate_args is None else lda_estimate_args
         eigenvalue_args = {} if eigenvalue_args is None else eigenvalue_args
-        generalized_eigenvalue_args = (
-            {} if generalized_eigenvalue_args is None else generalized_eigenvalue_args
-        )
+        generalized_eigenvalue_args = {} if generalized_eigenvalue_args is None else generalized_eigenvalue_args
 
         self.cart_sum_jobs = []
         self.cart_estimate_jobs = []
@@ -84,9 +82,7 @@ class CartAndLDA:
 
             args = self.default_generalized_eigenvalue_params.copy()
             args.update(select_args(generalized_eigenvalue_args, iteration))
-            generalized_eigenvalue_problem_config = (
-                lda.build_generalized_eigenvalue_problem_config(**args)
-            )
+            generalized_eigenvalue_problem_config = lda.build_generalized_eigenvalue_problem_config(**args)
 
             args = {
                 "crp": crp,
@@ -99,9 +95,7 @@ class CartAndLDA:
             args.update(select_args(lda_estimate_args, iteration))
             lda_estimate = lda.EstimateLDAMatrixJob(**args)
 
-            initial_flow = features.add_linear_transform(
-                context_flow, lda_estimate.lda_matrix
-            )
+            initial_flow = features.add_linear_transform(context_flow, lda_estimate.lda_matrix)
 
             self.cart_sum_jobs.append(cart_sum)
             self.cart_estimate_jobs.append(cart_estimate)

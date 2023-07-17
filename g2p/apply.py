@@ -6,7 +6,7 @@ from tempfile import mkstemp
 
 from sisyphus import *
 
-from i6_core.util import uopen
+from i6_core.util import uopen, get_g2p_path, get_g2p_python
 
 Path = setup_path(__package__)
 
@@ -34,26 +34,14 @@ class ApplyG2PModelJob(Job):
         :param Path word_list_file: text file with a word each line
         :param float variants_mass:
         :param int variants_number:
-        :param DelayedBase|str|None g2p_path:
-        :param DelayedBase|str|None g2p_python:
+        :param Optional[Path] g2p_path:
+        :param Optional[Path] g2p_python:
         :param bool filter_empty_words: if True, creates a new lexicon file with no empty translated words
         :param int concurrent: split up word list file to parallelize job into this many instances
         """
-
-        if g2p_path is None:
-            g2p_path = (
-                tk.gs.G2P_PATH
-                if hasattr(tk.gs, "G2P_PATH")
-                else os.path.join(os.path.dirname(gs.SIS_COMMAND[0]), "g2p.py")
-            )
-        if g2p_python is None:
-            g2p_python = (
-                tk.gs.G2P_PYTHON if hasattr(tk.gs, "G2P_PYTHON") else gs.SIS_COMMAND[0]
-            )
-
         self.g2p_model = g2p_model
-        self.g2p_path = g2p_path
-        self.g2p_python = g2p_python
+        self.g2p_path = get_g2p_path(g2p_path)
+        self.g2p_python = get_g2p_python(g2p_python)
         self.variants_mass = variants_mass
         self.variants_number = variants_number
         self.word_list = word_list_file
@@ -95,8 +83,8 @@ class ApplyG2PModelJob(Job):
             with uopen(g2p_untranslated_path, "wt") as err:
                 sp.check_call(
                     [
-                        str(self.g2p_python),
-                        str(self.g2p_path),
+                        self.g2p_python.get_path(),
+                        self.g2p_path.get_path(),
                         "-e",
                         "utf-8",
                         "-V",
@@ -121,16 +109,13 @@ class ApplyG2PModelJob(Job):
 
         with uopen(self.out_g2p_untranslated, "wt") as f:
             sp.check_call(
-                ["cat"]
-                + [f"g2p.untranslated.{i}" for i in range(1, self.concurrent + 1)],
+                ["cat"] + [f"g2p.untranslated.{i}" for i in range(1, self.concurrent + 1)],
                 stdout=f,
             )
 
     def filter(self):
         handle, tmp_path = mkstemp(dir=".", text=True)
-        with uopen(self.out_g2p_lexicon, "rt") as lex, os.fdopen(
-            handle, "wt"
-        ) as fd_out:
+        with uopen(self.out_g2p_lexicon, "rt") as lex, os.fdopen(handle, "wt") as fd_out:
             for line in lex:
                 if len(line.strip().split("\t")) == 4:
                     fd_out.write(line)

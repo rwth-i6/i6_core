@@ -1,13 +1,13 @@
+from __future__ import annotations
+
 __all__ = ["System", "select_element", "CorpusObject"]
 
 import copy
 import types
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 import re
 
 from sisyphus import *
-
-Path = setup_path(__package__)
 
 import i6_core.corpus as corpus_recipes
 import i6_core.lexicon as lexicon
@@ -16,9 +16,27 @@ import i6_core.features as features
 import i6_core.mm as mm
 import i6_core.recognition as recog
 import i6_core.rasr as rasr
+import i6_core.util as util
 import i6_core.vtln as vtln
 
 from .mm_sequence import AlignSplitAccumulateSequence
+
+Path = setup_path(__package__)
+
+
+selector_type = Union[str, List, Tuple[str], Tuple[str, str], Tuple[str, str, int]]
+
+
+class CorpusObject(tk.Object):
+    """
+    A simple container object to track additional information for a bliss corpus
+    """
+
+    def __init__(self):
+        self.corpus_file: Optional[tk.Path] = None  # bliss corpus xml
+        self.audio_dir: Optional[tk.Path] = None  # audio directory if paths are relative (usually not needed)
+        self.audio_format: Optional[str] = None  # format type of the audio files, see e.g. get_input_node_type()
+        self.duration: Optional[float] = None  # duration of the corpus, is used to determine job time
 
 
 class System:
@@ -33,9 +51,10 @@ class System:
         self.default_mixture_scorer = rasr.DiagonalMaximumScorer
 
         # collections which are a nested dict of corpus_key -> name -> some object / some container
-        # container can be list, tuple or dict
-        self.alignments = {}  # type: Dict[str,Dict[str,Union[List[Any], Any]]]
-        # corpus_key -> alignment_name -> element or list of e.g. FlowAttributes with cache_mode containing caches and bundle
+        # the container can be list, tuple or dict
+        self.alignments = {}  # type: Dict[str, Dict[str, Union[List[Any], Any]]]
+        # corpus_key -> alignment_name -> element or list of e.g. FlowAttributes
+        # with cache_mode containing caches and bundle
         self.ctm_files = {}
         self.feature_caches = {}
         self.feature_bundles = {}
@@ -57,16 +76,18 @@ class System:
         self.scorer_args = {}
         self.scorer_hyp_arg = {}
 
-        self.jobs = {"base": {}}  # type: Dict[str,Dict[str,Job]]
+        self.jobs: Dict[str, Dict[str, Union[Job, AlignSplitAccumulateSequence]]] = {"base": {}}
 
-    def set_corpus(self, name, corpus, concurrent, segment_path=None):
+    def set_corpus(
+        self, name: str, corpus: CorpusObject, concurrent: int, segment_path: Optional[util.MultiOutputPath] = None
+    ):
         """
         Initialize collections and crp for a new corpus
 
-        :param str name: will be the corpus_key
-        :param CorpusObject corpus:
-        :param int concurrent:
-        :param util.MultiOutputPath segment_path:
+        :param name: will be the corpus_key
+        :param corpus:
+        :param concurrent:
+        :param segment_path:
         :return:
         """
         self.crp[name] = rasr.CommonRasrParameters(base=self.crp["base"])
@@ -90,12 +111,12 @@ class System:
 
         self.jobs[name] = {}
 
-    def add_overlay(self, origin, name):
+    def add_overlay(self, origin: str, name: str):
         """
         Creates an overlay (meaning e.g. a subset or other kind of modified version) of an existing corpus
 
-        :param str origin: name/corpus_key of the original common rasr parameters with associated alignments, features, etc
-        :param str name: name/corpus_key of the new overlay over the original
+        :param origin: name/corpus_key of the original common rasr parameters with associated alignments, features, etc
+        :param name: name/corpus_key of the new overlay over the original
         :return:
         """
         self.crp[name] = rasr.CommonRasrParameters(base=self.crp[origin])
@@ -116,64 +137,42 @@ class System:
 
         self.jobs[name] = {}
 
-    def copy_from_system(self, origin_system, origin_name, target_name=None):
+    def copy_from_system(self, origin_system: System, origin_name: str, target_name: Optional[str] = None):
         """
         Import the dictionaries from another System
-        :param System origin_system:
-        :param str origin_name: Name of the dataset in another system
-        :param str target_name: Name of the dataset in current system (optional) (default=origin_name)
+
+        :param origin_system:
+        :param origin_name: Name of the dataset in another system
+        :param target_name: Name of the dataset in current system (optional) (default=origin_name)
         :return:
         """
         if not target_name:
             target_name = origin_name
 
-        self.crp[target_name] = rasr.CommonRasrParameters(
-            base=origin_system.crp[origin_name]
-        )
+        self.crp[target_name] = rasr.CommonRasrParameters(base=origin_system.crp[origin_name])
 
-        self.alignments[target_name] = copy.deepcopy(
-            origin_system.alignments[origin_name]
-        )
-        self.ctm_files[target_name] = copy.deepcopy(
-            origin_system.ctm_files[origin_name]
-        )
-        self.feature_caches[target_name] = copy.deepcopy(
-            origin_system.feature_caches[origin_name]
-        )
-        self.feature_bundles[target_name] = copy.deepcopy(
-            origin_system.feature_bundles[origin_name]
-        )
-        self.feature_flows[target_name] = copy.deepcopy(
-            origin_system.feature_flows[origin_name]
-        )
-        self.feature_scorers[target_name] = copy.deepcopy(
-            origin_system.feature_scorers[origin_name]
-        )
-        self.lattice_caches[target_name] = copy.deepcopy(
-            origin_system.lattice_caches[origin_name]
-        )
-        self.lattice_bundles[target_name] = copy.deepcopy(
-            origin_system.lattice_bundles[origin_name]
-        )
+        self.alignments[target_name] = copy.deepcopy(origin_system.alignments[origin_name])
+        self.ctm_files[target_name] = copy.deepcopy(origin_system.ctm_files[origin_name])
+        self.feature_caches[target_name] = copy.deepcopy(origin_system.feature_caches[origin_name])
+        self.feature_bundles[target_name] = copy.deepcopy(origin_system.feature_bundles[origin_name])
+        self.feature_flows[target_name] = copy.deepcopy(origin_system.feature_flows[origin_name])
+        self.feature_scorers[target_name] = copy.deepcopy(origin_system.feature_scorers[origin_name])
+        self.lattice_caches[target_name] = copy.deepcopy(origin_system.lattice_caches[origin_name])
+        self.lattice_bundles[target_name] = copy.deepcopy(origin_system.lattice_bundles[origin_name])
         self.mixtures[target_name] = copy.deepcopy(origin_system.mixtures[origin_name])
-        self.nn_configs[target_name] = copy.deepcopy(
-            origin_system.nn_configs[origin_name]
-        )
-        self.nn_models[target_name] = copy.deepcopy(
-            origin_system.nn_models[origin_name]
-        )
+        self.nn_configs[target_name] = copy.deepcopy(origin_system.nn_configs[origin_name])
+        self.nn_models[target_name] = copy.deepcopy(origin_system.nn_models[origin_name])
         # self.stm_files      [target_name] = copy.deepcopy(origin_system.stm_files[origin_name])
 
-        self.normalization_matrices[target_name] = copy.deepcopy(
-            origin_system.normalization_matrices[origin_name]
-        )
+        self.normalization_matrices[target_name] = copy.deepcopy(origin_system.normalization_matrices[origin_name])
 
         self.jobs[target_name] = {}
 
-    def set_sclite_scorer(self, corpus, **kwargs):
+    def set_sclite_scorer(self, corpus: str, **kwargs):
         """
         set sclite scorer for a corpus
-        :param str corpus: corpus name
+
+        :param corpus: corpus name
         :param kwargs:
         :return:
         """
@@ -181,10 +180,11 @@ class System:
         self.scorer_args[corpus] = {"ref": self.stm_files[corpus], **kwargs}
         self.scorer_hyp_arg[corpus] = "hyp"
 
-    def set_hub5_scorer(self, corpus, **kwargs):
+    def set_hub5_scorer(self, corpus: str, **kwargs):
         """
         set hub5 scorer for a corpus
-        :param str corpus: corpus name
+
+        :param corpus: corpus name
         :param kwargs:
         :return:
         """
@@ -200,11 +200,12 @@ class System:
         }
         self.scorer_hyp_arg[corpus] = "hyp"
 
-    def set_kaldi_scorer(self, corpus, mapping):
+    def set_kaldi_scorer(self, corpus: str, mapping: Dict):
         """
         set kaldi scorer for a corpus
-        :param str corpus: corpus name
-        :param dict mapping: dictionary of words to be replaced
+
+        :param corpus: corpus name
+        :param mapping: dictionary of words to be replaced
         :return:
         """
         self.scorers[corpus] = recog.KaldiScorerJob
@@ -214,10 +215,11 @@ class System:
         }
         self.scorer_hyp_arg[corpus] = "ctm"
 
-    def create_stm_from_corpus(self, corpus, **kwargs):
+    def create_stm_from_corpus(self, corpus: str, **kwargs):
         """
         create and set the stm files
-        :param str corpus: corpus name
+
+        :param corpus: corpus name
         :param kwargs: additional arguments for the CorpusToStmJob
         :return:
         """
@@ -225,34 +227,29 @@ class System:
             self.crp[corpus].corpus_config.file, **kwargs
         ).out_stm_path
 
-    def store_allophones(self, source_corpus, target_corpus="base", **kwargs):
+    def store_allophones(self, source_corpus: str, target_corpus: str = "base", **kwargs):
         """
         dump allophones into a file
-        :param str source_corpus:
-        :param str target_corpus:
+
+        :param source_corpus:
+        :param target_corpus:
         :param kwargs:
         :return:
         """
-        self.jobs[target_corpus]["allophones"] = lexicon.StoreAllophonesJob(
-            self.crp[source_corpus], **kwargs
-        )
+        self.jobs[target_corpus]["allophones"] = lexicon.StoreAllophonesJob(self.crp[source_corpus], **kwargs)
         # noinspection PyUnresolvedReferences
-        self.allophone_files[target_corpus] = self.jobs[target_corpus][
-            "allophones"
-        ].out_allophone_file
+        self.allophone_files[target_corpus] = self.jobs[target_corpus]["allophones"].out_allophone_file
         if self.crp[target_corpus].acoustic_model_post_config is None:
             self.crp[target_corpus].acoustic_model_post_config = rasr.RasrConfig()
-        self.crp[
-            target_corpus
-        ].acoustic_model_post_config.allophones.add_from_file = self.allophone_files[
+        self.crp[target_corpus].acoustic_model_post_config.allophones.add_from_file = self.allophone_files[
             target_corpus
         ]
 
-    def replace_named_flow_attr(self, corpus, flow_regex, attr_name, new_value):
+    def replace_named_flow_attr(self, corpus: str, flow_regex: str, attr_name: str, new_value: Any):
         """
 
-        :param str corpus:
-        :param str flow_regex:
+        :param corpus:
+        :param flow_regex:
         :param attr_name:
         :param new_value:
         :return:
@@ -262,12 +259,12 @@ class System:
             if pattern.match(name) and attr_name in flow.named_attributes:
                 flow.named_attributes[attr_name].value = new_value
 
-    def add_derivatives(self, corpus, flow, num_deriv, num_features=None):
+    def add_derivatives(self, corpus: str, flow: str, num_deriv: int, num_features: Optional[int] = None):
         """
-        :param str corpus:
-        :param str flow:
-        :param int num_deriv:
-        :param int|None num_features:
+        :param corpus:
+        :param flow:
+        :param num_deriv:
+        :param num_features:
         :return:
         """
         self.feature_flows[corpus][flow + "+deriv"] = features.add_derivatives(
@@ -278,16 +275,14 @@ class System:
                 self.feature_flows[corpus][flow + "+deriv"], "0-%d" % (num_features - 1)
             )
 
-    def energy_features(self, corpus, prefix="", **kwargs):
+    def energy_features(self, corpus: str, prefix: str = "", **kwargs):
         """
-        :param str corpus:
-        :param str prefix:
+        :param corpus:
+        :param prefix:
         :param kwargs:
         :return:
         """
-        self.jobs[corpus]["energy_features"] = f = features.EnergyJob(
-            self.crp[corpus], **kwargs
-        )
+        self.jobs[corpus]["energy_features"] = f = features.EnergyJob(self.crp[corpus], **kwargs)
         f.add_alias("%s%s_energy_features" % (prefix, corpus))
         self.feature_caches[corpus]["energy"] = f.out_feature_path["energy"]
         self.feature_bundles[corpus]["energy"] = f.out_feature_bundle["energy"]
@@ -302,18 +297,16 @@ class System:
         self.feature_flows[corpus]["energy"] = features.basic_cache_flow(feature_path)
         self.feature_flows[corpus]["uncached_energy"] = f.feature_flow
 
-    def mfcc_features(self, corpus, num_deriv=2, num_features=33, prefix="", **kwargs):
+    def mfcc_features(self, corpus: str, num_deriv: int = 2, num_features: int = 33, prefix: str = "", **kwargs):
         """
-        :param str corpus:
-        :param int num_deriv:
-        :param int num_features:
-        :param str prefix:
+        :param corpus:
+        :param num_deriv:
+        :param num_features:
+        :param prefix:
         :param kwargs:
         :return:
         """
-        self.jobs[corpus]["mfcc_features"] = f = features.MfccJob(
-            self.crp[corpus], **kwargs
-        )
+        self.jobs[corpus]["mfcc_features"] = f = features.MfccJob(self.crp[corpus], **kwargs)
         f.add_alias("%s%s_mfcc_features" % (prefix, corpus))
         self.feature_caches[corpus]["mfcc"] = f.out_feature_path["mfcc"]
         self.feature_bundles[corpus]["mfcc"] = f.out_feature_bundle["mfcc"]
@@ -330,15 +323,13 @@ class System:
         self.add_derivatives(corpus, "mfcc", num_deriv, num_features)
         self.add_derivatives(corpus, "uncached_mfcc", num_deriv, num_features)
 
-    def fb_features(self, corpus, **kwargs):
+    def fb_features(self, corpus: str, **kwargs):
         """
-        :param str corpus:
+        :param corpus:
         :param kwargs:
         :return:
         """
-        self.jobs[corpus]["fb_features"] = f = features.FilterbankJob(
-            self.crp[corpus], **kwargs
-        )
+        self.jobs[corpus]["fb_features"] = f = features.FilterbankJob(self.crp[corpus], **kwargs)
         f.add_alias("%s_fb_features" % corpus)
         self.feature_caches[corpus]["fb"] = f.out_feature_path["fb"]
         self.feature_bundles[corpus]["fb"] = f.out_feature_bundle["fb"]
@@ -353,21 +344,16 @@ class System:
         self.feature_flows[corpus]["fb"] = features.basic_cache_flow(feature_path)
         self.feature_flows[corpus]["uncached_fb"] = f.feature_flow
 
-    def gt_features(self, corpus, prefix="", **kwargs):
+    def gt_features(self, corpus: str, prefix: str = "", **kwargs):
         """
-        :param str corpus:
-        :param str prefix:
+        :param corpus:
+        :param prefix:
         :param kwargs:
         :return:
         """
-        self.jobs[corpus]["gt_features"] = f = features.GammatoneJob(
-            self.crp[corpus], **kwargs
-        )
+        self.jobs[corpus]["gt_features"] = f = features.GammatoneJob(self.crp[corpus], **kwargs)
         if "gt_options" in kwargs and "channels" in kwargs.get("gt_options"):
-            f.add_alias(
-                "%s%s_gt_%i_features"
-                % (prefix, corpus, kwargs.get("gt_options").get("channels"))
-            )
+            f.add_alias("%s%s_gt_%i_features" % (prefix, corpus, kwargs.get("gt_options").get("channels")))
         else:
             f.add_alias("%s%s_gt_features" % (prefix, corpus))
         self.feature_caches[corpus]["gt"] = f.out_feature_path["gt"]
@@ -384,17 +370,26 @@ class System:
         self.feature_flows[corpus]["uncached_gt"] = f.feature_flow
 
     def generic_features(
-        self, corpus, name, feature_flow, port_name="features", prefix="", **kwargs
+        self,
+        corpus: str,
+        name: str,
+        feature_flow: rasr.FlowNetwork,
+        port_name: str = "features",
+        prefix: str = "",
+        **kwargs,
     ):
         """
-        :param str corpus: corpus identifier
-        :param str name: feature identifier, like "mfcc". Also used in the naming of the output feature caches.
-        :param rasr.FlowNetwork feature_flow: definition of the RASR feature flow network
-        :param str port_name: output port of the flow network to use
-        :param str prefix: prefix for the alias job symlink
+        :param corpus: corpus identifier
+        :param name: feature identifier, like "mfcc". Also used in the naming of the output feature caches.
+        :param feature_flow: definition of the RASR feature flow network
+        :param port_name: output port of the flow network to use, e.g., for samples_flow() this is "samples"
+        :param prefix: prefix for the alias job symlink
         :param kwargs:
         :return:
         """
+        assert (
+            port_name in feature_flow.outputs
+        ), f"port name '{port_name}' not available in feature flow (available are: {feature_flow.outputs})"
         port_name_mapping = {port_name: name}
         self.jobs[corpus][f"{name}_features"] = f = features.FeatureExtractionJob(
             self.crp[corpus], feature_flow, port_name_mapping, job_name=name, **kwargs
@@ -413,17 +408,15 @@ class System:
         self.feature_flows[corpus][name] = features.basic_cache_flow(feature_path)
         self.feature_flows[corpus][f"uncached_{name}"] = f.feature_flow
 
-    def plp_features(self, corpus, num_deriv=2, num_features=23, **kwargs):
+    def plp_features(self, corpus: str, num_deriv: int = 2, num_features: int = 23, **kwargs):
         """
-        :param str corpus:
-        :param int num_deriv:
-        :param int num_features:
+        :param corpus:
+        :param num_deriv:
+        :param num_features:
         :param kwargs:
         :return:
         """
-        self.jobs[corpus]["plp_features"] = f = features.PlpJob(
-            self.crp[corpus], **kwargs
-        )
+        self.jobs[corpus]["plp_features"] = f = features.PlpJob(self.crp[corpus], **kwargs)
         f.add_alias("%s_plp_features" % corpus)
         self.feature_caches[corpus]["plp"] = f.out_feature_path["plp"]
         self.feature_bundles[corpus]["plp"] = f.out_feature_bundle["plp"]
@@ -436,25 +429,21 @@ class System:
             },
         )
         self.feature_flows[corpus]["plp"] = features.basic_cache_flow(feature_path)
-        self.feature_flows[corpus]["plp+deriv"] = features.add_derivatives(
-            self.feature_flows[corpus]["plp"], num_deriv
-        )
+        self.feature_flows[corpus]["plp+deriv"] = features.add_derivatives(self.feature_flows[corpus]["plp"], num_deriv)
         if num_features is not None:
             self.feature_flows[corpus]["plp+deriv"] = features.select_features(
                 self.feature_flows[corpus]["plp+deriv"], "0-%d" % (num_features - 1)
             )
         self.feature_flows[corpus]["uncached_plp"] = f.feature_flow
 
-    def voiced_features(self, corpus, prefix="", **kwargs):
+    def voiced_features(self, corpus: str, prefix: str = "", **kwargs):
         """
-        :param str corpus:
-        :param str prefix:
+        :param corpus:
+        :param prefix:
         :param kwargs:
         :return:
         """
-        self.jobs[corpus]["voiced_features"] = f = features.VoicedJob(
-            self.crp[corpus], **kwargs
-        )
+        self.jobs[corpus]["voiced_features"] = f = features.VoicedJob(self.crp[corpus], **kwargs)
         f.add_alias("%s_%s_voiced_features" % (prefix, corpus))
         self.feature_caches[corpus]["voiced"] = f.out_feature_path["voiced"]
         self.feature_bundles[corpus]["voiced"] = f.out_feature_bundle["voiced"]
@@ -469,11 +458,11 @@ class System:
         self.feature_flows[corpus]["voiced"] = features.basic_cache_flow(feature_path)
         self.feature_flows[corpus]["uncached_voiced"] = f.feature_flow
 
-    def tone_features(self, corpus, timestamp_flow, prefix="", **kwargs):
+    def tone_features(self, corpus: str, timestamp_flow: str, prefix: str = "", **kwargs):
         """
-        :param str corpus:
-        :param str timestamp_flow:
-        :param str prefix:
+        :param corpus:
+        :param timestamp_flow:
+        :param prefix:
         :param kwargs:
         :return:
         """
@@ -494,12 +483,12 @@ class System:
         )
         self.feature_flows[corpus]["tone"] = features.basic_cache_flow(feature_path)
 
-    def vtln_features(self, name, corpus, raw_feature_flow, warping_map, **kwargs):
+    def vtln_features(self, name: str, corpus: str, raw_feature_flow: rasr.FlowNetwork, warping_map: tk.Path, **kwargs):
         """
-        :param str name:
-        :param str corpus:
-        :param rasr.FlagDependentFlowAttribute raw_feature_flow:
-        :param tk.Path warping_map:
+        :param name:
+        :param corpus:
+        :param raw_feature_flow:
+        :param warping_map:
         :param kwargs:
         :return:
         """
@@ -519,21 +508,21 @@ class System:
         self.feature_flows[corpus][name] = features.basic_cache_flow(feature_path)
         self.feature_flows[corpus]["uncached_" + name] = f.feature_flow
 
-    def add_energy_to_features(self, corpus, flow):
+    def add_energy_to_features(self, corpus: str, flow: str):
         """
-        :param str corpus:
-        :param str flow:
+        :param corpus:
+        :param flow:
         :return:
         """
         self.feature_flows[corpus]["energy,%s" % flow] = features.sync_energy_features(
             self.feature_flows[corpus][flow], self.feature_flows[corpus]["energy"]
         )
 
-    def normalize(self, corpus, flow, target_corpora, **kwargs):
+    def normalize(self, corpus: str, flow: str, target_corpora: List[str], **kwargs):
         """
-        :param str corpus:
-        :param str flow:
-        :param [str] target_corpora:
+        :param corpus:
+        :param flow:
+        :param target_corpora:
         :param kwargs:
         :return:
         """
@@ -541,9 +530,7 @@ class System:
         feature_flow.flags = {"cache_mode": "bundle"}
         new_flow_name = "%s+norm" % flow
 
-        self.jobs[corpus][
-            "normalize_%s" % flow
-        ] = j = features.CovarianceNormalizationJob(
+        self.jobs[corpus]["normalize_%s" % flow] = j = features.CovarianceNormalizationJob(
             self.crp[corpus], feature_flow, **kwargs
         )
         self.normalization_matrices[corpus][new_flow_name] = j.normalization_matrix
@@ -553,25 +540,23 @@ class System:
                 self.feature_flows[c][flow], j.normalization_matrix
             )
 
-    def costa(self, corpus, prefix="", **kwargs):
+    def costa(self, corpus: str, prefix: str = "", **kwargs):
         """
-        :param str corpus:
-        :param str prefix:
+        :param corpus:
+        :param prefix:
         :param kwargs:
         :return:
         """
-        self.jobs[corpus]["costa"] = j = corpus_recipes.CostaJob(
-            self.crp[corpus], **kwargs
-        )
+        self.jobs[corpus]["costa"] = j = corpus_recipes.CostaJob(self.crp[corpus], **kwargs)
         j.add_alias("%scosta_%s" % (prefix, corpus))
         tk.register_output("%s%s.costa.log.gz" % (prefix, corpus), j.out_log_file)
 
-    def linear_alignment(self, name, corpus, flow, prefix="", **kwargs):
+    def linear_alignment(self, name: str, corpus: str, flow: str, prefix: str = "", **kwargs):
         """
-        :param str name:
-        :param str corpus:
-        :param str flow:
-        :param str prefix:
+        :param name:
+        :param corpus:
+        :param flow:
+        :param prefix:
         """
         name = "linear_alignment_%s" % name
         self.jobs[corpus][name] = j = mm.LinearAlignmentJob(
@@ -588,12 +573,19 @@ class System:
                 },
             )
 
-    def align(self, name, corpus, flow, feature_scorer, **kwargs):
+    def align(
+        self,
+        name: str,
+        corpus: str,
+        flow: Union[selector_type, rasr.FlowNetwork],
+        feature_scorer: Union[selector_type, rasr.FeatureScorer],
+        **kwargs,
+    ):
         """
-        :param str name:
-        :param str corpus:
-        :param str|list[str]|tuple[str]|rasr.FlagDependentFlowAttribute flow:
-        :param str|list[str]|tuple[str]|rasr.FeatureScorer feature_scorer:
+        :param name:
+        :param corpus:
+        :param flow:
+        :param feature_scorer:
         :param kwargs:
         :return:
         """
@@ -611,15 +603,22 @@ class System:
         )
 
     def estimate_mixtures(
-        self, name, corpus, flow, old_mixtures=None, alignment=None, prefix="", **kwargs
+        self,
+        name: str,
+        corpus: str,
+        flow: str,
+        old_mixtures: Optional[Union[selector_type, tk.Path]] = None,
+        alignment: Optional[Union[selector_type, rasr.FlagDependentFlowAttribute, tk.Path]] = None,
+        prefix: str = "",
+        **kwargs,
     ):
         """
-        :param str name:
-        :param str corpus:
-        :param str flow:
-        :param str|list[str]|tuple[str]|tk.Path old_mixtures:
-        :param str|list[str]|tuple[str]|rasr.FlagDependentFlowAttribute alignment:
-        :param str prefix:
+        :param name:
+        :param corpus:
+        :param flow:
+        :param old_mixtures:
+        :param alignment:
+        :param prefix:
         :param kwargs:
         :return:
         """
@@ -637,12 +636,19 @@ class System:
         self.mixtures[corpus][name] = j.out_mixtures
         self.feature_scorers[corpus][name] = self.default_mixture_scorer(j.out_mixtures)
 
-    def train(self, name, corpus, sequence, flow, **kwargs):
+    def train(
+        self,
+        name: str,
+        corpus: str,
+        sequence: List[str],
+        flow: Union[selector_type, rasr.FlowNetwork],
+        **kwargs,
+    ):
         """
-        :param str name:
-        :param str corpus:
-        :param list[str] sequence: action sequence
-        :param str|list[str]|tuple[str]|rasr.FlagDependentFlowAttribute flow:
+        :param name:
+        :param corpus:
+        :param sequence: action sequence
+        :param flow:
         :param kwargs: passed on to :class:`AlignSplitAccumulateSequence`
         """
         name = "train_%s" % name
@@ -657,33 +663,31 @@ class System:
 
         self.mixtures[corpus][name] = j.selected_mixtures
         self.alignments[corpus][name] = j.selected_alignments
-        self.feature_scorers[corpus][name] = [
-            self.default_mixture_scorer(m) for m in j.selected_mixtures
-        ]
+        self.feature_scorers[corpus][name] = [self.default_mixture_scorer(m) for m in j.selected_mixtures]
 
     def recog(
         self,
-        name,
-        corpus,
-        flow,
-        feature_scorer,
-        pronunciation_scale,
-        lm_scale,
-        parallelize_conversion=False,
-        lattice_to_ctm_kwargs=None,
-        prefix="",
+        name: str,
+        corpus: str,
+        flow: Union[selector_type, rasr.FlowNetwork],
+        feature_scorer: Union[selector_type, rasr.FeatureScorer],
+        pronunciation_scale: float,
+        lm_scale: float,
+        parallelize_conversion: bool = False,
+        lattice_to_ctm_kwargs: Optional[Dict] = None,
+        prefix: str = "",
         **kwargs,
     ):
         """
-        :param str name:
-        :param str corpus:
-        :param str|list[str]|tuple[str]|rasr.FlagDependentFlowAttribute flow:
-        :param str|list[str]|tuple[str]|rasr.FeatureScorer feature_scorer:
-        :param float pronunciation_scale:
-        :param float lm_scale:
-        :param bool parallelize_conversion:
-        :param dict lattice_to_ctm_kwargs:
-        :param str prefix:
+        :param name:
+        :param corpus:
+        :param flow:
+        :param feature_scorer:
+        :param pronunciation_scale:
+        :param lm_scale:
+        :param parallelize_conversion:
+        :param lattice_to_ctm_kwargs:
+        :param prefix:
         :param kwargs:
         :return:
         """
@@ -711,6 +715,7 @@ class System:
             parallelize=parallelize_conversion,
             **lattice_to_ctm_kwargs,
         )
+        lat2ctm.add_alias("%slat2ctm_%s" % (prefix, name))
         self.ctm_files[corpus]["recog_%s" % name] = lat2ctm.out_ctm_file
 
         kwargs = copy.deepcopy(self.scorer_args[corpus])
@@ -719,24 +724,24 @@ class System:
 
         self.jobs[corpus]["scorer_%s" % name] = scorer
         tk.register_output("%srecog_%s.reports" % (prefix, name), scorer.out_report_dir)
+        if scorer.out_wer:
+            tk.register_output("%swers/recog_%s.wer" % (prefix, name), scorer.out_wer)
 
     def optimize_am_lm(
-        self, name, corpus, initial_am_scale, initial_lm_scale, prefix="", **kwargs
+        self, name: str, corpus: str, initial_am_scale: float, initial_lm_scale: float, prefix: str = "", **kwargs
     ):
         """
-        :param str name:
-        :param str corpus:
-        :param float initial_am_scale:
-        :param float initial_lm_scale:
-        :param str prefix:
+        :param name:
+        :param corpus:
+        :param initial_am_scale:
+        :param initial_lm_scale:
+        :param prefix:
         :param kwargs:
         :return:
         """
         j = recog.OptimizeAMandLMScaleJob(
             crp=self.crp[corpus],
-            lattice_cache=self.jobs[corpus][
-                name
-            ].out_lattice_bundle,  # noqa, job type is not known
+            lattice_cache=self.jobs[corpus][name].out_lattice_bundle,  # noqa, job type is not known
             initial_am_scale=initial_am_scale,
             initial_lm_scale=initial_lm_scale,
             scorer_cls=self.scorers[corpus],
@@ -744,32 +749,33 @@ class System:
             scorer_hyp_param_name=self.scorer_hyp_arg[corpus],
             **kwargs,
         )
+        j.add_alias("%soptimize_%s" % (prefix, name))
         self.jobs[corpus]["optimize_%s" % name] = j
         tk.register_output("%soptimize_%s.log" % (prefix, name), j.out_log_file)
 
     def recog_and_optimize(
         self,
-        name,
-        corpus,
-        flow,
-        feature_scorer,
-        pronunciation_scale,
-        lm_scale,
-        parallelize_conversion=False,
-        lattice_to_ctm_kwargs=None,
-        prefix="",
+        name: str,
+        corpus: str,
+        flow: Union[selector_type, rasr.FlowNetwork],
+        feature_scorer: Union[selector_type, rasr.FeatureScorer],
+        pronunciation_scale: float,
+        lm_scale: float,
+        parallelize_conversion: bool = False,
+        lattice_to_ctm_kwargs: Optional[Dict] = None,
+        prefix: str = "",
         **kwargs,
     ):
         """
-        :param str name:
-        :param str corpus:
-        :param str|list[str]|tuple[str]|rasr.FlagDependentFlowAttribute flow:
-        :param str|list[str]|tuple[str]|rasr.FeatureScorer feature_scorer:
-        :param float pronunciation_scale:
-        :param float lm_scale:
-        :param bool parallelize_conversion:
-        :param dict lattice_to_ctm_kwargs:
-        :param str prefix:
+        :param name:
+        :param corpus:
+        :param flow:
+        :param feature_scorer:
+        :param pronunciation_scale:
+        :param lm_scale:
+        :param parallelize_conversion:
+        :param lattice_to_ctm_kwargs:
+        :param prefix:
         :param kwargs:
         :return:
         """
@@ -815,31 +821,32 @@ class System:
 
     def train_nn(
         self,
-        name,
-        feature_corpus,
-        train_corpus,
-        dev_corpus,
-        feature_flow,
-        alignment,
-        returnn_config,
-        num_classes,
+        name: str,
+        feature_corpus: str,
+        train_corpus: str,
+        dev_corpus: str,
+        feature_flow: str,
+        alignment: Union[selector_type, rasr.FlagDependentFlowAttribute],
+        returnn_config: returnn.ReturnnConfig,
+        num_classes: Union[int, types.FunctionType],
         **kwargs,
     ):
         """
-        :param str name:
-        :param str feature_corpus:
-        :param str train_corpus:
-        :param str dev_corpus:
-        :param str feature_flow:
-        :param str|list[str]|tuple[str]|rasr.FlagDependentFlowAttribute alignment:
-        :param returnn.ReturnnConfig returnn_config:
-        :param int|types.FunctionType num_classes:
+        :param name:
+        :param feature_corpus:
+        :param train_corpus:
+        :param dev_corpus:
+        :param feature_flow:
+        :param alignment:
+        :param returnn_config:
+        :param num_classes:
         :param kwargs:
         :return:
         """
-        assert isinstance(
-            returnn_config, returnn.ReturnnConfig
-        ), "Passing returnn_config as dict to train_nn is no longer supported, please construct a ReturnnConfig object instead"
+        assert isinstance(returnn_config, returnn.ReturnnConfig), (
+            "Passing returnn_config as dict to train_nn is no longer supported, "
+            "please construct a ReturnnConfig object instead"
+        )
         j = returnn.ReturnnRasrTrainingJob(
             train_crp=self.crp[train_corpus],
             dev_crp=self.crp[dev_corpus],
@@ -855,25 +862,25 @@ class System:
 
     def create_nn_feature_scorer(
         self,
-        name,
-        corpus,
-        feature_dimension,
-        output_dimension,
-        prior_mixtures,
-        model,
-        prior_scale,
-        prior_file=None,
+        name: str,
+        corpus: str,
+        feature_dimension: Union[int, types.FunctionType],
+        output_dimension: Union[int, types.FunctionType],
+        prior_mixtures: Union[selector_type, tk.Path],
+        model: Union[selector_type, returnn.ReturnnModel],
+        prior_scale: float,
+        prior_file: tk.Path = None,
         **kwargs,
     ):
         """
-        :param str name:
-        :param str corpus:
-        :param int|types.FunctionType feature_dimension:
-        :param int|types.FunctionType output_dimension:
-        :param str|list[str]|tuple[str]|tk.Path prior_mixtures:
-        :param str|list[str]|tuple[str]|returnn.ReturnnModel model:
-        :param float prior_scale:
-        :param Path prior_file:
+        :param name:
+        :param corpus:
+        :param feature_dimension:
+        :param output_dimension:
+        :param prior_mixtures:
+        :param model:
+        :param prior_scale:
+        :param prior_file:
         :param kwargs:
         :return:
         """
@@ -895,7 +902,7 @@ class System:
             return value
 
 
-def select_element(collection, default_corpus, selector, default_index=-1):
+def select_element(collection: Dict, default_corpus: str, selector: Any, default_index: int = -1):
     """
     Select one element of the meta.System collection variables, e.g. one of:
 
@@ -905,10 +912,10 @@ def select_element(collection, default_corpus, selector, default_index=-1):
      - System.mixtures
      - ...
 
-    :param dict collection: any meta.System collection
-    :param str default_corpus: a corpus key
-    :param Any selector: some selector
-    :param int default_index: what element to pick if the collection is a tuple, list or dict,
+    :param collection: any meta.System collection
+    :param default_corpus: a corpus key
+    :param selector: some selector
+    :param default_index: what element to pick if the collection is a tuple, list or dict,
         defaults to the last element (e.g. last alignment)
     :return:
     :rtype: Any
@@ -933,22 +940,3 @@ def select_element(collection, default_corpus, selector, default_index=-1):
         if isinstance(e, (list, dict)):
             e = e[args[2]]
         return e
-
-
-class CorpusObject(tk.Object):
-    """
-    A simple container object to track additional information for a bliss corpus
-    """
-
-    def __init__(self):
-
-        self.corpus_file = None  # type: Optional[tk.Path] # bliss corpus xml
-        self.audio_dir = (
-            None
-        )  # type: Optional[tk.Path] # audio directory if paths are relative (usually not needed)
-        self.audio_format = (
-            None
-        )  # type: Optional[str] # format type of the audio files, see e.g. get_input_node_type()
-        self.duration = (
-            None
-        )  # type: Optional[float] # duration of the corpus, is used to determine job time

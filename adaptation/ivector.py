@@ -96,9 +96,7 @@ def convert_gmm(gmm):
     tmp_c = np.ndarray((gmm.nCovs, gmm.dim))
     for i in range(gmm.nMeans):
         tmp_m[i, :] = np.array(gmm.getMeanByIdx(i))
-        tmp_c[i, :] = np.array(
-            gmm.getCovByIdx(0)
-        )  # TODO figure out to generate same number of covariances as means
+        tmp_c[i, :] = np.array(gmm.getCovByIdx(0))  # TODO figure out to generate same number of covariances as means
     ubm.means = tmp_m
     ubm.variances = tmp_c
     return ubm
@@ -119,9 +117,7 @@ def concat_features_with_ivec(feature_net, ivec_path):
     net.interconnect_inputs(feature_net, mapping)
 
     # load ivec cache and repeat
-    fc = net.add_node(
-        "generic-cache", "feature-cache-ivec", {"id": "$(id)", "path": ivec_path}
-    )
+    fc = net.add_node("generic-cache", "feature-cache-ivec", {"id": "$(id)", "path": ivec_path})
     sync = net.add_node("signal-repeating-frame-prediction", "sync")
     net.link(fc, sync)
     for node in feature_net.get_output_links("features"):
@@ -183,12 +179,9 @@ class IVectorTrainingJob(Job):
         self.rqmt = rqmt if rqmt else {"time": 1, "cpu": 1, "gpu": 0, "mem": 1}
 
         self.single_accu_caches = dict(
-            (i, self.output_path("accu.%d" % i, cached=True))
-            for i in range(1, self.concurrent + 1)
+            (i, self.output_path("accu.%d" % i, cached=True)) for i in range(1, self.concurrent + 1)
         )
-        self.accu_path = util.MultiOutputPath(
-            self, "accu.$(TASK)", self.single_accu_caches, cached=True
-        )
+        self.accu_path = util.MultiOutputPath(self, "accu.$(TASK)", self.single_accu_caches, cached=True)
         self.t_matrix = self.output_path("t.matrix")
 
     def tasks(self):
@@ -203,10 +196,7 @@ class IVectorTrainingJob(Job):
 
         logging.info("Reading mixture file from '%s'..." % mix_file)
         gmm = sc.MixtureSet(mix_file)
-        logging.info(
-            "Read %d means and %d covariances of dimension %d"
-            % (gmm.nMeans, gmm.nCovs, gmm.dim)
-        )
+        logging.info("Read %d means and %d covariances of dimension %d" % (gmm.nMeans, gmm.nCovs, gmm.dim))
 
         ubm = convert_gmm(gmm)
 
@@ -252,10 +242,7 @@ class IVectorTrainingJob(Job):
 
             ivm.ubm.acc_statistics(feat, gs)
 
-        logging.info(
-            "Writing Gaussian statistics to '%s'"
-            % self.single_accu_caches[task_id].get_path()
-        )
+        logging.info("Writing Gaussian statistics to '%s'" % self.single_accu_caches[task_id].get_path())
         gs.save(HDF5File(self.single_accu_caches[task_id].get_path(), "w"))
 
     def est(self):
@@ -327,12 +314,9 @@ class IVectorExtractionJob(Job):
         self.rqmt = rqmt if rqmt else {"time": 1, "cpu": 1, "gpu": 0, "mem": 1}
 
         self.single_ivec_caches = dict(
-            (i, self.output_path("ivec.%d" % i, cached=True))
-            for i in range(1, self.concurrent + 1)
+            (i, self.output_path("ivec.%d" % i, cached=True)) for i in range(1, self.concurrent + 1)
         )
-        self.ivec_path = util.MultiOutputPath(
-            self, "ivec.$(TASK)", self.single_ivec_caches, cached=True
-        )
+        self.ivec_path = util.MultiOutputPath(self, "ivec.$(TASK)", self.single_ivec_caches, cached=True)
 
     def tasks(self):
         yield Task("forward", rqmt=self.rqmt, args=range(1, self.concurrent + 1))

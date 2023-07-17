@@ -21,7 +21,7 @@ class CompileTFGraphJob(Job):
 
     """
 
-    __sis_hash_exclude__ = {"device": None, "epoch": None}
+    __sis_hash_exclude__ = {"device": None, "epoch": None, "rec_step_by_step": None, "rec_json_info": False}
 
     def __init__(
         self,
@@ -36,6 +36,8 @@ class CompileTFGraphJob(Job):
         output_format="meta",
         returnn_python_exe=None,
         returnn_root=None,
+        rec_step_by_step=None,
+        rec_json_info=False,
     ):
         """
 
@@ -50,8 +52,10 @@ class CompileTFGraphJob(Job):
             `returnn_conig`, or on the availability of a GPU on the execution host if not defined at all.
         :param summaries_tensor_name:
         :param str output_format: graph output format, one of ["pb", "pbtxt", "meta", "metatxt"]
-        :param Path|str returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
-        :param Path|str returnn_root: file path to the RETURNN repository root folder
+        :param Optional[Path] returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
+        :param Optional[Path] returnn_root: file path to the RETURNN repository root folder
+        :param Optional[str] rec_step_by_step: name of rec layer for step-by-step graph
+        :param bool rec_json_info: whether to enable rec json info for step-by-step graph compilation
         """
         self.returnn_config = returnn_config
         self.train = train
@@ -61,19 +65,17 @@ class CompileTFGraphJob(Job):
         self.verbosity = verbosity
         self.device = device
         self.summaries_tensor_name = summaries_tensor_name
-        self.returnn_python_exe = (
-            returnn_python_exe
-            if returnn_python_exe is not None
-            else gs.RETURNN_PYTHON_EXE
-        )
-        self.returnn_root = (
-            returnn_root if returnn_root is not None else gs.RETURNN_ROOT
-        )
+        self.returnn_python_exe = util.get_returnn_python_exe(returnn_python_exe)
+        self.returnn_root = util.get_returnn_root(returnn_root)
+        self.rec_step_by_step = rec_step_by_step
+        self.rec_json_info = rec_json_info
 
         self.out_graph = self.output_path("graph.%s" % output_format)
         self.out_model_params = self.output_var("model_params.pickle", pickle=True)
         self.out_state_vars = self.output_var("state_vars.pickle", pickle=True)
         self.out_returnn_config = self.output_path("returnn.config")
+        if self.rec_json_info:
+            self.out_rec_json_info = self.output_path("rec.info")
 
         self.rqmt = None
 
@@ -97,10 +99,8 @@ class CompileTFGraphJob(Job):
             shutil.copy(self.returnn_config, self.out_returnn_config.get_path())
 
         args = [
-            tk.uncached_path(self.returnn_python_exe),
-            os.path.join(
-                tk.uncached_path(self.returnn_root), "tools/compile_tf_graph.py"
-            ),
+            self.returnn_python_exe.get_path(),
+            self.returnn_root.join_right("tools/compile_tf_graph.py").get_path(),
             returnn_config_path,
             "--train=%d" % self.train,
             "--eval=%d" % self.eval,
@@ -116,6 +116,10 @@ class CompileTFGraphJob(Job):
             args.append("--epoch=%d" % self.epoch)
         if self.summaries_tensor_name is not None:
             args.append("--summaries_tensor_name=%s" % self.summaries_tensor_name)
+        if self.rec_step_by_step is not None:
+            args.append(f"--rec_step_by_step={self.rec_step_by_step}")
+            if self.rec_json_info:
+                args.append(f"--rec_step_by_step_output_file={self.out_rec_json_info.get_path()}")
 
         util.create_executable("run.sh", args)
 
@@ -152,20 +156,14 @@ class CompileNativeOpJob(Job):
     ):
         """
         :param str native_op: Name of the native op to compile (e.g. NativeLstm2)
-        :param Path|str returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
-        :param Path|str returnn_root: file path to the RETURNN repository root folder
+        :param Optional[Path] returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
+        :param Optional[Path] returnn_root: file path to the RETURNN repository root folder
         :param bool search_numpy_blas: search for blas lib in numpy's .libs folder
         :param Path|str blas_lib: explicit path to the blas library to use
         """
         self.native_op = native_op
-        self.returnn_python_exe = (
-            returnn_python_exe
-            if returnn_python_exe is not None
-            else gs.RETURNN_PYTHON_EXE
-        )
-        self.returnn_root = (
-            returnn_root if returnn_root is not None else gs.RETURNN_ROOT
-        )
+        self.returnn_python_exe = util.get_returnn_python_exe(returnn_python_exe)
+        self.returnn_root = util.get_returnn_root(returnn_root)
         self.search_numpy_blas = search_numpy_blas
         self.blas_lib = blas_lib
 
@@ -182,10 +180,8 @@ class CompileNativeOpJob(Job):
 
     def run(self):
         cmd = [
-            tk.uncached_path(self.returnn_python_exe),
-            os.path.join(
-                tk.uncached_path(self.returnn_root), "tools/compile_native_op.py"
-            ),
+            self.returnn_python_exe.get_path(),
+            self.returnn_root.join_right("tools/compile_native_op.py").get_path(),
             "--native_op",
             self.native_op,
             "--output_file",
@@ -197,9 +193,7 @@ class CompileNativeOpJob(Job):
             cmd += ["--blas_lib", tk.uncached_path(self.blas_lib)]
         logging.info(cmd)
 
-        util.create_executable(
-            "compile.sh", cmd
-        )  # convenience file for manual execution
+        util.create_executable("compile.sh", cmd)  # convenience file for manual execution
         sp.run(cmd, check=True)
 
         with open("compile.out", "rt") as f:

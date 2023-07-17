@@ -13,6 +13,7 @@ Path = setup_path(__package__)
 import math
 import os
 import shutil
+from typing import Any, Dict, Optional
 
 import i6_core.lm as lm
 import i6_core.rasr as rasr
@@ -37,8 +38,7 @@ class AdvancedTreeSearchLmImageAndGlobalCacheJob(rasr.RasrCommand, Job):
 
         self.out_log_file = self.log_file_output_path("lm_and_state_tree", crp, False)
         self.out_lm_images = {
-            i: self.output_path("lm-%d.image" % i, cached=True)
-            for i in range(1, self.num_images + 1)
+            i: self.output_path("lm-%d.image" % i, cached=True) for i in range(1, self.num_images + 1)
         }
         self.out_global_cache = self.output_path("global.cache", cached=True)
 
@@ -51,20 +51,14 @@ class AdvancedTreeSearchLmImageAndGlobalCacheJob(rasr.RasrCommand, Job):
     def create_files(self):
         self.write_config(self.config, self.post_config, "lm_and_global_cache.config")
         with open("dummy.corpus", "wt") as f:
-            f.write(
-                '<?xml version="1.0" encoding="utf-8" ?>\n<corpus name="dummy"></corpus>'
-            )
+            f.write('<?xml version="1.0" encoding="utf-8" ?>\n<corpus name="dummy"></corpus>')
         with open("dummy.flow", "wt") as f:
-            f.write(
-                '<?xml version="1.0" encoding="utf-8" ?>\n<network><out name="features" /></network>'
-            )
+            f.write('<?xml version="1.0" encoding="utf-8" ?>\n<network><out name="features" /></network>')
         extra_code = (
             ":${THEANO_FLAGS:="
             '}\nexport THEANO_FLAGS="$THEANO_FLAGS,device=cpu,force_device=True"\nexport TF_DEVICE="cpu"'
         )
-        self.write_run_script(
-            self.exe, "lm_and_global_cache.config", extra_code=extra_code
-        )
+        self.write_run_script(self.exe, "lm_and_global_cache.config", extra_code=extra_code)
 
     def run(self):
         self.run_script(1, self.out_log_file)
@@ -90,16 +84,12 @@ class AdvancedTreeSearchLmImageAndGlobalCacheJob(rasr.RasrCommand, Job):
         elif lm_config.type == "combine":
             for i in range(1, lm_config.num_lms + 1):
                 sub_lm_config = lm_config["lm-%d" % i]
-                sub_lm_post_config = (
-                    lm_post_config["lm-%d" % i] if lm_post_config is not None else None
-                )
+                sub_lm_post_config = lm_post_config["lm-%d" % i] if lm_post_config is not None else None
                 result += cls.find_arpa_lms(sub_lm_config, sub_lm_post_config)
         return result
 
     @classmethod
-    def create_config(
-        cls, crp, feature_scorer, extra_config, extra_post_config, **kwargs
-    ):
+    def create_config(cls, crp, feature_scorer, extra_config, extra_post_config, **kwargs):
         config, post_config = rasr.build_config_from_mapping(
             crp,
             {
@@ -124,16 +114,12 @@ class AdvancedTreeSearchLmImageAndGlobalCacheJob(rasr.RasrCommand, Job):
         config.flf_lattice_tool.network.recognizer.add_confidence_score = False
         config.flf_lattice_tool.network.recognizer.apply_posterior_pruning = False
         config.flf_lattice_tool.network.recognizer.search_type = "advanced-tree-search"
-        config.flf_lattice_tool.network.recognizer.feature_extraction.file = (
-            "dummy.flow"
-        )
+        config.flf_lattice_tool.network.recognizer.feature_extraction.file = "dummy.flow"
         config.flf_lattice_tool.network.recognizer.lm.scale = 1.0
 
         arpa_lms = cls.find_arpa_lms(
             config.flf_lattice_tool.network.recognizer.lm,
-            post_config.flf_lattice_tool.network.recognizer.lm
-            if post_config is not None
-            else None,
+            post_config.flf_lattice_tool.network.recognizer.lm if post_config is not None else None,
         )
         for i, lm_config in enumerate(arpa_lms):
             lm_config[0].image = "lm-%d.image" % (i + 1)
@@ -165,25 +151,50 @@ class AdvancedTreeSearchLmImageAndGlobalCacheJob(rasr.RasrCommand, Job):
 class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
     def __init__(
         self,
-        crp,
-        feature_flow,
-        feature_scorer,
-        search_parameters=None,
-        lm_lookahead=True,
-        lookahead_options=None,
-        create_lattice=True,
-        eval_single_best=True,
-        eval_best_in_lattice=True,
-        use_gpu=False,
-        rtf=10,
-        mem=4,
-        cpu=1,
-        lmgc_mem=12,
-        model_combination_config=None,
-        model_combination_post_config=None,
-        extra_config=None,
-        extra_post_config=None,
+        crp: rasr.CommonRasrParameters,
+        feature_flow: rasr.FlowNetwork,
+        feature_scorer: rasr.FeatureScorer,
+        search_parameters: Optional[Dict[str, Any]] = None,
+        lm_lookahead: bool = True,
+        lookahead_options: Optional[Dict[str, Any]] = None,
+        create_lattice: bool = True,
+        eval_single_best: bool = True,
+        eval_best_in_lattice: bool = True,
+        use_gpu: bool = False,
+        rtf: float = 10.0,
+        mem: float = 4.0,
+        cpu: int = 1,
+        lmgc_mem: float = 12.0,
+        lmgc_alias: Optional[str] = None,
+        lmgc_scorer: Optional[rasr.FeatureScorer] = None,
+        model_combination_config: Optional[rasr.RasrConfig] = None,
+        model_combination_post_config: Optional[rasr.RasrConfig] = None,
+        extra_config: Optional[rasr.RasrConfig] = None,
+        extra_post_config: Optional[rasr.RasrConfig] = None,
     ):
+        """
+
+        :param crp: Common Rasr parameters for recognition
+        :param feature_flow: Flow network for recognition
+        :param feature_scorer: Feature scorer used in recognition. For AdvancedTreeSearchLmImageAndGlobalCacheJob RASR requires setting the feature scorer while actually not using it.
+        :param search_parameters: Parameters for search e.g. beam-pruning, uses defaults defined below if not set
+        :param lm_lookahead: Whether to perform language model lookahead or not
+        :param lookahead_options: Options for the lm lookahead
+        :param create_lattice: Recognizer option to produde lattices. Stored as FST
+        :param eval_single_best: Extract the best path from the lattice
+        :param eval_best_in_lattice:
+        :param use_gpu: Flag to enable GPU decoding
+        :param rtf: Expected rtf value to predict time requirement for the job
+        :param mem: Memory requirement for the job
+        :param cpu: CPU requirement for the job
+        :param lmgc_mem: Memory requirement for the AdvancedTreeSearchLmImageAndGlobalCacheJob
+        :param lmgc_alias: Alias for the AdvancedTreeSearchLmImageAndGlobalCacheJob
+        :param lmgc_scorer: Dummy scorer for the AdvancedTreeSearchLmImageAndGlobalCacheJob which is required but unused
+        :param model_combination_config: Configuration for model combination
+        :param model_combination_post_config: Post config for model combination
+        :param extra_config: Additional Config for recognition
+        :param extra_post_config: Post config of additional config for recognition
+        """
         assert isinstance(feature_scorer, rasr.FeatureScorer)
 
         self.set_vis_name("Advanced Beam Search")
@@ -220,17 +231,13 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
 
     def tasks(self):
         yield Task("create_files", mini_task=True)
-        yield Task(
-            "run", resume="run", rqmt=self.rqmt, args=range(1, self.concurrent + 1)
-        )
+        yield Task("run", resume="run", rqmt=self.rqmt, args=range(1, self.concurrent + 1))
 
     def create_files(self):
         self.write_config(self.config, self.post_config, "recognition.config")
         self.feature_flow.add_param("TASK")
         self.feature_flow.write_to_file("feature.flow")
-        util.write_paths_to_file(
-            self.out_lattice_bundle, self.out_single_lattice_caches.values()
-        )
+        util.write_paths_to_file(self.out_lattice_bundle, self.out_single_lattice_caches.values())
         extra_code = "export OMP_NUM_THREADS={0}\nexport TF_DEVICE='{1}'".format(
             math.ceil(self.cpu / 2), "gpu" if self.use_gpu else "cpu"
         )
@@ -265,27 +272,31 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
     @classmethod
     def create_config(
         cls,
-        crp,
-        feature_flow,
-        feature_scorer,
-        search_parameters,
-        lm_lookahead,
-        lookahead_options,
-        create_lattice,
-        eval_single_best,
-        eval_best_in_lattice,
-        mem,
-        cpu,
-        lmgc_mem,
-        model_combination_config,
-        model_combination_post_config,
-        extra_config,
-        extra_post_config,
+        crp: rasr.CommonRasrParameters,
+        feature_flow: rasr.FlowNetwork,
+        feature_scorer: rasr.FeatureScorer,
+        search_parameters: Optional[Dict[str, Any]],
+        lm_lookahead: bool,
+        lookahead_options: Optional[Dict[str, Any]],
+        create_lattice: bool,
+        eval_single_best: bool,
+        eval_best_in_lattice: bool,
+        mem: float,
+        cpu: int,
+        lmgc_mem: float,
+        lmgc_alias: Optional[str],
+        lmgc_scorer: Optional[rasr.FeatureScorer],
+        model_combination_config: Optional[rasr.RasrConfig],
+        model_combination_post_config: Optional[rasr.RasrConfig],
+        extra_config: Optional[rasr.RasrConfig],
+        extra_post_config: Optional[rasr.RasrConfig],
         **kwargs,
     ):
         lm_gc = AdvancedTreeSearchLmImageAndGlobalCacheJob(
-            crp, feature_scorer, extra_config, extra_post_config
+            crp, lmgc_scorer if lmgc_scorer is not None else feature_scorer, extra_config, extra_post_config
         )
+        if lmgc_alias is not None:
+            lm_gc.add_alias(lmgc_alias)
         lm_gc.rqmt["mem"] = lmgc_mem
 
         search_parameters = cls.update_search_parameters(search_parameters)
@@ -314,9 +325,8 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
 
         config.flf_lattice_tool.network.initial_nodes = "segment"
         config.flf_lattice_tool.network.segment.type = "speech-segment"
-        config.flf_lattice_tool.network.segment.links = (
-            "1->recognizer:1 0->archive-writer:1"
-            + (" 0->evaluator:1" if eval_single_best or eval_best_in_lattice else "")
+        config.flf_lattice_tool.network.segment.links = "1->recognizer:1 0->archive-writer:1" + (
+            " 0->evaluator:1" if eval_single_best or eval_best_in_lattice else ""
         )
 
         config.flf_lattice_tool.network.recognizer.type = "recognizer"
@@ -331,9 +341,7 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
         config.flf_lattice_tool.network.recognizer.search_type = "advanced-tree-search"
 
         # Parameters for Speech::DataSource or Sparse::DataSource
-        config.flf_lattice_tool.network.recognizer.feature_extraction.file = (
-            "feature.flow"
-        )
+        config.flf_lattice_tool.network.recognizer.feature_extraction.file = "feature.flow"
         feature_flow.apply_config(
             "flf-lattice-tool.network.recognizer.feature-extraction",
             config,
@@ -349,51 +357,31 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
 
         # Parameters for Speech::Model combination (besides AM and LM parameters)
         config.flf_lattice_tool.network.recognizer._update(model_combination_config)
-        post_config.flf_lattice_tool.network.recognizer._update(
-            model_combination_post_config
-        )
+        post_config.flf_lattice_tool.network.recognizer._update(model_combination_post_config)
 
         # Search parameters
-        config.flf_lattice_tool.network.recognizer.recognizer.create_lattice = (
-            create_lattice
-        )
+        config.flf_lattice_tool.network.recognizer.recognizer.create_lattice = create_lattice
 
-        config.flf_lattice_tool.network.recognizer.recognizer.beam_pruning = (
-            search_parameters["beam-pruning"]
-        )
-        config.flf_lattice_tool.network.recognizer.recognizer.beam_pruning_limit = (
-            search_parameters["beam-pruning-limit"]
-        )
-        config.flf_lattice_tool.network.recognizer.recognizer.word_end_pruning = (
-            search_parameters["word-end-pruning"]
-        )
-        config.flf_lattice_tool.network.recognizer.recognizer.word_end_pruning_limit = (
-            search_parameters["word-end-pruning-limit"]
-        )
+        config.flf_lattice_tool.network.recognizer.recognizer.beam_pruning = search_parameters["beam-pruning"]
+        config.flf_lattice_tool.network.recognizer.recognizer.beam_pruning_limit = search_parameters[
+            "beam-pruning-limit"
+        ]
+        config.flf_lattice_tool.network.recognizer.recognizer.word_end_pruning = search_parameters["word-end-pruning"]
+        config.flf_lattice_tool.network.recognizer.recognizer.word_end_pruning_limit = search_parameters[
+            "word-end-pruning-limit"
+        ]
         if "lm-state-pruning" in search_parameters:
-            config.flf_lattice_tool.network.recognizer.recognizer.lm_state_pruning = (
-                search_parameters["lm-state-pruning"]
-            )
+            config.flf_lattice_tool.network.recognizer.recognizer.lm_state_pruning = search_parameters[
+                "lm-state-pruning"
+            ]
 
-        config.flf_lattice_tool.network.recognizer.recognizer.lm_lookahead = (
-            rasr.RasrConfig()
-        )
-        config.flf_lattice_tool.network.recognizer.recognizer.lm_lookahead._value = (
-            lm_lookahead
-        )
-        config.flf_lattice_tool.network.recognizer.recognizer.lm_lookahead_laziness = (
-            la_opts["laziness"]
-        )
-        config.flf_lattice_tool.network.recognizer.recognizer.optimize_lattice = (
-            "simple"
-        )
+        config.flf_lattice_tool.network.recognizer.recognizer.lm_lookahead = rasr.RasrConfig()
+        config.flf_lattice_tool.network.recognizer.recognizer.lm_lookahead._value = lm_lookahead
+        config.flf_lattice_tool.network.recognizer.recognizer.lm_lookahead_laziness = la_opts["laziness"]
+        config.flf_lattice_tool.network.recognizer.recognizer.optimize_lattice = "simple"
         if lm_lookahead:
-            config.flf_lattice_tool.network.recognizer.recognizer.lm_lookahead.history_limit = la_opts[
-                "history_limit"
-            ]
-            config.flf_lattice_tool.network.recognizer.recognizer.lm_lookahead.tree_cutoff = la_opts[
-                "tree_cutoff"
-            ]
+            config.flf_lattice_tool.network.recognizer.recognizer.lm_lookahead.history_limit = la_opts["history_limit"]
+            config.flf_lattice_tool.network.recognizer.recognizer.lm_lookahead.tree_cutoff = la_opts["tree_cutoff"]
             config.flf_lattice_tool.network.recognizer.recognizer.lm_lookahead.minimum_representation = la_opts[
                 "minimum_representation"
             ]
@@ -428,13 +416,9 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
             config.flf_lattice_tool.network.evaluator.links = "sink:0"
             config.flf_lattice_tool.network.evaluator.word_errors = True
             config.flf_lattice_tool.network.evaluator.single_best = eval_single_best
-            config.flf_lattice_tool.network.evaluator.best_in_lattice = (
-                eval_best_in_lattice
-            )
+            config.flf_lattice_tool.network.evaluator.best_in_lattice = eval_best_in_lattice
             config.flf_lattice_tool.network.evaluator.edit_distance.format = "bliss"
-            config.flf_lattice_tool.network.evaluator.edit_distance.allow_broken_words = (
-                False
-            )
+            config.flf_lattice_tool.network.evaluator.edit_distance.allow_broken_words = False
         else:
             config.flf_lattice_tool.network.expand.links = "archive-writer"
 
@@ -608,16 +592,12 @@ class BidirectionalAdvancedTreeSearchJob(rasr.RasrCommand, Job):
 
     def tasks(self):
         yield Task("create_files", mini_task=True)
-        yield Task(
-            "run", resume="run", rqmt=self.rqmt, args=range(1, self.concurrent + 1)
-        )
+        yield Task("run", resume="run", rqmt=self.rqmt, args=range(1, self.concurrent + 1))
 
     def create_files(self):
         self.write_config(self.config, self.post_config, "recognition.config")
         self.feature_flow.write_to_file("feature.flow")
-        util.write_paths_to_file(
-            self.out_lattice_bundle, self.out_single_lattice_caches.values()
-        )
+        util.write_paths_to_file(self.out_lattice_bundle, self.out_single_lattice_caches.values())
         extra_code = (
             ":${{THEANO_FLAGS:="
             "}}\n"
@@ -673,9 +653,7 @@ class BidirectionalAdvancedTreeSearchJob(rasr.RasrCommand, Job):
         extra_post_config,
         **kwargs,
     ):
-        lm_gc = AdvancedTreeSearchLmImageAndGlobalCacheJob(
-            crp, feature_scorer, extra_config, extra_post_config
-        )
+        lm_gc = AdvancedTreeSearchLmImageAndGlobalCacheJob(crp, feature_scorer, extra_config, extra_post_config)
         lm_gc.rqmt["mem"] = mem
 
         search_parameters = cls.update_search_parameters(search_parameters)
@@ -704,9 +682,7 @@ class BidirectionalAdvancedTreeSearchJob(rasr.RasrCommand, Job):
 
         config.flf_lattice_tool.network.initial_nodes = "segment"
         config.flf_lattice_tool.network.segment.type = "speech-segment"
-        config.flf_lattice_tool.network.segment.links = (
-            "1->recognizer:1 0->archive-writer:1 0->evaluator:1"
-        )
+        config.flf_lattice_tool.network.segment.links = "1->recognizer:1 0->archive-writer:1 0->evaluator:1"
 
         config.flf_lattice_tool.network.recognizer.type = "incremental-recognizer"
         config.flf_lattice_tool.network.recognizer.links = "filter"
@@ -718,23 +694,17 @@ class BidirectionalAdvancedTreeSearchJob(rasr.RasrCommand, Job):
 
         # Parameters for Speech::Recognizer (incremental Recognizer?)
         config.flf_lattice_tool.network.recognizer.search_type = "advanced-tree-search"
-        config.flf_lattice_tool.network.recognizer.backward.search_type = (
-            "advanced-tree-search"
-        )
+        config.flf_lattice_tool.network.recognizer.backward.search_type = "advanced-tree-search"
 
         # Parameters for Speech::DataSource or Sparse::DataSource
-        config.flf_lattice_tool.network.recognizer.feature_extraction.file = (
-            "feature.flow"
-        )
+        config.flf_lattice_tool.network.recognizer.feature_extraction.file = "feature.flow"
         feature_flow.apply_config(
             "flf-lattice-tool.network.recognizer.feature-extraction",
             config,
             post_config,
         )
 
-        config.flf_lattice_tool.network.recognizer.backward.feature_extraction.file = (
-            "feature.flow"
-        )
+        config.flf_lattice_tool.network.recognizer.backward.feature_extraction.file = "feature.flow"
         feature_flow.apply_config(
             "flf-lattice-tool.network.recognizer.backward.feature-extraction",
             config,
@@ -750,45 +720,25 @@ class BidirectionalAdvancedTreeSearchJob(rasr.RasrCommand, Job):
 
         # Parameters for Speech::Model combination (besides AM and LM parameters)
         config.flf_lattice_tool.network.recognizer._update(model_combination_config)
-        post_config.flf_lattice_tool.network.recognizer._update(
-            model_combination_post_config
-        )
-        config.flf_lattice_tool.network.recognizer.backward._update(
-            model_combination_config
-        )
-        post_config.flf_lattice_tool.network.recognizer.backward._update(
-            model_combination_post_config
-        )
+        post_config.flf_lattice_tool.network.recognizer._update(model_combination_post_config)
+        config.flf_lattice_tool.network.recognizer.backward._update(model_combination_config)
+        post_config.flf_lattice_tool.network.recognizer.backward._update(model_combination_post_config)
 
         # Search parameters
-        config.flf_lattice_tool.network.recognizer.recognizer.create_lattice = (
-            create_lattice
-        )
+        config.flf_lattice_tool.network.recognizer.recognizer.create_lattice = create_lattice
 
         for recog_dir in ["recognizer", "backward"]:
             if recog_dir == "recognizer":
-                recognizer_config = (
-                    config.flf_lattice_tool.network.recognizer.recognizer
-                )
-                recognizer_post_config = (
-                    post_config.flf_lattice_tool.network.recognizer.recognizer
-                )
+                recognizer_config = config.flf_lattice_tool.network.recognizer.recognizer
+                recognizer_post_config = post_config.flf_lattice_tool.network.recognizer.recognizer
             else:
-                recognizer_config = (
-                    config.flf_lattice_tool.network.recognizer.backward.recognizer
-                )
-                recognizer_post_config = (
-                    post_config.flf_lattice_tool.network.recognizer.backward.recognizer
-                )
+                recognizer_config = config.flf_lattice_tool.network.recognizer.backward.recognizer
+                recognizer_post_config = post_config.flf_lattice_tool.network.recognizer.backward.recognizer
 
             recognizer_config.beam_pruning = search_parameters["beam-pruning"]
-            recognizer_config.beam_pruning_limit = search_parameters[
-                "beam-pruning-limit"
-            ]
+            recognizer_config.beam_pruning_limit = search_parameters["beam-pruning-limit"]
             recognizer_config.word_end_pruning = search_parameters["word-end-pruning"]
-            recognizer_config.word_end_pruning_limit = search_parameters[
-                "word-end-pruning-limit"
-            ]
+            recognizer_config.word_end_pruning_limit = search_parameters["word-end-pruning-limit"]
 
             recognizer_config.lm_lookahead = rasr.RasrConfig()
             recognizer_config.lm_lookahead._value = lm_lookahead
@@ -797,15 +747,9 @@ class BidirectionalAdvancedTreeSearchJob(rasr.RasrCommand, Job):
             if lm_lookahead:
                 recognizer_config.lm_lookahead.history_limit = la_opts["history_limit"]
                 recognizer_config.lm_lookahead.tree_cutoff = la_opts["tree_cutoff"]
-                recognizer_config.lm_lookahead.minimum_representation = la_opts[
-                    "minimum_representation"
-                ]
-                recognizer_post_config.lm_lookahead.cache_size_low = la_opts[
-                    "cache_low"
-                ]
-                recognizer_post_config.lm_lookahead.cache_size_high = la_opts[
-                    "cache_high"
-                ]
+                recognizer_config.lm_lookahead.minimum_representation = la_opts["minimum_representation"]
+                recognizer_post_config.lm_lookahead.cache_size_low = la_opts["cache_low"]
+                recognizer_post_config.lm_lookahead.cache_size_high = la_opts["cache_high"]
             if recognizer_parameters is not None:
                 for k in [
                     "decoder-initial-update-rate",
@@ -820,12 +764,10 @@ class BidirectionalAdvancedTreeSearchJob(rasr.RasrCommand, Job):
         post_config.flf_lattice_tool.global_cache.file = lm_gc.out_global_cache
         post_config.flf_lattice_tool.network.recognizer.lm.image = lm_gc.lm_image
         post_config.flf_lattice_tool.network.recognizer.backward.lm.type = "ARPA"
-        post_config.flf_lattice_tool.network.recognizer.backward.lm.file = (
-            lm.ReverseARPALmJob(crp.language_model_config.file).reverse_lm_path
-        )
-        post_config.flf_lattice_tool.network.recognizer.backward.lm.scale = (
-            crp.language_model_config.scale
-        )
+        post_config.flf_lattice_tool.network.recognizer.backward.lm.file = lm.ReverseARPALmJob(
+            crp.language_model_config.file
+        ).reverse_lm_path
+        post_config.flf_lattice_tool.network.recognizer.backward.lm.scale = crp.language_model_config.scale
 
         # Remaining Flf-network
 
@@ -841,9 +783,7 @@ class BidirectionalAdvancedTreeSearchJob(rasr.RasrCommand, Job):
         config.flf_lattice_tool.network.evaluator.single_best = eval_single_best
         config.flf_lattice_tool.network.evaluator.best_in_lattice = eval_best_in_lattice
         config.flf_lattice_tool.network.evaluator.edit_distance.format = "bliss"
-        config.flf_lattice_tool.network.evaluator.edit_distance.allow_broken_words = (
-            False
-        )
+        config.flf_lattice_tool.network.evaluator.edit_distance.allow_broken_words = False
 
         config.flf_lattice_tool.network.archive_writer.type = "archive-writer"
         config.flf_lattice_tool.network.archive_writer.links = "sink:1"
@@ -939,6 +879,4 @@ class BuildGlobalCacheJob(rasr.RasrCommand, Job):
     @classmethod
     def hash(cls, kwargs):
         config, post_config = cls.create_config(**kwargs)
-        return super().hash(
-            {"config": config, "exe": kwargs["crp"].speech_recognizer_exe}
-        )
+        return super().hash({"config": config, "exe": kwargs["crp"].speech_recognizer_exe})

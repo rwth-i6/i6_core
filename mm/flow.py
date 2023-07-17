@@ -10,9 +10,7 @@ from i6_core.rasr import FlowNetwork, RasrConfig
 
 
 def linear_segmentation_flow(feature_energy_net, alignment_cache=None):
-    assert all(
-        out in feature_energy_net.get_output_ports() for out in ["features", "energy"]
-    )
+    assert all(out in feature_energy_net.get_output_ports() for out in ["features", "energy"])
 
     net = FlowNetwork()
     net.add_output("alignments")
@@ -32,9 +30,7 @@ def linear_segmentation_flow(feature_energy_net, alignment_cache=None):
     if alignment_cache is None:
         net.link(alignment, "network:alignments")
     else:
-        cache = net.add_node(
-            "generic-cache", "alignment-cache", {"id": "$(id)", "path": alignment_cache}
-        )
+        cache = net.add_node("generic-cache", "alignment-cache", {"id": "$(id)", "path": alignment_cache})
         net.link(alignment, cache)
         net.link(cache, "network:alignments")
 
@@ -105,16 +101,12 @@ def dump_alignment_flow(feature_net, original_alignment, new_alignment):
     net.interconnect_inputs(feature_net, mapping)
     net.interconnect_outputs(feature_net, mapping)
 
-    cache = net.add_node(
-        "generic-cache", "alignment-cache", {"id": "$(id)", "path": original_alignment}
-    )
+    cache = net.add_node("generic-cache", "alignment-cache", {"id": "$(id)", "path": original_alignment})
 
     aggregate = net.add_node("generic-aggregation-vector-f32", "aggregate")
     net.link(mapping[feature_net.get_output_links("features").pop()], aggregate)
 
-    dumper = net.add_node(
-        "speech-alignment-dump", "dumper", {"id": "$(id)", "file": new_alignment}
-    )
+    dumper = net.add_node("speech-alignment-dump", "dumper", {"id": "$(id)", "file": new_alignment})
     net.link(cache, dumper)
     net.link(aggregate, "%s:features" % dumper)
     net.link(dumper, "network:alignments")
@@ -174,9 +166,7 @@ def confidence_based_alignment_flow(
     lattice_expm = net.add_node("lattice-expm", "lattice-expm")
     net.link(lattice_wp_p_sr, lattice_expm)
 
-    alignment = net.add_node(
-        "speech-alignment-from-lattice", "alignment", {"id": "$(id)"}
-    )
+    alignment = net.add_node("speech-alignment-from-lattice", "alignment", {"id": "$(id)"})
     net.link(lattice_expm, alignment)
     net.link(aggregate, alignment + ":features")
     net.link(model_comb, alignment + ":model-combination")
@@ -185,9 +175,7 @@ def confidence_based_alignment_flow(
         lattice_best = net.add_node("lattice-nbest", "lattice-best")
         net.link(lattice_wp_sr, lattice_best)
 
-        alignment_best = net.add_node(
-            "speech-alignment-from-lattice", "alignment-best", {"id": "$(id)"}
-        )
+        alignment_best = net.add_node("speech-alignment-from-lattice", "alignment-best", {"id": "$(id)"})
         net.link(lattice_best, alignment_best)
         net.link(aggregate, alignment_best + ":features")
         net.link(model_comb, alignment_best + ":model-combination")
