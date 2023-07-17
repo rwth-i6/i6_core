@@ -209,8 +209,11 @@ class CompileNativeOpJob(Job):
 
 class OnnxExportJob(Job):
     """
-    
+        Export an ONNX model using the appropriate RETURNN tool script.
+
+        Currently only supports PyTorch via tools/torch_export_to_onnx.py
     """
+
     def __init__(
         self,
         returnn_config: ReturnnConfig,
