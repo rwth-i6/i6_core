@@ -9,10 +9,12 @@ import logging
 import os
 import shutil
 import subprocess as sp
+from typing import Optional, Union
 
 import i6_core.util as util
 
 from .config import ReturnnConfig
+from .training import Checkpoint, PtCheckpoint
 
 
 class CompileTFGraphJob(Job):
@@ -203,3 +205,59 @@ class CompileNativeOpJob(Job):
             shutil.move(files[0], self.out_op.get_path())
         if len(files) > 1:
             shutil.move(files[1], self.out_grad_op.get_path())
+
+
+class OnnxExportJob(Job):
+    """
+    
+    """
+    def __init__(
+        self,
+        returnn_config: ReturnnConfig,
+        checkpoint: Union[Checkpoint, PtCheckpoint],
+        device: str = "cpu",
+        returnn_python_exe: Optional[tk.Path] = None,
+        returnn_root: Optional[tk.Path] = None,
+    ):
+        """
+
+        :param returnn_config: RETURNN config object
+        :param checkpoint: Path to the checkpoint for export
+        :param device: target device for graph creation
+        :param returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
+        :param returnn_root: file path to the RETURNN repository root folder
+        """
+
+        self.returnn_config = returnn_config
+        self.checkpoint = checkpoint
+        if isinstance(checkpoint, Checkpoint):
+            raise ValueError("Tensorflow checkpoint export is currently not supported")
+        self.device = device
+        self.returnn_python_exe = util.get_returnn_python_exe(returnn_python_exe)
+        self.returnn_root = util.get_returnn_root(returnn_root)
+
+        self.out_returnn_config = self.output_path("returnn.config")
+        self.out_onnx_model = self.output_path("model.onnx")
+
+    def tasks(self):
+        yield Task("run", mini_task=True)
+
+    def run(self):
+
+        returnn_config_path = self.out_returnn_config.get_path()
+        self.returnn_config.write(returnn_config_path)
+
+        cmd = [
+            self.returnn_python_exe.get_path(),
+            self.returnn_root.join_right("tools/torch_export_to_onnx.py").get_path(),
+            returnn_config_path,
+            str(self.checkpoint),
+            self.out_onnx_model.get_path(),
+            "--device",
+            self.device,
+            "--verbosity",
+            "5",
+        ]
+
+        util.create_executable("compile.sh", cmd)  # convenience file for manual execution
+        sp.run(cmd, check=True)
