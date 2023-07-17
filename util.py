@@ -301,3 +301,12 @@ def instanciate_delayed(o):
         for k in o:
             o[k] = instanciate_delayed(o[k])
     return o
+
+
+def update_nested_dict(dict1, dict2):
+    for k, v in dict2.items():
+        if isinstance(v, collections.abc.Mapping):
+            dict1[k] = update_nested_dict(dict1.get(k, {}), v)
+        else:
+            dict1[k] = v
+    return dict1

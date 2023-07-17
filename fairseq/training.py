@@ -38,20 +38,9 @@ class FairseqHydraConfig:
         self.package_name = package_name
         self.check_consistency()
 
-    @staticmethod
-    def update_nested_dict(dict1, dict2):
-        for k, v in dict2.items():
-            if isinstance(v, collections.abc.Mapping):
-                dict1[k] = update_nested_dict(dict1.get(k, {}), v)
-            else:
-                dict1[k] = v
-        return dict1
-
     def write(self, path: str):
         config_dict = self.config_dict.copy()
-        config_dict = FairseqHydraConfig.update_nested_dict(
-            config_dict, self.post_config_dict
-        )
+        config_dict = util.update_nested_dict(config_dict, self.post_config_dict)
 
         # recursively go through config dictionary to get all sisyphus paths inplace
         config_dict = util.instanciate_delayed(config_dict)
@@ -68,10 +57,8 @@ class FairseqHydraConfig:
           * config_dict, post_config_dict use dict.update
         :param FairseqHydraConfig other:
         """
-        self.config_dict = FairseqHydraConfig.update_nested_dict(
-            self.config_dict, other.config_dict
-        )
-        self.post_config_dict = FairseqHydraConfig.update_nested_dict(
+        self.config_dict = util.update_nested_dict(self.config_dict, other.config_dict)
+        self.post_config_dict = util.update_nested_dict(
             self.post_config_dict, other.post_config_dict
         )
         self.package_name = other.package_name
