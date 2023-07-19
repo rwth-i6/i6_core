@@ -9,12 +9,12 @@ import logging
 import os
 import shutil
 import subprocess as sp
-from typing import Optional, Union
+from typing import Optional
 
 import i6_core.util as util
 
 from .config import ReturnnConfig
-from .training import Checkpoint, PtCheckpoint
+from .training import PtCheckpoint
 
 
 class CompileTFGraphJob(Job):
