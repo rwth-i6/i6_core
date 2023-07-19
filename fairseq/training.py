@@ -402,7 +402,7 @@ class FairseqHydraTrainingJob(Job):
                 train_loss[k].keys(),
                 train_loss[k].values(),
                 "o-",
-                color=colors[color_index],
+                color=colors[color_index % len(colors)],
                 label=k,
             )
             color_index += 1
