@@ -1,4 +1,4 @@
-__all__ = ["CompileTFGraphJob", "CompileNativeOpJob", "OnnxExportJob"]
+__all__ = ["CompileTFGraphJob", "CompileNativeOpJob", "TorchOnnxExportJob"]
 
 from sisyphus import *
 
@@ -207,7 +207,7 @@ class CompileNativeOpJob(Job):
             shutil.move(files[1], self.out_grad_op.get_path())
 
 
-class OnnxExportJob(Job):
+class TorchOnnxExportJob(Job):
     """
     Export an ONNX model using the appropriate RETURNN tool script.
 
@@ -218,7 +218,7 @@ class OnnxExportJob(Job):
         self,
         *,
         returnn_config: ReturnnConfig,
-        checkpoint: Union[Checkpoint, PtCheckpoint],
+        checkpoint: PtCheckpoint,
         device: str = "cpu",
         returnn_python_exe: Optional[tk.Path] = None,
         returnn_root: Optional[tk.Path] = None,
@@ -234,8 +234,6 @@ class OnnxExportJob(Job):
 
         self.returnn_config = returnn_config
         self.checkpoint = checkpoint
-        if isinstance(checkpoint, Checkpoint):
-            raise ValueError("Tensorflow checkpoint export is currently not supported")
         self.device = device
         self.returnn_python_exe = util.get_returnn_python_exe(returnn_python_exe)
         self.returnn_root = util.get_returnn_root(returnn_root)
