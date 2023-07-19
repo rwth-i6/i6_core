@@ -1,4 +1,4 @@
-__all__ = ["CompileTFGraphJob", "CompileNativeOpJob"]
+__all__ = ["CompileTFGraphJob", "CompileNativeOpJob", "OnnxExportJob"]
 
 from sisyphus import *
 
@@ -209,9 +209,9 @@ class CompileNativeOpJob(Job):
 
 class OnnxExportJob(Job):
     """
-        Export an ONNX model using the appropriate RETURNN tool script.
+    Export an ONNX model using the appropriate RETURNN tool script.
 
-        Currently only supports PyTorch via tools/torch_export_to_onnx.py
+    Currently only supports PyTorch via tools/torch_export_to_onnx.py
     """
 
     def __init__(
