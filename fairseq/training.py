@@ -412,7 +412,7 @@ class FairseqHydraTrainingJob(Job):
                 valid_loss[k].keys(),
                 valid_loss[k].values(),
                 "o-",
-                color=colors[color_index],
+                color=colors[color_index % len(colors)],
                 label=k,
             )
             color_index += 1
@@ -426,7 +426,7 @@ class FairseqHydraTrainingJob(Job):
                 train_accuracy[k].keys(),
                 train_accuracy[k].values(),
                 "o-",
-                color=colors[color_index],
+                color=colors[color_index % len(colors)],
                 label=k,
             )
             color_index += 1
@@ -436,7 +436,7 @@ class FairseqHydraTrainingJob(Job):
                 valid_accuracy[k].keys(),
                 valid_accuracy[k].values(),
                 "o-",
-                color=colors[color_index],
+                color=colors[color_index % len(colors)],
                 label=k,
             )
             color_index += 1
