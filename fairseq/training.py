@@ -61,7 +61,8 @@ class FairseqHydraConfig:
         self.post_config_dict = util.update_nested_dict(
             self.post_config_dict, other.post_config_dict
         )
-        self.package_name = other.package_name
+        if other.package_name != "":
+            self.package_name = other.package_name
         self.check_consistency()
 
     def check_consistency(self):
