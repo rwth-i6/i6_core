@@ -821,14 +821,14 @@ class GetBestPtCheckpointJob(GetBestEpochJob):
         try:
             os.link(
                 os.path.join(self.model_dir.get_path(), "epoch.%.3d.pt" % self.out_epoch.get()),
-                self.out_checkpoint.path
+                self.out_checkpoint.path,
             )
         except OSError:
             # the hardlink will fail when there was an imported job on a different filesystem,
             # thus do a copy instead then
             shutil.copy(
                 os.path.join(self.model_dir.get_path(), "epoch.%.3d.pt" % self.out_epoch.get()),
-                self.out_checkpoint.path
+                self.out_checkpoint.path,
             )
 
 
