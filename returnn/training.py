@@ -683,7 +683,7 @@ class GetBestEpochJob(Job):
         available_keys = data[epochs[-1]]["error"]
         if self.key not in available_keys:
             raise KeyError(
-                f"{self.key} is not available in the provided learning_rates file f{self.learning_rates.get_path()}"
+                f"{self.key} is not available in the provided learning_rates file {self.learning_rates.get_path()}"
             )
 
         scores = [(epoch, data[epoch]["error"][self.key]) for epoch in epochs if self.key in data[epoch]["error"]]
