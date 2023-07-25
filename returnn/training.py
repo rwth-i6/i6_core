@@ -806,17 +806,14 @@ class GetBestPtCheckpointJob(GetBestEpochJob):
     def __init__(self, model_dir: tk.Path, learning_rates: tk.Path, key: str, index: int = 0):
         """
 
-        :param Path model_dir: model_dir output from a RETURNNTrainingJob
-        :param Path learning_rates: learning_rates output from a RETURNNTrainingJob
+        :param Path model_dir: model_dir output from a ReturnnTrainingJob
+        :param Path learning_rates: learning_rates output from a ReturnnTrainingJob
         :param str key: a key from the learning rate file that is used to sort the models
             e.g. "dev_score_output/output_prob"
         :param int index: index of the sorted list to access, 0 for the lowest, -1 for the highest score
         """
         super().__init__(model_dir, learning_rates, key, index)
-        self._out_model_dir = self.output_path("model", directory=True)
-
-        # Note: checkpoint.pt (without epoch number) is only a symlink which is possibly resolved by RETURNN
-        self.out_checkpoint = PtCheckpoint(self.output_path("model/checkpoint.pt"))
+        self.out_checkpoint = PtCheckpoint(self.output_path("checkpoint.pt"))
 
     def run(self):
         super().run()
@@ -824,26 +821,15 @@ class GetBestPtCheckpointJob(GetBestEpochJob):
         try:
             os.link(
                 os.path.join(self.model_dir.get_path(), "epoch.%.3d.pt" % self.out_epoch.get()),
-                os.path.join(
-                    self._out_model_dir.get_path(),
-                    "epoch.%.3d.pt" % self.out_epoch.get(),
-                ),
+                self.out_checkpoint.path
             )
         except OSError:
             # the hardlink will fail when there was an imported job on a different filesystem,
             # thus do a copy instead then
             shutil.copy(
                 os.path.join(self.model_dir.get_path(), "epoch.%.3d.pt" % self.out_epoch.get()),
-                os.path.join(
-                    self._out_model_dir.get_path(),
-                    "epoch.%.3d.pt" % self.out_epoch.get(),
-                ),
+                self.out_checkpoint.path
             )
-
-        os.symlink(
-            os.path.join(self._out_model_dir.get_path(), "epoch.%.3d.pt" % self.out_epoch.get()),
-            os.path.join(self._out_model_dir.get_path(), "checkpoint.pt"),
-        )
 
 
 class AverageTFCheckpointsJob(Job):
