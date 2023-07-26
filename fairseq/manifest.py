@@ -22,16 +22,16 @@ class FairseqAudioManifestCreationJob(Job):
         self,
         audio_dir_path,
         file_extension="wav",
-        valid_percent=0.01,
+        valid_portion=0.01,
         seed=42,
         path_must_contain=None,
         upsampling_alpha=None,
         manifest_audio_paths=None,
     ):
         """
-        :param [tk.Path]|tk.Path audio_dir_path: List of paths or single path to raw audio files to be included
+        :param [tk.Path]|tk.Path audio_dir_path: List of paths or single path to folder(s) containing raw audio files to be included
         :param str file_extension: File extension to look for in audio_dir_path
-        :param float valid_percent: Percentage of files to be in validation set
+        :param float valid_portion: portion of files to be in validation set
         :param int seed: random seed for splitting into train and valid set
         :param str|None path_must_contain: if set, path must contain this substring
             for a file to be included in the manifest
@@ -64,7 +64,7 @@ class FairseqAudioManifestCreationJob(Job):
             self.manifest_audio_paths = None
 
         self.file_extension = file_extension
-        self.valid_percent = valid_percent
+        self.valid_percent = valid_portion
         assert 0.0 <= self.valid_percent <= 1.0
         self.seed = seed
         self.path_must_contain = path_must_contain
@@ -109,9 +109,7 @@ class FairseqAudioManifestCreationJob(Job):
                     continue
 
                 if self.manifest_audio_paths:
-                    rel_path = os.path.relpath(
-                        self.manifest_audio_paths[i], common_dir
-                    )
+                    rel_path = os.path.relpath(self.manifest_audio_paths[i], common_dir)
                     rel_path = os.path.join(rel_path, os.path.basename(path))
                 else:
                     rel_path = os.path.relpath(path, common_dir)
@@ -174,9 +172,7 @@ class FairseqAudioManifestCreationJob(Job):
             upsampling_factors = np.linalg.solve(w_mat, b_vec)
             # assert all entries larger than 1 because we only want to
             # upsample and never downsample
-            assert min(
-                upsampling_factors >= 1
-            )
+            assert min(upsampling_factors >= 1)
 
             upsampling_factors = np.insert(upsampling_factors, max_length_index, 1.0)
             upsampled_train_data = []
@@ -200,9 +196,9 @@ class FairseqAudioManifestCreationJob(Job):
                 upsampled_train_data_lengths.append(
                     sum([frames for _, frames in train_data])
                 )
-            actual_upsampled_probabilities = np.array(upsampled_train_data_lengths) / sum(
+            actual_upsampled_probabilities = np.array(
                 upsampled_train_data_lengths
-            )
+            ) / sum(upsampled_train_data_lengths)
             # following test might fail if the input corpora are really small
             np.testing.assert_allclose(
                 upsampled_probabilities, actual_upsampled_probabilities, rtol=0.1
