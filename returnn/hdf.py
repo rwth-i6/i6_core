@@ -291,7 +291,7 @@ class RasrAlignmentDumpHDFJob(Job):
     This Job reads Rasr alignment caches and dump them in hdf files.
     """
 
-    __sis_hash_exclude__ = {"encoding": "ascii", "sparse": False}
+    __sis_hash_exclude__ = {"encoding": "ascii", "sparse": False, "filter_list_keep": None}
 
     def __init__(
         self,
@@ -301,6 +301,7 @@ class RasrAlignmentDumpHDFJob(Job):
         data_type: type = np.uint16,
         returnn_root: Optional[tk.Path] = None,
         encoding: str = "ascii",
+        filter_list_keep: Optional[tk.Path] = None,
         sparse: bool = False,
     ):
         """
@@ -311,6 +312,7 @@ class RasrAlignmentDumpHDFJob(Job):
         :param returnn_root: file path to the RETURNN repository root folder
         :param encoding: encoding of the segment names in the cache
         :param sparse: writes the data to hdf in sparse format
+        :param filter_list_keep: list of segment names to dump
         """
         self.alignment_caches = alignment_caches
         self.allophone_file = allophone_file
@@ -318,6 +320,7 @@ class RasrAlignmentDumpHDFJob(Job):
         self.data_type = data_type
         self.returnn_root = returnn_root
         self.encoding = encoding
+        self.filter_list_keep = filter_list_keep
         self.sparse = sparse
 
         self.out_hdf_files = [self.output_path(f"data.hdf.{d}") for d in range(len(alignment_caches))]
@@ -347,6 +350,10 @@ class RasrAlignmentDumpHDFJob(Job):
 
         alignment_cache = FileArchive(self.alignment_caches[task_id - 1].get_path(), encoding=self.encoding)
         alignment_cache.setAllophones(self.allophone_file.get_path())
+        if self.filter_list_keep is not None:
+            keep_segments = set(open(self.filter_list_keep.get_path()).read().splitlines())
+        else:
+            keep_segments = None
 
         returnn_root = None if self.returnn_root is None else self.returnn_root.get_path()
         SimpleHDFWriter = get_returnn_simple_hdf_writer(returnn_root)
@@ -356,9 +363,13 @@ class RasrAlignmentDumpHDFJob(Job):
 
         for file in alignment_cache.ft:
             info = alignment_cache.ft[file]
-            if info.name.endswith(".attribs"):
-                continue
             seq_name = info.name
+
+            if seq_name.endswith(".attribs"):
+                continue
+            if keep_segments is not None and seq_name not in keep_segments:
+                excluded_segments.append(seq_name)
+                continue
 
             # alignment
             targets = []
