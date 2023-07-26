@@ -46,7 +46,7 @@ class FairseqAudioManifestCreationJob(Job):
         else:
             assert isinstance(audio_dir_path, list)
             self.audio_dir_paths = audio_dir_path
-        assert min([isinstance(path, tk.Path) for path in self.audio_dir_paths])
+        assert all([isinstance(path, tk.Path) for path in self.audio_dir_paths])
 
         if len(self.audio_dir_paths) == 1:
             assert (
@@ -64,8 +64,8 @@ class FairseqAudioManifestCreationJob(Job):
             self.manifest_audio_paths = None
 
         self.file_extension = file_extension
-        self.valid_percent = valid_portion
-        assert 0.0 <= self.valid_percent <= 1.0
+        self.valid_portion = valid_portion
+        assert 0.0 <= self.valid_portion <= 1.0
         self.seed = seed
         self.path_must_contain = path_must_contain
         self.upsampling_alpha = upsampling_alpha
@@ -92,7 +92,7 @@ class FairseqAudioManifestCreationJob(Job):
 
         valid_f = (
             open(os.path.join(self.out_manifest_path, "valid.tsv"), "w")
-            if self.valid_percent > 0
+            if self.valid_portion > 0
             else None
         )
         if valid_f is not None:
@@ -113,7 +113,7 @@ class FairseqAudioManifestCreationJob(Job):
                     rel_path = os.path.join(rel_path, os.path.basename(path))
                 else:
                     rel_path = os.path.relpath(path, common_dir)
-                if rand.random() > self.valid_percent:
+                if rand.random() > self.valid_portion:
                     train_data.append((rel_path, frames))
                 else:
                     print("{}\t{}".format(rel_path, frames), file=valid_f)
@@ -125,56 +125,22 @@ class FairseqAudioManifestCreationJob(Job):
             corpora_lengths = []
             for train_data in all_train_data:
                 corpora_lengths.append(sum([frames for _, frames in train_data]))
+
             num_corpora = len(corpora_lengths)
             sum_corpora_length = sum(corpora_lengths)
-
-            max_length_index = corpora_lengths.index(max(corpora_lengths))
-
-            upsampled_proportions = [
-                (l / sum_corpora_length) ** self.upsampling_alpha
-                for l in corpora_lengths
+            corpora_probs = [(l / sum_corpora_length) for l in corpora_lengths]
+            upsampling_proportions = [p**self.upsampling_alpha for p in corpora_probs]
+            upsampling_factors = [
+                upsampling_proportions[i] / corpora_probs[i] for i in range(num_corpora)
             ]
-            upsampled_probabilities = [
-                p / sum(upsampled_proportions) for p in upsampled_proportions
+            upsampling_factors = [
+                f / min(upsampling_factors) for f in upsampling_factors
             ]
 
-            matrix_row_len = np.expand_dims(
-                np.array(
-                    corpora_lengths[:max_length_index]
-                    + corpora_lengths[max_length_index + 1 :],
-                    dtype=float,
-                ),
-                axis=0,
-            )
-            matrix_row_prob = np.expand_dims(
-                np.array(
-                    upsampled_probabilities[:max_length_index]
-                    + upsampled_probabilities[max_length_index + 1 :],
-                    dtype=float,
-                ),
-                axis=0,
-            )
-            if num_corpora > 2:
-                w_mat = np.repeat(matrix_row_len, num_corpora - 1, axis=0)
-                w_mat *= np.transpose(  # element-wise multiplication
-                    np.repeat(matrix_row_prob, num_corpora - 1, axis=0)
-                )
-            else:
-                w_mat = matrix_row_len * matrix_row_prob
-            w_mat -= np.diag(matrix_row_len[0])
-            b_vec = np.array(
-                [
-                    -upsampled_probabilities[i] * corpora_lengths[max_length_index]
-                    for i in range(num_corpora)
-                    if i != max_length_index
-                ]
-            )
-            upsampling_factors = np.linalg.solve(w_mat, b_vec)
             # assert all entries larger than 1 because we only want to
             # upsample and never downsample
             assert min(upsampling_factors >= 1)
 
-            upsampling_factors = np.insert(upsampling_factors, max_length_index, 1.0)
             upsampled_train_data = []
 
             for i, upsample in enumerate(upsampling_factors):
