@@ -291,7 +291,7 @@ class RasrAlignmentDumpHDFJob(Job):
     This Job reads Rasr alignment caches and dump them in hdf files.
     """
 
-    __sis_hash_exclude__ = {"encoding": "ascii"}
+    __sis_hash_exclude__ = {"encoding": "ascii", "sparse": False}
 
     def __init__(
         self,
@@ -301,6 +301,7 @@ class RasrAlignmentDumpHDFJob(Job):
         data_type: type = np.uint16,
         returnn_root: Optional[tk.Path] = None,
         encoding: str = "ascii",
+        sparse: bool = False,
     ):
         """
         :param alignment_caches: e.g. output of an AlignmentJob
@@ -317,6 +318,7 @@ class RasrAlignmentDumpHDFJob(Job):
         self.data_type = data_type
         self.returnn_root = returnn_root
         self.encoding = encoding
+        self.sparse = sparse
 
         self.out_hdf_files = [self.output_path(f"data.hdf.{d}") for d in range(len(alignment_caches))]
         self.out_excluded_segments = self.output_path(f"excluded.segments")
@@ -348,7 +350,7 @@ class RasrAlignmentDumpHDFJob(Job):
 
         returnn_root = None if self.returnn_root is None else self.returnn_root.get_path()
         SimpleHDFWriter = get_returnn_simple_hdf_writer(returnn_root)
-        out_hdf = SimpleHDFWriter(filename=self.out_hdf_files[task_id - 1], dim=1)
+        out_hdf = SimpleHDFWriter(filename=self.out_hdf_files[task_id - 1], dim=None if self.sparse else 1)
 
         excluded_segments = []
 
@@ -370,7 +372,7 @@ class RasrAlignmentDumpHDFJob(Job):
 
             data = np.array(targets).astype(np.dtype(self.data_type))
             out_hdf.insert_batch(
-                inputs=data.reshape(1, -1 1),
+                inputs=data.reshape(1, -1) if self.sparse else data.reshape(1, -1, 1),
                 seq_len=[data.shape[0]],
                 seq_tag=[seq_name],
             )
