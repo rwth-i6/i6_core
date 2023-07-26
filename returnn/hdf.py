@@ -237,7 +237,7 @@ class BlissToPcmHDFJob(Job):
         :param returnn_root: RETURNN repository
         :param rounding: defines how timestamps should be rounded if they do not exactly fall onto a sample:
             start_and_duration will round down the start time and the duration of the segment
-            rasr_compatible will round up start and round down the end
+            rasr_compatible will round up the start time and round down the end time
         """
         self.set_vis_name("Dump audio to HDF")
         assert output_dtype in ["float64", "float32", "int32", "int16"]
