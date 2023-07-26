@@ -291,6 +291,8 @@ class RasrAlignmentDumpHDFJob(Job):
     This Job reads Rasr alignment caches and dump them in hdf files.
     """
 
+    __sis_hash_exclude__ = {"encoding": "ascii"}
+
     def __init__(
         self,
         alignment_caches: List[tk.Path],
@@ -298,6 +300,7 @@ class RasrAlignmentDumpHDFJob(Job):
         state_tying_file: tk.Path,
         data_type: type = np.uint16,
         returnn_root: Optional[tk.Path] = None,
+        encoding: str = "ascii",
     ):
         """
         :param alignment_caches: e.g. output of an AlignmentJob
@@ -305,14 +308,19 @@ class RasrAlignmentDumpHDFJob(Job):
         :param state_tying_file: e.g. output of a DumpStateTyingJob
         :param data_type: type that is used to store the data
         :param returnn_root: file path to the RETURNN repository root folder
+        :param encoding: encoding of the segment names in the cache
+        :param sparse: writes the data to hdf in sparse format
         """
         self.alignment_caches = alignment_caches
         self.allophone_file = allophone_file
         self.state_tying_file = state_tying_file
+        self.data_type = data_type
+        self.returnn_root = returnn_root
+        self.encoding = encoding
+
         self.out_hdf_files = [self.output_path(f"data.hdf.{d}") for d in range(len(alignment_caches))]
         self.out_excluded_segments = self.output_path(f"excluded.segments")
-        self.returnn_root = returnn_root
-        self.data_type = data_type
+
         self.rqmt = {"cpu": 1, "mem": 8, "time": 0.5}
 
     def tasks(self):
@@ -335,7 +343,7 @@ class RasrAlignmentDumpHDFJob(Job):
             (k, int(v)) for l in open(self.state_tying_file.get_path()) for k, v in [l.strip().split()[0:2]]
         )
 
-        alignment_cache = FileArchive(self.alignment_caches[task_id - 1].get_path())
+        alignment_cache = FileArchive(self.alignment_caches[task_id - 1].get_path(), encoding=self.encoding)
         alignment_cache.setAllophones(self.allophone_file.get_path())
 
         returnn_root = None if self.returnn_root is None else self.returnn_root.get_path()
@@ -362,7 +370,7 @@ class RasrAlignmentDumpHDFJob(Job):
 
             data = np.array(targets).astype(np.dtype(self.data_type))
             out_hdf.insert_batch(
-                inputs=data.reshape(1, -1, 1),
+                inputs=data.reshape(1, -1 1),
                 seq_len=[data.shape[0]],
                 seq_tag=[seq_name],
             )
