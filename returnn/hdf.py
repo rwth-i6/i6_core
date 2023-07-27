@@ -291,7 +291,7 @@ class RasrAlignmentDumpHDFJob(Job):
     This Job reads Rasr alignment caches and dump them in hdf files.
     """
 
-    __sis_hash_exclude__ = {"encoding": "ascii", "sparse": False, "filter_list_keep": None}
+    __sis_hash_exclude__ = {"encoding": "ascii", "sparse": False, "filter_list_keep": None, "num_classes": None}
 
     def __init__(
         self,
@@ -303,6 +303,7 @@ class RasrAlignmentDumpHDFJob(Job):
         encoding: str = "ascii",
         filter_list_keep: Optional[tk.Path] = None,
         sparse: bool = False,
+        num_classes: Optional[int] = None,
     ):
         """
         :param alignment_caches: e.g. output of an AlignmentJob
@@ -313,6 +314,7 @@ class RasrAlignmentDumpHDFJob(Job):
         :param encoding: encoding of the segment names in the cache
         :param sparse: writes the data to hdf in sparse format
         :param filter_list_keep: list of segment names to dump
+        :param num_classes: number of output labels in the alignment. Can be None if sparse is not set.
         """
         self.alignment_caches = alignment_caches
         self.allophone_file = allophone_file
@@ -322,6 +324,7 @@ class RasrAlignmentDumpHDFJob(Job):
         self.encoding = encoding
         self.filter_list_keep = filter_list_keep
         self.sparse = sparse
+        self.num_classes = num_classes
 
         self.out_hdf_files = [self.output_path(f"data.hdf.{d}") for d in range(len(alignment_caches))]
         self.out_excluded_segments = self.output_path(f"excluded.segments")
@@ -357,7 +360,11 @@ class RasrAlignmentDumpHDFJob(Job):
 
         returnn_root = None if self.returnn_root is None else self.returnn_root.get_path()
         SimpleHDFWriter = get_returnn_simple_hdf_writer(returnn_root)
-        out_hdf = SimpleHDFWriter(filename=self.out_hdf_files[task_id - 1], dim=None if self.sparse else 1)
+        out_hdf = SimpleHDFWriter(
+            filename=self.out_hdf_files[task_id - 1],
+            dim=self.num_classes if self.sparse else 1,
+            ndim=1 if self.sparse else 2,
+        )
 
         excluded_segments = []
 
