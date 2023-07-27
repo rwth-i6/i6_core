@@ -372,7 +372,7 @@ class FlowNetwork:
             "params": self.params,
             "hidden_inputs": self.hidden_inputs,
             "config": self.config,
-            "post_config": self.post_config,
+            "post_config": None,
         }
         return state
 
