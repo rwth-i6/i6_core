@@ -9,6 +9,7 @@ from i6_core.returnn.training import Checkpoint
 def make_precomputed_hybrid_feature_flow(
     backend: str,
     rasr_config: rasr.RasrConfig,
+    rasr_post_config: Optional[rasr.RasrConfig] = None,
     fwd_input_name: str = "fwd-input",
 ) -> rasr.FlowNetwork:
     """
@@ -23,6 +24,7 @@ def make_precomputed_hybrid_feature_flow(
 
     :param backend: "tf" or "onnx"
     :param rasr_config: rasr config for the forward node
+    :param rasr_post_config: rasr post config (not hashed) for the forward node
     :param fwd_input_name: naming for the tf network input, usually no need to be changed
     :return: tensorflow-/onnx-forward node flow with output link and related config
     """
@@ -40,6 +42,9 @@ def make_precomputed_hybrid_feature_flow(
 
     flow.config = rasr.RasrConfig()
     flow.config[fwd_node] = rasr_config
+    if rasr_post_config is not None:
+        flow.post_config = rasr.RasrConfig()
+        flow.post_config[fwd_node] = rasr_post_config
 
     return flow
 
@@ -138,16 +143,18 @@ def make_precomputed_hybrid_onnx_feature_flow(
     """
 
     rasr_config = rasr.RasrConfig()
+    rasr_post_config = rasr.RasrConfig()
     for k, v in io_map.items():
         rasr_config.io_map[k] = v
 
     rasr_config.session.file = onnx_model
-    rasr_config.session.inter_op_num_threads = cpu
-    rasr_config.session.intra_op_num_threads = cpu
+    rasr_post_config.session.inter_op_num_threads = cpu
+    rasr_post_config.session.intra_op_num_threads = cpu
 
     return make_precomputed_hybrid_feature_flow(
         backend="onnx",
         rasr_config=rasr_config,
+        rasr_post_config=rasr_post_config,
         fwd_input_name=onnx_fwd_input_name,
     )
 
