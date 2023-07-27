@@ -19,7 +19,7 @@ from .training import PtCheckpoint
 
 class CompileTFGraphJob(Job):
     """
-    This Job is a wrapper around the RETURNN tool comptile_tf_graph.py
+    This Job is a wrapper around the RETURNN tool compile_tf_graph.py
 
     """
 
@@ -47,7 +47,7 @@ class CompileTFGraphJob(Job):
         :param int train:
         :param int eval:
         :param int search:
-        :param int|None epoch: compile a specific epoch for networks that might change with every epoch
+        :param int|tk.Variable|None epoch: compile a specific epoch for networks that might change with every epoch
         :param int log_verbosity: RETURNN log verbosity from 1 (least verbose) to 5 (most verbose)
         :param str|None device: optimize graph for cpu or gpu. If `None`, defaults to cpu for current RETURNN.
             For any RETURNN version before `cd4bc382`, the behavior will depend on the `device` entry in the
@@ -115,7 +115,7 @@ class CompileTFGraphJob(Job):
         if self.device is not None:
             args.append("--device=%s" % self.device)
         if self.epoch is not None:
-            args.append("--epoch=%d" % self.epoch)
+            args.append("--epoch=%d" % util.instanciate_delayed(self.epoch))
         if self.summaries_tensor_name is not None:
             args.append("--summaries_tensor_name=%s" % self.summaries_tensor_name)
         if self.rec_step_by_step is not None:
