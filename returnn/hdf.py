@@ -291,7 +291,7 @@ class RasrAlignmentDumpHDFJob(Job):
     This Job reads Rasr alignment caches and dump them in hdf files.
     """
 
-    __sis_hash_exclude__ = {"encoding": "ascii", "sparse": False, "filter_list_keep": None, "num_classes": None}
+    __sis_hash_exclude__ = {"encoding": "ascii", "filter_list_keep": None, "sparse": False, "num_classes": None}
 
     def __init__(
         self,
@@ -312,8 +312,8 @@ class RasrAlignmentDumpHDFJob(Job):
         :param data_type: type that is used to store the data
         :param returnn_root: file path to the RETURNN repository root folder
         :param encoding: encoding of the segment names in the cache
-        :param sparse: writes the data to hdf in sparse format
         :param filter_list_keep: list of segment names to dump
+        :param sparse: writes the data to hdf in sparse format
         :param num_classes: number of output labels in the alignment. Can be None if sparse is not set.
         """
         self.alignment_caches = alignment_caches
