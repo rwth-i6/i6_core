@@ -35,6 +35,7 @@ def make_precomputed_hybrid_feature_flow(
     flow.add_output("features")
     flow.add_param("id")
 
+    assert backend in ("tf", "onnx"), f"backend not supported: {backend}"
     node_filter = {"tf": "tensorflow-forward", "onnx": "onnx-forward"}[backend]
     fwd_node = flow.add_node(node_filter, f"{backend}-fwd", {"id": "$(id)"})
     flow.link(f"network:{fwd_input_name}", fwd_node + ":input")
@@ -116,7 +117,7 @@ def make_precomputed_hybrid_tf_feature_flow(
 def make_precomputed_hybrid_onnx_feature_flow(
     onnx_model: tk.Path,
     io_map: Dict[str, str],
-    onnx_fwd_input_name: str = "onnx-fwd-input",
+    onnx_fwd_input_name: str = "fwd-input",
     cpu: int = 1,
 ) -> rasr.FlowNetwork:
     """
