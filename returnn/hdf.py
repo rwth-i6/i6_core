@@ -1,7 +1,9 @@
 __all__ = ["ReturnnDumpHDFJob", "ReturnnRasrDumpHDFJob", "BlissToPcmHDFJob", "RasrAlignmentDumpHDFJob"]
 
 from dataclasses import dataclass
+from enum import Enum, auto
 import glob
+import math
 import numpy as np
 import os
 import shutil
@@ -208,7 +210,11 @@ class BlissToPcmHDFJob(Job):
         def __eq__(self, other):
             return super().__eq__(other) and other.channel == self.channel
 
-    __sis_hash_exclude__ = {"multi_channel_strategy": BaseStrategy()}
+    class RoundingScheme(Enum):
+        start_and_duration = auto()
+        rasr_compatible = auto()
+
+    __sis_hash_exclude__ = {"multi_channel_strategy": BaseStrategy(), "rounding": RoundingScheme.start_and_duration}
 
     def __init__(
         self,
@@ -217,6 +223,7 @@ class BlissToPcmHDFJob(Job):
         output_dtype: str = "int16",
         multi_channel_strategy: BaseStrategy = BaseStrategy(),
         returnn_root: Optional[tk.Path] = None,
+        rounding: RoundingScheme = RoundingScheme.start_and_duration,
     ):
         """
 
@@ -228,6 +235,9 @@ class BlissToPcmHDFJob(Job):
             BaseStrategy(): no handling, assume only one channel
             PickNth(n): Takes audio from n-th channel
         :param returnn_root: RETURNN repository
+        :param rounding: defines how timestamps should be rounded if they do not exactly fall onto a sample:
+            start_and_duration will round down the start time and the duration of the segment
+            rasr_compatible will round up the start time and round down the end time
         """
         self.set_vis_name("Dump audio to HDF")
         assert output_dtype in ["float64", "float32", "int32", "int16"]
@@ -237,9 +247,11 @@ class BlissToPcmHDFJob(Job):
         self.output_dtype = output_dtype
         self.multi_channel_strategy = multi_channel_strategy
         self.returnn_root = returnn_root
-        self.rqmt = {}
+        self.rounding = rounding
 
         self.out_hdf = self.output_path("audio.hdf")
+
+        self.rqmt = {}
 
     def tasks(self):
         yield Task("run", rqmt=self.rqmt)
@@ -265,9 +277,17 @@ class BlissToPcmHDFJob(Job):
 
             for segment in recording.segments:
                 if (not segments_whitelist) or (segment.fullname() in segments_whitelist):
-                    audio.seek(int(segment.start * audio.samplerate))
+                    if self.rounding == self.RoundingScheme.start_and_duration:
+                        start = int(segment.start * audio.samplerate)
+                        duration = int((segment.end - segment.start) * audio.samplerate)
+                    elif self.rounding == self.RoundingScheme.rasr_compatible:
+                        start = math.ceil(segment.start * audio.samplerate)
+                        duration = math.floor(segment.end * audio.samplerate) - start
+                    else:
+                        raise NotImplementedError(f"RoundingScheme {self.rounding} not implemented.")
+                    audio.seek(start)
                     data = audio.read(
-                        int((segment.end - segment.start) * audio.samplerate),
+                        duration,
                         always_2d=True,
                         dtype=self.output_dtype,
                     )
