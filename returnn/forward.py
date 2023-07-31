@@ -124,7 +124,10 @@ class ReturnnForwardJob(Job):
             ]
 
             try:
-                sp.check_call(call, cwd=d)
+                env = os.environ.copy()
+                env["OMP_NUM_THREADS"] = str(self.rqmt["cpu"])
+                env["MKL_NUM_THREADS"] = str(self.rqmt["cpu"])
+                sp.check_call(call, cwd=d, env=env)
             except Exception as e:
                 print("Run crashed - copy temporary work folder as 'crash_dir'")
                 shutil.copytree(d, "crash_dir")
