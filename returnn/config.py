@@ -6,6 +6,7 @@ import json
 import os
 import pickle
 import pprint
+import shutil
 import string
 import subprocess
 import sys
@@ -139,6 +140,11 @@ class ReturnnConfig:
         if sys.version_info[:2] >= (3, 8):
             self.pprint_kwargs.setdefault("sort_dicts", sort_config)
         self.black_formatting = black_formatting
+        # Get the path to the black executable here in the Sisyphus environment
+        # because inside the worker environment, we usually don't have the original PATH anymore.
+        # This is consistent to the old behavior where we did `import black` instead,
+        # i.e. by default this used the same black as in the Sisyphus environment.
+        self._black_path = shutil.which("black") if black_formatting else None
 
     def get(self, key, default=None):
         if key in self.post_config:
@@ -188,7 +194,7 @@ class ReturnnConfig:
         with open(file_path, "wt", encoding="utf-8") as f:
             f.write(content)
         if self.black_formatting:
-            subprocess.check_call(["black", file_path])
+            subprocess.check_call([self._black_path, file_path])
 
     def _write_network_stages(self, config_path):
         """
@@ -221,7 +227,7 @@ class ReturnnConfig:
             with open(network_path, "wt", encoding="utf-8") as f:
                 f.write(content)
             if self.black_formatting:
-                subprocess.check_call(["black", network_path])
+                subprocess.check_call([self._black_path, network_path])
             init_import_code += "from .network_%i import network as network_%i\n" % (
                 epoch,
                 epoch,
