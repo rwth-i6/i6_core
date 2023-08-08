@@ -1,13 +1,13 @@
 __all__ = ["CodeWrapper", "ReturnnConfig", "WriteReturnnConfigJob"]
 
 import base64
-import black
 import inspect
 import json
 import os
 import pickle
 import pprint
 import string
+import subprocess
 import sys
 import textwrap
 
@@ -183,12 +183,12 @@ class ReturnnConfig:
         write with optional black formatting
 
         :param str content:
-        :param str config_path:
+        :param str file_path:
         """
         with open(file_path, "wt", encoding="utf-8") as f:
-            if self.black_formatting:
-                content = black.format_str(content, mode=black.Mode())
             f.write(content)
+        if self.black_formatting:
+            subprocess.check_call(["black", file_path])
 
     def _write_network_stages(self, config_path):
         """
@@ -219,9 +219,9 @@ class ReturnnConfig:
                     network_definition
                 )
             with open(network_path, "wt", encoding="utf-8") as f:
-                if self.black_formatting:
-                    content = black.format_str(content, mode=black.Mode())
                 f.write(content)
+            if self.black_formatting:
+                subprocess.check_call(["black", network_path])
             init_import_code += "from .network_%i import network as network_%i\n" % (
                 epoch,
                 epoch,
