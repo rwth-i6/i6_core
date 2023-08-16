@@ -1,5 +1,5 @@
 File 1 Test 00.00 04.00 <d0> this one is correct
-File 1 Test 06.00 12.00 <d0> this one is close to correct
-File 1 Test 13.00 19.00 <d0> this one is sadly completely wrong
-File 1 Test 20.00 21.00 <d0> case
+File 1 Test 06.00 12.00 <d0> this one is a bit longer
+File 1 Test 13.00 19.00 <d0> this one is also quite long
+File 1 Test 20.00 22.00 <d0> case
 ;; LABEL "d0" "default0" "all other segments of category 0"
