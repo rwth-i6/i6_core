@@ -1,0 +1,23 @@
+;; <name> <track> <start> <duration> <word> <confidence> [<n-best>]
+;; TestCorpus/File/1 (00.00-04.00)
+File 1 00.00 01.00 this 1.0000
+File 1 01.00 01.00 one 1.0000
+File 1 02.00 01.00 is 1.0000
+File 1 03.00 01.00 correct 1.0000
+;; TestCorpus/File/2 (06.00-12.00)
+File 1 06.00 01.00 this 1.0000
+File 1 07.00 01.00 one 1.0000
+File 1 08.00 01.00 is 1.0000
+File 1 09.00 01.00 not 1.0000
+File 1 10.00 01.00 really 1.0000
+File 1 11.00 01.00 good 1.0000
+;; TestCorpus/File/3 (13.00-19.00)
+File 1 13.00 01.00 no 1.0000
+File 1 14.00 01.00 clue 1.0000
+File 1 15.00 01.00 what 1.0000
+File 1 16.00 01.00 was 1.0000
+File 1 17.00 01.00 recognized 1.0000
+File 1 18.00 01.00 here 1.0000
+;; TestCorpus/File/4 (20.00-22.00)
+File 1 20.00 01.00 insertion 1.0000
+File 1 21.00 01.00 case 1.0000
