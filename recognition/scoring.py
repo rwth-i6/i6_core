@@ -61,7 +61,7 @@ class ScliteJob(Job):
         sort_files: bool = False,
         additional_args: Optional[List[str]] = None,
         sctk_binary_path: Optional[tk.Path] = None,
-        precision_ndigit: int = 1,
+        precision_ndigit: Optional[int] = 1,
     ):
         """
         :param ref: reference stm text file
@@ -72,6 +72,7 @@ class ScliteJob(Job):
         :param sctk_binary_path: set an explicit binary path.
         :param precision_ndigit: number of digits after decimal point for the precision
             of the percentages in the output variables.
+            If None, no rounding is done.
             In sclite, the precision was always one digit after the decimal point
             (https://github.com/usnistgov/SCTK/blob/f48376a203ab17f/src/sclite/sc_dtl.c#L343),
             thus we recalculate the percentages here.
@@ -205,7 +206,9 @@ class ScliteJob(Job):
                         percentage = 100.0 * absolute / num_ref_words
                     else:
                         percentage = float("nan")
-                    outputs_percentage[key] = round(percentage, self.precision_ndigit)
+                    outputs_percentage[key] = (
+                        round(percentage, self.precision_ndigit) if self.precision_ndigit is not None else percentage
+                    )
 
                 for key, (percentage_var, absolute_var) in output_variables.items():
                     if percentage_var is not None:
