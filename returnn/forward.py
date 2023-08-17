@@ -373,10 +373,10 @@ class ReturnnForwardJobV2(Job):
         else:
             res.config.setdefault("allow_random_model_init", True)
 
-        returnn_config.post_config.setdefault("device", device)
-        returnn_config.post_config.setdefault("log", ["./returnn.log"])
-        returnn_config.post_config.setdefault("tf_log_dir", "returnn-tf-log")
-        returnn_config.post_config.setdefault("log_verbosity", log_verbosity)
+        res.post_config.setdefault("device", device)
+        res.post_config.setdefault("log", ["./returnn.log"])
+        res.post_config.setdefault("tf_log_dir", "returnn-tf-log")
+        res.post_config.setdefault("log_verbosity", log_verbosity)
 
         res.check_consistency()
 
