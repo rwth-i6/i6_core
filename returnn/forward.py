@@ -328,19 +328,16 @@ class ReturnnForwardJobV2(Job):
                 print("Run crashed - copy temporary work folder as 'crash_dir'")
                 if os.path.exists("crash_dir"):
                     shutil.rmtree("crash_dir")
-                shutil.copytree(tmp_dir, "crash_dir")
+                shutil.copytree(tmp_dir, "crash_dir", dirs_exist_ok=True)
                 raise
-
-            # move logs
-            if os.path.exists(f"{tmp_dir}/returnn.log"):
-                shutil.move(f"{tmp_dir}/returnn.log", "returnn.log")
-            if os.path.exists(f"{tmp_dir}/returnn-tf-log"):
-                shutil.move(f"{tmp_dir}/returnn-tf-log", ".")
 
             # move outputs to output folder
             for k, v in self.out_files.items():
                 assert os.path.exists(f"{tmp_dir}/{k}"), f"Output file {k} does not exist"
                 shutil.move(f"{tmp_dir}/{k}", v.get_path())
+
+            # copy logs and anything else. don't make assumptions on filenames
+            shutil.copytree(tmp_dir, ".", dirs_exist_ok=True)
 
     @classmethod
     def create_returnn_config(
