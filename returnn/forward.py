@@ -385,7 +385,7 @@ class ReturnnForwardJobV2(Job):
     @classmethod
     def hash(cls, kwargs):
         d = {
-            "returnn_config": ReturnnForwardJobV2.create_returnn_config(**kwargs),
+            "returnn_config": cls.create_returnn_config(**kwargs),
             "returnn_python_exe": kwargs["returnn_python_exe"],
             "returnn_root": kwargs["returnn_root"],
         }
