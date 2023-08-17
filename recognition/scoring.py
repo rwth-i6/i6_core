@@ -194,6 +194,7 @@ class ScliteJob(Job):
                     if key == "Aligned words":
                         break  # that should be the last key, can stop now
 
+                assert "Ref. words" in outputs_absolute, "Expected absolute numbers for Ref. words"
                 num_ref_words = outputs_absolute["Ref. words"]
                 assert "Percent Total Error" in outputs_absolute, "Expected absolute numbers for Percent Total Error"
                 outputs_absolute["Percent Word Accuracy"] = num_ref_words - outputs_absolute["Percent Total Error"]
