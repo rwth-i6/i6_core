@@ -5,8 +5,9 @@ import yaml
 import sys
 import copy
 import collections.abc
+from collections import defaultdict
 import re
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 from sisyphus import Task, Job, tk
 from sisyphus.hash import sis_hash_helper
@@ -136,7 +137,7 @@ class FairseqHydraTrainingJob(Job):
         gpu_rqmt=1,
         fairseq_python_exe=None,
         fairseq_root,
-        use_cache_manager=True,
+        use_cache_manager=False,
         zipped_audio_dir=None,
     ):
         """
