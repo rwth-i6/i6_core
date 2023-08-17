@@ -15,9 +15,7 @@ File 1 11.00 01.00 good 1.0000
 File 1 13.00 01.00 no 1.0000
 File 1 14.00 01.00 clue 1.0000
 File 1 15.00 01.00 what 1.0000
-File 1 16.00 01.00 was 1.0000
-File 1 17.00 01.00 recognized 1.0000
-File 1 18.00 01.00 here 1.0000
+File 1 16.00 03.00 was 1.0000
 ;; TestCorpus/File/4 (20.00-22.00)
 File 1 20.00 01.00 insertion 1.0000
 File 1 21.00 01.00 case 1.0000
