@@ -8,8 +8,7 @@ from i6_core.tools.compile import MakeJob
 from i6_core.tools.git import CloneGitRepositoryJob
 from i6_core.recognition import ScliteJob
 
-Path = setup_path(__package__)
-_my_dir = os.path.dirname(os.path.abspath(__file__))
+rel_path = setup_path(__package__)
 
 
 def compile_sctk(
@@ -42,8 +41,8 @@ def test_sclite_job():
 
         gs.WORK_DIR = tmpdir
         sctk_binary = compile_sctk(branch="v2.4.12")
-        hyp = Path(f"{_my_dir}/files/hyp.ctm")
-        ref = Path(f"{_my_dir}/files/ref.stm")
+        hyp = rel_path("files/hyp.ctm")
+        ref = rel_path("files/ref.stm")
 
         sclite_job = ScliteJob(ref=ref, hyp=hyp, sctk_binary_path=sctk_binary)
         sclite_job._sis_setup_directory()
