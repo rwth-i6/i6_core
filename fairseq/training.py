@@ -1,16 +1,14 @@
-import logging
 import os
 import subprocess as sp
 import yaml
-import sys
 import copy
-import collections.abc
 from collections import defaultdict
-import re
+import pathlib
 from typing import Dict, Any, Optional
 
 from sisyphus import Task, Job, tk
 from sisyphus.hash import sis_hash_helper
+import sisyphus.global_settings as gs
 
 import i6_core.util as util
 
@@ -59,9 +57,7 @@ class FairseqHydraConfig:
         :param FairseqHydraConfig other:
         """
         self.config_dict = util.update_nested_dict(self.config_dict, other.config_dict)
-        self.post_config_dict = util.update_nested_dict(
-            self.post_config_dict, other.post_config_dict
-        )
+        self.post_config_dict = util.update_nested_dict(self.post_config_dict, other.post_config_dict)
         if other.package_name != "":
             self.package_name = other.package_name
         self.check_consistency()
@@ -84,7 +80,7 @@ class FairseqHydraConfig:
                 ), f"{group} in post_config would overwrite existing entry in config"
 
         # list of parameters that should never be hashed
-        disallowed_in_config = ["save_interval", "max_epoch"]
+        disallowed_in_config = ["save_interval", "max_epoch", "max_update"]
 
         for group in self.config_dict:
             if isinstance(self.config_dict[group], dict):
@@ -129,6 +125,7 @@ class FairseqHydraTrainingJob(Job):
         *,  # args below are keyword only
         command_line_args=None,
         max_epoch=1,
+        max_update=1,
         save_interval=1,
         keep_epochs=None,
         time_rqmt=4,
@@ -137,7 +134,7 @@ class FairseqHydraTrainingJob(Job):
         gpu_rqmt=1,
         fairseq_python_exe=None,
         fairseq_root,
-        use_cache_manager=False,
+        cache_manager=None,
         zipped_audio_dir=None,
     ):
         """
@@ -145,6 +142,7 @@ class FairseqHydraTrainingJob(Job):
         :param list command_line_args: Additional command line arguments (starting with "--*"),
             to configure the Fairseq-hydra task
         :param int max_epoch: maximum number of epochs to run.
+        :param int max_update: maximum number of steps to run.
         :param int save_interval: save a checkpoint each n-th epoch
         :param list[int]|set[int]|None keep_epochs: specify which checkpoints are kept in self.out_models.
             Use None for each save_interval-th epoch
@@ -155,7 +153,7 @@ class FairseqHydraTrainingJob(Job):
         :param tk.Path fairseq_python_exe: File path to the executable for running python
         :param tk.Path fairseq_root: File path to the fairseq git for alternative call of fairseq-hydra-train
             (no need to install fairseq here)
-        :param bool use_cache_manager: enables caching of data given in the manifest with the i6 cache manager
+        :param str cache_manager: enables caching of data given in the manifest with cache manager
         :param [tk.Path]|tk.Path zipped_audio_dir: using a bundle file for caching is very slow for large manifests. For
             speeding up the audio file transfer using the cache manager, a zipped audio directory might be provided.
             The zipped audio directory is then used for caching instead and unzipped on the node for training
@@ -166,33 +164,21 @@ class FairseqHydraTrainingJob(Job):
         del kwargs["self"]
 
         self.command_line_args = command_line_args or []
-        stored_epochs = list(range(save_interval, max_epoch, save_interval)) + [
-            max_epoch
-        ]
+        stored_epochs = list(range(save_interval, max_epoch, save_interval)) + [max_epoch]
 
-        self.keep_epochs = (
-            set(stored_epochs) if keep_epochs is None else set(keep_epochs)
-        )
-        self.fairseq_python_exe = (
-            fairseq_python_exe
-            if fairseq_python_exe is not None
-            else tk.Path("/usr/bin/python3")
-        )
+        self.keep_epochs = set(stored_epochs) if keep_epochs is None else set(keep_epochs)
+        self.fairseq_python_exe = fairseq_python_exe if fairseq_python_exe is not None else tk.Path("/usr/bin/python3")
         self.fairseq_root = fairseq_root
         assert self.fairseq_root is not None
-        self.use_cache_manager = use_cache_manager
+        self.cache_manager = cache_manager
         if isinstance(zipped_audio_dir, tk.Path):
             self.zipped_audio_dir = [zipped_audio_dir]
         else:
             self.zipped_audio_dir = zipped_audio_dir
         if self.zipped_audio_dir is not None:
-            assert (
-                self.use_cache_manager
-            ), "cache manager must be used for zipped audio input"
+            assert self.cache_manager, "cache manager must be used for zipped audio input"
 
-        self.fairseq_hydra_config = FairseqHydraTrainingJob.create_fairseq_hydra_config(
-            **kwargs
-        )
+        self.fairseq_hydra_config = FairseqHydraTrainingJob.create_fairseq_hydra_config(**kwargs)
         # Outputs:
         self.out_fairseq_hydra_yaml = self.output_path("fairseq_hydra_config.yaml")
         self.out_checkpoint_dir = self.output_path("checkpoints", directory=True)
@@ -204,10 +190,8 @@ class FairseqHydraTrainingJob(Job):
             )
             for k in self.keep_epochs
         }
-        if use_cache_manager:
-            self.out_cached_audio_manifest = self.output_path(
-                "cached_audio_manifest", directory=True
-            )
+        if cache_manager is not None:
+            self.out_cached_audio_manifest = self.output_path("cached_audio_manifest", directory=True)
         self.out_plot_se = self.output_path("loss_and_accuracy.svg")
         self.out_plot_lr = self.output_path("learning_rate.svg")
 
@@ -229,13 +213,11 @@ class FairseqHydraTrainingJob(Job):
         yield Task("plot", mini_task=True)
 
     @classmethod
-    def create_fairseq_hydra_config(
-        cls, fairseq_hydra_config, max_epoch, save_interval, **kwargs
-    ):
+    def create_fairseq_hydra_config(cls, fairseq_hydra_config, max_epoch, max_update, save_interval, **kwargs):
         res = copy.deepcopy(fairseq_hydra_config)
         config_dict = {}
         post_config_dict = {
-            "optimization": {"max_epoch": max_epoch},
+            "optimization": {"max_epoch": max_epoch, "max_update": max_update},
             "checkpoint": {"save_interval": save_interval},
         }
         res.update(FairseqHydraConfig(config_dict, post_config_dict))
@@ -246,10 +228,8 @@ class FairseqHydraTrainingJob(Job):
         util.create_executable("fairseq.sh", self._get_run_cmd())
 
     def run(self):
-        if self.use_cache_manager:
-            manifest_path = self.fairseq_hydra_config.config_dict["task"][
-                "data"
-            ].get_path()
+        if self.cache_manager:
+            manifest_path = self.fairseq_hydra_config.config_dict["task"]["data"].get_path()
             if self.zipped_audio_dir is None:
                 for name in ["train.tsv", "valid.tsv"]:
                     with open(os.path.join(manifest_path, name), "r") as manifest_file:
@@ -259,45 +239,49 @@ class FairseqHydraTrainingJob(Job):
                         lambda line: audio_path + "/" + line.split("\t")[0],
                         manifest_lines[1:],
                     )
-                    with open(f"{name}.bundle", "w") as bundle_file:
-                        bundle_file.write("\n".join(bundle_lines))
-                    try:
-                        cached_audio_fn = (
-                            sp.check_output(["cf", f"{name}.bundle"])
-                            .strip()
-                            .decode("utf8")
-                        )
-                    except sp.CalledProcessError:
-                        print(f"Cache manager: Error occurred for files in {name}")
-                        raise
+                    # use i6-specific cache manager
+                    if self.cache_manager == "i6":
+                        with open(f"{name}.bundle", "w") as bundle_file:
+                            bundle_file.write("\n".join(bundle_lines))
+                        try:
+                            cached_audio_fn = sp.check_output(["cf", f"{name}.bundle"]).strip().decode("utf8")
+                        except sp.CalledProcessError:
+                            print(f"Cache manager: Error occurred for files in {name}")
+                            raise
+                        with open(cached_audio_fn) as local_bundle:
+                            cached_bundle_lines = list(local_bundle.readlines())
 
-                    with open(cached_audio_fn) as local_bundle:
-                        bundle_lines = list(local_bundle.readlines())
-                        manifest_lines[0] = os.path.commonpath(bundle_lines)
-                        manifest_lines[1:] = map(
-                            lambda line: os.path.relpath(line, manifest_lines[0]),
-                            manifest_lines[1:],
-                        )
+                    # use general manager through gs.file_caching
+                    elif self.cache_manager == "general":
+                        cached_bundle_lines = [gs.file_caching(l) for l in bundle_lines]
+
+                    manifest_lines[0] = os.path.commonpath(cached_bundle_lines)
+                    manifest_lines[1:] = map(
+                        lambda line: os.path.relpath(line[0], manifest_lines[0]) + "\t" + line[1].split("\t")[1],
+                        list(zip(cached_bundle_lines, manifest_lines[1:])),
+                    )
+
                     with open(
                         os.path.join(self.out_cached_audio_manifest.get_path(), name),
-                        "w",
+                        "w+",
                     ) as cached_audio_manifest_file:
                         cached_audio_manifest_file.write("\n".join(manifest_lines))
             else:  # zipped audio data is given and we cache and unzip the zip file(s) instead
                 local_unzipped_dir = []
                 for zip_dir in self.zipped_audio_dir:
                     try:
-                        cached_audio_zip_dir = (
-                            sp.check_output(["cf", zip_dir]).strip().decode("utf8")
-                        )
-                        local_unzipped_dir.append(
-                            os.path.join(os.path.dirname(cached_audio_zip_dir), "audio")
-                        )
+                        if self.cache_manager == "i6":
+                            cached_audio_zip_dir = sp.check_output(["cf", zip_dir]).strip().decode("utf8")
+                        elif self.cache_manager == "general":
+                            cached_audio_zip_dir = gs.file_caching(zip_dir.get_path()).strip()
+
+                        local_unzipped_dir.append(os.path.join(os.path.dirname(cached_audio_zip_dir), "audio"))
                         sp.check_call(
                             [
                                 "unzip",
                                 "-q",
                                 "-n",
+                                "-j",
                                 cached_audio_zip_dir,
                                 "-d",
                                 local_unzipped_dir[-1],
@@ -313,12 +297,8 @@ class FairseqHydraTrainingJob(Job):
                     with open(os.path.join(manifest_path, name), "r") as manifest_file:
                         manifest_lines = manifest_file.read().splitlines()
                     for i in range(1, len(manifest_lines)):
-                        to_check = os.path.join(
-                            common_audio_dir, manifest_lines[i].split()[0]
-                        )
-                        assert os.path.exists(
-                            to_check
-                        ), f"Manifest file {to_check} not found in unzipped directory"
+                        to_check = os.path.join(common_audio_dir, manifest_lines[i].split()[0])
+                        assert os.path.exists(to_check), f"Manifest file {to_check} not found in unzipped directory"
                     manifest_lines[0] = common_audio_dir
                     with open(
                         os.path.join(self.out_cached_audio_manifest.get_path(), name),
@@ -326,11 +306,15 @@ class FairseqHydraTrainingJob(Job):
                     ) as cached_audio_manifest_file:
                         cached_audio_manifest_file.write("\n".join(manifest_lines))
 
+            # symlink to other files
+            for file in os.listdir(manifest_path):
+                if file not in ["train.tsv", "valid.tsv"]:
+                    pathlib.Path(pathlib.Path(self.out_cached_audio_manifest.get_path(), file)).symlink_to(
+                        pathlib.Path(manifest_path, file)
+                    )
         my_env = os.environ
         if self.fairseq_root is not None:
-            my_env["PYTHONPATH"] = ":".join(
-                [self.fairseq_root] + my_env.get("PYTHONPATH", "").split(":")
-            )
+            my_env["PYTHONPATH"] = ":".join([self.fairseq_root.get_path()] + my_env.get("PYTHONPATH", "").split(":"))
         sp.check_call(self._get_run_cmd(), env=my_env)
 
     def plot(self):
@@ -352,15 +336,9 @@ class FairseqHydraTrainingJob(Job):
                             epoch_dict = eval(lines[i + 1][lines[i + 1].index("{") :])
                             try:
                                 epoch = int(epoch_dict["epoch"])
-                                losses = {
-                                    k: {epoch: float(v)}
-                                    for k, v in epoch_dict.items()
-                                    if k.endswith("_loss")
-                                }
+                                losses = {k: {epoch: float(v)} for k, v in epoch_dict.items() if k.endswith("_loss")}
                                 accuracy = {
-                                    k: {epoch: float(v)}
-                                    for k, v in epoch_dict.items()
-                                    if k.endswith("_accuracy")
+                                    k: {epoch: float(v)} for k, v in epoch_dict.items() if k.endswith("_accuracy")
                                 }
                             except ValueError:
                                 continue
@@ -470,10 +448,10 @@ class FairseqHydraTrainingJob(Job):
         run_cmd += self.command_line_args
         run_cmd += ["checkpoint.save_dir=" + self.out_checkpoint_dir.get_path()]
 
-        if self.use_cache_manager:
+        if self.cache_manager:
             run_cmd += ["task.data=" + self.out_cached_audio_manifest.get_path()]
 
-        run_cmd.insert(0, self.fairseq_root.get_path() + "fairseq_cli/hydra_train.py")
+        run_cmd.insert(0, os.path.join(self.fairseq_root.get_path(), "fairseq_cli/hydra_train.py"))
 
         if self.fairseq_python_exe is not None:
             run_cmd.insert(0, self.fairseq_python_exe.get_path())
@@ -483,9 +461,7 @@ class FairseqHydraTrainingJob(Job):
     def hash(cls, kwargs):
         d = {
             "command_line_args": kwargs["command_line_args"],
-            "fairseq_hydra_config": FairseqHydraTrainingJob.create_fairseq_hydra_config(
-                **kwargs
-            ),
+            "fairseq_hydra_config": FairseqHydraTrainingJob.create_fairseq_hydra_config(**kwargs),
             "fairseq_python_exe": kwargs["fairseq_python_exe"],
             "fairseq_root": kwargs["fairseq_root"],
         }
