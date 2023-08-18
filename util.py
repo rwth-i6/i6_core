@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 import gzip
 import logging
 import os
@@ -373,10 +374,10 @@ def get_subword_nmt_repo(subword_nmt_repo: tk.Path) -> tk.Path:
     """gets the path to the root folder of subword-nmt repo"""
     return get_executable_path(subword_nmt_repo, "SUBWORD_NMT_PATH")
 
-  
+
 def update_nested_dict(dict1, dict2):
     for k, v in dict2.items():
-        if isinstance(v, collections.abc.Mapping):
+        if isinstance(v, Mapping):
             dict1[k] = update_nested_dict(dict1.get(k, {}), v)
         else:
             dict1[k] = v
