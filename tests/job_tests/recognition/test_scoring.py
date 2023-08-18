@@ -11,6 +11,7 @@ from i6_core.recognition import ScliteJob
 Path = setup_path(__package__)
 _my_dir = os.path.dirname(os.path.abspath(__file__))
 
+
 def compile_sctk(
     branch: Optional[str] = None,
     commit: Optional[str] = None,
