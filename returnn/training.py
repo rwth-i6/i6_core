@@ -240,25 +240,31 @@ class ReturnnTrainingJob(Job):
         ]
 
         if self.horovod_num_processes:
-            # Normally, if the engine (e.g. SGE or Slurm) is configured correctly,
-            # it automatically provides the information on multiple nodes to mpirun,
-            # so it is not needed to explicitly pass on any hostnames here.
-            run_cmd = [
-                "mpirun",
-                "-np",
-                str(self.horovod_num_processes),
-                "-bind-to",
-                "none",
-                "-map-by",
-                "slot",
-                "-mca",
-                "pml",
-                "ob1",
-                "-mca",
-                "btl",
-                "^openib",
-                "--report-bindings",
-            ] + run_cmd
+            if self.returnn_config.get("backend", None) == "torch":
+                # use torchrun to lauch DDP training when the backend is torch
+                run_cmd = ["torchrun", "--nnodes=1", "--nproc-per-node=%s" % str(self.horovod_num_processes)] + run_cmd[
+                    1:
+                ]
+            else:
+                # Normally, if the engine (e.g. SGE or Slurm) is configured correctly,
+                # it automatically provides the information on multiple nodes to mpirun,
+                # so it is not needed to explicitly pass on any hostnames here.
+                run_cmd = [
+                    "mpirun",
+                    "-np",
+                    str(self.horovod_num_processes),
+                    "-bind-to",
+                    "none",
+                    "-map-by",
+                    "slot",
+                    "-mca",
+                    "pml",
+                    "ob1",
+                    "-mca",
+                    "btl",
+                    "^openib",
+                    "--report-bindings",
+                ] + run_cmd
 
         return run_cmd
 
