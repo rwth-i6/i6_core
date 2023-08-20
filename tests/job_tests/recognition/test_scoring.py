@@ -97,7 +97,7 @@ def test_sclite_job():
 
         assert sclite_job.out_wer.get() == 58.82, "Wrong WER, %s instead of 58.82" % str(sclite_job.out_wer.get())
 
-        assert sclite_job.out_percent_correct.get() == 47.06, "Wrong percent correct, %s instead of 47.1" % str(
+        assert sclite_job.out_percent_correct.get() == 47.06, "Wrong percent correct, %s instead of 47.06" % str(
             sclite_job.out_percent_correct.get()
         )
         assert (
