@@ -95,19 +95,23 @@ def test_sclite_job():
         sclite_job._sis_setup_directory()
         sclite_job.run()
 
-        assert sclite_job.out_wer.get() == 58.82, "Wrong WER, %s instead of 58.8" % str(sclite_job.out_wer.get())
+        assert sclite_job.out_wer.get() == 58.82, "Wrong WER, %s instead of 58.82" % str(sclite_job.out_wer.get())
+
         assert sclite_job.out_percent_correct.get() == 47.06, "Wrong percent correct, %s instead of 47.1" % str(
             sclite_job.out_percent_correct.get()
         )
         assert (
             sclite_job.out_percent_substitution.get() == 41.18
-        ), "Wrong percent substitution, %s instead of 41.2" % str(sclite_job.out_percent_substitution.get())
-        assert sclite_job.out_percent_deletions.get() == 11.76, "Wrong percent deletions, %s instead of 11.8" % str(
+        ), "Wrong percent substitution, %s instead of 41.18" % str(sclite_job.out_percent_substitution.get())
+
+        assert sclite_job.out_percent_deletions.get() == 11.76, "Wrong percent deletions, %s instead of 11.76" % str(
+
             sclite_job.out_percent_deletions.get()
         )
-        assert sclite_job.out_percent_insertions.get() == 5.88, "Wrong percent insertions, %s instead of 4.5" % str(
+        assert sclite_job.out_percent_insertions.get() == 5.88, "Wrong percent insertions, %s instead of 5.88" % str(
             sclite_job.out_percent_insertions.get()
         )
         assert (
             sclite_job.out_percent_word_accuracy.get() == 41.18
-        ), "Wrong percent word accuracy, %s instead of 41.2" % str(sclite_job.out_percent_word_accuracy.get())
+        ), "Wrong percent word accuracy, %s instead of 41.18" % str(sclite_job.out_percent_word_accuracy.get())
+
