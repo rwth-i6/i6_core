@@ -70,7 +70,7 @@ def test_sclite_job():
         assert sclite_job.out_num_deletions.get() == 2, "Wrong num deletions, %s instead of 2" % str(
             sclite_job.out_num_deletions.get()
         )
-        assert sclite_job.out_percent_insertions.get() == 5.9, "Wrong percent insertions, %s instead of 4.5" % str(
+        assert sclite_job.out_percent_insertions.get() == 5.9, "Wrong percent insertions, %s instead of 5.9" % str(
             sclite_job.out_percent_insertions.get()
         )
         assert sclite_job.out_num_insertions.get() == 1, "Wrong num insertions, %s instead of 1" % str(
@@ -88,3 +88,28 @@ def test_sclite_job():
         assert sclite_job.out_aligned_words.get() == 18, "Wrong num aligned words, %s instead of 18" % str(
             sclite_job.out_aligned_words.get()
         )
+
+        # Now test custom precision.
+
+        sclite_job = ScliteJob(ref=ref, hyp=hyp, sctk_binary_path=sctk_binary, precision_ndigit=2)
+        sclite_job._sis_setup_directory()
+        sclite_job.run()
+
+        assert sclite_job.out_wer.get() == 58.82, "Wrong WER, %s instead of 58.82" % str(sclite_job.out_wer.get())
+
+        assert sclite_job.out_percent_correct.get() == 47.06, "Wrong percent correct, %s instead of 47.06" % str(
+            sclite_job.out_percent_correct.get()
+        )
+        assert (
+            sclite_job.out_percent_substitution.get() == 41.18
+        ), "Wrong percent substitution, %s instead of 41.18" % str(sclite_job.out_percent_substitution.get())
+
+        assert sclite_job.out_percent_deletions.get() == 11.76, "Wrong percent deletions, %s instead of 11.76" % str(
+            sclite_job.out_percent_deletions.get()
+        )
+        assert sclite_job.out_percent_insertions.get() == 5.88, "Wrong percent insertions, %s instead of 5.88" % str(
+            sclite_job.out_percent_insertions.get()
+        )
+        assert (
+            sclite_job.out_percent_word_accuracy.get() == 41.18
+        ), "Wrong percent word accuracy, %s instead of 41.18" % str(sclite_job.out_percent_word_accuracy.get())
