@@ -70,7 +70,7 @@ def test_sclite_job():
         assert sclite_job.out_num_deletions.get() == 2, "Wrong num deletions, %s instead of 2" % str(
             sclite_job.out_num_deletions.get()
         )
-        assert sclite_job.out_percent_insertions.get() == 5.9, "Wrong percent insertions, %s instead of 4.5" % str(
+        assert sclite_job.out_percent_insertions.get() == 5.9, "Wrong percent insertions, %s instead of 5.9" % str(
             sclite_job.out_percent_insertions.get()
         )
         assert sclite_job.out_num_insertions.get() == 1, "Wrong num insertions, %s instead of 1" % str(
