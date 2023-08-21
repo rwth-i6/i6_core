@@ -313,6 +313,7 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
                 ).out_lm
                 for i, lm in enumerate(arpa_lms)
             }
+            lm_gc = None
         else:
             lm_gc = AdvancedTreeSearchLmImageAndGlobalCacheJob(
                 crp, lmgc_scorer if lmgc_scorer is not None else feature_scorer, extra_config, extra_post_config
@@ -463,11 +464,11 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
         config._update(extra_config)
         post_config._update(extra_post_config)
 
-        return config, post_config
+        return config, post_config, lm_gc
 
     @classmethod
     def hash(cls, kwargs):
-        config, post_config = cls.create_config(**kwargs)
+        config, post_config, lm_gc = cls.create_config(**kwargs)
         return super().hash(
             {
                 "config": config,
