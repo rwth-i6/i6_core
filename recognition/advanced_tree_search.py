@@ -10,6 +10,7 @@ from sisyphus import *
 
 Path = setup_path(__package__)
 
+import copy
 import math
 import os
 import shutil
@@ -167,6 +168,7 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
         lmgc_mem: float = 12.0,
         lmgc_alias: Optional[str] = None,
         lmgc_scorer: Optional[rasr.FeatureScorer] = None,
+        separate_lmi_gc_generation: bool = False,
         model_combination_config: Optional[rasr.RasrConfig] = None,
         model_combination_post_config: Optional[rasr.RasrConfig] = None,
         extra_config: Optional[rasr.RasrConfig] = None,
@@ -286,18 +288,40 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
         lmgc_mem: float,
         lmgc_alias: Optional[str],
         lmgc_scorer: Optional[rasr.FeatureScorer],
+        separate_lmi_gc_generation: bool,
         model_combination_config: Optional[rasr.RasrConfig],
         model_combination_post_config: Optional[rasr.RasrConfig],
         extra_config: Optional[rasr.RasrConfig],
         extra_post_config: Optional[rasr.RasrConfig],
         **kwargs,
     ):
-        lm_gc = AdvancedTreeSearchLmImageAndGlobalCacheJob(
-            crp, lmgc_scorer if lmgc_scorer is not None else feature_scorer, extra_config, extra_post_config
-        )
-        if lmgc_alias is not None:
-            lm_gc.add_alias(lmgc_alias)
-        lm_gc.rqmt["mem"] = lmgc_mem
+        def specialize_lm_config(crp, lm_config):
+            crp = copy.deepcopy(crp)
+            crp.language_model = lm_config
+            return crp
+
+        if separate_lmi_gc_generation:
+            gc = BuildGlobalCacheJob(crp, extra_config, extra_post_config).out_global_cache
+
+            arpa_lms = AdvancedTreeSearchLmImageAndGlobalCacheJob.find_arpa_lms(
+                crp.language_model, post_config.lm if post_config is not None else None
+            )
+            lm_images = {
+                (i + 1): lm.CreateLmImageJob(
+                    specialize_lm_config(crp, lm), extra_config=extra_config, extra_post_config=extra_post_config
+                ).out_lm
+                for i, lm in enumerate(arpa_lms)
+            }
+        else:
+            lm_gc = AdvancedTreeSearchLmImageAndGlobalCacheJob(
+                crp, lmgc_scorer if lmgc_scorer is not None else feature_scorer, extra_config, extra_post_config
+            )
+            if lmgc_alias is not None:
+                lm_gc.add_alias(lmgc_alias)
+            lm_gc.rqmt["mem"] = lmgc_mem
+
+            gc = lm_gc.out_global_cache
+            lm_images = lm_gc.out_lm_images
 
         search_parameters = cls.update_search_parameters(search_parameters)
 
@@ -397,14 +421,14 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
             ]
 
         post_config.flf_lattice_tool.global_cache.read_only = True
-        post_config.flf_lattice_tool.global_cache.file = lm_gc.out_global_cache
+        post_config.flf_lattice_tool.global_cache.file = gc
 
         arpa_lms = AdvancedTreeSearchLmImageAndGlobalCacheJob.find_arpa_lms(
             config.flf_lattice_tool.network.recognizer.lm,
             post_config.flf_lattice_tool.network.recognizer.lm,
         )
         for i, lm_config in enumerate(arpa_lms):
-            lm_config[1].image = lm_gc.out_lm_images[i + 1]
+            lm_config[1].image = lm_images[i + 1]
 
         # Remaining Flf-network
 
@@ -438,11 +462,11 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
         config._update(extra_config)
         post_config._update(extra_post_config)
 
-        return config, post_config, lm_gc
+        return config, post_config
 
     @classmethod
     def hash(cls, kwargs):
-        config, post_config, lm_gc = cls.create_config(**kwargs)
+        config, post_config = cls.create_config(**kwargs)
         return super().hash(
             {
                 "config": config,
