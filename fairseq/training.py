@@ -153,7 +153,8 @@ class FairseqHydraTrainingJob(Job):
         :param tk.Path fairseq_python_exe: File path to the executable for running python
         :param tk.Path fairseq_root: File path to the fairseq git for alternative call of fairseq-hydra-train
             (no need to install fairseq here)
-        :param str cache_manager: enables caching of data given in the manifest with cache manager
+        :param str cache_manager: if given, enables caching of data given in the manifest with cache manager
+            possible values: None: no caching, "i6": use the cache manager, "general": apply gs.file_caching
         :param [tk.Path]|tk.Path zipped_audio_dir: using a bundle file for caching is very slow for large manifests. For
             speeding up the audio file transfer using the cache manager, a zipped audio directory might be provided.
             The zipped audio directory is then used for caching instead and unzipped on the node for training
@@ -271,8 +272,10 @@ class FairseqHydraTrainingJob(Job):
                 local_unzipped_dir = []
                 for zip_dir in self.zipped_audio_dir:
                     try:
+                        # use i6-specific cache manager
                         if self.cache_manager == "i6":
                             cached_audio_zip_dir = sp.check_output(["cf", zip_dir]).strip().decode("utf8")
+                        # use general manager through gs.file_caching
                         elif self.cache_manager == "general":
                             cached_audio_zip_dir = gs.file_caching(zip_dir.get_path()).strip()
 
@@ -310,7 +313,7 @@ class FairseqHydraTrainingJob(Job):
             # symlink to other files
             for file in os.listdir(manifest_path):
                 if file not in ["train.tsv", "valid.tsv"]:
-                    pathlib.Path(pathlib.Path(self.out_cached_audio_manifest.get_path(), file)).symlink_to(
+                    pathlib.Path(self.out_cached_audio_manifest.get_path(), file).symlink_to(
                         pathlib.Path(manifest_path, file)
                     )
         my_env = os.environ
@@ -449,10 +452,10 @@ class FairseqHydraTrainingJob(Job):
         run_cmd += self.command_line_args
         run_cmd += ["checkpoint.save_dir=" + self.out_checkpoint_dir.get_path()]
 
-        if self.cache_manager:
+        if self.cache_manager is not None:
             run_cmd += ["task.data=" + self.out_cached_audio_manifest.get_path()]
 
-        run_cmd.insert(0, os.path.join(self.fairseq_root.get_path(), "fairseq_cli/hydra_train.py"))
+        run_cmd.insert(0, os.path.join(self.fairseq_root.get_path(), "fairseq_cli", "hydra_train.py"))
 
         if self.fairseq_python_exe is not None:
             run_cmd.insert(0, self.fairseq_python_exe.get_path())
