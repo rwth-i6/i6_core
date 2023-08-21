@@ -190,6 +190,7 @@ class FairseqHydraTrainingJob(Job):
             )
             for k in self.keep_epochs
         }
+        assert cache_manager in [None, "i6", "general"], 'cache_manager must be in values [None, "i6", "general"]'
         if cache_manager is not None:
             self.out_cached_audio_manifest = self.output_path("cached_audio_manifest", directory=True)
         self.out_plot_se = self.output_path("loss_and_accuracy.svg")
