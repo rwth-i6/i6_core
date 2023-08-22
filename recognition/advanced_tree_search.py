@@ -209,6 +209,8 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
             self.config,
             self.post_config,
             self.lm_gc_job,
+            self.gc_job,
+            self.lm_image_jobs,
         ) = AdvancedTreeSearchJob.create_config(**kwargs)
         self.feature_flow = feature_flow
         self.exe = self.select_exe(crp.flf_tool_exe, "flf-tool")
@@ -302,17 +304,21 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
             return crp
 
         if separate_lmi_gc_generation:
-            gc = BuildGlobalCacheJob(crp, extra_config, extra_post_config).out_global_cache
+            gc_job = BuildGlobalCacheJob(crp, extra_config, extra_post_config)
 
             arpa_lms = AdvancedTreeSearchLmImageAndGlobalCacheJob.find_arpa_lms(
                 crp.language_model, post_config.lm if post_config is not None else None
             )
-            lm_images = {
+            lm_image_jobs = {
                 (i + 1): lm.CreateLmImageJob(
-                    specialize_lm_config(crp, lm), extra_config=extra_config, extra_post_config=extra_post_config
-                ).out_lm
-                for i, lm in enumerate(arpa_lms)
+                    specialize_lm_config(crp, lm_config), extra_config=extra_config, extra_post_config=extra_post_config
+                )
+                for i, lm_config in enumerate(arpa_lms)
             }
+
+            gc = gc_job.out_global_cache
+            lm_images = {k: v.out_image for k, v in lm_image_jobs.items()}
+
             lm_gc = None
         else:
             lm_gc = AdvancedTreeSearchLmImageAndGlobalCacheJob(
@@ -324,6 +330,9 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
 
             gc = lm_gc.out_global_cache
             lm_images = lm_gc.out_lm_images
+
+            gc_job = None
+            lm_image_jobs = {}
 
         search_parameters = cls.update_search_parameters(search_parameters)
 
@@ -464,11 +473,11 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
         config._update(extra_config)
         post_config._update(extra_post_config)
 
-        return config, post_config, lm_gc
+        return config, post_config, lm_gc, gc_job, lm_image_jobs
 
     @classmethod
     def hash(cls, kwargs):
-        config, post_config, lm_gc = cls.create_config(**kwargs)
+        config, post_config, *jobs = cls.create_config(**kwargs)
         return super().hash(
             {
                 "config": config,
