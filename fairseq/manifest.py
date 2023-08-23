@@ -138,15 +138,15 @@ class BalanceMultiLingualDatatJob(Job):
     Speech Recognition", see  arXiv:2006.13979v2
     """
 
-    def __init__(self, train_tsv_file, upsampling_alpha):
+    def __init__(self, train_tsv_file, alpha):
         """
         :param [tk.Path] train_tsv_file: the tsv file of the train dataset which needs to be balanced
-        :param float upsampling_alpha: the parameter that controls the importance given to high-resource versus
+        :param float alpha: the parameter that controls the importance given to high-resource versus
         low-resource languages during pretraining. The lower the parameter value, the higher the up-sampling factor
         would be given for the low-resource langauge
         """
         self.train_tsv_file = train_tsv_file
-        self.upsampling_alpha = upsampling_alpha
+        self.alpha = alpha
 
         self.out_tsv_file = self.output_path("train.tsv")
 
@@ -156,7 +156,7 @@ class BalanceMultiLingualDatatJob(Job):
         yield Task("run", rqmt=self.rqmt)
 
     def run(self):
-        assert self.upsampling_alpha is not None and self.upsampling_alpha < 1
+        assert self.alpha is not None and self.alpha < 1
         all_train_data = defaultdict(list)
         with open(self.train_tsv_file, "r") as f_in, open(
             self.out_tsv_file, "w"
@@ -180,7 +180,7 @@ class BalanceMultiLingualDatatJob(Job):
             sum_corpora_length = sum(corpora_lengths)
 
             corpora_probs = [(l / sum_corpora_length) for l in corpora_lengths]
-            upsampling_proportions = [p**self.upsampling_alpha for p in corpora_probs]
+            upsampling_proportions = [p**self.alpha for p in corpora_probs]
             upsampling_factors = [
                 upsampling_proportions[i] / corpora_probs[i] for i in range(num_corpora)
             ]
@@ -233,7 +233,7 @@ class FairseqAudioManifestCreationJob(Job):
     """
 
     __sis_hash_exclude__ = {
-        "upsampling_alpha": None,
+        "alpha": None,
         "manifest_audio_paths": None,
     }
 
@@ -244,7 +244,7 @@ class FairseqAudioManifestCreationJob(Job):
         valid_portion=0.01,
         seed=42,
         path_must_contain=None,
-        upsampling_alpha=None,
+        alpha=None,
         manifest_audio_paths=None,
     ):
         """
@@ -254,7 +254,7 @@ class FairseqAudioManifestCreationJob(Job):
         :param int seed: random seed for splitting into train and valid set
         :param str|None path_must_contain: if set, path must contain this substring
             for a file to be included in the manifest
-        :param float upsampling_alpha: Specifies how much to upsample low resource languages. Upsampling
+        :param float alpha: Specifies how much to upsample low resource languages. Upsampling
             calculation is done according to "Unsupervised Cross-Lingual Representation Learning for Speech
             Recognition", see  arXiv:2006.13979v2
         :param [tk.Path]|tk.Path|None manifest_audio_paths: Explicitly specifies output paths in manifest for each
@@ -269,7 +269,7 @@ class FairseqAudioManifestCreationJob(Job):
 
         if len(self.audio_dir_paths) == 1:
             assert (
-                upsampling_alpha is None
+                alpha is None
             ), "Only one audio directory is given, upsampling not possible"
 
         if manifest_audio_paths:
@@ -287,9 +287,9 @@ class FairseqAudioManifestCreationJob(Job):
         assert 0.0 <= self.valid_portion <= 1.0
         self.seed = seed
         self.path_must_contain = path_must_contain
-        self.upsampling_alpha = upsampling_alpha
-        if self.upsampling_alpha is not None:
-            assert 0.0 <= self.upsampling_alpha <= 1.0
+        self.alpha = alpha
+        if self.alpha is not None:
+            assert 0.0 <= self.alpha <= 1.0
 
         self.out_manifest_path = self.output_path("manifest", directory=True)
         self.rqmt = {"time": 6, "mem": 8, "cpu": 1}
@@ -319,7 +319,7 @@ class FairseqAudioManifestCreationJob(Job):
 
         for i, dir_path in enumerate(dir_paths):
             train_data = []
-            search_path = os.path.join(dir_path, "**/*." + self.file_extension)
+            search_path = os.path.join(dir_path, "*." + self.file_extension)
             for path in glob.iglob(search_path, recursive=True):
                 frames = soundfile.info(path).frames
                 path = os.path.realpath(path)
@@ -340,7 +340,7 @@ class FairseqAudioManifestCreationJob(Job):
         if valid_f is not None:
             valid_f.close()
 
-        if self.upsampling_alpha is not None and self.upsampling_alpha < 1:
+        if self.alpha is not None and self.alpha < 1:
             corpora_lengths = []
             for train_data in all_train_data:
                 corpora_lengths.append(sum([frames for _, frames in train_data]))
@@ -348,7 +348,7 @@ class FairseqAudioManifestCreationJob(Job):
             num_corpora = len(corpora_lengths)
             sum_corpora_length = sum(corpora_lengths)
             corpora_probs = [(l / sum_corpora_length) for l in corpora_lengths]
-            upsampling_proportions = [p**self.upsampling_alpha for p in corpora_probs]
+            upsampling_proportions = [p**self.alpha for p in corpora_probs]
             upsampling_factors = [
                 upsampling_proportions[i] / corpora_probs[i] for i in range(num_corpora)
             ]
