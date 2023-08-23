@@ -138,19 +138,29 @@ class BalanceMultiLingualDatatJob(Job):
     Speech Recognition", see  arXiv:2006.13979v2
     """
 
-    def __init__(self, train_tsv_file, alpha):
+    def __init__(
+        self,
+        train_tsv_file,
+        alpha,
+        mem_rqmt: int = 8,
+        time_rqmt: float = 6,
+        cpu_rqmt: int = 1,
+    ):
         """
         :param [tk.Path] train_tsv_file: the tsv file of the train dataset which needs to be balanced
         :param float alpha: the parameter that controls the importance given to high-resource versus
         low-resource languages during pretraining. The lower the parameter value, the higher the up-sampling factor
         would be given for the low-resource langauge
+        :param int mem_rqmt: memory requirements of Job (not hashed)
+        :param float time_rqmt: time requirements of Job (not hashed)
+        :param int cpu_rqmt: amount of Cpus required for Job (not hashed)
         """
         self.train_tsv_file = train_tsv_file
         self.alpha = alpha
 
         self.out_tsv_file = self.output_path("train.tsv")
 
-        self.rqmt = {"time": 6, "mem": 8, "cpu": 1}
+        self.rqmt = {"time": time_rqmt, "mem": mem_rqmt, "cpu": cpu_rqmt}
 
     def tasks(self):
         yield Task("run", rqmt=self.rqmt)
@@ -246,6 +256,9 @@ class FairseqAudioManifestCreationJob(Job):
         path_must_contain=None,
         alpha=None,
         manifest_audio_paths=None,
+        mem_rqmt: int = 8,
+        time_rqmt: float = 6,
+        cpu_rqmt: int = 1,
     ):
         """
         :param [tk.Path]|tk.Path audio_dir_paths: List of paths or single path to folder(s) containing raw audio files to be included
@@ -259,6 +272,9 @@ class FairseqAudioManifestCreationJob(Job):
             Recognition", see  arXiv:2006.13979v2
         :param [tk.Path]|tk.Path|None manifest_audio_paths: Explicitly specifies output paths in manifest for each
             audio directory respectively. Allows to use different paths in the manifest than in the audio_dir_paths
+        :param int mem_rqmt: memory requirements of Job (not hashed)
+        :param float time_rqmt: time requirements of Job (not hashed)
+        :param int cpu_rqmt: amount of Cpus required for Job (not hashed)
         """
         if isinstance(audio_dir_paths, tk.Path):
             self.audio_dir_paths = [audio_dir_paths]
@@ -292,8 +308,8 @@ class FairseqAudioManifestCreationJob(Job):
             assert 0.0 <= self.alpha <= 1.0
 
         self.out_manifest_path = self.output_path("manifest", directory=True)
-        
-        self.rqmt = {"time": 6, "mem": 8, "cpu": 1}
+
+        self.rqmt = {"time": time_rqmt, "mem": mem_rqmt, "cpu": cpu_rqmt}
 
     def tasks(self):
         yield Task("run", rqmt=self.rqmt)
