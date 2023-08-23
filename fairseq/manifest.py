@@ -292,6 +292,7 @@ class FairseqAudioManifestCreationJob(Job):
             assert 0.0 <= self.alpha <= 1.0
 
         self.out_manifest_path = self.output_path("manifest", directory=True)
+        
         self.rqmt = {"time": 6, "mem": 8, "cpu": 1}
 
     def tasks(self):
