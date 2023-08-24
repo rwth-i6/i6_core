@@ -250,10 +250,9 @@ class ReturnnTrainingJob(Job):
         if self.horovod_num_processes:
             if self.launch_cmd == "torchrun":
                 # use torchrun to lauch DDP training when the backend is torch
-                nnodes = self.multi_node_slots if self.multi_node_slots else 1
                 run_cmd = [
                     "torchrun",
-                    f"--nnodes={nnodes}",
+                    f"--nnodes={self.multi_node_slots or 1}",
                     f"--nproc-per-node={self.horovod_num_processes}",
                 ] + run_cmd[1:]
             else:
