@@ -242,7 +242,12 @@ class ReturnnTrainingJob(Job):
         if self.horovod_num_processes:
             if self.returnn_config.get("backend", None) == "torch":
                 # use torchrun to lauch DDP training when the backend is torch
-                run_cmd = ["torchrun", "--nnodes=1", f"--nproc-per-node={self.horovod_num_processes}"] + run_cmd[1:]
+                nnodes = self.multi_node_slots if self.multi_node_slots else 1
+                run_cmd = [
+                    "torchrun",
+                    f"--nnodes={nnodes}",
+                    f"--nproc-per-node={self.horovod_num_processes}",
+                ] + run_cmd[1:]
             else:
                 # Normally, if the engine (e.g. SGE or Slurm) is configured correctly,
                 # it automatically provides the information on multiple nodes to mpirun,
