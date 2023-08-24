@@ -255,7 +255,7 @@ class ReturnnTrainingJob(Job):
                     f"--nnodes={self.multi_node_slots or 1}",
                     f"--nproc-per-node={self.horovod_num_processes}",
                 ] + run_cmd[1:]
-            else:
+            elif self.launch_cmd == "mpirun":
                 # Normally, if the engine (e.g. SGE or Slurm) is configured correctly,
                 # it automatically provides the information on multiple nodes to mpirun,
                 # so it is not needed to explicitly pass on any hostnames here.
@@ -275,6 +275,8 @@ class ReturnnTrainingJob(Job):
                     "^openib",
                     "--report-bindings",
                 ] + run_cmd
+            else:
+                raise ValueError(f"invalid launch_cmd {self.launch_cmd!r}")
 
         return run_cmd
 
