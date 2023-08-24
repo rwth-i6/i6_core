@@ -118,6 +118,8 @@ class ReturnnTrainingJob(Job):
         function of Returnn not all checkpoints are actually available.
     """
 
+    __sis_hash_exclude__ = {"launch_cmd": "mpirun"}
+
     def __init__(
         self,
         returnn_config: ReturnnConfig,
@@ -130,6 +132,7 @@ class ReturnnTrainingJob(Job):
         time_rqmt: float = 4,
         mem_rqmt: float = 4,
         cpu_rqmt: int = 2,
+        launch_cmd: str = "mpirun",
         horovod_num_processes: Optional[int] = None,
         multi_node_slots: Optional[int] = None,
         returnn_python_exe: Optional[tk.Path] = None,
@@ -149,6 +152,9 @@ class ReturnnTrainingJob(Job):
         :param time_rqmt:
         :param mem_rqmt:
         :param cpu_rqmt:
+        :param launch_cmd: the command used to launch training jobs
+            Possible values: "mpirun": use mpirun, c.f. https://www.open-mpi.org/doc/v4.0/man1/mpirun.1.php
+                             "torchrun": use torchrun, c.f. https://pytorch.org/docs/stable/elastic/run.html
         :param horovod_num_processes: If used without multi_node_slots, then single node, otherwise multi node.
         :param multi_node_slots: multi-node multi-GPU training. See Sisyphus rqmt documentation.
             Currently only with Horovod,
@@ -158,6 +164,7 @@ class ReturnnTrainingJob(Job):
         :param returnn_root: file path to the RETURNN repository root folder
         """
         assert isinstance(returnn_config, ReturnnConfig)
+        assert launch_cmd in ["mpirun", "torchrun"]
         self.check_blacklisted_parameters(returnn_config)
         kwargs = locals()
         del kwargs["self"]
@@ -240,7 +247,7 @@ class ReturnnTrainingJob(Job):
         ]
 
         if self.horovod_num_processes:
-            if self.returnn_config.get("backend", None) == "torch":
+            if self.launch_cmd == "torchrun":
                 # use torchrun to lauch DDP training when the backend is torch
                 nnodes = self.multi_node_slots if self.multi_node_slots else 1
                 run_cmd = [
