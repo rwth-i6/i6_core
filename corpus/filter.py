@@ -241,6 +241,12 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
         with open_func(lex_path, "rt") as f:
             lex_root = ET.parse(f)
         vocabulary = set([maybe_to_lower(o.text.strip() if o.text else "") for o in lex_root.findall(".//orth")])
+        vocabulary -= {
+            maybe_to_lower(o.text.strip() if o.text else "")
+            for l in lex_root.findall(".//lemma")
+            if l.attrib.get("special") == "unknown"
+            for o in l.findall(".//orth")
+        }
 
         c = corpus.Corpus()
         c.load(self.corpus.get_path())
