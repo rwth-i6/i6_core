@@ -71,25 +71,6 @@ class AdvancedTreeSearchLmImageAndGlobalCacheJob(rasr.RasrCommand, Job):
         util.backup_if_exists("lm_and_state_tree.log")
 
     @classmethod
-    def find_arpa_lms(cls, lm_config, lm_post_config=None):
-        result = []
-
-        def has_image(c, pc):
-            res = c._get("image") is not None
-            res = res or (pc is not None and pc._get("image") is not None)
-            return res
-
-        if lm_config.type == "ARPA":
-            if not has_image(lm_config, lm_post_config):
-                result.append((lm_config, lm_post_config))
-        elif lm_config.type == "combine":
-            for i in range(1, lm_config.num_lms + 1):
-                sub_lm_config = lm_config["lm-%d" % i]
-                sub_lm_post_config = lm_post_config["lm-%d" % i] if lm_post_config is not None else None
-                result += cls.find_arpa_lms(sub_lm_config, sub_lm_post_config)
-        return result
-
-    @classmethod
     def create_config(cls, crp, feature_scorer, extra_config, extra_post_config, **kwargs):
         config, post_config = rasr.build_config_from_mapping(
             crp,
@@ -118,7 +99,7 @@ class AdvancedTreeSearchLmImageAndGlobalCacheJob(rasr.RasrCommand, Job):
         config.flf_lattice_tool.network.recognizer.feature_extraction.file = "dummy.flow"
         config.flf_lattice_tool.network.recognizer.lm.scale = 1.0
 
-        arpa_lms = cls.find_arpa_lms(
+        arpa_lms = lm.find_arpa_lms(
             config.flf_lattice_tool.network.recognizer.lm,
             post_config.flf_lattice_tool.network.recognizer.lm if post_config is not None else None,
         )
@@ -306,9 +287,7 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
         if separate_lmi_gc_generation:
             gc_job = BuildGlobalCacheJob(crp, extra_config, extra_post_config)
 
-            arpa_lms = AdvancedTreeSearchLmImageAndGlobalCacheJob.find_arpa_lms(
-                crp.language_model, post_config.lm if post_config is not None else None
-            )
+            arpa_lms = lm.find_arpa_lms(crp.language_model, post_config.lm if post_config is not None else None)
             lm_image_jobs = {
                 (i + 1): lm.CreateLmImageJob(
                     specialize_lm_config(crp, lm_config), extra_config=extra_config, extra_post_config=extra_post_config
@@ -434,12 +413,12 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
         post_config.flf_lattice_tool.global_cache.read_only = True
         post_config.flf_lattice_tool.global_cache.file = gc
 
-        arpa_lms = AdvancedTreeSearchLmImageAndGlobalCacheJob.find_arpa_lms(
+        arpa_lms = lm.find_arpa_lms(
             config.flf_lattice_tool.network.recognizer.lm,
             post_config.flf_lattice_tool.network.recognizer.lm,
         )
-        for i, lm_config in enumerate(arpa_lms):
-            lm_config[1].image = lm_images[i + 1]
+        for i, (_lm_config, lm_post_config) in enumerate(arpa_lms):
+            lm_post_config.image = lm_images[i + 1]
 
         # Remaining Flf-network
 
