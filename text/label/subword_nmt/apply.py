@@ -1,100 +1,139 @@
 __all__ = ["ApplyBPEModelToLexiconJob", "ApplyBPEToTextJob"]
 
-import subprocess as sp
 import os
-import shutil
 import sys
+import shutil
 import tempfile
+import subprocess as sp
 from typing import Optional
 import xml.etree.ElementTree as ET
 
 from sisyphus import *
 
-Path = setup_path(__package__)
-
-from i6_core.lib.lexicon import Lexicon
 import i6_core.util as util
+from i6_core.lib.lexicon import Lexicon, Lemma
 
 
 class ApplyBPEModelToLexiconJob(Job):
     """
-    Apply BPE codes to a Bliss lexicon file
+    Apply BPE codes on a Bliss lexicon file
     """
 
-    def __init__(self, bliss_lexicon, bpe_codes, bpe_vocab=None, subword_nmt_repo=None):
+    def __init__(
+        self,
+        base_lexicon_path: tk.Path,
+        bpe_codes: tk.Path,
+        bpe_vocab: tk.Path,
+        subword_nmt_repo: Optional[tk.Path] = None,
+        unk_label: str = "UNK",
+        add_silence: bool = True,
+        add_other_special: bool = False,
+    ):
         """
-        :param Path bliss_lexicon:
-        :param Path bpe_codes:
-        :param Path|None bpe_vocab:
-        :param Optional[Path] subword_nmt_repo:
+        :param tk.Path base_lexicon_path: path to a Bliss lexicon
+        :param tk.Path bpe_codes: path to BPE codes file, use e.g. ReturnnTrainBpeJob.out_bpe_codes
+        :param tk.Path bpe_vocab: path to BPE vocab file used to revert merge operations that produce OOV,
+            use e.g. ReturnnTrainBPEJob.out_bpe_vocab;
+        :param tk.Path|None subword_nmt_repo: path to subword nmt repository, see also `CloneGitRepositoryJob`
+        :param str unk_label:
+        :param bool add_silence: explicitly include a [SILENCE] phoneme and lemma
+        :param bool add_other_special: explicitly include special lemmata from base_lexicon_path
         """
-        self.bliss_lexicon = bliss_lexicon
+        self.base_lexicon_path = base_lexicon_path
         self.bpe_codes = bpe_codes
         self.bpe_vocab = bpe_vocab
-        self.subword_nmt_repo = util.get_subword_nmt_repo(subword_nmt_repo)
+        self.subword_nmt_repo = subword_nmt_repo if subword_nmt_repo is not None else gs.SUBWORD_NMT_PATH
+        self.unk_label = unk_label
+        self.add_silence = add_silence
+        self.add_other_special = add_other_special
 
-        self.out_converted_lexicon = self.output_path("lexicon.xml.gz", cached=True)
+        self.out_lexicon = self.output_path("lexicon.xml.gz", cached=True)
 
     def tasks(self):
         yield Task("run", resume="run", mini_task=True)
 
     def run(self):
-        lexicon_path = self.bliss_lexicon.get_path()
-
-        lexicon = Lexicon()
-        lexicon.load(lexicon_path)
-
         lm_tokens = set()
-        for l in lexicon.lemmata:
-            for orth in l.orth:
+        other_special = []
+
+        base_lexicon = Lexicon()
+        base_lexicon.load(self.base_lexicon_path)
+
+        for l in base_lexicon.lemmata:
+            if l.special:
+                if l.special not in ["silence", "unknown"]:
+                    other_special.append(l)
+                continue
+            for orth in l.orth or []:  # l.orth can be None
                 lm_tokens.add(orth)
             for token in l.synt or []:  # l.synt can be None
                 lm_tokens.add(token)
-            for eval in l.eval:
+            for eval in l.eval or []:  # l.eval can be None
                 for t in eval:
                     lm_tokens.add(t)
 
-        lm_tokens = list(lm_tokens)
+        lm_tokens = [lt for lt in lm_tokens if lt != ""]  # catch empty orth, e.g. '' for [SILENCE]
 
-        with util.uopen("words", "wt") as f:
+        with util.uopen("words.txt", "wt") as f:
             for t in lm_tokens:
-                f.write("%s\n" % t)
+                f.write(f"{t}\n")
 
-        apply_binary = self.subword_nmt_repo.join_right("subword_nmt/apply_bpe.py")
+        vocab = set()
+        lexicon = Lexicon()
+
+        lexicon.add_phoneme(self.unk_label, variation="none")
+
+        if self.add_silence:
+            lexicon.add_phoneme("[SILENCE]", variation="none")
+
+        with util.uopen(self.bpe_vocab.get_path(), "rt") as bpe_vocab_file:
+            with util.uopen("fake_count_vocab.txt", "wt") as fake_count_file:
+                for line in bpe_vocab_file:
+                    if "{" in line or "<s>" in line or "</s>" in line or "}" in line:
+                        continue
+                    symbol = line.split(":")[0][1:-1]
+                    if symbol != self.unk_label:
+                        fake_count_file.write(symbol + " -1\n")
+                        symbol = symbol.replace(".", "_")
+                        vocab.add(symbol)
+                        lexicon.add_phoneme(symbol)
+
+        apply_binary = os.path.join(tk.uncached_path(self.subword_nmt_repo), "apply_bpe.py")
         args = [
             sys.executable,
-            apply_binary.get_path(),
+            apply_binary,
             "--input",
-            "words",
+            "words.txt",
             "--codes",
             self.bpe_codes.get_path(),
+            "--vocabulary",
+            "fake_count_vocab.txt",
             "--output",
-            "bpes",
+            "bpes.txt",
         ]
-        if self.bpe_vocab is not None:
-            args += ["--vocabulary", self.bpe_vocab.get_path()]
         sp.run(args, check=True)
 
-        with util.uopen("bpes", "rt") as f:
-            bpe_tokens = [l.strip().split() for l in f]
+        with util.uopen("bpes.txt", "rt") as f:
+            bpe_tokens = [l.strip() for l in f]
 
         w2b = {w: b for w, b in zip(lm_tokens, bpe_tokens)}
 
-        for l in lexicon.lemmata:
-            if l.special is None and len(l.orth) > 0:
-                if not l.synt and len(l.eval) == 0:
-                    o = l.orth[0]
-                    l.synt = w2b[o]
-                    l.eval.append([o])
-                if l.synt:
-                    l.synt = sum([w2b[token] for token in l.synt], [])
-                if len(l.eval) > 0:
-                    l.eval = [sum([w2b[t] for t in token_sequence], []) for token_sequence in l.eval]
+        lexicon.add_lemma(Lemma(["[UNKNOWN]"], [self.unk_label], None, None, special="unknown"))
+
+        if self.add_silence:
+            lexicon.add_lemma(Lemma(["[SILENCE]"], ["[SILENCE]"], [], [[]], special="silence"))
+
+        if self.add_other_special:
+            for l in other_special:
+                lexicon.add_lemma(l)
+
+        for w, b in w2b.items():
+            b = " ".join([token if token in vocab else self.unk_label for token in b.split()])
+            lexicon.add_lemma(Lemma([w], [b.replace(".", "_")]))
 
         elem = lexicon.to_xml()
         tree = ET.ElementTree(elem)
-        with util.uopen(self.out_converted_lexicon.get_path(), "wb") as f:
-            tree.write(f, encoding="utf-8")
+        util.write_xml(self.out_lexicon.get_path(), tree)
 
 
 class ApplyBPEToTextJob(Job):
@@ -106,26 +145,26 @@ class ApplyBPEToTextJob(Job):
 
     def __init__(
         self,
-        text_file: tk.Path,
+        words_file: tk.Path,
         bpe_codes: tk.Path,
-        bpe_vocab: Optional[tk.Path] = None,
+        bpe_vocab: tk.Path,
         subword_nmt_repo: Optional[tk.Path] = None,
         gzip_output: bool = False,
-        mini_task=True,
+        mini_task: bool = True,
     ):
         """
-        :param text_file: words text file to convert to bpe
-        :param bpe_codes: bpe codes file, e.g. ReturnnTrainBpeJob.out_bpe_codes
-        :param bpe_vocab: if provided, then merge operations that produce OOV are reverted,
-            use e.g. ReturnnTrainBpeJob.out_bpe_dummy_count_vocab
-        :param subword_nmt_repo: subword nmt repository path. see also `CloneGitRepositoryJob`
-        :param gzip_output: use gzip on the output text
-        :param mini_task: if the Job should run locally, e.g. only a small (<1M lines) text should be processed
+        :param tk.Path text_file: path to a words text file
+        :param tk.Path bpe_codes: path to BPE codes file, use e.g. ReturnnTrainBpeJob.out_bpe_codes
+        :param tk.Path bpe_vocab: path to BPE vocab file used to revert merge operations that produce OOV,
+            use e.g. ReturnnTrainBPEJob.out_bpe_vocab;
+        :param tk.Path/None subword_nmt_repo: path to subword nmt repository , see also `CloneGitRepositoryJob`
+        :param bool gzip_output: use gzip on the output text
+        :param bool mini_task: if the Job should run locally, e.g. only a small (<1M lines) text should be processed
         """
-        self.text_file = text_file
+        self.words_file = words_file
         self.bpe_codes = bpe_codes
         self.bpe_vocab = bpe_vocab
-        self.subword_nmt_repo = util.get_subword_nmt_repo(subword_nmt_repo)
+        self.subword_nmt_repo = subword_nmt_repo if subword_nmt_repo is not None else gs.SUBWORD_NMT_PATH
         self.gzip_output = gzip_output
 
         self.out_bpe_text = self.output_path("words_to_bpe.txt.gz" if gzip_output else "words_to_bpe.txt")
@@ -141,25 +180,30 @@ class ApplyBPEToTextJob(Job):
 
     def run(self):
         with tempfile.TemporaryDirectory(prefix=gs.TMP_PREFIX) as tmp:
-            input_file = self.text_file.get_path()
-            tmp_infile = os.path.join(tmp, "in_text.txt")
+            words_file = self.words_file.get_path()
             tmp_outfile = os.path.join(tmp, "out_text.txt")
-            with util.uopen(tmp_infile, "wt") as out:
-                sp.call(["zcat", "-f", input_file], stdout=out)
+
+            with util.uopen(self.bpe_vocab.get_path(), "rt") as bpe_vocab_file:
+                with util.uopen("fake_count_vocab.txt", "wt") as fake_count_file:
+                    for line in bpe_vocab_file:
+                        if "{" in line or "<" in line or "[" in line or "]" in line or ">" in line or "}" in line:
+                            continue
+                        symbol = line.split(":")[0][1:-1]
+                        fake_count_file.write(symbol + " -1\n")
+
+            apply_binary = os.path.join(tk.uncached_path(self.subword_nmt_repo), "apply_bpe.py")
             cmd = [
                 sys.executable,
-                os.path.join(self.subword_nmt_repo.get_path(), "apply_bpe.py"),
+                apply_binary,
                 "--input",
-                tmp_infile,
+                words_file,
                 "--codes",
                 self.bpe_codes.get_path(),
+                "--vocabulary",
+                "fake_count_vocab.txt",
                 "--output",
                 tmp_outfile,
             ]
-
-            if self.bpe_vocab:
-                cmd += ["--vocabulary", self.bpe_vocab.get_path()]
-
             util.create_executable("apply_bpe.sh", cmd)
             sp.run(cmd, check=True)
 
