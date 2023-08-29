@@ -851,7 +851,7 @@ class BuildGlobalCacheJob(rasr.RasrCommand, Job):
         self.out_log_file = self.log_file_output_path("build_global_cache", crp, False)
         self.out_global_cache = self.output_path("global.cache", cached=True)
 
-        self.rqmt = {"time": 1, "cpu": 1, "mem": 2}
+        self.rqmt = {"time": 1, "cpu": 1, "mem": 4}
 
     def tasks(self):
         yield Task("create_files", mini_task=True)
