@@ -831,7 +831,7 @@ class BuildGlobalCacheJob(rasr.RasrCommand, Job):
     Standalone job to create the global-cache for advanced-tree-search
     """
 
-    def __init__(self, crp, extra_config=None, extra_post_config=None):
+    def __init__(self, crp, extra_config=None, extra_post_config=None, mem=4):
         """
         :param rasr.CommonRasrParameters crp: common RASR params (required: lexicon, acoustic_model, language_model, recognizer)
         :param rasr.Configuration extra_config: overlay config that influences the Job's hash
@@ -851,7 +851,7 @@ class BuildGlobalCacheJob(rasr.RasrCommand, Job):
         self.out_log_file = self.log_file_output_path("build_global_cache", crp, False)
         self.out_global_cache = self.output_path("global.cache", cached=True)
 
-        self.rqmt = {"time": 1, "cpu": 1, "mem": 4}
+        self.rqmt = {"time": 1, "cpu": 1, "mem": mem}
 
     def tasks(self):
         yield Task("create_files", mini_task=True)
