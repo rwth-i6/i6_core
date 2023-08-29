@@ -79,7 +79,7 @@ class CommonRasrParameters:
         self.flf_tool_exe = rasr_binary_path.join_right(f"flf-tool.{rasr_arch}")
         self.kws_tool_exe = None  # does not exist
         self.lattice_processor_exe = rasr_binary_path.join_right(f"lattice-processor.{rasr_arch}")
-        self.lm_util_exe = None  # does not exist
+        self.lm_util_exe = rasr_binary_path.join_right(f"lm-util.{rasr_arch}")
         self.nn_trainer_exe = rasr_binary_path.join_right(f"nn-trainer.{rasr_arch}")
         self.speech_recognizer_exe = rasr_binary_path.join_right(f"speech-recognizer.{rasr_arch}")
 
