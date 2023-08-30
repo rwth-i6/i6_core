@@ -149,7 +149,7 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
         lmgc_mem: float = 12.0,
         lmgc_alias: Optional[str] = None,
         lmgc_scorer: Optional[rasr.FeatureScorer] = None,
-        separate_lmi_gc_generation: bool = True,
+        separate_lmi_gc_generation: bool = False,
         model_combination_config: Optional[rasr.RasrConfig] = None,
         model_combination_post_config: Optional[rasr.RasrConfig] = None,
         extra_config: Optional[rasr.RasrConfig] = None,
