@@ -1,10 +1,11 @@
 from collections import defaultdict
-import soundfile
 import glob
+import numpy as np
 import os
 import random
-import numpy as np
 import shutil
+import soundfile
+from typing import Sequence, Optional, Type
 
 from sisyphus import Job, Task, tk
 
@@ -15,14 +16,17 @@ class MergeAudioDirsJob(Job):
     """
 
     def __init__(
-        self, audio_dir_path_list, file_extension="wav", path_must_contain=None
+        self,
+        audio_dir_paths: Sequence[Type[tk.Path]],
+        file_extension: str = "wav",
+        path_must_contain: Optional[str] = None,
     ):
         """
-        :param [tk.Path] audio_dir_path_list: List of paths to folder(s) containing raw audio files
-        :param str file_extension: File extension to look for in audio_dir_path
+        :param [tk.Path] audio_dir_paths: list of paths to folder(s) containing raw audio files
+        :param str file_extension: file extension to look for in audio_dir_path
         :param str|None path_must_contain: if set, only the audio files whose path contain this substring would be included
         """
-        self.audio_dir_path_list = audio_dir_path_list
+        self.audio_dir_paths = audio_dir_paths
         self.file_extension = file_extension
         self.path_must_contain = path_must_contain
 
@@ -32,7 +36,7 @@ class MergeAudioDirsJob(Job):
         yield Task("run", mini_task=True)
 
     def run(self):
-        for dir_path in self.audio_dir_path_list:
+        for dir_path in self.audio_dir_paths:
             search_path = os.path.join(dir_path, "*." + self.file_extension)
             for file in glob.iglob(search_path, recursive=True):
                 if self.path_must_contain and self.path_must_contain not in file:
@@ -52,14 +56,14 @@ class CreateManifestJob(Job):
     relative_path_1 [tab] num_frames
     """
 
-    def __init__(self, audio_dir_path_list):
+    def __init__(self, audio_dir_paths: Sequence[Type[tk.Path]]):
         """
-        :param [tk.Path] audio_dir_path_list: List of paths to folder(s) containing raw audio files, the audio files
+        :param [tk.Path] audio_dir_paths: List of paths to folder(s) containing raw audio files, the audio files
         from the same language should be in one directory
         """
-        self.audio_dir_path_list = audio_dir_path_list
-        self.common_dir = os.path.commonpath(self.audio_dir_path_list)
-        self.concurrent = len(audio_dir_path_list)
+        self.audio_dir_paths = audio_dir_paths
+        self.common_dir = os.path.commonpath(self.audio_dir_paths)
+        self.concurrent = len(audio_dir_paths)
 
         self.out_tsv_file = self.output_path("data.tsv")
 
@@ -72,18 +76,19 @@ class CreateManifestJob(Job):
     def run(self, task_id):
         with open("%d.tsv" % task_id, "w") as f:
             for path in glob.iglob(
-                self.audio_dir_path_list[task_id - 1].get_path() + "/*", recursive=True
+                self.audio_dir_paths[task_id - 1].get_path() + "/*", recursive=True
             ):
                 frames = soundfile.info(path).frames
                 rel_path = os.path.relpath(path, self.common_dir)
-                print("{}\t{}".format(rel_path, frames), file=f)
+                f.write("{}\t{}\n".format(rel_path, frames))
 
     def merge(self):
         with open(self.out_tsv_file, "w") as f_out:
-            print(self.common_dir, file=f_out)
+            f_out.write(self.common_dir + "\n")
             for idx in range(1, self.concurrent + 1):
                 with open("%d.tsv" % idx) as f_in:
                     shutil.copyfileobj(f_in, f_out, length=16 * 1024)
+                os.remove("%d.tsv" % idx)
 
 
 class SplitTrainCvDataJob(Job):
@@ -91,7 +96,7 @@ class SplitTrainCvDataJob(Job):
     This job splits the train and cv dataset based on the given portion
     """
 
-    def __init__(self, tsv_file, valid_portion, seed=42):
+    def __init__(self, tsv_file: Type[tk.Path], valid_portion: float, seed: float = 42):
         """
         :param [tk.Path] tsv_file: the tsv file of the dataset which needs to be split
         :param float valid_portion: portion of files to be in validation set
@@ -113,8 +118,7 @@ class SplitTrainCvDataJob(Job):
         ) as f_train, open(
             os.path.join(self.out_manifest_path, "valid.tsv"), "w"
         ) as f_valid:
-            while True:
-                line = f_in.readline()
+            for line in f_in:
                 # common path
                 if "\t" not in line:
                     f_train.write(line)
@@ -126,8 +130,6 @@ class SplitTrainCvDataJob(Job):
                     # write to valid
                     else:
                         f_valid.write(line)
-                if not line:
-                    break
 
 
 class BalanceMultiLingualDatatJob(Job):
@@ -140,47 +142,38 @@ class BalanceMultiLingualDatatJob(Job):
 
     def __init__(
         self,
-        train_tsv_file,
-        alpha,
-        mem_rqmt: int = 8,
-        time_rqmt: float = 6,
-        cpu_rqmt: int = 1,
+        train_tsv_file: Type[tk.Path],
+        alpha: float,
     ):
         """
-        :param [tk.Path] train_tsv_file: the tsv file of the train dataset which needs to be balanced
+        :param tk.Path train_tsv_file: the tsv file of the train dataset which needs to be balanced
         :param float alpha: the parameter that controls the importance given to high-resource versus
         low-resource languages during pretraining. The lower the parameter value, the higher the up-sampling factor
         would be given for the low-resource langauge
-        :param int mem_rqmt: memory requirements of Job (not hashed)
-        :param float time_rqmt: time requirements of Job (not hashed)
-        :param int cpu_rqmt: amount of Cpus required for Job (not hashed)
         """
         self.train_tsv_file = train_tsv_file
+        assert alpha is not None and alpha < 1
         self.alpha = alpha
 
         self.out_tsv_file = self.output_path("train.tsv")
 
-        self.rqmt = {"time": time_rqmt, "mem": mem_rqmt, "cpu": cpu_rqmt}
+        self.rqmt = {"time": 6, "mem": 8, "cpu": 1}
 
     def tasks(self):
         yield Task("run", rqmt=self.rqmt)
 
     def run(self):
-        assert self.alpha is not None and self.alpha < 1
         all_train_data = defaultdict(list)
         with open(self.train_tsv_file, "r") as f_in, open(
             self.out_tsv_file, "w"
         ) as f_out:
-            while True:
-                line = f_in.readline()
+            for line in f_in:
                 if "\t" not in line:
                     f_out.write(line)
                 else:
                     rel_path, frames = line.strip().split("\t")
                     rel_path_dir = os.path.dirname(rel_path)
                     all_train_data[rel_path_dir].append((rel_path, int(frames)))
-                if not line:
-                    break
 
             num_corpora = len(all_train_data.keys())
             corpora_lengths = [
@@ -233,4 +226,4 @@ class BalanceMultiLingualDatatJob(Job):
 
             for i, train_data in enumerate(upsampled_train_data):
                 for path, frames in train_data:
-                    print("{}\t{}".format(path, frames), file=f_out)
+                    f_out.write("{}\t{}\n".format(path, frames))
