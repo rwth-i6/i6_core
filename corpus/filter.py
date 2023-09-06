@@ -72,12 +72,12 @@ class FilterSegmentsByListJob(Job):
 
 
 class FilterSegmentsByRegexJob(Job):
-    def __init__(self, segment_files, filter_regex, invert_match=False):
+    def __init__(self, segment_files: Dict[int, Path], filter_regex: str, invert_match: bool = False):
         """
         Filters segment list file using a given regular expression
-        :param dict[int,Path] segment_files: original segment list files to be filtered
-        :param str filter_regex: regex used for filtering
-        :param bool invert_match: keep segment if regex does not match (if False) or does match (if True)
+        :param segment_files: original segment list files to be filtered
+        :param filter_regex: regex used for filtering
+        :param invert_match: keep segment if regex does not match (if False) or does match (if True)
         """
         self.segment_files = segment_files
         self.filter_regex = filter_regex
@@ -96,15 +96,15 @@ class FilterSegmentsByRegexJob(Job):
         pattern = re.compile(self.filter_regex)
         for idx, segment_file in self.segment_files.items():
             segment_list = [line.rstrip() for line in open(segment_file.get_path(), "r")]
-            non_empty = False
+            output_empty = True
             with open(self.out_single_segment_files[idx].get_path(), "wt") as segment_file_filtered:
                 for segment in segment_list:
                     if (self.invert_match and pattern.match(segment)) or (
                         not self.invert_match and not pattern.match(segment)
                     ):
                         segment_file_filtered.write(segment + "\n")
-                        non_empty = True
-            if not non_empty:
+                        output_empty = False
+            if output_empty:
                 logging.warning(
                     "Segment file empty after filtering: {}".format(self.out_single_segment_files[idx].get_path())
                 )
