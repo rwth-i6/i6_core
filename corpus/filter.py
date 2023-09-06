@@ -12,12 +12,11 @@ import logging
 import numpy as np
 import re
 import xml.etree.cElementTree as ET
-from typing import Dict
+from typing import Dict, List, Optional, Union
 
-from i6_core.util import MultiOutputPath
-
+from i6_core import rasr
 from i6_core.lib import corpus
-from i6_core.util import chunks, uopen
+from i6_core.util import chunks, uopen, MultiOutputPath
 
 from sisyphus import *
 
@@ -25,13 +24,12 @@ Path = setup_path(__package__)
 
 
 class FilterSegmentsByListJob(Job):
-    def __init__(self, segment_files, filter_list, invert_match=False):
+    def __init__(self, segment_files: Dict[int, Path], filter_list: Union[List[str], Path], invert_match: bool = False):
         """
         Filters segment list file using a given list of segments, which is either used as black or as white list
-        :param dict[int,Path] segment_files: original segment list files to be filtered
-        :param Union[list, Path] filter_list: list used for filtering or a path to a text file containing the entries of
-        that list one per line
-        :param bool invert_match: black list (if False) or white list (if True) usage
+        :param segment_files: original segment list files to be filtered
+        :param filter_list: list used for filtering or a path to a text file with the entries of that list one per line
+        :param invert_match: black list (if False) or white list (if True) usage
         """
         assert isinstance(filter_list, tk.Path) or isinstance(filter_list, list)
         self.segment_files = segment_files
@@ -111,14 +109,20 @@ class FilterSegmentsByRegexJob(Job):
 
 
 class FilterSegmentsByAlignmentConfidenceJob(Job):
-    def __init__(self, alignment_logs, percentile, crp=None, plot=True, absolute_threshold=None):
+    def __init__(
+        self,
+        alignment_logs: Dict[int, Path],
+        percentile: float,
+        crp: Optional[rasr.CommonRasrParameters] = None,
+        plot: bool = True,
+        absolute_threshold: Optional[float] = None,
+    ):
         """
-        :param dict[int,Path] alignment_logs: alignment_job.out_log_file; task_id -> log_file
-        :param float percentile: percent of alignment segments to keep. should be in (0,100]. for :func:`np.percentile`
-        :param float absolute_threshold: alignments with score above this number are discarded
-        :param Optional[rasr.crp.CommonRasrParameters] crp: used to set the number of output segments.
-            if none, number of alignment log files is used instead.
-        :param bool plot: plot the distribution of alignment scores
+        :param alignment_logs: alignment_job.out_log_file; task_id -> log_file
+        :param percentile: percent of alignment segments to keep. should be in (0,100]. for :func:`np.percentile`
+        :param crp: used to set the number of output segments. if none, number of alignment log files is used instead.
+        :param plot: plot the distribution of alignment scores
+        :param absolute_threshold: alignments with score above this number are discarded
         """
         self.alignment_logs = alignment_logs  # alignment_job.log_file
         self.percentile = percentile
@@ -191,13 +195,20 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
 class FilterCorpusBySegmentsJob(Job):
     __sis_hash_exclude__ = {"delete_empty_recordings": False}
 
-    def __init__(self, bliss_corpus, segment_file, compressed=False, invert_match=False, delete_empty_recordings=False):
+    def __init__(
+        self,
+        bliss_corpus: Path,
+        segment_file: Union[List[Path], Path],
+        compressed: bool = False,
+        invert_match: bool = False,
+        delete_empty_recordings: bool = False,
+    ):
         """
-        :param Path bliss_corpus:
-        :param list[Path]|Path segment_file: a single segment file or a list of segment files
-        :param bool compressed:
-        :param bool invert_match:
-        :param bool delete_empty_recordings: if true, empty recordings will be removed
+        :param bliss_corpus:
+        :param segment_file: a single segment file or a list of segment files
+        :param compressed:
+        :param invert_match:
+        :param delete_empty_recordings: if true, empty recordings will be removed
         """
         self.bliss_corpus = bliss_corpus
         self.segment_file_list = [segment_file] if isinstance(segment_file, tk.Path) else segment_file
@@ -314,11 +325,11 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
 
 
 class FilterCorpusBySegmentDurationJob(Job):
-    def __init__(self, bliss_corpus, min_duration=0.1, max_duration=120.0):
+    def __init__(self, bliss_corpus: Path, min_duration: float = 0.1, max_duration: float = 120.0):
         """
-        :param Path bliss_corpus: path of the corpus file
-        :param float min_duration: minimum duration for a segment to keep (in seconds)
-        :param float max_duration: maximum duration for a segment to keep (in seconds)
+        :param bliss_corpus: path of the corpus file
+        :param min_duration: minimum duration for a segment to keep (in seconds)
+        :param max_duration: maximum duration for a segment to keep (in seconds)
         """
         self.bliss_corpus = bliss_corpus
         self.min_duration = min_duration
