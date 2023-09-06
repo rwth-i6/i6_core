@@ -9,10 +9,10 @@ __all__ = [
 
 import gzip
 import logging
+import numpy as np
 import re
 import xml.etree.cElementTree as ET
-
-import numpy as np
+from typing import Dict
 
 from i6_core.util import MultiOutputPath
 
