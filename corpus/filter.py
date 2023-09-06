@@ -24,7 +24,9 @@ Path = setup_path(__package__)
 
 
 class FilterSegmentsByListJob(Job):
-    def __init__(self, segment_files: Dict[int, Path], filter_list: Union[List, Path], invert_match: bool = False):
+    def __init__(
+        self, segment_files: Dict[int, Path], filter_list: Union[List[Path], Path], invert_match: bool = False
+    ):
         """
         Filters segment list file using a given list of segments, which is either used as black or as white list
         :param segment_files: original segment list files to be filtered
@@ -113,16 +115,16 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
         self,
         alignment_logs: Dict[int, Path],
         percentile: float,
-        absolute_threshold: Optional[float] = None,
         crp: Optional[rasr.CommonRasrParameters] = None,
         plot: bool = True,
+        absolute_threshold: Optional[float] = None,
     ):
         """
         :param alignment_logs: alignment_job.out_log_file; task_id -> log_file
         :param percentile: percent of alignment segments to keep. should be in (0,100]. for :func:`np.percentile`
-        :param absolute_threshold: alignments with score above this number are discarded
         :param crp: used to set the number of output segments. if none, number of alignment log files is used instead.
         :param plot: plot the distribution of alignment scores
+        :param absolute_threshold: alignments with score above this number are discarded
         """
         self.alignment_logs = alignment_logs  # alignment_job.log_file
         self.percentile = percentile
