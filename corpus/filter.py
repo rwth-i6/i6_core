@@ -1,16 +1,18 @@
 __all__ = [
+    "FilterSegmentsByListJob",
+    "FilterSegmentsByRegexJob",
     "FilterSegmentsByAlignmentConfidenceJob",
     "FilterCorpusBySegmentsJob",
-    "FilterSegmentsByListJob",
     "FilterCorpusRemoveUnknownWordSegmentsJob",
     "FilterCorpusBySegmentDurationJob",
 ]
 
 import gzip
 import logging
-import xml.etree.cElementTree as ET
-
 import numpy as np
+import re
+import xml.etree.cElementTree as ET
+from typing import Dict
 
 from i6_core.util import MultiOutputPath
 
@@ -64,6 +66,45 @@ class FilterSegmentsByListJob(Job):
                         segment_file_filtered.write(segment + "\n")
                         non_empty = True
             if not non_empty:
+                logging.warning(
+                    "Segment file empty after filtering: {}".format(self.out_single_segment_files[idx].get_path())
+                )
+
+
+class FilterSegmentsByRegexJob(Job):
+    def __init__(self, segment_files: Dict[int, Path], filter_regex: str, invert_match: bool = False):
+        """
+        Filters segment list file using a given regular expression
+        :param segment_files: original segment list files to be filtered
+        :param filter_regex: regex used for filtering
+        :param invert_match: keep segment if regex does not match (if False) or does match (if True)
+        """
+        self.segment_files = segment_files
+        self.filter_regex = filter_regex
+        self.invert_match = invert_match
+
+        num_segment_lists = len(self.segment_files)
+        self.out_single_segment_files = dict(
+            (i, self.output_path("segments.%d" % i)) for i in range(1, num_segment_lists + 1)
+        )
+        self.out_segment_path = MultiOutputPath(self, "segments.$(TASK)", self.out_single_segment_files)
+
+    def tasks(self):
+        yield Task("run", resume="run", mini_task=True)
+
+    def run(self):
+        pattern = re.compile(self.filter_regex)
+        for idx, segment_file in self.segment_files.items():
+            segment_list = [line.rstrip() for line in open(segment_file.get_path(), "r")]
+            output_empty = True
+            with open(self.out_single_segment_files[idx].get_path(), "wt") as segment_file_filtered:
+                for segment in segment_list:
+                    if (self.invert_match and pattern.match(segment)) or (
+                        not self.invert_match and not pattern.match(segment)
+                    ):
+                        segment_file_filtered.write(segment + "\n")
+                        output_empty = False
+            if output_empty:
                 logging.warning(
                     "Segment file empty after filtering: {}".format(self.out_single_segment_files[idx].get_path())
                 )
