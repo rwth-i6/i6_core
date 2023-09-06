@@ -24,9 +24,7 @@ Path = setup_path(__package__)
 
 
 class FilterSegmentsByListJob(Job):
-    def __init__(
-        self, segment_files: Dict[int, Path], filter_list: Union[List[Path], Path], invert_match: bool = False
-    ):
+    def __init__(self, segment_files: Dict[int, Path], filter_list: Union[List[str], Path], invert_match: bool = False):
         """
         Filters segment list file using a given list of segments, which is either used as black or as white list
         :param segment_files: original segment list files to be filtered
