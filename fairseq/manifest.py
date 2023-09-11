@@ -75,9 +75,7 @@ class CreateManifestJob(Job):
 
     def run(self, task_id):
         with open("%d.tsv" % task_id, "w") as f:
-            for path in glob.iglob(
-                self.audio_dir_paths[task_id - 1].get_path() + "/*", recursive=True
-            ):
+            for path in glob.iglob(self.audio_dir_paths[task_id - 1].get_path() + "/*", recursive=True):
                 frames = soundfile.info(path).frames
                 rel_path = os.path.relpath(path, self.common_dir)
                 f.write("{}\t{}\n".format(rel_path, frames))
@@ -115,9 +113,7 @@ class SplitTrainCvDataJob(Job):
         rand = random.Random(self.seed)
         with open(self.tsv_file, "r") as f_in, open(
             os.path.join(self.out_manifest_path, "train.tsv"), "w"
-        ) as f_train, open(
-            os.path.join(self.out_manifest_path, "valid.tsv"), "w"
-        ) as f_valid:
+        ) as f_train, open(os.path.join(self.out_manifest_path, "valid.tsv"), "w") as f_valid:
             for line in f_in:
                 # common path
                 if "\t" not in line:
@@ -164,9 +160,7 @@ class BalanceMultiLingualDatatJob(Job):
 
     def run(self):
         all_train_data = defaultdict(list)
-        with open(self.train_tsv_file, "r") as f_in, open(
-            self.out_tsv_file, "w"
-        ) as f_out:
+        with open(self.train_tsv_file, "r") as f_in, open(self.out_tsv_file, "w") as f_out:
             for line in f_in:
                 if "\t" not in line:
                     f_out.write(line)
@@ -176,20 +170,13 @@ class BalanceMultiLingualDatatJob(Job):
                     all_train_data[rel_path_dir].append((rel_path, int(frames)))
 
             num_corpora = len(all_train_data.keys())
-            corpora_lengths = [
-                sum([frames for _, frames in train_data])
-                for train_data in all_train_data.values()
-            ]
+            corpora_lengths = [sum([frames for _, frames in train_data]) for train_data in all_train_data.values()]
             sum_corpora_length = sum(corpora_lengths)
 
             corpora_probs = [(l / sum_corpora_length) for l in corpora_lengths]
             upsampling_proportions = [p**self.alpha for p in corpora_probs]
-            upsampling_factors = [
-                upsampling_proportions[i] / corpora_probs[i] for i in range(num_corpora)
-            ]
-            upsampling_factors = [
-                f / min(upsampling_factors) for f in upsampling_factors
-            ]
+            upsampling_factors = [upsampling_proportions[i] / corpora_probs[i] for i in range(num_corpora)]
+            upsampling_factors = [f / min(upsampling_factors) for f in upsampling_factors]
 
             upsampled_train_data = []
             for i, upsample in enumerate(upsampling_factors):
@@ -202,27 +189,17 @@ class BalanceMultiLingualDatatJob(Job):
                     random.shuffle(list(all_train_data.values())[i])
                     j = 0
                     while corpora_lengths[i] * upsample > added_length:
-                        upsampled_train_data[i].append(
-                            list(all_train_data.values())[i][j]
-                        )
+                        upsampled_train_data[i].append(list(all_train_data.values())[i][j])
                         added_length += list(all_train_data.values())[i][j][1]
                         j += 1
 
             upsampled_train_data_lengths = []
             for train_data in upsampled_train_data:
-                upsampled_train_data_lengths.append(
-                    sum([frames for _, frames in train_data])
-                )
-            actual_upsampled_probabilities = np.array(
-                upsampled_train_data_lengths
-            ) / sum(upsampled_train_data_lengths)
+                upsampled_train_data_lengths.append(sum([frames for _, frames in train_data]))
+            actual_upsampled_probabilities = np.array(upsampled_train_data_lengths) / sum(upsampled_train_data_lengths)
             # following test might fail if the input corpora are tiny
-            upsampled_probabilities = [
-                p / sum(upsampling_proportions) for p in upsampling_proportions
-            ]
-            np.testing.assert_allclose(
-                upsampled_probabilities, actual_upsampled_probabilities, rtol=0.1
-            )
+            upsampled_probabilities = [p / sum(upsampling_proportions) for p in upsampling_proportions]
+            np.testing.assert_allclose(upsampled_probabilities, actual_upsampled_probabilities, rtol=0.1)
 
             for i, train_data in enumerate(upsampled_train_data):
                 for path, frames in train_data:
