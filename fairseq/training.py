@@ -1,5 +1,6 @@
 import copy
 from collections import defaultdict
+from enum import Enum
 import os
 import pathlib
 import subprocess as sp
@@ -114,6 +115,12 @@ class PytorchHydraModel:
         self.epoch = epoch
 
 
+class CacheManagerType(Enum):
+    none = 1
+    i6 = 2
+    general = 3
+
+
 class FairseqHydraTrainingJob(Job):
     """
     Train a Fairseq model using fairseq-hydra-train
@@ -136,7 +143,7 @@ class FairseqHydraTrainingJob(Job):
         },
         fairseq_python_exe=None,
         fairseq_root,
-        cache_manager=None,
+        cache_manager=CacheManagerType.none,
         zipped_audio_dir=None,
     ):
         """
@@ -156,8 +163,9 @@ class FairseqHydraTrainingJob(Job):
         :param tk.Path fairseq_python_exe: File path to the executable for running python
         :param tk.Path fairseq_root: File path to the fairseq git for alternative call of fairseq-hydra-train
             (no need to install fairseq here)
-        :param str cache_manager: if given, enables caching of data given in the manifest with cache manager
-            possible values: None: no caching, "i6": use the cache manager, "general": apply gs.file_caching
+        :param enum cache_manager: if not CacheManagerType.none, enables caching of data given in the manifest with cache manager
+            possible values: CacheManagerType.none: no caching, CacheManagerType.i6: use the i6 specific cache manager,
+            CacheManagerType.general: apply gs.file_caching
         :param [tk.Path]|tk.Path zipped_audio_dir: using a bundle file for caching is very slow for large manifests. For
             speeding up the audio file transfer using the cache manager, a zipped audio directory might be provided.
             The zipped audio directory is then used for caching instead and unzipped on the node for training
@@ -180,7 +188,7 @@ class FairseqHydraTrainingJob(Job):
         else:
             self.zipped_audio_dir = zipped_audio_dir
         if self.zipped_audio_dir is not None:
-            assert self.cache_manager, "cache manager must be used for zipped audio input"
+            assert self.cache_manager is not CacheManagerType.none, "cache manager must be used for zipped audio input"
 
         self.fairseq_hydra_config = FairseqHydraTrainingJob.create_fairseq_hydra_config(**kwargs)
         # Outputs:
@@ -194,8 +202,8 @@ class FairseqHydraTrainingJob(Job):
             )
             for k in self.keep_epochs
         }
-        assert cache_manager in [None, "i6", "general"], 'cache_manager must be in values [None, "i6", "general"]'
-        if cache_manager is not None:
+        assert isinstance(cache_manager, CacheManagerType), "cache_manager must be instance of CacheManagerType"
+        if cache_manager is not CacheManagerType.none:
             self.out_cached_audio_manifest = self.output_path("cached_audio_manifest", directory=True)
         self.out_plot_se = self.output_path("loss_and_accuracy.svg")
         self.out_plot_lr = self.output_path("learning_rate.svg")
@@ -234,7 +242,7 @@ class FairseqHydraTrainingJob(Job):
         util.create_executable("fairseq.sh", self._get_run_cmd())
 
     def run(self):
-        if self.cache_manager:
+        if self.cache_manager is not CacheManagerType.none:
             manifest_path = self.fairseq_hydra_config.config_dict["task"]["data"].get_path()
             if self.zipped_audio_dir is None:
                 for name in ["train.tsv", "valid.tsv"]:
@@ -246,7 +254,7 @@ class FairseqHydraTrainingJob(Job):
                         manifest_lines[1:],
                     )
                     # use i6-specific cache manager
-                    if self.cache_manager == "i6":
+                    if self.cache_manager is CacheManagerType.i6:
                         with open(f"{name}.bundle", "w") as bundle_file:
                             bundle_file.write("\n".join(bundle_lines))
                         try:
@@ -258,7 +266,7 @@ class FairseqHydraTrainingJob(Job):
                             cached_bundle_lines = list(local_bundle.readlines())
 
                     # use general manager through gs.file_caching
-                    elif self.cache_manager == "general":
+                    elif self.cache_manager is CacheManagerType.general:
                         cached_bundle_lines = [gs.file_caching(l) for l in bundle_lines]
 
                     manifest_lines[0] = os.path.commonpath(cached_bundle_lines)
@@ -277,10 +285,10 @@ class FairseqHydraTrainingJob(Job):
                 for zip_dir in self.zipped_audio_dir:
                     try:
                         # use i6-specific cache manager
-                        if self.cache_manager == "i6":
+                        if self.cache_manager is CacheManagerType.i6:
                             cached_audio_zip_dir = sp.check_output(["cf", zip_dir]).strip().decode("utf8")
                         # use general manager through gs.file_caching
-                        elif self.cache_manager == "general":
+                        elif self.cache_manager is CacheManagerType.general:
                             cached_audio_zip_dir = gs.file_caching(zip_dir.get_path()).strip()
 
                         local_unzipped_dir.append(os.path.join(os.path.dirname(cached_audio_zip_dir), "audio"))
@@ -456,7 +464,7 @@ class FairseqHydraTrainingJob(Job):
         run_cmd += self.command_line_args
         run_cmd += ["checkpoint.save_dir=" + self.out_checkpoint_dir.get_path()]
 
-        if self.cache_manager is not None:
+        if self.cache_manager is not CacheManagerType.none:
             run_cmd += ["task.data=" + self.out_cached_audio_manifest.get_path()]
 
         run_cmd.insert(0, os.path.join(self.fairseq_root.get_path(), "fairseq_cli", "hydra_train.py"))
