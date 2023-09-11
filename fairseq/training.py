@@ -1,10 +1,10 @@
-import os
-import subprocess as sp
-import yaml
 import copy
 from collections import defaultdict
+import os
 import pathlib
+import subprocess as sp
 from typing import Dict, Any, Optional
+import yaml
 
 from sisyphus import Task, Job, tk
 from sisyphus.hash import sis_hash_helper
@@ -128,17 +128,19 @@ class FairseqHydraTrainingJob(Job):
         max_update=1,
         save_interval=1,
         keep_epochs=None,
-        time_rqmt=4,
-        mem_rqmt=4,
-        cpu_rqmt=2,
-        gpu_rqmt=1,
+        rqmt={
+            "gpu": 1,
+            "cpu": 2,
+            "mem": 4,
+            "time": 4,
+        },
         fairseq_python_exe=None,
         fairseq_root,
         cache_manager=None,
         zipped_audio_dir=None,
     ):
         """
-        :param FairseqHydraConfig fairseq_hydra_config:
+        :param FairseqHydraConfig fairseq_hydra_config: Fairseq hydra config
         :param list command_line_args: Additional command line arguments (starting with "--*"),
             to configure the Fairseq-hydra task
         :param int max_epoch: maximum number of epochs to run.
@@ -146,10 +148,11 @@ class FairseqHydraTrainingJob(Job):
         :param int save_interval: save a checkpoint each n-th epoch
         :param list[int]|set[int]|None keep_epochs: specify which checkpoints are kept in self.out_models.
             Use None for each save_interval-th epoch
-        :param int|float time_rqmt: Overall time requirements
-        :param int|float mem_rqmt: Memory requirements (per GPU)
-        :param int cpu_rqmt: Required number of CPUs (per GPU)
-        :param int gpu_rqmt: Number of required GPUs
+        :param dict[str, int|float rqmt: the resource requirement including
+            the overall time requirements, i.e. intime_rqmt,
+            the memory requirements (per GPU), i.e. mem_rqmt
+            the required number of CPUs (per GPU), i.e. cpu_rqmt
+            the number of required GPUs gpu_rqmt, i.e. gpu_rqmt
         :param tk.Path fairseq_python_exe: File path to the executable for running python
         :param tk.Path fairseq_root: File path to the fairseq git for alternative call of fairseq-hydra-train
             (no need to install fairseq here)
@@ -198,13 +201,14 @@ class FairseqHydraTrainingJob(Job):
         self.out_plot_lr = self.output_path("learning_rate.svg")
 
         # Requirements:
-        self.gpu_rqmt = gpu_rqmt
         self.rqmt = {
-            "gpu": gpu_rqmt,
-            "cpu": cpu_rqmt,
-            "mem": mem_rqmt,
-            "time": time_rqmt,
+            "gpu": 1,
+            "cpu": 2,
+            "mem": 4,
+            "time": 4,
         }
+        self.rqmt.update(rqmt)
+        self.gpu_rqmt = self.rqmt["gpu"]
         if self.gpu_rqmt > 1:
             self.rqmt["cpu"] *= self.gpu_rqmt
             self.rqmt["mem"] *= self.gpu_rqmt

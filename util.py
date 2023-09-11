@@ -7,7 +7,7 @@ import stat
 import subprocess as sp
 import xml.dom.minidom
 import xml.etree.ElementTree as ET
-from typing import Any, List, Optional, Union
+from typing import Dict, Any, List, Optional, Union
 
 from sisyphus import *
 from sisyphus.delayed_ops import DelayedBase, DelayedFormat
@@ -375,7 +375,8 @@ def get_subword_nmt_repo(subword_nmt_repo: tk.Path) -> tk.Path:
     return get_executable_path(subword_nmt_repo, "SUBWORD_NMT_PATH")
 
 
-def update_nested_dict(dict1, dict2):
+def update_nested_dict(dict1: Dict[str, Any], dict2: Dict[str, Any]):
+    """updates dict 1 with all the items from dict2, both dict1 and dict2 can be nested dict"""
     for k, v in dict2.items():
         if isinstance(v, Mapping):
             dict1[k] = update_nested_dict(dict1.get(k, {}), v)
