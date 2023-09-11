@@ -279,7 +279,7 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
         extra_post_config: Optional[rasr.RasrConfig],
         **kwargs,
     ):
-        def specialize_lm_config(crp, lm_config):
+        def add_lm_config_to_crp(crp, lm_config):
             crp = copy.deepcopy(crp)
             crp.language_model_config = lm_config
             return crp
@@ -290,7 +290,7 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
             arpa_lms = lm.find_arpa_lms(crp.language_model_config, None)
             lm_image_jobs = {
                 (i + 1): lm.CreateLmImageJob(
-                    specialize_lm_config(crp, lm_config), extra_config=extra_config, extra_post_config=extra_post_config
+                    add_lm_config_to_crp(crp, lm_config), extra_config=extra_config, extra_post_config=extra_post_config
                 )
                 for i, (lm_config, _lm_post_config) in enumerate(arpa_lms)
             }
