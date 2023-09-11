@@ -13,7 +13,6 @@ import logging
 import mmap
 import numpy
 import os
-import sys
 import typing
 import zlib
 from struct import pack, unpack
@@ -51,7 +50,8 @@ class FileArchive:
     start_recovery_tag = 0xAA55AA55
     end_recovery_tag = 0x55AA55AA
 
-    def __init__(self, filename, must_exists=False):
+    def __init__(self, filename, must_exists=False, encoding="ascii"):
+        self.encoding = encoding
 
         self.ft = {}  # type: typing.Dict[str,FileInfo]
         if os.path.exists(filename):
@@ -182,12 +182,12 @@ class FileArchive:
         return res
 
     # write routines
-    def write_str(self, s):
+    def write_str(self, s, enc="ascii"):
         """
         :param str s:
         :rtype: int
         """
-        return self.f.write(pack("%ds" % len(s), s.encode("ascii")))
+        return self.f.write(pack("%ds" % len(s.encode(enc)), s.encode(enc)))
 
     def write_char(self, i):
         """
@@ -256,7 +256,7 @@ class FileArchive:
             return
         for i in range(count):
             str_len = self.read_u32()
-            name = self.read_str(str_len)
+            name = self.read_str(str_len, self.encoding)
             pos = self.read_u64()
             size = self.read_u32()
             comp = self.read_u32()
@@ -271,8 +271,8 @@ class FileArchive:
         self.write_u32(len(self.ft))
 
         for fi in self.ft.values():
-            self.write_u32(len(fi.name))
-            self.write_str(fi.name)
+            self.write_u32(len(fi.name.encode(self.encoding)))
+            self.write_str(fi.name, self.encoding)
             self.write_u64(fi.pos)
             self.write_u32(fi.size)
             self.write_u32(fi.compressed)
@@ -293,7 +293,7 @@ class FileArchive:
                 continue
 
             fn_len = self.read_u32()
-            name = self.read_str(fn_len)
+            name = self.read_str(fn_len, self.encoding)
             pos = self.f.tell()
             size = self.read_u32()
             comp = self.read_u32()
@@ -322,7 +322,7 @@ class FileArchive:
         """
 
         if typ == "str":
-            return self.read_str(size)
+            return self.read_str(size, self.encoding)
 
         elif typ == "feat":
             type_len = self.read_U32()
@@ -407,9 +407,7 @@ class FileArchive:
                         t += 1
                     return alignment
             else:
-                raise Exception(
-                    "No valid alignment header found (found: %r). Wrong cache?" % typ
-                )
+                raise Exception("No valid alignment header found (found: %r). Wrong cache?" % typ)
 
     def has_entry(self, filename):
         """
@@ -498,8 +496,8 @@ class FileArchive:
         :param times:
         """
         self.write_U32(self.start_recovery_tag)
-        self.write_u32(len(filename))
-        self.write_str(filename)
+        self.write_u32(len(filename.encode(self.encoding)))
+        self.write_str(filename, self.encoding)
         pos = self.f.tell()
         if len(features) > 0:
             dim = len(features[0])
@@ -544,8 +542,8 @@ class FileArchive:
         ) % (dim, duration)
         self.write_U32(self.start_recovery_tag)
         filename = "%s.attribs" % filename
-        self.write_u32(len(filename))
-        self.write_str(filename)
+        self.write_u32(len(filename.encode(self.encoding)))
+        self.write_str(filename, self.encoding)
         pos = self.f.tell()
         size = len(data)
         self.write_u32(size)
@@ -561,9 +559,10 @@ class FileArchiveBundle:
     File archive bundle.
     """
 
-    def __init__(self, filename):
+    def __init__(self, filename, encoding="ascii"):
         """
         :param str filename: .bundle file
+        :param str encoding: encoding used in the files
         """
         # filename -> FileArchive
         self.archives = {}  # type: typing.Dict[str,FileArchive]
@@ -571,7 +570,7 @@ class FileArchiveBundle:
         self.files = {}  # type: typing.Dict[str,FileArchive]
         self._short_seg_names = {}
         for line in open(filename).read().splitlines():
-            self.archives[line] = a = FileArchive(line, must_exists=True)
+            self.archives[line] = a = FileArchive(line, must_exists=True, encoding=encoding)
             for f in a.ft.keys():
                 self.files[f] = a
             # noinspection PyProtectedMember
@@ -618,17 +617,18 @@ class FileArchiveBundle:
             a.setAllophones(filename)
 
 
-def open_file_archive(archive_filename, must_exists=True):
+def open_file_archive(archive_filename, must_exists=True, encoding="ascii"):
     """
     :param str archive_filename:
     :param bool must_exists:
+    :param str encoding:
     :rtype: FileArchiveBundle|FileArchive
     """
     if archive_filename.endswith(".bundle"):
         assert must_exists
-        return FileArchiveBundle(archive_filename)
+        return FileArchiveBundle(archive_filename, encoding=encoding)
     else:
-        return FileArchive(archive_filename, must_exists=must_exists)
+        return FileArchive(archive_filename, must_exists=must_exists, encoding=encoding)
 
 
 def is_rasr_cache_file(filename):
@@ -671,9 +671,7 @@ class AllophoneLabeling(object):
         """
         assert phoneme_file or state_tying_file
         self.allophone_file = allophone_file
-        self.allophones = [
-            l for l in open(allophone_file).read().splitlines() if l and l[0] != "#"
-        ]
+        self.allophones = [l for l in open(allophone_file).read().splitlines() if l and l[0] != "#"]
         self.allophones_idx = {p: i for i, p in enumerate(self.allophones)}
         self.sil_allo_state_id = self.allophones_idx[silence_phone + "{#+#}@i@f"]
         if verbose_out:
@@ -700,11 +698,7 @@ class AllophoneLabeling(object):
                         file=verbose_out,
                     )
         if state_tying_file:
-            self.state_tying = {
-                k: int(v)
-                for l in open(state_tying_file).read().splitlines()
-                for (k, v) in [l.split()]
-            }
+            self.state_tying = {k: int(v) for l in open(state_tying_file).read().splitlines() for (k, v) in [l.split()]}
             self.sil_label_idx = self.state_tying[silence_phone + "{#+#}@i@f.0"]
             self.num_allo_states = self._get_num_allo_states()
             self.state_tying_by_allo_state_idx = {
@@ -753,15 +747,12 @@ class AllophoneLabeling(object):
         """
         if self.state_tying_by_allo_state_idx:
             try:
-                return self.state_tying_by_allo_state_idx[
-                    allo_idx + state_idx * (1 << 26)
-                ]
+                return self.state_tying_by_allo_state_idx[allo_idx + state_idx * (1 << 26)]
             except KeyError:
                 allo_str = self.allophones[allo_idx]
                 r = self.state_tying.get("%s.%i" % (allo_str, state_idx))
                 raise KeyError(
-                    "allo idx %i (%r), state idx %i not found; entry: %r"
-                    % (allo_idx, allo_str, state_idx, r)
+                    "allo idx %i (%r), state idx %i not found; entry: %r" % (allo_idx, allo_str, state_idx, r)
                 )
         allo_str = self.allophones[allo_idx]
         phone = allo_str[: allo_str.index("{")]

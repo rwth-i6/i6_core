@@ -1,13 +1,14 @@
 __all__ = ["CodeWrapper", "ReturnnConfig", "WriteReturnnConfigJob"]
 
 import base64
-import black
 import inspect
 import json
 import os
 import pickle
 import pprint
+import shutil
 import string
+import subprocess
 import sys
 import textwrap
 
@@ -30,6 +31,8 @@ class CodeWrapper:
         self.code = code
 
     def __repr__(self):
+        if isinstance(self.code, DelayedBase):
+            return self.code.get()
         return self.code
 
 
@@ -137,6 +140,11 @@ class ReturnnConfig:
         if sys.version_info[:2] >= (3, 8):
             self.pprint_kwargs.setdefault("sort_dicts", sort_config)
         self.black_formatting = black_formatting
+        # Get the path to the black executable here in the Sisyphus environment
+        # because inside the worker environment, we usually don't have the original PATH anymore.
+        # This is consistent to the old behavior where we did `import black` instead,
+        # i.e. by default this used the same black as in the Sisyphus environment.
+        self._black_path = shutil.which("black") if black_formatting else None
 
     def get(self, key, default=None):
         if key in self.post_config:
@@ -167,13 +175,9 @@ class ReturnnConfig:
             return [my_code, other_code]
 
         self.python_prolog = join_code(self.python_prolog, other.python_prolog)
-        self.python_prolog_hash = join_code(
-            self.python_prolog_hash, other.python_prolog_hash
-        )
+        self.python_prolog_hash = join_code(self.python_prolog_hash, other.python_prolog_hash)
         self.python_epilog = join_code(self.python_epilog, other.python_epilog)
-        self.python_epilog_hash = join_code(
-            self.python_epilog_hash, other.python_epilog_hash
-        )
+        self.python_epilog_hash = join_code(self.python_epilog_hash, other.python_epilog_hash)
 
         self.sort_config = other.sort_config
         self.pprint_kwargs.update(other.pprint_kwargs)
@@ -185,12 +189,12 @@ class ReturnnConfig:
         write with optional black formatting
 
         :param str content:
-        :param str config_path:
+        :param str file_path:
         """
         with open(file_path, "wt", encoding="utf-8") as f:
-            if self.black_formatting:
-                content = black.format_str(content, mode=black.Mode())
             f.write(content)
+        if self.black_formatting:
+            subprocess.check_call([self._black_path, file_path])
 
     def _write_network_stages(self, config_path):
         """
@@ -217,14 +221,13 @@ class ReturnnConfig:
             elif isinstance(network_definition, str):
                 content = network_definition
             else:
-                assert False, (
-                    "Invalid entry type in staged_network_dict: %s, use str or dict"
-                    % type(network_definition)
+                assert False, "Invalid entry type in staged_network_dict: %s, use str or dict" % type(
+                    network_definition
                 )
             with open(network_path, "wt", encoding="utf-8") as f:
-                if self.black_formatting:
-                    content = black.format_str(content, mode=black.Mode())
                 f.write(content)
+            if self.black_formatting:
+                subprocess.check_call([self._black_path, network_path])
             init_import_code += "from .network_%i import network as network_%i\n" % (
                 epoch,
                 epoch,
@@ -329,8 +332,7 @@ class ReturnnConfig:
                 return (
                     "import types; import base64; import pickle; "
                     'code = types.CodeType(*pickle.loads(base64.b64decode("%s".encode("utf8")))); '
-                    '%s = types.FunctionType(code, globals(), "%s")'
-                    % (compiled, name, code.__name__)
+                    '%s = types.FunctionType(code, globals(), "%s")' % (compiled, name, code.__name__)
                 )
         if inspect.isclass(code):
             return inspect.getsource(code)
@@ -342,9 +344,7 @@ class ReturnnConfig:
         Also check for parameters that should never be hashed.
         """
         for key in self.config:
-            assert key not in self.post_config, (
-                "%s in post_config would overwrite existing entry in config" % key
-            )
+            assert key not in self.post_config, "%s in post_config would overwrite existing entry in config" % key
         assert not (self.staged_network_dict and "network" in self.config)
 
         # list of parameters that should never be hashed
@@ -353,9 +353,7 @@ class ReturnnConfig:
             "log_verbosity",
         ]
         for key in disallowed_in_config:
-            assert self.config.get(key) is None, (
-                "please define %s only as parameter in the post_config" % key
-            )
+            assert self.config.get(key) is None, "please define %s only as parameter in the post_config" % key
 
     def _sis_hash(self):
         h = {

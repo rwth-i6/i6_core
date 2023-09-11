@@ -1,13 +1,15 @@
 import gzip
+import logging
 import os
 import shutil
 import stat
 import subprocess as sp
 import xml.dom.minidom
 import xml.etree.ElementTree as ET
+from typing import Any, List, Optional, Union
 
 from sisyphus import *
-from sisyphus.delayed_ops import DelayedBase
+from sisyphus.delayed_ops import DelayedBase, DelayedFormat
 
 Path = setup_path(__package__)
 Variable = tk.Variable
@@ -39,9 +41,7 @@ class MultiPath:
 
     def __sis_state__(self):
         return {
-            "path_template": self.path_template
-            if self.hash_overwrite is None
-            else self.hash_overwrite,
+            "path_template": self.path_template if self.hash_overwrite is None else self.hash_overwrite,
             "hidden_paths": self.hidden_paths,
             "cached": self.cached,
         }
@@ -57,13 +57,13 @@ class MultiOutputPath(MultiPath):
         )
 
 
-def write_paths_to_file(file, paths):
+def write_paths_to_file(file: Union[str, tk.Path], paths: List[Union[str, tk.Path]]):
     with open(tk.uncached_path(file), "w") as f:
         for p in paths:
             f.write(tk.uncached_path(p) + "\n")
 
 
-def zmove(src, target):
+def zmove(src: Union[str, tk.Path], target: Union[str, tk.Path]):
     src = tk.uncached_path(src)
     target = tk.uncached_path(target)
 
@@ -79,17 +79,17 @@ def zmove(src, target):
     shutil.move(src, target)
 
 
-def delete_if_exists(file):
+def delete_if_exists(file: str):
     if os.path.exists(file):
         os.remove(file)
 
 
-def delete_if_zero(file):
+def delete_if_zero(file: str):
     if os.path.exists(file) and os.stat(file).st_size == 0:
         os.remove(file)
 
 
-def backup_if_exists(file):
+def backup_if_exists(file: str):
     if os.path.exists(file):
         dir, base = os.path.split(file)
         base = add_suffix(base, ".gz")
@@ -99,19 +99,19 @@ def backup_if_exists(file):
         zmove(file, os.path.join(dir, "backup.%.4d.%s" % (idx, base)))
 
 
-def remove_suffix(string, suffix):
+def remove_suffix(string: str, suffix: str) -> str:
     if string.endswith(suffix):
         return string[: -len(suffix)]
     return string
 
 
-def add_suffix(string, suffix):
+def add_suffix(string: str, suffix: str) -> str:
     if not string.endswith(suffix):
         return string + suffix
     return string
 
 
-def partition_into_tree(l, m):
+def partition_into_tree(l: List, m: int) -> List[List]:
     """Transforms the list l into a nested list where each sub-list has at most length m + 1"""
     nextPartition = partition = l
     while len(nextPartition) > 1:
@@ -142,7 +142,7 @@ def reduce_tree(func, tree):
     return func([(reduce_tree(func, e) if type(e) == list else e) for e in tree])
 
 
-def uopen(path, *args, **kwargs):
+def uopen(path: Union[str, tk.Path], *args, **kwargs) -> Union[gzip.open, open]:
     path = tk.uncached_path(path)
     if path.endswith(".gz"):
         return gzip.open(path, *args, **kwargs)
@@ -150,13 +150,13 @@ def uopen(path, *args, **kwargs):
         return open(path, *args, **kwargs)
 
 
-def get_val(var):
+def get_val(var: Any) -> Any:
     if isinstance(var, Variable):
         return var.get()
     return var
 
 
-def num_cart_labels(path):
+def num_cart_labels(path: Union[str, tk.Path]) -> int:
     path = tk.uncached_path(path)
     if path.endswith(".gz"):
         open_func = gzip.open
@@ -169,12 +169,11 @@ def num_cart_labels(path):
     return len([n for n in all_nodes if n.find("node") is None])
 
 
-def chunks(l, n):
+def chunks(l: List, n: int) -> List[List]:
     """
-    :param list[T] l: list which should be split into chunks
-    :param int n: number of chunks
+    :param l: list which should be split into chunks
+    :param n: number of chunks
     :return: yields n chunks
-    :rtype: list[list[T]]
     """
     bigger_count = len(l) % n
     start = 0
@@ -185,13 +184,13 @@ def chunks(l, n):
         start = end
 
 
-def relink(src, dst):
+def relink(src: str, dst: str):
     if os.path.exists(dst):
         os.remove(dst)
     os.link(src, dst)
 
 
-def cached_path(path):
+def cached_path(path: Union[str, tk.Path]) -> Union[str, bytes]:
     if tk.is_path(path) and path.cached:
         caching_command = gs.file_caching(tk.uncached_path(path))
         caching_command = caching_command.replace("`", "")
@@ -202,12 +201,12 @@ def cached_path(path):
     return tk.uncached_path(path)
 
 
-def write_xml(filename, element_tree, prettify=True):
+def write_xml(filename: Union[Path, str], element_tree: Union[ET.ElementTree, ET.Element], prettify: bool = True):
     """
     writes element tree to xml file
-    :param Union[Path, str] filename: name of desired output file
-    :param ET.ElementTree|ET.Element element_tree: element tree which should be written to file
-    :param bool prettify: prettify the xml. Warning: be careful with this option if you care about whitespace in the xml.
+    :param filename: name of desired output file
+    :param element_tree: element tree which should be written to file
+    :param prettify: prettify the xml. Warning: be careful with this option if you care about whitespace in the xml.
     """
 
     def remove_unwanted_whitespace(elem):
@@ -229,9 +228,7 @@ def write_xml(filename, element_tree, prettify=True):
 
     if prettify:
         remove_unwanted_whitespace(root)
-        xml_string = xml.dom.minidom.parseString(ET.tostring(root)).toprettyxml(
-            indent=" " * 2
-        )
+        xml_string = xml.dom.minidom.parseString(ET.tostring(root)).toprettyxml(indent=" " * 2)
     else:
         xml_string = ET.tostring(root, encoding="unicode")
 
@@ -239,11 +236,11 @@ def write_xml(filename, element_tree, prettify=True):
         f.write(xml_string)
 
 
-def create_executable(filename, command):
+def create_executable(filename: str, command: List[str]):
     """
     create an executable .sh file calling a single command
-    :param str filename: executable name ending with .sh
-    :param list[str] command: list representing the command and parameters
+    :param filename: executable name ending with .sh
+    :param command: list representing the command and parameters
     :return:
     """
     assert filename.endswith(".sh")
@@ -251,21 +248,15 @@ def create_executable(filename, command):
         f.write("#!/usr/bin/env bash\n%s" % " ".join(command))
     os.chmod(
         filename,
-        stat.S_IRUSR
-        | stat.S_IRGRP
-        | stat.S_IROTH
-        | stat.S_IWUSR
-        | stat.S_IXUSR
-        | stat.S_IXGRP
-        | stat.S_IXOTH,
+        stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH | stat.S_IWUSR | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH,
     )
 
 
-def compute_file_sha256_checksum(filename):
+def compute_file_sha256_checksum(filename: str) -> str:
     """
     Computes the sha256sum for a file
 
-    :param str filename: a single file to be checked
+    :param filename: a single file to be checked
     :return: checksum
     :rtype:str
     """
@@ -273,21 +264,22 @@ def compute_file_sha256_checksum(filename):
     return checksum_command_output.decode().strip().split(" ")[0]
 
 
-def check_file_sha256_checksum(filename, reference_checksum):
+def check_file_sha256_checksum(filename: str, reference_checksum: str):
     """
     Validates the sha256sum for a file against the target checksum
 
-    :param str filename: a single file to be checked
+    :param filename: a single file to be checked
+    :param reference_checksum: checksum to verify against
     """
     assert compute_file_sha256_checksum(filename) == reference_checksum
 
 
-def instanciate_delayed(o):
+def instanciate_delayed(o: Any) -> Any:
     """
     Recursively traverses a structure and calls .get() on all
     existing Delayed Operations, especially Variables in the structure
 
-    :param Any o: nested structure that may contain DelayedBase objects
+    :param o: nested structure that may contain DelayedBase objects
     :return:
     """
     if isinstance(o, DelayedBase):
@@ -301,3 +293,82 @@ def instanciate_delayed(o):
         for k in o:
             o[k] = instanciate_delayed(o[k])
     return o
+
+
+already_printed_gs_warnings = set()
+
+
+def get_executable_path(
+    path: Optional[tk.Path],
+    gs_member_name: Optional[str],
+    default_exec_path: Optional[tk.Path] = None,
+) -> tk.Path:
+    """
+    Helper function that allows to select a specific version of software while
+    maintaining compatibility to different methods that were used in the past to select
+    software versions.
+    It will return a Path object for the first path found in
+
+    :param path: Directly specify the path to be used
+    :param gs_member_name: get path from sisyphus.global_settings.<gs_member_name>
+    :param default_exec_path: general fallback if no specific version is given
+    """
+    global already_printed_gs_warnings
+    if path is not None:
+        if isinstance(path, tk.Path):
+            return path
+        elif isinstance(path, str):
+            logging.warning(f"use of str is deprecated, please provide a Path object for {path}")
+            return tk.Path(path)
+        elif isinstance(path, DelayedFormat):
+            logging.warning(
+                f"use of a DelayedFormat is deprecated, please use Path.join_right to provide a Path object for {path}"
+            )
+            if (
+                len(path.args) == 2
+                and isinstance(path.args[0], tk.Path)
+                and isinstance(path.args[1], str)
+                and path.string == "{}/{}"
+            ):
+                return path.args[0].join_right(path.args[1])
+            else:
+                return tk.Path(path.get())
+        assert False, f"unsupported type of {type(path)} for input {path}"
+    if getattr(gs, gs_member_name, None) is not None:
+        if gs_member_name not in already_printed_gs_warnings:
+            logging.warning(f"use of gs is deprecated, please provide a Path object for gs.{gs_member_name}")
+            already_printed_gs_warnings.add(gs_member_name)
+
+        return tk.Path(getattr(gs, gs_member_name))
+    if default_exec_path is not None:
+        return default_exec_path
+    assert False, f"could not find executable for {gs_member_name}"
+
+
+def get_returnn_root(returnn_root: tk.Path) -> tk.Path:
+    """gets the path to the root folder of RETURNN"""
+    return get_executable_path(returnn_root, "RETURNN_ROOT")
+
+
+def get_returnn_python_exe(returnn_python_exe: tk.Path) -> tk.Path:
+    """gets the path to a python binary or script that is used to run RETURNN"""
+    system_python = tk.Path(shutil.which(gs.SIS_COMMAND[0]))
+    return get_executable_path(returnn_python_exe, "RETURNN_PYTHON_EXE", system_python)
+
+
+def get_g2p_path(g2p_path: tk.Path) -> tk.Path:
+    """gets the path to the sequitur g2p script"""
+    system_python_path = os.path.dirname(shutil.which(gs.SIS_COMMAND[0]))
+    system_g2p = tk.Path(system_python_path).join_right("g2p.py")
+    return get_executable_path(g2p_path, "G2P_PATH", system_g2p)
+
+
+def get_g2p_python(g2p_python: tk.Path) -> tk.Path:
+    """gets the path to a python binary or script that is used to run g2p"""
+    system_python = tk.Path(shutil.which(gs.SIS_COMMAND[0]))
+    return get_executable_path(g2p_python, "G2P_PYTHON", system_python)
+
+
+def get_subword_nmt_repo(subword_nmt_repo: tk.Path) -> tk.Path:
+    """gets the path to the root folder of subword-nmt repo"""
+    return get_executable_path(subword_nmt_repo, "SUBWORD_NMT_PATH")

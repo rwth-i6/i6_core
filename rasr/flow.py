@@ -4,6 +4,7 @@ __all__ = [
     "NamedFlowAttribute",
     "FlagDependentFlowAttribute",
     "PathWithPrefixFlowAttribute",
+    "WriteFlowNetworkJob",
 ]
 
 import collections
@@ -12,6 +13,7 @@ import itertools as it
 import xml.etree.ElementTree as ET
 import xml.dom.minidom as minidom
 
+from sisyphus import Job, Task
 from sisyphus.tools import extract_paths
 
 from .config import RasrConfig
@@ -105,10 +107,7 @@ class FlowNetwork:
         self.links = [
             l
             for l in self.links
-            if not (
-                (from_name is None or l[0] == from_name)
-                and (to_name is None or l[1] == to_name)
-            )
+            if not ((from_name is None or l[0] == from_name) and (to_name is None or l[1] == to_name))
         ]
 
     def add_input(self, name):
@@ -163,19 +162,12 @@ class FlowNetwork:
         """
         if mapping is None:
             ordered_mapping = collections.OrderedDict(
-                (p, p)
-                for p in sorted(
-                    set(a.get_output_ports()).intersection(set(b.get_input_ports()))
-                )
+                (p, p) for p in sorted(set(a.get_output_ports()).intersection(set(b.get_input_ports())))
             )
         else:
-            ordered_mapping = collections.OrderedDict(
-                (k, mapping[k]) for k in sorted(mapping.keys())
-            )
+            ordered_mapping = collections.OrderedDict((k, mapping[k]) for k in sorted(mapping.keys()))
         for src_port, dst_port in ordered_mapping.items():
-            for from_name, to_name in it.product(
-                a.get_output_links(src_port), b.get_input_links(dst_port)
-            ):
+            for from_name, to_name in it.product(a.get_output_links(src_port), b.get_input_links(dst_port)):
                 self.link(node_mapping_a[from_name], node_mapping_b[to_name])
 
     def interconnect_inputs(self, net, node_mapping, mapping=None):
@@ -184,13 +176,9 @@ class FlowNetwork:
         optionally a mapping between the ports can be specified
         """
         if mapping is None:
-            ordered_mapping = collections.OrderedDict(
-                (p, p) for p in sorted(net.get_input_ports())
-            )
+            ordered_mapping = collections.OrderedDict((p, p) for p in sorted(net.get_input_ports()))
         else:
-            ordered_mapping = collections.OrderedDict(
-                (k, mapping[k]) for k in sorted(mapping.keys())
-            )
+            ordered_mapping = collections.OrderedDict((k, mapping[k]) for k in sorted(mapping.keys()))
         for original_port, new_port in ordered_mapping.items():
             self.add_input(new_port)
             for dst in net.get_input_links(original_port):
@@ -202,13 +190,9 @@ class FlowNetwork:
         optionally a mapping between the ports can be specified
         """
         if mapping is None:
-            ordered_mapping = collections.OrderedDict(
-                (p, p) for p in sorted(net.get_output_ports())
-            )
+            ordered_mapping = collections.OrderedDict((p, p) for p in sorted(net.get_output_ports()))
         else:
-            ordered_mapping = collections.OrderedDict(
-                (k, mapping[k]) for k in sorted(mapping.keys())
-            )
+            ordered_mapping = collections.OrderedDict((k, mapping[k]) for k in sorted(mapping.keys()))
         for original_port, new_port in ordered_mapping.items():
             self.add_output(new_port)
             for src in net.get_output_links(original_port):
@@ -253,10 +237,12 @@ class FlowNetwork:
 
         # now add all the links
         for l in internal_links:
-            name_in = l[0].split(":")[0]
-            name_out = l[1].split(":")[0]
+            split_in = l[0].split(":")
+            split_out = l[1].split(":")
+            name_in = split_in[0]
+            name_out = split_out[0]
             if name_in in processed_nodes:
-                net.link(mapping[l[0]], mapping[l[1]])
+                net.link(":".join([mapping[name_in]] + split_in[1:]), ":".join([mapping[name_out]] + split_out[1:]))
             elif name_out in processed_nodes:
                 broken_links.append((l[0], mapping[l[1]]))
 
@@ -278,16 +264,11 @@ class FlowNetwork:
 
     def get_internal_links(self):
         return list(
-            l
-            for l in self.links
-            if not l[0].startswith(self.name + ":")
-            and not l[1].startswith(self.name + ":")
+            l for l in self.links if not l[0].startswith(self.name + ":") and not l[1].startswith(self.name + ":")
         )
 
     def get_input_links(self, input_port):
-        return list(
-            l[1] for l in self.links if l[0] == "%s:%s" % (self.name, input_port)
-        )
+        return list(l[1] for l in self.links if l[0] == "%s:%s" % (self.name, input_port))
 
     def get_output_links(self, output_port):
         """
@@ -295,9 +276,7 @@ class FlowNetwork:
         :return: list of from_name
         :rtype: list[str]
         """
-        return list(
-            l[0] for l in self.links if l[1] == "%s:%s" % (self.name, output_port)
-        )
+        return list(l[0] for l in self.links if l[1] == "%s:%s" % (self.name, output_port))
 
     def get_input_ports(self):
         return sorted(self.inputs)
@@ -350,9 +329,7 @@ class FlowNetwork:
         for l in self.links:
             links_by_target_node[l[1].split(":")[0]].append(l)
 
-        for node, names in zip(
-            ["in", "out", "param"], [self.inputs, self.outputs, self.params]
-        ):
+        for node, names in zip(["in", "out", "param"], [self.inputs, self.outputs, self.params]):
             for n in sorted(names):
                 ET.SubElement(root, node, name=n)
 
@@ -385,10 +362,7 @@ class FlowNetwork:
         def get_val(a):
             return get_val(a.get(self)) if isinstance(a, FlowAttribute) else a
 
-        nodes = {
-            name: {k: get_val(v) for k, v in attr.items()}
-            for name, attr in self.nodes.items()
-        }
+        nodes = {name: {k: get_val(v) for k, v in attr.items()} for name, attr in self.nodes.items()}
         state = {
             "name": self.name,
             "nodes": nodes,
@@ -398,7 +372,7 @@ class FlowNetwork:
             "params": self.params,
             "hidden_inputs": self.hidden_inputs,
             "config": self.config,
-            "post_config": self.post_config,
+            "post_config": None,
         }
         return state
 
@@ -439,3 +413,23 @@ def _smart_union(s, e):
     if type(e) == list or type(e) == set:
         return s.union(e)
     return s.union([e])
+
+
+class WriteFlowNetworkJob(Job):
+    """
+    Writes a flow network to a file
+    """
+
+    def __init__(
+        self,
+        flow: FlowNetwork,
+    ):
+        self.flow = flow
+
+        self.out_flow_file = self.output_path("network.flow")
+
+    def tasks(self):
+        yield Task("run", mini_task=True)
+
+    def run(self):
+        self.flow.write_to_file(self.out_flow_file.get_path())

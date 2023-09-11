@@ -43,21 +43,16 @@ class NumeratorLatticeJob(rasr.RasrCommand, Job):
 
         self.config, self.post_config = NumeratorLatticeJob.create_config(**kwargs)
         self.alignment_flow = NumeratorLatticeJob.create_flow(**kwargs)
-        self.exe = self.select_exe(
-            crp.acoustic_model_trainer_exe, "acoustic-model-trainer"
-        )
+        self.exe = self.select_exe(crp.acoustic_model_trainer_exe, "acoustic-model-trainer")
         self.concurrent = crp.concurrent
         self.feature_scorer = feature_scorer
         self.use_gpu = use_gpu
 
         self.log_file = self.log_file_output_path("create-numerator", crp, True)
         self.single_lattice_caches = {
-            i: self.output_path("numerator.%d" % i, cached=True)
-            for i in range(1, self.concurrent + 1)
+            i: self.output_path("numerator.%d" % i, cached=True) for i in range(1, self.concurrent + 1)
         }
-        self.lattice_path = util.MultiOutputPath(
-            self, "numerator.$(TASK)", self.single_lattice_caches, cached=True
-        )
+        self.lattice_path = util.MultiOutputPath(self, "numerator.$(TASK)", self.single_lattice_caches, cached=True)
         self.lattice_bundle = self.output_path("numerator.bundle", cached=True)
 
         self.rqmt = {
@@ -70,9 +65,7 @@ class NumeratorLatticeJob(rasr.RasrCommand, Job):
     def tasks(self):
         rqmt = self.rqmt.copy()
         if isinstance(self.feature_scorer, rasr.GMMFeatureScorer):
-            mixture_size = os.stat(
-                tk.uncached_path(self.feature_scorer.config["file"])
-            ).st_size / (1024.0**2)
+            mixture_size = os.stat(tk.uncached_path(self.feature_scorer.config["file"])).st_size / (1024.0**2)
             rqmt["mem"] += int(math.ceil((mixture_size - 200.0) / 750.0))
 
         yield Task("create_files", mini_task=True)
@@ -81,9 +74,7 @@ class NumeratorLatticeJob(rasr.RasrCommand, Job):
     def create_files(self):
         self.write_config(self.config, self.post_config, "alignment.config")
         self.alignment_flow.write_to_file("alignment.flow")
-        util.write_paths_to_file(
-            self.lattice_bundle, self.single_lattice_caches.values()
-        )
+        util.write_paths_to_file(self.lattice_bundle, self.single_lattice_caches.values())
         extra_code = (
             ":${{THEANO_FLAGS:="
             "}}\n"
@@ -94,9 +85,7 @@ class NumeratorLatticeJob(rasr.RasrCommand, Job):
 
     def run(self, task_id):
         self.run_script(task_id, self.log_file[task_id])
-        shutil.move(
-            "numerator.%d" % task_id, self.single_lattice_caches[task_id].get_path()
-        )
+        shutil.move("numerator.%d" % task_id, self.single_lattice_caches[task_id].get_path())
 
     def cleanup_before_run(self, cmd, retry, task_id, *args):
         util.backup_if_exists("create-numerator.log.%d" % task_id)
@@ -141,22 +130,16 @@ class NumeratorLatticeJob(rasr.RasrCommand, Job):
                 % node
             )
 
-        config, post_config = rasr.build_config_from_mapping(
-            crp, mapping, parallelize=True
-        )
+        config, post_config = rasr.build_config_from_mapping(crp, mapping, parallelize=True)
 
         # alignment options for the flow nodes
         for node in alignment_flow.get_node_names_by_filter("speech-alignment"):
-            node_config = config.acoustic_model_trainer.aligning_feature_extractor.feature_extraction[
-                node
-            ]
+            node_config = config.acoustic_model_trainer.aligning_feature_extractor.feature_extraction[node]
 
             node_config.aligner = rasr.RasrConfig()
             for k, v in alignopt.items():
                 node_config.aligner[k] = v
-            feature_scorer.apply_config(
-                "model-combination.acoustic-model.mixture-set", node_config, node_config
-            )
+            feature_scorer.apply_config("model-combination.acoustic-model.mixture-set", node_config, node_config)
 
             node_config.store_lattices = True
             node_config.lattice_archive.path = "numerator.$(TASK)"
@@ -168,9 +151,7 @@ class NumeratorLatticeJob(rasr.RasrCommand, Job):
         )
 
         config.action = "dry"
-        config.acoustic_model_trainer.aligning_feature_extractor.feature_extraction.file = (
-            "alignment.flow"
-        )
+        config.acoustic_model_trainer.aligning_feature_extractor.feature_extraction.file = "alignment.flow"
         post_config["*"].allow_overwrite = True
 
         config._update(extra_config)
@@ -245,27 +226,19 @@ class RawDenominatorLatticeJob(rasr.RasrCommand, Job):
 
     def tasks(self):
         yield Task("create_files", mini_task=True)
-        yield Task(
-            "run", resume="run", rqmt=self.rqmt, args=range(1, self.concurrent + 1)
-        )
+        yield Task("run", resume="run", rqmt=self.rqmt, args=range(1, self.concurrent + 1))
 
     def create_files(self):
-        self.write_config(
-            self.config, self.post_config, "create-raw-denominator.config"
-        )
+        self.write_config(self.config, self.post_config, "create-raw-denominator.config")
         self.feature_flow.write_to_file("feature.flow")
-        util.write_paths_to_file(
-            self.lattice_bundle, self.single_lattice_caches.values()
-        )
+        util.write_paths_to_file(self.lattice_bundle, self.single_lattice_caches.values())
         extra_code = (
             ":${{THEANO_FLAGS:="
             "}}\n"
             'export THEANO_FLAGS="$THEANO_FLAGS,device={0},force_device=True"\n'
             'export TF_DEVICE="{0}"'.format("gpu" if self.use_gpu else "cpu")
         )
-        self.write_run_script(
-            self.exe, "create-raw-denominator.config", extra_code=extra_code
-        )
+        self.write_run_script(self.exe, "create-raw-denominator.config", extra_code=extra_code)
 
     def run(self, task_id):
         self.run_script(task_id, self.log_file[task_id])
@@ -339,9 +312,7 @@ class RawDenominatorLatticeJob(rasr.RasrCommand, Job):
 
         # Parameters for Speech::DataSource or Sparse::DataSource
         config.speech_recognizer.feature_extraction.file = "feature.flow"
-        feature_flow.apply_config(
-            "speech-recognizer.feature-extraction", config, post_config
-        )
+        feature_flow.apply_config("speech-recognizer.feature-extraction", config, post_config)
 
         # Parameters for Am::ClassicAcousticModel
         feature_scorer.apply_config(
@@ -353,49 +324,27 @@ class RawDenominatorLatticeJob(rasr.RasrCommand, Job):
         # Parameters for Speech::Model combination (besides AM and LM parameters)
         config.speech_recognizer.model_combination.pronunciation_scale = 3.0
         config.speech_recognizer.model_combination._update(model_combination_config)
-        post_config.speech_recognizer.model_combination._update(
-            model_combination_post_config
-        )
+        post_config.speech_recognizer.model_combination._update(model_combination_post_config)
 
         # Search parameters
         config.speech_recognizer.recognizer.create_lattice = True
         config.speech_recognizer.store_lattices = True
 
-        config.speech_recognizer.recognizer.beam_pruning = search_parameters[
-            "beam-pruning"
-        ]
-        config.speech_recognizer.recognizer.beam_pruning_limit = search_parameters[
-            "beam-pruning-limit"
-        ]
-        config.speech_recognizer.recognizer.word_end_pruning = search_parameters[
-            "word-end-pruning"
-        ]
-        config.speech_recognizer.recognizer.word_end_pruning_limit = search_parameters[
-            "word-end-pruning-limit"
-        ]
+        config.speech_recognizer.recognizer.beam_pruning = search_parameters["beam-pruning"]
+        config.speech_recognizer.recognizer.beam_pruning_limit = search_parameters["beam-pruning-limit"]
+        config.speech_recognizer.recognizer.word_end_pruning = search_parameters["word-end-pruning"]
+        config.speech_recognizer.recognizer.word_end_pruning_limit = search_parameters["word-end-pruning-limit"]
 
         config.speech_recognizer.recognizer.lm_lookahead = rasr.RasrConfig()
         config.speech_recognizer.recognizer.lm_lookahead._value = lm_lookahead
         config.speech_recognizer.recognizer.optimize_lattice = "simple"
         if lm_lookahead:
-            config.speech_recognizer.recognizer.lm_lookahead_laziness = la_opts[
-                "laziness"
-            ]
-            config.speech_recognizer.recognizer.lm_lookahead.history_limit = la_opts[
-                "history_limit"
-            ]
-            config.speech_recognizer.recognizer.lm_lookahead.tree_cutoff = la_opts[
-                "tree_cutoff"
-            ]
-            config.speech_recognizer.recognizer.lm_lookahead.minimum_representation = (
-                la_opts["minimum_representation"]
-            )
-            post_config.speech_recognizer.recognizer.lm_lookahead.cache_size_low = (
-                la_opts["cache_low"]
-            )
-            post_config.speech_recognizer.recognizer.lm_lookahead.cache_size_high = (
-                la_opts["cache_high"]
-            )
+            config.speech_recognizer.recognizer.lm_lookahead_laziness = la_opts["laziness"]
+            config.speech_recognizer.recognizer.lm_lookahead.history_limit = la_opts["history_limit"]
+            config.speech_recognizer.recognizer.lm_lookahead.tree_cutoff = la_opts["tree_cutoff"]
+            config.speech_recognizer.recognizer.lm_lookahead.minimum_representation = la_opts["minimum_representation"]
+            post_config.speech_recognizer.recognizer.lm_lookahead.cache_size_low = la_opts["cache_low"]
+            post_config.speech_recognizer.recognizer.lm_lookahead.cache_size_high = la_opts["cache_high"]
 
         post_config.speech_recognizer.global_cache.read_only = True
         post_config.speech_recognizer.global_cache.file = lm_gc.out_global_cache
@@ -452,9 +401,7 @@ class DenominatorLatticeJob(rasr.RasrCommand, Job):
             for task_id in range(1, crp.concurrent + 1)
         }
         self.lattice_bundle = self.output_path("denominator.bundle", cached=True)
-        self.lattice_path = util.MultiOutputPath(
-            self, "denominator.$(TASK)", self.single_lattice_caches, cached=True
-        )
+        self.lattice_path = util.MultiOutputPath(self, "denominator.$(TASK)", self.single_lattice_caches, cached=True)
 
         self.rqmt = {
             "time": max(crp.corpus_duration * rtf / crp.concurrent, 0.5),
@@ -465,30 +412,22 @@ class DenominatorLatticeJob(rasr.RasrCommand, Job):
 
     def tasks(self):
         yield Task("create_files", mini_task=True)
-        yield Task(
-            "run", resume="run", rqmt=self.rqmt, args=range(1, self.concurrent + 1)
-        )
+        yield Task("run", resume="run", rqmt=self.rqmt, args=range(1, self.concurrent + 1))
 
     def create_files(self):
         self.write_config(self.config, self.post_config, "create-denominator.config")
-        util.write_paths_to_file(
-            self.lattice_bundle, self.single_lattice_caches.values()
-        )
+        util.write_paths_to_file(self.lattice_bundle, self.single_lattice_caches.values())
         extra_code = (
             ":${{THEANO_FLAGS:="
             "}}\n"
             'export THEANO_FLAGS="$THEANO_FLAGS,device={0},force_device=True"\n'
             'export TF_DEVICE="{0}"'.format("gpu" if self.use_gpu else "cpu")
         )
-        self.write_run_script(
-            self.exe, "create-denominator.config", extra_code=extra_code
-        )
+        self.write_run_script(self.exe, "create-denominator.config", extra_code=extra_code)
 
     def run(self, task_id):
         self.run_script(task_id, self.log_file[task_id])
-        shutil.move(
-            "denominator.%d" % task_id, self.single_lattice_caches[task_id].get_path()
-        )
+        shutil.move("denominator.%d" % task_id, self.single_lattice_caches[task_id].get_path())
 
     def cleanup_before_run(self, cmd, retry, task_id, *args):
         util.backup_if_exists("create-denominator.log.%d" % task_id)
@@ -530,18 +469,12 @@ class DenominatorLatticeJob(rasr.RasrCommand, Job):
         )
 
         # Define and name actions
-        config.lattice_processor.actions = (
-            "read,linear-combination,prune,graph-error-rate,merge,write"
-        )
-        config.lattice_processor.selections = (
-            "lattice-reader,linear-combination,pruning,ger,merging,lattice-writer"
-        )
+        config.lattice_processor.actions = "read,linear-combination,prune,graph-error-rate,merge,write"
+        config.lattice_processor.selections = "lattice-reader,linear-combination,pruning,ger,merging,lattice-writer"
 
         # Reader
         config.lattice_processor.lattice_reader.readers = "acoustic,lm"
-        config.lattice_processor.lattice_reader.lattice_archive.path = (
-            raw_denominator_path
-        )
+        config.lattice_processor.lattice_reader.lattice_archive.path = raw_denominator_path
 
         # linear-combination
         config["*"].LM_SCALE = crp.language_model_config.scale
@@ -549,9 +482,7 @@ class DenominatorLatticeJob(rasr.RasrCommand, Job):
 
         # pruning
         config.lattice_processor.pruning.threshold = search_opts["pruning-threshold"]
-        config.lattice_processor.pruning.threshold_is_relative = search_opts[
-            "pruning-threshold-relative"
-        ]
+        config.lattice_processor.pruning.threshold_is_relative = search_opts["pruning-threshold-relative"]
 
         # merging
         config.lattice_processor.merging.fsa_prefix = "acoustic"
@@ -561,9 +492,7 @@ class DenominatorLatticeJob(rasr.RasrCommand, Job):
         # graph error rate [needs no config]
 
         # writer
-        config.lattice_processor.lattice_writer.lattice_archive.path = (
-            "denominator.$(TASK)"
-        )
+        config.lattice_processor.lattice_writer.lattice_archive.path = "denominator.$(TASK)"
 
         # additional config
         config._update(extra_config)
@@ -574,9 +503,7 @@ class DenominatorLatticeJob(rasr.RasrCommand, Job):
     @classmethod
     def hash(cls, kwargs):
         config, post_config = cls.create_config(**kwargs)
-        return super().hash(
-            {"config": config, "exe": kwargs["crp"].lattice_processor_exe}
-        )
+        return super().hash({"config": config, "exe": kwargs["crp"].lattice_processor_exe})
 
 
 class AccuracyJob(rasr.RasrCommand, Job):
@@ -610,20 +537,15 @@ class AccuracyJob(rasr.RasrCommand, Job):
 
         self.log_file = self.log_file_output_path("create-accuracy", crp, True)
         self.single_lattice_caches = {
-            task_id: self.output_path("accuracy.%d" % task_id, cached=True)
-            for task_id in range(1, crp.concurrent + 1)
+            task_id: self.output_path("accuracy.%d" % task_id, cached=True) for task_id in range(1, crp.concurrent + 1)
         }
         self.lattice_bundle = self.output_path("accuracy.bundle", cached=True)
-        self.lattice_path = util.MultiOutputPath(
-            self, "accuracy.$(TASK)", self.single_lattice_caches, cached=True
-        )
+        self.lattice_path = util.MultiOutputPath(self, "accuracy.$(TASK)", self.single_lattice_caches, cached=True)
         self.single_segmentwise_alignment_caches = {
             task_id: self.output_path("segmentwise-alignment.%d" % task_id, cached=True)
             for task_id in range(1, crp.concurrent + 1)
         }
-        self.segmentwise_alignment_bundle = self.output_path(
-            "segmentwise-alignment.bundle", cached=True
-        )
+        self.segmentwise_alignment_bundle = self.output_path("segmentwise-alignment.bundle", cached=True)
         self.segmentwise_alignment_path = util.MultiOutputPath(
             self,
             "segmentwise-alignment.$(TASK)",
@@ -640,16 +562,12 @@ class AccuracyJob(rasr.RasrCommand, Job):
 
     def tasks(self):
         yield Task("create_files", mini_task=True)
-        yield Task(
-            "run", resume="run", rqmt=self.rqmt, args=range(1, self.concurrent + 1)
-        )
+        yield Task("run", resume="run", rqmt=self.rqmt, args=range(1, self.concurrent + 1))
 
     def create_files(self):
         self.write_config(self.config, self.post_config, "create-accuracy.config")
         self.alignment_flow.write_to_file("alignment.flow")
-        util.write_paths_to_file(
-            self.lattice_bundle, self.single_lattice_caches.values()
-        )
+        util.write_paths_to_file(self.lattice_bundle, self.single_lattice_caches.values())
         util.write_paths_to_file(
             self.segmentwise_alignment_bundle,
             self.single_segmentwise_alignment_caches.values(),
@@ -664,9 +582,7 @@ class AccuracyJob(rasr.RasrCommand, Job):
 
     def run(self, task_id):
         self.run_script(task_id, self.log_file[task_id])
-        shutil.move(
-            "accuracy.%d" % task_id, self.single_lattice_caches[task_id].get_path()
-        )
+        shutil.move("accuracy.%d" % task_id, self.single_lattice_caches[task_id].get_path())
         shutil.move(
             "segmentwise-alignment.%d" % task_id,
             self.single_segmentwise_alignment_caches[task_id].get_path(),
@@ -723,9 +639,7 @@ class AccuracyJob(rasr.RasrCommand, Job):
         )
         # Define and name actions
         config.lattice_processor.actions = "read,rescore,write"
-        config.lattice_processor.selections = (
-            "topology-reader,rescoring,accuracy-writer"
-        )
+        config.lattice_processor.selections = "topology-reader,rescoring,accuracy-writer"
 
         # Reader
         config.lattice_processor.topology_reader.readers = "total"
@@ -740,27 +654,17 @@ class AccuracyJob(rasr.RasrCommand, Job):
         # Parameters for Am::ClassicAcousticModel
         for node in ["tdps", "segmentwise-alignment"]:
             feature_scorer.apply_config(
-                "lattice-processor.rescoring.{}.model-combination.acoustic-model.mixture-set".format(
-                    node
-                ),
+                "lattice-processor.rescoring.{}.model-combination.acoustic-model.mixture-set".format(node),
                 config,
                 post_config,
             )
 
         # rescoring aligner
         config.lattice_processor.rescoring.segmentwise_alignment.port_name = "features"
-        config.lattice_processor.rescoring.segmentwise_alignment.alignment_cache.alignment_label_type = (
-            "emission-ids"
-        )
-        config.lattice_processor.rescoring.segmentwise_alignment.alignment_cache.path = (
-            "segmentwise-alignment.$(TASK)"
-        )
-        post_config.lattice_processor.rescoring.segmentwise_alignment.model_acceptor_cache.log.channel = (
-            "nil"
-        )
-        post_config.lattice_processor.rescoring.segmentwise_alignment.aligner.statistics.channel = (
-            "nil"
-        )
+        config.lattice_processor.rescoring.segmentwise_alignment.alignment_cache.alignment_label_type = "emission-ids"
+        config.lattice_processor.rescoring.segmentwise_alignment.alignment_cache.path = "segmentwise-alignment.$(TASK)"
+        post_config.lattice_processor.rescoring.segmentwise_alignment.model_acceptor_cache.log.channel = "nil"
+        post_config.lattice_processor.rescoring.segmentwise_alignment.aligner.statistics.channel = "nil"
         node = config.lattice_processor.rescoring.segmentwise_alignment.aligner
         for k, v in alignopt.items():
             node[k] = v
@@ -770,14 +674,10 @@ class AccuracyJob(rasr.RasrCommand, Job):
             config,
             post_config,
         )
-        config.lattice_processor.rescoring.segmentwise_feature_extraction.feature_extraction.file = (
-            "alignment.flow"
-        )
+        config.lattice_processor.rescoring.segmentwise_feature_extraction.feature_extraction.file = "alignment.flow"
 
         # writer
-        config.lattice_processor.accuracy_writer.lattice_archive.path = (
-            "accuracy.$(TASK)"
-        )
+        config.lattice_processor.accuracy_writer.lattice_archive.path = "accuracy.$(TASK)"
 
         return config, post_config
 
@@ -857,12 +757,8 @@ class PhoneAccuracyJob(AccuracyJob, Job):
             **kwargs,
         )
 
-        config.lattice_processor.rescoring.accuracy.distance_type = (
-            "approximate-phone-accuracy"
-        )
-        config.lattice_processor.rescoring.accuracy.approximate_phone_accuracy_lattice_builder.token_type = (
-            "phone"
-        )
+        config.lattice_processor.rescoring.accuracy.distance_type = "approximate-phone-accuracy"
+        config.lattice_processor.rescoring.accuracy.approximate_phone_accuracy_lattice_builder.token_type = "phone"
 
         if short_pauses is not None:
             config.lattice_processor.rescoring.accuracy.approximate_phone_accuracy_lattice_builder.short_pauses_lemmata = " ".join(
@@ -935,12 +831,8 @@ class StateAccuracyJob(AccuracyJob, Job):
             **kwargs,
         )
 
-        config.lattice_processor.rescoring.accuracy.distance_type = (
-            "smoothed-frame-state-accuracy"
-        )
-        config.lattice_processor.rescoring.accuracy.approximate_phone_accuracy_lattice_builder.token_type = (
-            "state"
-        )
+        config.lattice_processor.rescoring.accuracy.distance_type = "smoothed-frame-state-accuracy"
+        config.lattice_processor.rescoring.accuracy.approximate_phone_accuracy_lattice_builder.token_type = "state"
 
         # additional config
         config._update(extra_config)

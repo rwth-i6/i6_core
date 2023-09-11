@@ -35,9 +35,7 @@ class SegmentCorpusJob(Job):
         self.out_single_segment_files = dict(
             (i, self.output_path("segments.%d" % i)) for i in range(1, num_segments + 1)
         )
-        self.out_segment_path = MultiOutputPath(
-            self, "segments.$(TASK)", self.out_single_segment_files
-        )
+        self.out_segment_path = MultiOutputPath(self, "segments.$(TASK)", self.out_single_segment_files)
 
     def tasks(self):
         yield Task("run", resume="run", mini_task=True)
@@ -49,9 +47,7 @@ class SegmentCorpusJob(Job):
         all_segments = list(c.segments())
 
         for idx, segments in enumerate(chunks(all_segments, self.num_segments)):
-            with open(
-                self.out_single_segment_files[idx + 1].get_path(), "wt"
-            ) as segment_file:
+            with open(self.out_single_segment_files[idx + 1].get_path(), "wt") as segment_file:
                 for segment in segments:
                     segment_file.write(segment.fullname() + "\n")
 
@@ -64,9 +60,7 @@ class SegmentCorpusBySpeakerJob(Job):
 
         self.out_num_speakers = self.output_var("num_speakers", True)
         self.out_segment_dir = self.output_path("segments", True)
-        self.out_segment_path = MultiOutputPath(
-            self, "segments/speaker.$(TASK)", self.out_segment_dir
-        )
+        self.out_segment_path = MultiOutputPath(self, "segments/speaker.$(TASK)", self.out_segment_dir)
         self.out_speaker_map_file = self.output_path("speaker.map")
         self.out_cluster_map_file = self.output_path("cluster.map.xml")
 
@@ -92,24 +86,17 @@ class SegmentCorpusBySpeakerJob(Job):
                 for idx, speaker in enumerate(sorted(speaker_map), 1):
                     smf.write("%s\n" % speaker)
                     with open(
-                        os.path.join(
-                            self.out_segment_dir.get_path(), "speaker.%d" % idx
-                        ),
+                        os.path.join(self.out_segment_dir.get_path(), "speaker.%d" % idx),
                         "wt",
                     ) as ssf:
                         for segment in speaker_map[speaker]:
                             ssf.write("%s\n" % segment)
-                            cmf.write(
-                                '  <map-item key="%s" value="cluster.%d"/>\n'
-                                % (segment, idx)
-                            )
+                            cmf.write('  <map-item key="%s" value="cluster.%d"/>\n' % (segment, idx))
                 cmf.write("</coprus-key-map>")  # misspelled on purpose
 
 
 class SegmentCorpusByRegexJob(Job):
-    def __init__(
-        self, bliss_corpus, regex, regex_flags=0, use_fullpath=False, groups=None
-    ):
+    def __init__(self, bliss_corpus, regex, regex_flags=0, use_fullpath=False, groups=None):
         self.set_vis_name("Segment By Regex")
 
         self.bliss_corpus = bliss_corpus
@@ -119,9 +106,7 @@ class SegmentCorpusByRegexJob(Job):
 
         self.out_num_speakers = self.output_var("num_speakers", True)
         self.out_segment_dir = self.output_path("segments", True)
-        self.out_segment_path = MultiOutputPath(
-            self, "segments/speaker.$(TASK)", self.out_segment_dir
-        )
+        self.out_segment_path = MultiOutputPath(self, "segments/speaker.$(TASK)", self.out_segment_dir)
         self.out_speaker_map_file = self.output_path("speaker.map")
         self.out_cluster_map_file = self.output_path("cluster.map.xml")
 
@@ -162,26 +147,19 @@ class SegmentCorpusByRegexJob(Job):
                 for idx, speaker in enumerate(sorted(speaker_map), 1):
                     smf.write("%s\n" % speaker)
                     with open(
-                        os.path.join(
-                            self.out_segment_dir.get_path(), "speaker.%d" % idx
-                        ),
+                        os.path.join(self.out_segment_dir.get_path(), "speaker.%d" % idx),
                         "wt",
                     ) as ssf:
                         for segment in speaker_map[speaker]:
                             ssf.write("%s\n" % segment)
-                            cmf.write(
-                                '  <map-item key="%s" value="cluster.%d"/>\n'
-                                % (segment, idx)
-                            )
+                            cmf.write('  <map-item key="%s" value="cluster.%d"/>\n' % (segment, idx))
                 cmf.write("</coprus-key-map>")  # misspelled on purpose
 
 
 class ShuffleAndSplitSegmentsJob(Job):
     default_split = {"train": 0.9, "dev": 0.1}
 
-    def __init__(
-        self, segment_file, split=None, shuffle=True, shuffle_seed=0x3C5EA3E47D4E0077
-    ):
+    def __init__(self, segment_file, split=None, shuffle=True, shuffle_seed=0x3C5EA3E47D4E0077):
         if split is None:
             split = dict(**self.default_split)
 
@@ -194,9 +172,7 @@ class ShuffleAndSplitSegmentsJob(Job):
         self.shuffle = shuffle
         self.shuffle_seed = shuffle_seed
 
-        self.out_segments = {
-            k: self.output_path("%s.segments" % k) for k in self.split.keys()
-        }
+        self.out_segments = {k: self.output_path("%s.segments" % k) for k in self.split.keys()}
 
     def tasks(self):
         yield Task("run", mini_task=True)
@@ -211,12 +187,8 @@ class ShuffleAndSplitSegmentsJob(Job):
 
         ordered_keys = sorted(self.split.keys())
         n = len(segments)
-        split_idx = [0] + [
-            int(n * c) for c in it.accumulate(self.split[k] for k in ordered_keys)
-        ]
-        split_idx[
-            -1
-        ] = n  # just in case we get numeric errors that drop the last element
+        split_idx = [0] + [int(n * c) for c in it.accumulate(self.split[k] for k in ordered_keys)]
+        split_idx[-1] = n  # just in case we get numeric errors that drop the last element
 
         for i, k in enumerate(ordered_keys):
             with open(self.out_segments[k].get_path(), "wt") as f:
@@ -228,8 +200,7 @@ class ShuffleAndSplitSegmentsJob(Job):
         if kwargs_copy["split"] is not None:
             split = kwargs_copy["split"]
             if len(split) == len(cls.default_split) and all(
-                k in cls.default_split and cls.default_split[k] == v
-                for k, v in split.items()
+                k in cls.default_split and cls.default_split[k] == v for k, v in split.items()
             ):
                 kwargs_copy["split"] = None
 
@@ -241,13 +212,8 @@ class SplitSegmentFileJob(Job):
         self.segment_file = segment_file
         self.concurrent = concurrent
 
-        self.out_single_segments = {
-            i: self.output_path("segments.%d" % i)
-            for i in range(1, self.concurrent + 1)
-        }
-        self.out_segment_path = MultiOutputPath(
-            self, "segments.$(TASK)", self.out_single_segments, cached=True
-        )
+        self.out_single_segments = {i: self.output_path("segments.%d" % i) for i in range(1, self.concurrent + 1)}
+        self.out_segment_path = MultiOutputPath(self, "segments.$(TASK)", self.out_single_segments, cached=True)
 
     def tasks(self):
         yield Task("run", resume="run", mini_task=True)
@@ -336,23 +302,15 @@ class SortSegmentsByLengthAndShuffleJob(Job):
                         import wave
 
                         with wave.open(segment.recording.audio) as afile:
-                            segment_dict[segment.fullname() + "\n"] = (
-                                afile.getnframes() / afile.getframerate()
-                            )
+                            segment_dict[segment.fullname() + "\n"] = afile.getnframes() / afile.getframerate()
                 else:
-                    segment_dict[segment.fullname() + "\n"] = (
-                        segment.end - segment.start
-                    )
+                    segment_dict[segment.fullname() + "\n"] = segment.end - segment.start
 
-        probs = np.exp(
-            -self.shuffle_strength * np.fromiter(segment_dict.values(), dtype=float)
-        )
+        probs = np.exp(-self.shuffle_strength * np.fromiter(segment_dict.values(), dtype=float))
         probs /= np.sum(probs)
 
         np.random.seed(self.shuffle_seed)
-        seglist = np.random.choice(
-            list(segment_dict.keys()), size=len(probs), replace=False, p=probs
-        )
+        seglist = np.random.choice(list(segment_dict.keys()), size=len(probs), replace=False, p=probs)
 
         with open(self.out_segments.get_path(), "wt") as f:
             f.writelines(seglist)

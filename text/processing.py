@@ -104,9 +104,7 @@ class PipelineJob(Job):
         output_length = int(self.sh("zcat -f %s | wc -l" % self.out.get_path(), True))
         assert output_length > 0
         if self.check_equal_length:
-            assert (
-                input_length == output_length
-            ), "pipe input and output lengths do not match"
+            assert input_length == output_length, "pipe input and output lengths do not match"
 
     @classmethod
     def hash(cls, parsed_args):
@@ -148,9 +146,7 @@ class ConcatenateJob(Job):
                 self.out = self.output_path(out_name)
 
         for input in text_files:
-            assert isinstance(input, Path) or isinstance(
-                input, str
-            ), "input to Concatenate is not a valid path"
+            assert isinstance(input, Path) or isinstance(input, str), "input to Concatenate is not a valid path"
 
         self.text_files = text_files
         self.zip_out = zip_out

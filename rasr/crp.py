@@ -71,34 +71,20 @@ class CommonRasrParameters:
         :return:
         """
         assert isinstance(rasr_binary_path, tk.Path)
-        self.acoustic_model_trainer_exe = rasr_binary_path.join_right(
-            f"acoustic-model-trainer.{rasr_arch}"
-        )
-        self.allophone_tool_exe = rasr_binary_path.join_right(
-            f"allophone-tool.{rasr_arch}"
-        )
+        self.acoustic_model_trainer_exe = rasr_binary_path.join_right(f"acoustic-model-trainer.{rasr_arch}")
+        self.allophone_tool_exe = rasr_binary_path.join_right(f"allophone-tool.{rasr_arch}")
         self.costa_exe = rasr_binary_path.join_right(f"costa.{rasr_arch}")
-        self.feature_extraction_exe = rasr_binary_path.join_right(
-            f"feature-extraction.{rasr_arch}"
-        )
-        self.feature_statistics_exe = rasr_binary_path.join_right(
-            f"feature-statistics.{rasr_arch}"
-        )
+        self.feature_extraction_exe = rasr_binary_path.join_right(f"feature-extraction.{rasr_arch}")
+        self.feature_statistics_exe = rasr_binary_path.join_right(f"feature-statistics.{rasr_arch}")
         self.flf_tool_exe = rasr_binary_path.join_right(f"flf-tool.{rasr_arch}")
         self.kws_tool_exe = None  # does not exist
-        self.lattice_processor_exe = rasr_binary_path.join_right(
-            f"lattice-processor.{rasr_arch}"
-        )
-        self.lm_util_exe = rasr_binary_path.join_right(f"lm-util.{rasr_arch}")
+        self.lattice_processor_exe = rasr_binary_path.join_right(f"lattice-processor.{rasr_arch}")
+        self.lm_util_exe = None  # does not exist
         self.nn_trainer_exe = rasr_binary_path.join_right(f"nn-trainer.{rasr_arch}")
-        self.speech_recognizer_exe = rasr_binary_path.join_right(
-            f"speech-recognizer.{rasr_arch}"
-        )
+        self.speech_recognizer_exe = rasr_binary_path.join_right(f"speech-recognizer.{rasr_arch}")
 
 
-def crp_add_default_output(
-    crp, compress=False, append=False, unbuffered=False, compress_after_run=True
-):
+def crp_add_default_output(crp, compress=False, append=False, unbuffered=False, compress_after_run=True):
     """
     :param CommonRasrParameters crp:
     :param bool compress:

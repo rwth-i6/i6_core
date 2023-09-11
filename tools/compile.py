@@ -85,9 +85,7 @@ class MakeJob(Job):
                     sp.run(args, cwd=temp_dir, check=True)
 
                 if self.output_folder_name:
-                    shutil.copytree(
-                        temp_dir, self.out_repository.get_path(), symlinks=True
-                    )
+                    shutil.copytree(temp_dir, self.out_repository.get_path(), symlinks=True)
                 if self.link_outputs:
                     for key, path in self.link_outputs.items():
                         trg = self.out_links[key].get_path()

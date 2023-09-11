@@ -12,7 +12,7 @@ import subprocess as sp
 import tempfile
 import collections
 import re
-from typing import List, Optional
+from typing import List, Optional, Dict, Tuple
 
 from sisyphus import *
 from i6_core.lib.corpus import *
@@ -37,9 +37,7 @@ class AnalogJob(Job):
         analog_path = os.path.join(gs.RASR_ROOT, "src/Tools/Analog/analog")
         with open(self.out_report.get_path(), "w") as out:
             sp.check_call(
-                [analog_path]
-                + (["-m"] if self.merge else [])
-                + [tk.uncached_path(c) for c in self.configs],
+                [analog_path] + (["-m"] if self.merge else []) + [tk.uncached_path(c) for c in self.configs],
                 stdout=out,
             )
 
@@ -53,7 +51,7 @@ class ScliteJob(Job):
         - out_*: the job also outputs many variables, please look in the init code for a list
     """
 
-    __sis_hash_exclude__ = {"sctk_binary_path": None}
+    __sis_hash_exclude__ = {"sctk_binary_path": None, "precision_ndigit": 1}
 
     def __init__(
         self,
@@ -63,6 +61,7 @@ class ScliteJob(Job):
         sort_files: bool = False,
         additional_args: Optional[List[str]] = None,
         sctk_binary_path: Optional[tk.Path] = None,
+        precision_ndigit: Optional[int] = 1,
     ):
         """
         :param ref: reference stm text file
@@ -71,6 +70,12 @@ class ScliteJob(Job):
         :param sort_files: sort ctm and stm before scoring
         :param additional_args: additional command line arguments passed to the Sclite binary call
         :param sctk_binary_path: set an explicit binary path.
+        :param precision_ndigit: number of digits after decimal point for the precision
+            of the percentages in the output variables.
+            If None, no rounding is done.
+            In sclite, the precision was always one digit after the decimal point
+            (https://github.com/usnistgov/SCTK/blob/f48376a203ab17f/src/sclite/sc_dtl.c#L343),
+            thus we recalculate the percentages here.
         """
         self.set_vis_name("Sclite - %s" % ("CER" if cer else "WER"))
 
@@ -80,6 +85,7 @@ class ScliteJob(Job):
         self.sort_files = sort_files
         self.additional_args = additional_args
         self.sctk_binary_path = sctk_binary_path
+        self.precision_ndigit = precision_ndigit
 
         self.out_report_dir = self.output_path("reports", True)
 
@@ -118,11 +124,7 @@ class ScliteJob(Job):
         if self.sctk_binary_path:
             sclite_path = os.path.join(self.sctk_binary_path.get_path(), "sclite")
         else:
-            sclite_path = (
-                os.path.join(gs.SCTK_PATH, "sclite")
-                if hasattr(gs, "SCTK_PATH")
-                else "sclite"
-            )
+            sclite_path = os.path.join(gs.SCTK_PATH, "sclite") if hasattr(gs, "SCTK_PATH") else "sclite"
         output_dir = self.out_report_dir.get_path() if output_to_report_dir else "."
         stm_file = tmp_stm_file if self.sort_files else self.ref.get_path()
         ctm_file = tmp_ctm_file if self.sort_files else self.hyp.get_path()
@@ -155,31 +157,66 @@ class ScliteJob(Job):
 
         if output_to_report_dir:  # run as real job
             with open(f"{output_dir}/sclite.dtl", "rt", errors="ignore") as f:
+                # Example:
+                """
+                Percent Total Error       =    5.3%   (2709)
+                ...
+                Percent Word Accuracy     =   94.7%
+                ...
+                Ref. words                =           (50948)
+                """
+
+                # key -> percentage, absolute
+                output_variables: Dict[str, Tuple[Optional[tk.Variable], Optional[tk.Variable]]] = {
+                    "Percent Total Error": (self.out_wer, self.out_num_errors),
+                    "Percent Correct": (self.out_percent_correct, self.out_num_correct),
+                    "Percent Substitution": (self.out_percent_substitution, self.out_num_substitution),
+                    "Percent Deletions": (self.out_percent_deletions, self.out_num_deletions),
+                    "Percent Insertions": (self.out_percent_insertions, self.out_num_insertions),
+                    "Percent Word Accuracy": (self.out_percent_word_accuracy, None),
+                    "Ref. words": (None, self.out_ref_words),
+                    "Hyp. words": (None, self.out_hyp_words),
+                    "Aligned words": (None, self.out_aligned_words),
+                }
+
+                outputs_absolute: Dict[str, int] = {}
                 for line in f:
-                    s = line.split()
-                    if line.startswith("Percent Total Error"):
-                        self.out_wer.set(float(s[4][:-1]))
-                        self.out_num_errors.set(int("".join(s[5:])[1:-1]))
-                    elif line.startswith("Percent Correct"):
-                        self.out_percent_correct.set(float(s[3][:-1]))
-                        self.out_num_correct.set(int("".join(s[4:])[1:-1]))
-                    elif line.startswith("Percent Substitution"):
-                        self.out_percent_substitution.set(float(s[3][:-1]))
-                        self.out_num_substitution.set(int("".join(s[4:])[1:-1]))
-                    elif line.startswith("Percent Deletions"):
-                        self.out_percent_deletions.set(float(s[3][:-1]))
-                        self.out_num_deletions.set(int("".join(s[4:])[1:-1]))
-                    elif line.startswith("Percent Insertions"):
-                        self.out_percent_insertions.set(float(s[3][:-1]))
-                        self.out_num_insertions.set(int("".join(s[4:])[1:-1]))
-                    elif line.startswith("Percent Word Accuracy"):
-                        self.out_percent_word_accuracy.set(float(s[4][:-1]))
-                    elif line.startswith("Ref. words"):
-                        self.out_ref_words.set(int("".join(s[3:])[1:-1]))
-                    elif line.startswith("Hyp. words"):
-                        self.out_hyp_words.set(int("".join(s[3:])[1:-1]))
-                    elif line.startswith("Aligned words"):
-                        self.out_aligned_words.set(int("".join(s[3:])[1:-1]))
+                    key: Optional[str] = ([key for key in output_variables if line.startswith(key)] or [None])[0]
+                    if not key:
+                        continue
+                    pattern = rf"^{re.escape(key)}\s*=\s*((\S+)%)?\s*(\(\s*(\d+)\))?$"
+                    m = re.match(pattern, line)
+                    assert m, f"Could not parse line: {line!r}, does not match to pattern r'{pattern}'"
+                    absolute_s = m.group(4)
+                    if not absolute_s:
+                        assert not output_variables[key][1], f"Expected absolute value for {key}"
+                        continue
+                    outputs_absolute[key] = int(absolute_s)
+                    if key == "Aligned words":
+                        break  # that should be the last key, can stop now
+
+                assert "Ref. words" in outputs_absolute, "Expected absolute numbers for Ref. words"
+                num_ref_words = outputs_absolute["Ref. words"]
+                assert "Percent Total Error" in outputs_absolute, "Expected absolute numbers for Percent Total Error"
+                outputs_absolute["Percent Word Accuracy"] = num_ref_words - outputs_absolute["Percent Total Error"]
+
+                outputs_percentage: Dict[str, float] = {}
+                for key, absolute in outputs_absolute.items():
+                    if num_ref_words > 0:
+                        percentage = 100.0 * absolute / num_ref_words
+                    else:
+                        percentage = float("nan")
+                    outputs_percentage[key] = (
+                        round(percentage, self.precision_ndigit) if self.precision_ndigit is not None else percentage
+                    )
+
+                for key, (percentage_var, absolute_var) in output_variables.items():
+                    if percentage_var is not None:
+                        assert key in outputs_percentage, f"Expected percentage value for {key}"
+                        percentage_var.set(outputs_percentage[key])
+                    if absolute_var is not None:
+                        assert key in outputs_absolute, f"Expected absolute value for {key}"
+                        absolute_var.set(outputs_absolute[key])
 
     def calc_wer(self):
         wer = None
@@ -255,9 +292,7 @@ class Hub5ScoreJob(Job):
             sctk_path = self.sctk_binary_path.get_path()
         elif hasattr(gs, "SCTK_PATH"):
             sctk_path = gs.SCTK_PATH
-        hubscr_path = os.path.join(
-            sctk_path, "hubscr.pl"
-        )  # evaluates to just "hubscr.pl" if sctk_path is empty
+        hubscr_path = os.path.join(sctk_path, "hubscr.pl")  # evaluates to just "hubscr.pl" if sctk_path is empty
 
         sctk_opt = ["-p", sctk_path] if sctk_path else []
 
@@ -274,9 +309,7 @@ class Hub5ScoreJob(Job):
             pass
 
         sp.check_call(
-            [hubscr_path, "-V", "-l", "english", "-h", "hub5"]
-            + sctk_opt
-            + ["-g", self.glm.get_path(), "-r", ref, hyp]
+            [hubscr_path, "-V", "-l", "english", "-h", "hub5"] + sctk_opt + ["-g", self.glm.get_path(), "-r", ref, hyp]
         )
 
         if move_files:  # run as real job
@@ -496,9 +529,7 @@ class KaldiScorerJob(Job):
             transcriptions = collections.defaultdict(list)
             for line in f:
                 if line.startswith(";;"):
-                    full_name = line.split(" ")[
-                        1
-                    ]  # second field contains full segment name
+                    full_name = line.split(" ")[1]  # second field contains full segment name
                     continue
 
                 fields = line.split()
@@ -541,9 +572,7 @@ class KaldiScorerJob(Job):
             transcriptions = collections.defaultdict(list)
             for line in f:
                 if line.startswith(";;"):
-                    full_name = line.split(" ")[
-                        1
-                    ]  # second field contains full segment name
+                    full_name = line.split(" ")[1]  # second field contains full segment name
                     continue
 
                 fields = line.split()

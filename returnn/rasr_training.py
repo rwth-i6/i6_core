@@ -81,9 +81,7 @@ class ReturnnRasrTrainingJob(ReturnnTrainingJob):
         :param additional_rasr_post_config_files:
         :param use_python_control:
         """
-        datasets = self.create_dataset_config(
-            train_crp, returnn_config, partition_epochs
-        )
+        datasets = self.create_dataset_config(train_crp, returnn_config, partition_epochs)
         returnn_config.config["train"] = datasets["train"]
         returnn_config.config["dev"] = datasets["dev"]
         super().__init__(
@@ -105,16 +103,10 @@ class ReturnnRasrTrainingJob(ReturnnTrainingJob):
 
         self.num_classes = num_classes
         self.alignment = alignment  # allowed to be None
-        self.rasr_exe = rasr.RasrCommand.select_exe(
-            train_crp.nn_trainer_exe, "nn-trainer"
-        )
-        self.additional_rasr_config_files = (
-            {} if additional_rasr_config_files is None else additional_rasr_config_files
-        )
+        self.rasr_exe = rasr.RasrCommand.select_exe(train_crp.nn_trainer_exe, "nn-trainer")
+        self.additional_rasr_config_files = {} if additional_rasr_config_files is None else additional_rasr_config_files
         self.additional_rasr_post_config_files = (
-            {}
-            if additional_rasr_post_config_files is None
-            else additional_rasr_post_config_files
+            {} if additional_rasr_post_config_files is None else additional_rasr_post_config_files
         )
 
         del kwargs["train_crp"]
@@ -150,9 +142,7 @@ class ReturnnRasrTrainingJob(ReturnnTrainingJob):
             self.rasr_train_post_config,
             "rasr.train.config",
         )
-        rasr.RasrCommand.write_config(
-            self.rasr_dev_config, self.rasr_dev_post_config, "rasr.dev.config"
-        )
+        rasr.RasrCommand.write_config(self.rasr_dev_config, self.rasr_dev_post_config, "rasr.dev.config")
 
         additional_files = set(self.additional_rasr_config_files.keys())
         additional_files.update(set(self.additional_rasr_post_config_files.keys()))
@@ -165,9 +155,7 @@ class ReturnnRasrTrainingJob(ReturnnTrainingJob):
 
         self.feature_flow.write_to_file("feature.flow")
         with open("dummy.flow", "wt") as f:
-            f.write(
-                '<?xml version="1.0" ?>\n<network><out name="features" /></network>'
-            )
+            f.write('<?xml version="1.0" ?>\n<network><out name="features" /></network>')
 
     def run(self):
         super().run()
@@ -208,16 +196,12 @@ class ReturnnRasrTrainingJob(ReturnnTrainingJob):
         else:
             config.neural_network_trainer.action = "supervised-training"
             config.neural_network_trainer.feature_extraction.file = "dummy.flow"
-            config.neural_network_trainer.aligning_feature_extractor.feature_extraction.file = (
-                "feature.flow"
-            )
+            config.neural_network_trainer.aligning_feature_extractor.feature_extraction.file = "feature.flow"
 
         config.neural_network_trainer.single_precision = True
         config.neural_network_trainer.silence_weight = 1.0
         config.neural_network_trainer.weighted_alignment = False
-        config.neural_network_trainer.class_labels.disregard_classes = (
-            disregarded_classes
-        )
+        config.neural_network_trainer.class_labels.disregard_classes = disregarded_classes
         config.neural_network_trainer.class_labels.load_from_file = class_label_file
         config.neural_network_trainer.class_labels.save_to_file = "class.labels"
 
@@ -246,14 +230,8 @@ class ReturnnRasrTrainingJob(ReturnnTrainingJob):
         """
         datasets = {}
 
-        assert not (
-            "partition_epoch" in returnn_config.config.get("train", {})
-            and partition_epochs
-        )
-        assert not (
-            "partition_epoch" in returnn_config.config.get("dev", {})
-            and partition_epochs
-        )
+        assert not ("partition_epoch" in returnn_config.config.get("train", {}) and partition_epochs)
+        assert not ("partition_epoch" in returnn_config.config.get("dev", {}) and partition_epochs)
 
         if partition_epochs is None:
             partition_epochs = {"train": 1, "dev": 1}
@@ -262,11 +240,8 @@ class ReturnnRasrTrainingJob(ReturnnTrainingJob):
             partition = int(partition_epochs.get(ds, 1))
             datasets[ds] = {
                 "class": "ExternSprintDataset",
-                "sprintTrainerExecPath": rasr.RasrCommand.select_exe(
-                    train_crp.nn_trainer_exe, "nn-trainer"
-                ),
-                "sprintConfigStr": "--config=rasr.%s.config --*.LOGFILE=nn-trainer.%s.log --*.TASK=1"
-                % (ds, ds),
+                "sprintTrainerExecPath": rasr.RasrCommand.select_exe(train_crp.nn_trainer_exe, "nn-trainer"),
+                "sprintConfigStr": "--config=rasr.%s.config --*.LOGFILE=nn-trainer.%s.log --*.TASK=1" % (ds, ds),
                 "partitionEpoch": partition,
             }
 
@@ -303,9 +278,7 @@ class ReturnnRasrTrainingJob(ReturnnTrainingJob):
         kwargs["crp"] = dev_crp
         dev_config, dev_post_config = cls.create_config(**kwargs)
 
-        datasets = cls.create_dataset_config(
-            train_crp, kwargs["returnn_config"], kwargs["partition_epochs"]
-        )
+        datasets = cls.create_dataset_config(train_crp, kwargs["returnn_config"], kwargs["partition_epochs"])
         kwargs["returnn_config"].config["train"] = datasets["train"]
         kwargs["returnn_config"].config["dev"] = datasets["dev"]
         returnn_config = ReturnnTrainingJob.create_returnn_config(**kwargs)

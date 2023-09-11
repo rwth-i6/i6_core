@@ -41,9 +41,7 @@ class ToneJob(rasr.RasrCommand, Job):
         self.extract_concurrent = extract_concurrent
         self.dump_config, self.dump_post_config = self.create_dump_config(**kwargs)
         self.dump_flow = self.create_dump_flow(**kwargs)
-        self.convert_config, self.convert_post_config = self.create_convert_config(
-            **kwargs
-        )
+        self.convert_config, self.convert_post_config = self.create_convert_config(**kwargs)
         self.convert_flow = self.create_convert_flow(**kwargs)
         self.exe = (
             crp.feature_extraction_exe
@@ -87,9 +85,7 @@ class ToneJob(rasr.RasrCommand, Job):
             rqmt=self.dump_rqmt,
             args=range(1, self.concurrent + 1),
         )
-        yield Task(
-            "extract_pitch", resume="extract_pitch", rqmt=self.extract_pitch_rqmt
-        )
+        yield Task("extract_pitch", resume="extract_pitch", rqmt=self.extract_pitch_rqmt)
         yield Task(
             "convert",
             resume="convert",
@@ -103,14 +99,10 @@ class ToneJob(rasr.RasrCommand, Job):
         self.write_run_script(self.exe, "dump.config", filename="dump.sh")
         os.mkdir("dump")
 
-        self.write_config(
-            self.convert_config, self.convert_post_config, "convert.config"
-        )
+        self.write_config(self.convert_config, self.convert_post_config, "convert.config")
         self.convert_flow.write_to_file("convert.flow")
         self.write_run_script(self.exe, "convert.config", filename="convert.sh")
-        util.write_paths_to_file(
-            self.out_feature_bundle, self.out_single_feature_caches.values()
-        )
+        util.write_paths_to_file(self.out_feature_bundle, self.out_single_feature_caches.values())
 
     def cleanup_before_run(self, cmd, retry, task_id, *args):
         if cmd == "./dump.sh":
@@ -123,9 +115,7 @@ class ToneJob(rasr.RasrCommand, Job):
         self.run_script(task_id, self.out_dump_log_file[task_id], cmd="./dump.sh")
 
     def extract_pitch(self):
-        lib = os.path.abspath(
-            os.path.join(os.path.dirname(__file__), "../lib/pitch_extraction/")
-        )
+        lib = os.path.abspath(os.path.join(os.path.dirname(__file__), "../lib/pitch_extraction/"))
         getf0 = os.path.join(lib, "getf0.py")
         getpitch = os.path.join(lib, "getpitch.m")
 
@@ -150,11 +140,7 @@ class ToneJob(rasr.RasrCommand, Job):
                 try:
                     sp.check_call(["xvfb-run", "-a", getf0, "-o", f0_path, abspath])
                     output = sp.check_output([getpitch, f0_path])
-                    pitch = [
-                        float(l.strip())
-                        for l in output.decode("utf8").split("\n")
-                        if len(l.strip()) > 0
-                    ]
+                    pitch = [float(l.strip()) for l in output.decode("utf8").split("\n") if len(l.strip()) > 0]
                 except sp.CalledProcessError:
                     pass
 
@@ -199,33 +185,23 @@ class ToneJob(rasr.RasrCommand, Job):
 
         samples = samples_mapping[samples_flow.get_output_links("samples").pop()]
 
-        convert = net.add_node(
-            "generic-convert-vector-f32-to-vector-s16", "convert-back"
-        )
+        convert = net.add_node("generic-convert-vector-f32-to-vector-s16", "convert-back")
         net.link(samples, convert)
 
-        write = net.add_node(
-            "audio-output-file-wav", "write", {"file": "dump/$(id).wav"}
-        )
+        write = net.add_node("audio-output-file-wav", "write", {"file": "dump/$(id).wav"})
         net.link(convert, write)
 
-        convert2 = net.add_node(
-            "generic-convert-vector-s16-to-vector-f32", "convert-again"
-        )
+        convert2 = net.add_node("generic-convert-vector-s16-to-vector-f32", "convert-again")
         net.link(write, convert2)
         net.link(convert2, "network:features")
 
         return net
 
     @classmethod
-    def create_dump_config(
-        cls, crp, samples_flow, extra_dump_config, extra_dump_post_config, **kwargs
-    ):
+    def create_dump_config(cls, crp, samples_flow, extra_dump_config, extra_dump_post_config, **kwargs):
         dump_flow = cls.create_dump_flow(crp, samples_flow)
 
-        config, post_config = rasr.build_config_from_mapping(
-            crp, {"corpus": "extraction.corpus"}, parallelize=True
-        )
+        config, post_config = rasr.build_config_from_mapping(crp, {"corpus": "extraction.corpus"}, parallelize=True)
         config.extraction.feature_extraction.file = "dump.flow"
         config.extraction.feature_extraction["*"].allow_overwrite = True
 
@@ -250,13 +226,9 @@ class ToneJob(rasr.RasrCommand, Job):
         )
 
         timestamp_mapping = net.add_net(timestamp_flow)
-        timestamp = timestamp_mapping[
-            timestamp_flow.get_output_links(timestamp_port).pop()
-        ]
+        timestamp = timestamp_mapping[timestamp_flow.get_output_links(timestamp_port).pop()]
 
-        sync = net.add_node(
-            "timestamp-copy", "synchronization", {"ignore-errors": True}
-        )
+        sync = net.add_node("timestamp-copy", "synchronization", {"ignore-errors": True})
         net.link(timestamp, sync + ":target")
         net.link(text_input, sync)
 
@@ -271,9 +243,7 @@ class ToneJob(rasr.RasrCommand, Job):
         net.link(timestamp, repeat + ":target")
         net.link(norm, repeat)
 
-        cache = net.add_node(
-            "generic-cache", "out-cache", {"path": "tone.cache.$(TASK)", "id": "$(id)"}
-        )
+        cache = net.add_node("generic-cache", "out-cache", {"path": "tone.cache.$(TASK)", "id": "$(id)"})
         net.link(repeat, cache)
         net.link(cache, "network:features")
 
@@ -291,9 +261,7 @@ class ToneJob(rasr.RasrCommand, Job):
     ):
         convert_flow = cls.create_convert_flow(crp, timestamp_flow, timestamp_port)
 
-        config, post_config = rasr.build_config_from_mapping(
-            crp, {"corpus": "extraction.corpus"}, parallelize=True
-        )
+        config, post_config = rasr.build_config_from_mapping(crp, {"corpus": "extraction.corpus"}, parallelize=True)
         config.extraction.feature_extraction.file = "convert.flow"
         config.extraction.feature_extraction["*"].allow_overwrite = True
 

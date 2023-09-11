@@ -9,6 +9,7 @@ __all__ = [
 import os
 from typing import Union, List, Tuple
 
+from i6_core.am.config import get_align_config_and_crp_for_corrected_applicator
 from i6_core.mm.alignment import AlignmentJob, AMScoresFromAlignmentLogJob
 from i6_core.mm.flow import FlowNetwork
 from i6_core.mm.mixtures import EstimateMixturesJob
@@ -39,6 +40,7 @@ class AlignSplitAccumulateSequence:
         split_keep_values=None,
         accumulate_keep_values=None,
         feature_scorer=DiagonalMaximumScorer,
+        use_corrected_applicator=False,
         alias_path=None,
     ):
         """
@@ -69,21 +71,18 @@ class AlignSplitAccumulateSequence:
         :param dict accumulate_keep_values:
             keep values for accumulate jobs, which might be indexed by "default", "selected" or the action index number.
         :param feature_scorer:
+        :param bool set to True if you want to avoid using the legacy FSA with incorrect silence forward probabilities.
         :param str|None alias_path: adds an alias with the action name for each job in the sequence at the
             given path
         """
         seq_extra_args = {} if seq_extra_args is None else seq_extra_args
         align_extra_args = {} if align_extra_args is None else align_extra_args
-        accumulate_extra_args = (
-            {} if accumulate_extra_args is None else accumulate_extra_args
-        )
+        accumulate_extra_args = {} if accumulate_extra_args is None else accumulate_extra_args
         split_extra_args = {} if split_extra_args is None else split_extra_args
 
         align_keep_values = {} if align_keep_values is None else align_keep_values
         split_keep_values = {} if split_keep_values is None else split_keep_values
-        accumulate_keep_values = (
-            {} if accumulate_keep_values is None else accumulate_keep_values
-        )
+        accumulate_keep_values = {} if accumulate_keep_values is None else accumulate_keep_values
 
         def update_rqmt(rqmt, extra):
             if extra is None:
@@ -121,11 +120,19 @@ class AlignSplitAccumulateSequence:
 
         for a_idx, action in enumerate(action_sequence):
             if action.startswith("align"):
+                if use_corrected_applicator:
+                    align_crp, align_extra_config = get_align_config_and_crp_for_corrected_applicator(crp)
+                    if "extra_config" in align_extra_args:
+                        align_extra_config._update(align_extra_args["extra_config"])
+                    align_extra_args["extra_config"] = align_extra_config
+                else:
+                    align_crp = crp
                 args = {
-                    "crp": crp,
+                    "crp": align_crp,
                     "feature_flow": feature_flow,
                     "feature_scorer": feature_scorer(current_mixtures),
                 }
+
                 args.update(align_extra_args)
                 if a_idx in seq_extra_args:
                     args.update(seq_extra_args[a_idx])
@@ -177,9 +184,7 @@ class AlignSplitAccumulateSequence:
                 )
                 if alias_path is not None:
                     action_name = "split" if split else "accumulate"
-                    job.add_alias(
-                        os.path.join(alias_path, "action_%i_%s" % (a_idx, action_name))
-                    )
+                    job.add_alias(os.path.join(alias_path, "action_%i_%s" % (a_idx, action_name)))
                 self.all_jobs.append(job)
                 self.all_logs.append(job.out_log_file)
 
@@ -189,11 +194,7 @@ class AlignSplitAccumulateSequence:
                     self.selected_mixture_jobs.append(job)
                     self.selected_mixtures.append(current_mixtures)
 
-                keep_values = (
-                    split_keep_values
-                    if action.startswith("split")
-                    else accumulate_keep_values
-                )
+                keep_values = split_keep_values if action.startswith("split") else accumulate_keep_values
                 if a_idx in keep_values:
                     job.keep_value(keep_values[a_idx])
                 elif action[-1] == "!" and "selected" in keep_values:
@@ -217,15 +218,11 @@ class AlignSplitAccumulateSequence:
         return self.report_job.out_report
 
 
-def align_then_split_and_accumulate_sequence(
-    num_align, num_accumulate, mark_accumulate=True, mark_align=True
-):
+def align_then_split_and_accumulate_sequence(num_align, num_accumulate, mark_accumulate=True, mark_align=True):
     assert num_align > 0 and num_accumulate > 0
     acc_str = "accumulate" + ("!" if mark_accumulate else "")
     align_str = "align" + ("!" if mark_align else "")
-    return (
-        [align_str, "split"] + ["accumulate"] * (num_accumulate - 1) + [acc_str]
-    ) * num_align
+    return ([align_str, "split"] + ["accumulate"] * (num_accumulate - 1) + [acc_str]) * num_align
 
 
 def align_and_accumulate_sequence(
@@ -245,9 +242,7 @@ def align_and_accumulate_sequence(
     assert num_align > 0 and num_accumulate > 0
     acc_str = "accumulate" + ("!" if mark_accumulate is True else "")
     align_str = "align" + ("!" if mark_align is True else "")
-    sequence_list = (
-        [align_str] + ["accumulate"] * (num_accumulate - 1) + [acc_str]
-    ) * num_align
+    sequence_list = ([align_str] + ["accumulate"] * (num_accumulate - 1) + [acc_str]) * num_align
 
     if isinstance(mark_align, list):
         for mark in mark_align:
@@ -256,45 +251,26 @@ def align_and_accumulate_sequence(
             sequence_list[mark * (num_accumulate + 1)] = "align!"
 
     if isinstance(mark_accumulate, list):
-        assert all(
-            isinstance(pair, tuple) for pair in mark_accumulate
-        ), "Input to mark needs to be Tuple"
+        assert all(isinstance(pair, tuple) for pair in mark_accumulate), "Input to mark needs to be Tuple"
         for align_i, accum_i in mark_accumulate:
             assert align_i < num_align, "This align does not exist %d" % align_i
-            assert accum_i < num_accumulate, (
-                "Accum sequence is shorter than requested mark %d" % accum_i
-            )
-            assert (
-                "accumulate"
-                in sequence_list[(align_i * (num_accumulate + 1) + accum_i + 1)]
-            ), (align_i, accum_i)
-            sequence_list[
-                (align_i * (num_accumulate + 1) + accum_i + 1)
-            ] = "accumulate!"
+            assert accum_i < num_accumulate, "Accum sequence is shorter than requested mark %d" % accum_i
+            assert "accumulate" in sequence_list[(align_i * (num_accumulate + 1) + accum_i + 1)], (align_i, accum_i)
+            sequence_list[(align_i * (num_accumulate + 1) + accum_i + 1)] = "accumulate!"
 
     return sequence_list
 
 
-def multiple_aligns_per_split_sequence(
-    num_split, num_align, num_accumulate, mark_accumulate=True, mark_align=True
-):
+def multiple_aligns_per_split_sequence(num_split, num_align, num_accumulate, mark_accumulate=True, mark_align=True):
     seq = []
     for s_idx in range(num_split):
         seq.append("split")
         for aln_idx in range(num_align):
-            seq.append(
-                "align" + ("!" if aln_idx == num_align - 1 and mark_align else "")
-            )
+            seq.append("align" + ("!" if aln_idx == num_align - 1 and mark_align else ""))
             for acc_idx in range(num_accumulate):
                 seq.append(
                     "accumulate"
-                    + (
-                        "!"
-                        if acc_idx == num_accumulate - 1
-                        and aln_idx == num_align - 1
-                        and mark_accumulate
-                        else ""
-                    )
+                    + ("!" if acc_idx == num_accumulate - 1 and aln_idx == num_align - 1 and mark_accumulate else "")
                 )
     return seq
 
@@ -305,14 +281,10 @@ def split_and_accumulate_sequence(num_split, num_accumulate, mark_accumulate=Tru
     return (["split"] + ["accumulate"] * (num_accumulate - 1) + [acc_str]) * num_split
 
 
-def first_split_acc_then_align_split_acc(
-    num_split, num_align, num_accumulate, mark_accumulate=True, mark_align=True
-):
+def first_split_acc_then_align_split_acc(num_split, num_align, num_accumulate, mark_accumulate=True, mark_align=True):
     assert num_split > 0 and num_accumulate > 0
     acc_str = "accumulate" + ("!" if mark_accumulate else "")
     align_str = "align" + ("!" if mark_align else "")
-    return (
-        ["split"] + ["accumulate"] * (num_accumulate - 1) + [acc_str]
-    ) * num_split + (
+    return (["split"] + ["accumulate"] * (num_accumulate - 1) + [acc_str]) * num_split + (
         [align_str, "split"] + ["accumulate"] * (num_accumulate - 1) + [acc_str]
     ) * num_align

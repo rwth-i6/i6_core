@@ -17,17 +17,24 @@ class Lemma:
     Represents a lemma of a lexicon
     """
 
-    def __init__(self, orth=None, phon=None, synt=None, eval=None, special=None):
+    def __init__(
+        self,
+        orth: Optional[List[str]] = None,
+        phon: Optional[List[str]] = None,
+        synt: Optional[List[str]] = None,
+        eval: Optional[List[List[str]]] = None,
+        special: Optional[str] = None,
+    ):
         """
-        :param Optional[list[str]] orth: list of spellings used in the training data
-        :param Optional[list[str]] phon: list of pronunciation variants. Each str should
+        :param orth: list of spellings used in the training data
+        :param phon: list of pronunciation variants. Each str should
             contain a space separated string of phonemes from the phoneme-inventory.
-        :param Optional[list[str]] synt: list of LM tokens that form a single token sequence.
+        :param synt: list of LM tokens that form a single token sequence.
             This sequence is used as the language model representation.
-        :param Optional[list[list[str]]] eval: list of output representations. Each
+        :param eval: list of output representations. Each
             sublist should contain one possible transcription (token sequence) of this lemma
             that is scored against the reference transcription.
-        :param Optional[str] special: assigns special property to a lemma.
+        :param special: assigns special property to a lemma.
             Supported values: "silence", "unknown", "sentence-boundary",
             or "sentence-begin" / "sentence-end"
         """
@@ -81,26 +88,18 @@ class Lemma:
         if "special" in e.attrib:
             special = e.attrib["special"]
         for orth_element in e.findall(".//orth"):
-            orth.append(
-                orth_element.text.strip() if orth_element.text is not None else ""
-            )
+            orth.append(orth_element.text.strip() if orth_element.text is not None else "")
         for phon_element in e.findall(".//phon"):
-            phon.append(
-                phon_element.text.strip() if phon_element.text is not None else ""
-            )
+            phon.append(phon_element.text.strip() if phon_element.text is not None else "")
         for synt_element in e.findall(".//synt"):
             tokens = []
             for token_element in synt_element.findall(".//tok"):
-                tokens.append(
-                    token_element.text.strip() if token_element.text is not None else ""
-                )
+                tokens.append(token_element.text.strip() if token_element.text is not None else "")
             synt.append(tokens)
         for eval_element in e.findall(".//eval"):
             tokens = []
             for token_element in eval_element.findall(".//tok"):
-                tokens.append(
-                    token_element.text.strip() if token_element.text is not None else ""
-                )
+                tokens.append(token_element.text.strip() if token_element.text is not None else "")
             eval.append(tokens)
         synt = None if not synt else synt[0]
         return Lemma(orth, phon, synt, eval, special)
@@ -112,9 +111,7 @@ class Lexicon:
     """
 
     def __init__(self):
-        self.phonemes = (
-            OrderedDict()
-        )  # type: OrderedDict[str, str] # symbol => variation
+        self.phonemes = OrderedDict()  # type: OrderedDict[str, str] # symbol => variation
         self.lemmata = []  # type: List[Lemma]
 
     def add_phoneme(self, symbol, variation="context"):

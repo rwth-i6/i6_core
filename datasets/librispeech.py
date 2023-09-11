@@ -51,25 +51,17 @@ class DownloadLibriSpeechCorpusJob(Job):
         yield Task("run", mini_task=True)
 
     def run(self):
-        subprocess.check_call(
-            ["wget", "https://www.openslr.org/resources/12/md5sum.txt"]
-        )
-        subprocess.check_call(
-            ["wget", "https://www.openslr.org/resources/12/%s.tar.gz" % self.corpus_key]
-        )
+        subprocess.check_call(["wget", "https://www.openslr.org/resources/12/md5sum.txt"])
+        subprocess.check_call(["wget", "https://www.openslr.org/resources/12/%s.tar.gz" % self.corpus_key])
 
-        with open("md5sum.txt", "rt") as md5_in, open(
-            "md5sum-%s.txt" % self.corpus_key, "wt"
-        ) as md5_out:
+        with open("md5sum.txt", "rt") as md5_in, open("md5sum-%s.txt" % self.corpus_key, "wt") as md5_out:
             for line in md5_in:
                 split = line.strip().split(" ")
                 if split[-1].split(".")[0] == self.corpus_key:
                     md5_out.write(line)
                     break
 
-        subprocess.check_call(
-            ["md5sum", "--status", "-c", "md5sum-%s.txt" % self.corpus_key]
-        )
+        subprocess.check_call(["md5sum", "--status", "-c", "md5sum-%s.txt" % self.corpus_key])
         subprocess.check_call(
             [
                 "tar",
@@ -84,9 +76,7 @@ class DownloadLibriSpeechCorpusJob(Job):
         shutil.rmtree("LibriSpeech")
 
     def _move_files(self):
-        shutil.move(
-            "LibriSpeech/%s" % self.corpus_key, self.out_corpus_folder.get_path()
-        )
+        shutil.move("LibriSpeech/%s" % self.corpus_key, self.out_corpus_folder.get_path())
 
 
 class DownloadLibriSpeechMetadataJob(DownloadLibriSpeechCorpusJob):
@@ -145,9 +135,7 @@ class LibriSpeechCreateBlissCorpusJob(Job):
         used_speaker_ids = set()  # store which speakers are used
 
         for transcript in self._transcripts:
-            name = "{0}-{1}-{2:04d}".format(
-                transcript["speaker_id"], transcript["chapter"], transcript["segment"]
-            )
+            name = "{0}-{1}-{2:04d}".format(transcript["speaker_id"], transcript["chapter"], transcript["segment"])
             recording = corpus.Recording()
             recording.name = name
             recording.speaker_name = transcript["speaker_id"]
@@ -194,9 +182,7 @@ class LibriSpeechCreateBlissCorpusJob(Job):
         """
         Traverse the folder structure and search for the *.trans.txt files and read the content
         """
-        for dirpath, dirs, files in sorted(
-            os.walk(self.corpus_folder.get_path(), followlinks=True)
-        ):
+        for dirpath, dirs, files in sorted(os.walk(self.corpus_folder.get_path(), followlinks=True)):
             for file in files:
                 if not file.endswith(".trans.txt"):
                     continue

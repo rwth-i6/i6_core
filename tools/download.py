@@ -24,9 +24,7 @@ class DownloadJob(Job):
         :param str|None checksum: A sha256 checksum to verify the file
         """
         self.url = url
-        self.target_filename = (
-            target_filename if target_filename else url.split("/")[-1]
-        )
+        self.target_filename = target_filename if target_filename else url.split("/")[-1]
         self.checksum = checksum
 
         self.out_file = self.output_path(self.target_filename)

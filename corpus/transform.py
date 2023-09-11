@@ -35,9 +35,7 @@ class ReplaceTranscriptionFromCtmJob(Job):
         self.remove_empty_segments = remove_empty_segments
 
         gzip_output = tk.uncached_path(bliss_corpus).endswith(".gz")
-        self.output_corpus_path = self.output_path(
-            "corpus.xml" + (".gz" if gzip_output else ""), cached=True
-        )
+        self.output_corpus_path = self.output_path("corpus.xml" + (".gz" if gzip_output else ""), cached=True)
 
     def tasks(self):
         yield Task("run", mini_task=True)
@@ -143,9 +141,7 @@ class CompressCorpusJob(Job):
         c = corpus.Corpus()
         c.load(self.bliss_corpus.get_path())
 
-        assert (
-            len(c.subcorpora) == 0
-        ), "CompressCorpus is not working for corpus files containing subcorpora"
+        assert len(c.subcorpora) == 0, "CompressCorpus is not working for corpus files containing subcorpora"
 
         # for each recording, extract duration
         total_duration = self.add_duration_to_recordings(c)
@@ -186,14 +182,10 @@ class CompressCorpusJob(Job):
                 new_recording_element = corpus.Recording()
 
                 split_name = "split_%i" % current_split_index
-                logging.info(
-                    f"storing split {split_name} with duration {current_duration}"
-                )
+                logging.info(f"storing split {split_name} with duration {current_duration}")
 
                 new_recording_element.name = split_name
-                output_path = os.path.join(
-                    self.audio_folder.get_path(), f"{split_name}.{self.format}"
-                )
+                output_path = os.path.join(self.audio_folder.get_path(), f"{split_name}.{self.format}")
                 new_recording_element.audio = output_path
                 current_timestamp = 0
 
@@ -260,13 +252,9 @@ class CompressCorpusJob(Job):
         total_duration = 0
         for recording in c.recordings:
             audio_path = recording.audio
-            assert audio_path.endswith(
-                ".wav"
-            ), "compress corpus can only operate on .wav files"
+            assert audio_path.endswith(".wav"), "compress corpus can only operate on .wav files"
             wave_header = wave.open(open(audio_path, "rb"))
-            duration = float(wave_header.getnframes()) / float(
-                wave_header.getframerate()
-            )
+            duration = float(wave_header.getnframes()) / float(wave_header.getframerate())
             recording.duration = duration
             total_duration += duration
 
@@ -280,10 +268,7 @@ class CompressCorpusJob(Job):
         if self.format == "wav":
             self.sh("ffmpeg -f concat -safe 0 -i filelist.txt '%s'" % output_path)
         else:
-            self.sh(
-                "ffmpeg -f concat -safe 0 -i filelist.txt -b:a '%s' '%s'"
-                % (self.bitrate, output_path)
-            )
+            self.sh("ffmpeg -f concat -safe 0 -i filelist.txt -b:a '%s' '%s'" % (self.bitrate, output_path))
 
     def info(self):
         """
@@ -293,9 +278,7 @@ class CompressCorpusJob(Job):
         basepath = self._sis_path()
         if os.path.isfile(os.path.join(basepath, "/log.run.1")):
             info_str = self.sh(
-                "cat "
-                + basepath
-                + '/log.run.1| grep -o "split_[0-9]*" | tail -n 1 | grep -o "[0-9]*" ',
+                "cat " + basepath + '/log.run.1| grep -o "split_[0-9]*" | tail -n 1 | grep -o "[0-9]*" ',
                 capture_output=True,
                 sis_quiet=True,
                 except_return_codes=(
@@ -405,9 +388,7 @@ class MergeCorpusSegmentsAndAudioJob(Job):
         transcriptions = {}
         for cluster_name in clusters:
             clusters[cluster_name] = list(sorted(clusters[cluster_name]))
-            transcriptions[cluster_name] = " ".join(
-                original_segments[s].orth for s in clusters[cluster_name]
-            )
+            transcriptions[cluster_name] = " ".join(original_segments[s].orth for s in clusters[cluster_name])
             audio[cluster_name] = [
                 (r.audio, s.start, s.end)
                 for n in clusters[cluster_name]
@@ -425,9 +406,7 @@ class MergeCorpusSegmentsAndAudioJob(Job):
                     f.write(f"file {af[0]}\ninpoint {af[1]}\n")
                     if not math.isinf(af[2]):
                         f.write(f"outpoint {af[2]}\n")
-            self.sh(
-                f"ffmpeg -loglevel fatal -hide_banner -f concat -safe 0 -i '{cluster_name}.txt' '{out_path}'"
-            )
+            self.sh(f"ffmpeg -loglevel fatal -hide_banner -f concat -safe 0 -i '{cluster_name}.txt' '{out_path}'")
 
             r = corpus.Recording()
             r.name = cluster_name

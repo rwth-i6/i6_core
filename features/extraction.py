@@ -81,9 +81,7 @@ class FeatureExtractionJob(rasr.RasrCommand, Job):
                 )
                 for task_id in range(1, crp.concurrent + 1)
             )
-            self.out_feature_bundle[name] = self.output_path(
-                "%s.cache.bundle" % name, cached=True
-            )
+            self.out_feature_bundle[name] = self.output_path("%s.cache.bundle" % name, cached=True)
             self.out_feature_path[name] = util.MultiOutputPath(
                 self,
                 "%s.cache.$(TASK)" % name,
@@ -128,11 +126,8 @@ class FeatureExtractionJob(rasr.RasrCommand, Job):
                 "fi",
             ]
             extra_args = [
-                "--feature-extraction.%s.path=${OUTPUT_PATH}/'%s'"
-                % (n, self.cached_feature_flow.nodes[n]["path"])
-                for n in self.cached_feature_flow.get_node_names_by_filter(
-                    "generic-cache"
-                )
+                "--feature-extraction.%s.path=${OUTPUT_PATH}/'%s'" % (n, self.cached_feature_flow.nodes[n]["path"])
+                for n in self.cached_feature_flow.get_node_names_by_filter("generic-cache")
             ]
 
         self.write_run_script(
@@ -165,12 +160,10 @@ class FeatureExtractionJob(rasr.RasrCommand, Job):
     def cleanup_before_run(self, cmd, retry, task_id, *args):
         util.backup_if_exists("feature-extraction.log.%d" % task_id)
         for name in self.out_feature_bundle:
-            util.delete_if_zero("%s.cache.%d" % (name, task_id))
+            util.delete_if_exists("%s.cache.%d" % (name, task_id))
 
     @classmethod
-    def create_config(
-        cls, crp, feature_flow, extra_config, extra_post_config, **kwargs
-    ):
+    def create_config(cls, crp, feature_flow, extra_config, extra_post_config, **kwargs):
         """
         :param rasr.crp.CommonRasrParameters crp:
         :param feature_flow:
@@ -179,9 +172,7 @@ class FeatureExtractionJob(rasr.RasrCommand, Job):
         :return: config, post_config
         :rtype: (rasr.config.RasrConfig, rasr.config.RasrConfig)
         """
-        config, post_config = rasr.build_config_from_mapping(
-            crp, {"corpus": "extraction.corpus"}, parallelize=True
-        )
+        config, post_config = rasr.build_config_from_mapping(crp, {"corpus": "extraction.corpus"}, parallelize=True)
         config.extraction.feature_extraction.file = "feature-extraction.flow"
         # this was a typo but we cannot remove it now without breaking a lot of hashes
         config.extraction.feature_etxraction["*"].allow_overwrite = True

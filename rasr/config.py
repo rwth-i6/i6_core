@@ -121,11 +121,7 @@ class RasrConfig:
                     if isinstance(self.__dict[name], RasrConfig):
                         self.__dict[name]._update(value)
                     else:
-                        _val = (
-                            value._value
-                            if value._value is not None
-                            else self.__dict[name]
-                        )
+                        _val = value._value if value._value is not None else self.__dict[name]
                         self.__dict[name] = value._copy()
                         self.__dict[name]._value = _val
                 else:

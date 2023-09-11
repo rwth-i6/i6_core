@@ -66,14 +66,10 @@ def energy_flow(
     energy = net.add_node("generic-vector-f32-norm", "energy", {"value": 1})
     net.link(fft_mapping[fft_net.get_output_links("amplitude-spectrum").pop()], energy)
 
-    convert_energy_to_vector = net.add_node(
-        "generic-convert-f32-to-vector-f32", "convert-energy-to-vector"
-    )
+    convert_energy_to_vector = net.add_node("generic-convert-f32-to-vector-f32", "convert-energy-to-vector")
     net.link(energy, convert_energy_to_vector)
 
-    convert_energy_to_scalar = net.add_node(
-        "generic-convert-vector-f32-to-f32", "convert-energy-vector-to-scalar"
-    )
+    convert_energy_to_scalar = net.add_node("generic-convert-vector-f32-to-f32", "convert-energy-vector-to-scalar")
     if normalization_type is not None:
         energy_normalization = net.add_node(
             "signal-normalization",
