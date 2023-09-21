@@ -16,7 +16,7 @@ Path = setup_path(__package__)
 
 import os
 
-from typing import Union, Dict, Bool
+from typing import Union, Dict
 
 from .config import *
 from i6_core.util import get_returnn_root
