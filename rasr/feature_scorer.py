@@ -16,6 +16,8 @@ Path = setup_path(__package__)
 
 import os
 
+from typing import Union, Dict, Bool
+
 from .config import *
 from i6_core.util import get_returnn_root
 
@@ -131,22 +133,22 @@ class OnnxFeatureScorer(FeatureScorer):
     def __init__(
         self,
         *,
-        mixtures,
-        model,
-        io_map,
-        label_log_posterior_scale=1.0,
-        label_prior_scale=0.7,
-        label_log_prior_file=None,
-        apply_log_on_output=False,
-        negate_output=True,
-        intra_op_threads=1,
-        inter_op_threads=1,
+        mixtures: Union[str, tk.Path],
+        model: Union[str, tk.Path],
+        io_map: Dict[str, str],
+        label_log_posterior_scale: float = 1.0,
+        label_prior_scale: float = 0.7,
+        label_log_prior_file: Union[str, tk.Path] = None,
+        apply_log_on_output: Bool = False,
+        negate_output: Bool = True,
+        intra_op_threads: int = 1,
+        inter_op_threads: int = 1,
         **kwargs,
     ):
         """
-        :param str|tk.Path mixtures: path to a *.mix file e.g. output of either EstimateMixturesJob or CreateDummyMixturesJob
-        :param str|tk.Path model: path of a model e.g. output of ExportPyTorchModelToOnnxJob
-        :param dict io_map: mapping between internal rasr identifiers and the model related input/output. Default key values
+        :param mixtures: path to a *.mix file e.g. output of either EstimateMixturesJob or CreateDummyMixturesJob
+        :param model: path of a model e.g. output of ExportPyTorchModelToOnnxJob
+        :param io_map: mapping between internal rasr identifiers and the model related input/output. Default key values
                             are "features" and "output", and optionally "features-size", e.g.
                             io_map = {"features": "data", "output": "classes"}
         :param float label_log_posterior_scale: scales for the log probability of a label e.g. 1.0 is recommended
