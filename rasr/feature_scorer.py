@@ -130,10 +130,10 @@ class PrecomputedHybridFeatureScorer(FeatureScorer):
 class OnnxFeatureScorer(FeatureScorer):
     def __init__(
         self,
+        *,
         mixtures,
         model,
         io_map,
-        *args,
         label_log_posterior_scale=1.0,
         label_prior_scale=0.7,
         label_log_prior_file=None,
