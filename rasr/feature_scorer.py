@@ -137,7 +137,7 @@ class OnnxFeatureScorer(FeatureScorer):
         model: tk.Path,
         io_map: Dict[str, str],
         label_log_posterior_scale: float = 1.0,
-        label_prior_scale: float = 0.7,
+        label_prior_scale: float,
         label_log_prior_file: Optional[tk.Path] = None,
         apply_log_on_output: bool = False,
         negate_output: bool = True,
@@ -169,11 +169,8 @@ class OnnxFeatureScorer(FeatureScorer):
             self.config.prior_file = label_log_prior_file
 
         self.config.session.file = model
-
-        if apply_log_on_output:
-            self.config.apply_log_on_output = apply_log_on_output
-        if not negate_output:
-            self.config.negate_output = negate_output
+        self.config.apply_log_on_output = apply_log_on_output
+        self.config.negate_output = negate_output
 
         self.post_config.session.intra_op_num_threads = intra_op_threads
         self.post_config.session.inter_op_num_threads = inter_op_threads
