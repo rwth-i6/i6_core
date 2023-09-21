@@ -133,14 +133,14 @@ class OnnxFeatureScorer(FeatureScorer):
     def __init__(
         self,
         *,
-        mixtures: Union[str, tk.Path],
-        model: Union[str, tk.Path],
+        mixtures: tk.Path,
+        model: tk.Path,
         io_map: Dict[str, str],
         label_log_posterior_scale: float = 1.0,
         label_prior_scale: float = 0.7,
-        label_log_prior_file: Union[str, tk.Path] = None,
-        apply_log_on_output: Bool = False,
-        negate_output: Bool = True,
+        label_log_prior_file: tk.Path = None,
+        apply_log_on_output: bool = False,
+        negate_output: bool = True,
         intra_op_threads: int = 1,
         inter_op_threads: int = 1,
         **kwargs,
@@ -170,7 +170,7 @@ class OnnxFeatureScorer(FeatureScorer):
 
         self.config.session.file = model
 
-        if label_log_prior_file:
+        if apply_log_on_output:
             self.config.apply_log_on_output = apply_log_on_output
         if not negate_output:
             self.config.negate_output = negate_output
