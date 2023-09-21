@@ -7,6 +7,7 @@ __all__ = [
     "ReturnnScorer",
     "InvAlignmentPassThroughFeatureScorer",
     "PrecomputedHybridFeatureScorer",
+    "OnnxFeatureScorer",
 ]
 
 from sisyphus import *
@@ -126,25 +127,50 @@ class PrecomputedHybridFeatureScorer(FeatureScorer):
         self.config.normalize_mixture_weights = False
 
 
-class TFLabelContextFeatureScorer(FeatureScorer):
+class OnnxFeatureScorer(rasr.FeatureScorer):
     def __init__(
         self,
-        fs_tf_config,
-        contextPriorFile,
-        diphonePriorFile,
-        prior_mixtures,
-        prior_scale,
+        mixtures,
+        model,
+        io_map,
+        *args,
+        label_log_posterior_scale=1.0,
+        label_prior_scale=0.7,
+        label_log_prior_file=None,
+        apply_log_on_output=False,
+        negate_output=True,
+        intra_op_threads=1,
+        inter_op_threads=1,
+        **kwargs,
     ):
-        super().__init__()
+        """
+        :param str mixtures: path to a *.mix file e.g. output of either EstimateMixturesJob or CreateDummyMixturesJob
+        :param str model: path of a model e.g. output of ExportPyTorchModelToOnnxJob
+        :param dict io_map: mapping between internal rasr identifiers and the model related input/output
+        :param float label_log_posterior_scale: scales for the log probability of a label e.g. 1.0 is recommended
+        :param float label_prior_scale: scale for the prior log probability of a label reasonable e.g. values in [0.1, 0.7] interval
+        :param str label_log_prior_file: xml file containing log prior probabilities e.g. estimated from the model via povey method
+        :param bool apply_log_on_output: whether to apply the log-function on the output, usefull if the model outputs softmax instead of log-softmax
+        :param bool negate_output: wheter negate output (because the model outputs log softmax and not negative log softmax
+        """
+        super().__init__(*args, **kwargs)
 
-        self.config = RasrConfig()
-        self.config.feature_scorer_type = "tf-label-context-scorer"
-        self.config.file = prior_mixtures
-        self.config.num_label_contexts = 46
-        self.config.prior_scale = prior_scale
-        self.config.context_prior = contextPriorFile
-        self.config.diphone_prior = diphonePriorFile
-        self.config.normalize_mixture_weights = False
-        self.config.loader = fs_tf_config.loader
-        self.config.input_map = fs_tf_config.input_map
-        self.config.output_map = fs_tf_config.output_map
+        self.config.feature_scorer_type = "onnx-feature-scorer"
+        self.config.file = mixtures
+        self.config.scale = label_log_posterior_scale
+        self.config.priori_scale = label_prior_scale
+        if label_log_prior_file is not None:
+            self.config.prior_file = label_log_prior_file
+
+        self.config.session.file = model
+
+        if label_log_prior_file:
+            self.config.apply_log_on_output = apply_log_on_output
+        if not negate_output:
+            self.config.negate_output = negate_output
+
+        self.post_config.session.intra_op_num_threads = intra_op_threads
+        self.post_config.session.inter_op_num_threads = inter_op_threads
+
+        for k, v in io_map.items():
+            self.config.io_map[k] = v
