@@ -151,13 +151,13 @@ class OnnxFeatureScorer(FeatureScorer):
         :param io_map: mapping between internal rasr identifiers and the model related input/output. Default key values
                             are "features" and "output", and optionally "features-size", e.g.
                             io_map = {"features": "data", "output": "classes"}
-        :param float label_log_posterior_scale: scales for the log probability of a label e.g. 1.0 is recommended
-        :param float label_prior_scale: scale for the prior log probability of a label reasonable e.g. values in [0.1, 0.7] interval
-        :param str|tk.Path label_log_prior_file: xml file containing log prior probabilities e.g. estimated from the model via povey method
-        :param bool apply_log_on_output: whether to apply the log-function on the output, usefull if the model outputs softmax instead of log-softmax
-        :param bool negate_output: whether negate output (because the model outputs log softmax and not negative log softmax
-        :param int intra_op_threads: Onnxruntime session's number of parallel threads within each operator
-        :param int inter_op_threads: Onnxruntime session's number of parallel threads between operators used only for parallel execution mode
+        :param label_log_posterior_scale: scales for the log probability of a label e.g. 1.0 is recommended
+        :param label_prior_scale: scale for the prior log probability of a label reasonable e.g. values in [0.1, 0.7] interval
+        :param label_log_prior_file: xml file containing log prior probabilities e.g. estimated from the model via povey method
+        :param apply_log_on_output: whether to apply the log-function on the output, usefull if the model outputs softmax instead of log-softmax
+        :param negate_output: whether negate output (because the model outputs log softmax and not negative log softmax
+        :param intra_op_threads: Onnxruntime session's number of parallel threads within each operator
+        :param inter_op_threads: Onnxruntime session's number of parallel threads between operators used only for parallel execution mode
         """
         super().__init__(*args, **kwargs)
 
