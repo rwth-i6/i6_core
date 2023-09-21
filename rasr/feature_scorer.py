@@ -127,7 +127,7 @@ class PrecomputedHybridFeatureScorer(FeatureScorer):
         self.config.normalize_mixture_weights = False
 
 
-class OnnxFeatureScorer(rasr.FeatureScorer):
+class OnnxFeatureScorer(FeatureScorer):
     def __init__(
         self,
         mixtures,
