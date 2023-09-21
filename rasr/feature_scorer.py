@@ -146,7 +146,8 @@ class OnnxFeatureScorer(FeatureScorer):
         """
         :param str mixtures: path to a *.mix file e.g. output of either EstimateMixturesJob or CreateDummyMixturesJob
         :param str model: path of a model e.g. output of ExportPyTorchModelToOnnxJob
-        :param dict io_map: mapping between internal rasr identifiers and the model related input/output
+        :param dict io_map: mapping between internal rasr identifiers and the model related input/output. Default key values
+                            are "features" and "output", and optionally "features-size"
         :param float label_log_posterior_scale: scales for the log probability of a label e.g. 1.0 is recommended
         :param float label_prior_scale: scale for the prior log probability of a label reasonable e.g. values in [0.1, 0.7] interval
         :param str label_log_prior_file: xml file containing log prior probabilities e.g. estimated from the model via povey method
