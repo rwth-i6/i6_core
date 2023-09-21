@@ -153,6 +153,8 @@ class OnnxFeatureScorer(FeatureScorer):
         :param str label_log_prior_file: xml file containing log prior probabilities e.g. estimated from the model via povey method
         :param bool apply_log_on_output: whether to apply the log-function on the output, usefull if the model outputs softmax instead of log-softmax
         :param bool negate_output: wheter negate output (because the model outputs log softmax and not negative log softmax
+        :param int intra_op_threads: Onnxruntime session's number of parallel threads within each operator
+        :param int inter_op_threads: Onnxruntime session's number of parallel threads between operators used only for parallel execution mode
         """
         super().__init__(*args, **kwargs)
 
