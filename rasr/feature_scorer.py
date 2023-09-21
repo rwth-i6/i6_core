@@ -16,7 +16,7 @@ Path = setup_path(__package__)
 
 import os
 
-from typing import Union, Dict
+from typing import Union, Dict, Optional
 
 from .config import *
 from i6_core.util import get_returnn_root
@@ -138,7 +138,7 @@ class OnnxFeatureScorer(FeatureScorer):
         io_map: Dict[str, str],
         label_log_posterior_scale: float = 1.0,
         label_prior_scale: float = 0.7,
-        label_log_prior_file: tk.Path = None,
+        label_log_prior_file: Optional[tk.Path] = None,
         apply_log_on_output: bool = False,
         negate_output: bool = True,
         intra_op_threads: int = 1,
