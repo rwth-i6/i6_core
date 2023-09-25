@@ -17,7 +17,7 @@ class CompileKenLMJob(Job):
     Please make sure the needed libraries (e.g. boost, zlib) are on your system or image
     """
 
-    def __init__(self, repository: tk.Path):
+    def __init__(self, *, repository: tk.Path):
         """
 
         :param repository: e.g. CloneGitRepositoryJob output for https://github.com/kpu/kenlm
@@ -47,12 +47,15 @@ class KenLMplzJob(Job):
 
     def __init__(
         self,
+        *,
         text: Union[tk.Path, List[tk.Path]],
         order: int,
         interpolate_unigrams: bool,
         pruning: Optional[List[int]],
         vocabulary: Optional[tk.Path],
         kenlm_binary_folder: tk.Path,
+        mem: float = 4.0,
+        time: float = 1.0,
     ):
         """
 
@@ -66,6 +69,8 @@ class KenLMplzJob(Job):
             everything else will be treated as unknown
         :param kenlm_binary_folder: output of the CompileKenLMJob, or a direct link to the build
             dir of the KenLM repo
+        :param mem: memory rqmt, needs adjustment for large training corpora
+        :param time: time rqmt, might adjustment for very large training corpora and slow machines
         """
         self.text = text
         self.order = order
@@ -76,7 +81,7 @@ class KenLMplzJob(Job):
 
         self.out_lm = self.output_path("lm.gz")
 
-        self.rqmt = {"cpu": 1, "mem": 4.0, "time": 1}
+        self.rqmt = {"cpu": 1, "mem": mem, "time": time}
 
     def tasks(self):
         yield Task("run", rqmt=self.rqmt)
@@ -107,14 +112,21 @@ class KenLMplzJob(Job):
                 if p2.returncode:
                     raise sp.CalledProcessError(p2.returncode, cmd=lmplz_command)
 
+    @classmethod
+    def hash(cls, parsed_args):
+        del parsed_args["mem"]
+        del parsed_args["time"]
+        return super().hash(parsed_args)
 
-class CreateBinaryLM(Job):
+
+class CreateBinaryLMJob(Job):
     """
-    Run the lmplz command of the KenLM toolkit to create a binary LM
+    Run the build_binary command of the KenLM toolkit to create a binary LM from an given ARPA LM
     """
 
     def __init__(
         self,
+        *,
         arpa_lm: tk.Path,
         kenlm_binary_folder: tk.Path,
     ):
