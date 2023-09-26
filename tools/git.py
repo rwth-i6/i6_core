@@ -42,11 +42,11 @@ class CloneGitRepositoryJob(Job):
         logging.info("running command: %s" % " ".join(args))
         sp.run(args, check=True)
 
-        if self.clone_submodules:
-            args = ["git", "submodule", "update", "--init", "--recursive"]
-            sp.run(args, cwd=repository_dir, check=True)
-
         if self.commit is not None:
             args = ["git", "checkout", self.commit]
             logging.info("running command: %s" % " ".join(args))
+            sp.run(args, cwd=repository_dir, check=True)
+
+        if self.clone_submodules:
+            args = ["git", "submodule", "update", "--init", "--recursive"]
             sp.run(args, cwd=repository_dir, check=True)
