@@ -2,6 +2,7 @@ __all__ = ["CloneGitRepositoryJob"]
 
 import logging
 import subprocess as sp
+from typing import Optional
 
 from sisyphus import *
 
@@ -13,17 +14,28 @@ class CloneGitRepositoryJob(Job):
     Clone a git repository given optional branch name and commit hash
     """
 
-    def __init__(self, url, branch=None, commit=None, checkout_folder_name="repository"):
+    __sis_hash_exclude__ = {"clone_submodules": False}
+
+    def __init__(
+        self,
+        url: str,
+        branch: Optional[str] = None,
+        commit: Optional[str] = None,
+        checkout_folder_name: str = "repository",
+        clone_submodules: bool = False,
+    ):
         """
 
-        :param str url: git repository url
-        :param str branch: git branch name
-        :param str commit: git commit hash
-        :param str checkout_folder_name: name of the output path repository folder
+        :param url: Git repository url
+        :param branch: Git branch name
+        :param commit: Git commit hash
+        :param checkout_folder_name: Name of the output path repository folder
+        :param clone_submodules: Flag to clone submodules if set to True
         """
         self.url = url
         self.branch = branch
         self.commit = commit
+        self.clone_submodules = clone_submodules
 
         self.out_repository = self.output_path(checkout_folder_name, True)
 
@@ -38,7 +50,12 @@ class CloneGitRepositoryJob(Job):
         args += [repository_dir]
         logging.info("running command: %s" % " ".join(args))
         sp.run(args, check=True)
+
         if self.commit is not None:
             args = ["git", "checkout", self.commit]
             logging.info("running command: %s" % " ".join(args))
+            sp.run(args, cwd=repository_dir, check=True)
+
+        if self.clone_submodules:
+            args = ["git", "submodule", "update", "--init", "--recursive"]
             sp.run(args, cwd=repository_dir, check=True)
