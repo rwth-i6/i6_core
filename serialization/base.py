@@ -377,6 +377,7 @@ class Call(SerializerObject):
         :param kwargs: Optional list of keyword arguments provided to the call in the form of key-value tuples.
         :param return_assign_variables: Optional name or list of variable names that the return value(s) of the call are assigned to.
         """
+        super().__init__()
         self.callable_name = callable_name
         self.kwargs = kwargs or []
         self.unhashed_kwargs = unhashed_kwargs or []
