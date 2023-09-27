@@ -2,6 +2,7 @@ __all__ = ["CloneGitRepositoryJob"]
 
 import logging
 import subprocess as sp
+from typing import Optional
 
 from sisyphus import *
 
@@ -15,13 +16,21 @@ class CloneGitRepositoryJob(Job):
 
     __sis_hash_exclude__ = {"clone_submodules": False}
 
-    def __init__(self, url, branch=None, commit=None, checkout_folder_name="repository", clone_submodules=False):
+    def __init__(
+        self,
+        url: str,
+        branch: Optional[str] = None,
+        commit: Optional[str] = None,
+        checkout_folder_name: str = "repository",
+        clone_submodules: bool = False,
+    ):
         """
 
-        :param str url: git repository url
-        :param str branch: git branch name
-        :param str commit: git commit hash
-        :param str checkout_folder_name: name of the output path repository folder
+        :param url: Git repository url
+        :param branch: Git branch name
+        :param commit: Git commit hash
+        :param checkout_folder_name: Name of the output path repository folder
+        :param clone_submodules: Flag to clone submodules if set to True
         """
         self.url = url
         self.branch = branch
