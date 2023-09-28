@@ -1,8 +1,24 @@
 """
 Helper code for serializing any data, e.g. for ReturnnConfig.
 """
-
 from __future__ import annotations
+
+__all__ = [
+    "SerializerObject",
+    "Collection",
+    "Import",
+    "PartialImport",
+    "ExternalImport",
+    "CodeFromFunction",
+    "NonhashedCode",
+    "NonhashedCodeFromFile",
+    "CodeFromFile",
+    "ExplicitHash",
+    "Call",
+    "PythonEnlargeStackWorkaroundNonhashedCode",
+    "PythonCacheManagerFunctionNonhashedCode",
+    "PythonModelineNonhashedCode",
+]
 
 import string
 import sys
