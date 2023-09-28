@@ -19,7 +19,7 @@ if TYPE_CHECKING:
 from .base import Call, Import
 
 
-def build_config_constructor_serializers(
+def build_i6_models_config_constructor_serializers(
     cfg: ModelConfiguration, variable_name: Optional[str] = None, unhashed_package_root: Optional[str] = None
 ) -> Tuple[Call, List[Import]]:
     """

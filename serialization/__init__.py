@@ -1,2 +1,1 @@
-from base import *
-from pytorch import *
+from .base import *
