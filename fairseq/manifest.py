@@ -43,7 +43,19 @@ class MergeAudioDirsJob(Job):
                     continue
                 base_name = os.path.basename(file)
                 dst = os.path.join(self.out_audio_dir_path, base_name)
-                os.symlink(file, dst)
+                if not os.path.exists(dst) and os.path.realpath(dst) != file:
+                    os.symlink(file, dst)
+                elif os.path.exists(dst) and os.path.realpath(dst) != file:
+                    i = 2
+                    new_dst = f"{os.path.splitext(dst)[0]}_{i}.{self.file_extension}"
+                    while os.path.exists(new_dst):
+                        if os.path.realpath(new_dst) == file:
+                            break
+                        else:
+                            i += 1
+                        new_dst = f"{os.path.splitext(dst)[0]}_{i}.{self.file_extension}"
+                    if os.path.realpath(new_dst) != file:
+                        os.symlink(file, new_dst)
 
 
 class CreateManifestJob(Job):
