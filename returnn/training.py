@@ -152,7 +152,7 @@ class ReturnnTrainingJob(Job):
         :param time_rqmt:
         :param mem_rqmt:
         :param cpu_rqmt:
-        :param launch_cmd: the command used to launch training jobs, only used if horovod_num_processes is not None 
+        :param launch_cmd: the command used to launch training jobs, only used if horovod_num_processes is not None
             Possible values: "mpirun": use mpirun, c.f. https://www.open-mpi.org/doc/v4.0/man1/mpirun.1.php
                              "torchrun": use torchrun, c.f. https://pytorch.org/docs/stable/elastic/run.html
         :param horovod_num_processes: If used without multi_node_slots, then single node, otherwise multi node.
