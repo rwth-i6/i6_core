@@ -140,15 +140,10 @@ class Import(SerializerObject):
             return f"from {self.module} import {self.object_name} as {self.import_as}\n"
         return f"from {self.module} import {self.object_name}\n"
 
-    def _sis_hash(self):
+    def _sis_hash(self) -> bytes:
         if self.import_as and not self.ignore_import_as_for_hash:
             return sis_hash_helper({"code_object": self.code_object, "import_as": self.import_as})
         return sis_hash_helper(self.code_object)
-
-    def __hash__(self):
-        if self.import_as and not self.ignore_import_as_for_hash:
-            return hash({"code_object": self.code_object, "import_as": self.import_as})
-        return hash(self.code_object)
 
 
 class PartialImport(Import):
@@ -214,7 +209,7 @@ class PartialImport(Import):
             }
         )
 
-    def _sis_hash(self):
+    def _sis_hash(self) -> bytes:
         super_hash = super()._sis_hash()
         return sis_hash_helper({"import": super_hash, "hashed_arguments": self.hashed_arguments})
 
@@ -233,7 +228,7 @@ class ExternalImport(SerializerObject):
     def get(self) -> str:
         return f'sys.path.insert(0, "{self.import_path.get()}")\n'
 
-    def _sis_hash(self):
+    def _sis_hash(self) -> bytes:
         return sis_hash_helper(self.import_path)
 
 
@@ -245,7 +240,7 @@ class CodeFromFunction(SerializerObject):
     def __init__(self, name: str, func: FunctionType, *, hash_full_python_code: bool = False):
         """
         :param name: name of the function as exposed in the config
-        :param func:
+        :param func: function to be serialized
         :param hash_full_python_code: if True, the full python code of the function is hashed,
             otherwise only the module name and function qualname are hashed.
         """
@@ -273,11 +268,11 @@ class CodeFromFunction(SerializerObject):
                 ]
             )
 
-    def get(self):
+    def get(self) -> str:
         """get"""
         return self._code
 
-    def _sis_hash(self):
+    def _sis_hash(self) -> bytes:
         if self.hash_full_python_code:
             return sis_hash_helper((self.name, self._func_code))
         else:
@@ -292,7 +287,7 @@ class _NonhashedSerializerObject(SerializerObject):
 
     use_for_hash = False
 
-    def _sis_hash(self):
+    def _sis_hash(self) -> bytes:
         raise Exception(f"{self.__class__.__name__} must not be hashed")
 
 
@@ -305,7 +300,7 @@ class NonhashedCode(_NonhashedSerializerObject):
         super().__init__()
         self.code = code
 
-    def get(self):
+    def get(self) -> str:
         """get"""
         return self.code
 
@@ -319,7 +314,7 @@ class NonhashedCodeFromFile(_NonhashedSerializerObject):
         super().__init__()
         self.filename = filename
 
-    def get(self):
+    def get(self) -> str:
         """get"""
         with uopen(self.filename, "rt") as f:
             return f.read()
@@ -339,12 +334,12 @@ class CodeFromFile(SerializerObject):
         self.filename = filename
         self.hash_full_content = hash_full_content
 
-    def get(self):
+    def get(self) -> str:
         """get"""
         with uopen(self.filename, "rt") as f:
             return f.read()
 
-    def _sis_hash(self):
+    def _sis_hash(self) -> bytes:
         if self.hash_full_content:
             with uopen(self.filename, "rt") as f:
                 return sis_hash_helper(f.read())
@@ -366,7 +361,7 @@ class ExplicitHash(SerializerObject):
         """get"""
         return ""
 
-    def _sis_hash(self):
+    def _sis_hash(self) -> bytes:
         return sis_hash_helper(self.hash)
 
 
@@ -414,7 +409,7 @@ class Call(SerializerObject):
         # full call
         return f"{return_assign_str}{self.callable_name}({', '.join(kwargs_str_list)})"
 
-    def _sis_hash(self):
+    def _sis_hash(self) -> bytes:
         h = {
             "callable_name": self.callable_name,
             "kwargs": self.kwargs,
