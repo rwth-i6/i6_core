@@ -29,33 +29,36 @@ class MergeAudioDirsJob(Job):
         self.audio_dir_paths = audio_dir_paths
         self.file_extension = file_extension
         self.path_must_contain = path_must_contain
+        self.concurrent = len(audio_dir_paths)
 
         self.out_audio_dir_path = self.output_path("audio", directory=True)
 
-    def tasks(self):
-        yield Task("run", mini_task=True)
+        self.rqmt = {"time": 8, "cpu": 4, "mem": 4}
 
-    def run(self):
-        for dir_path in self.audio_dir_paths:
-            search_path = os.path.join(dir_path, "*." + self.file_extension)
-            for file in glob.iglob(search_path, recursive=True):
-                if self.path_must_contain and self.path_must_contain not in file:
-                    continue
-                base_name = os.path.basename(file)
-                dst = os.path.join(self.out_audio_dir_path, base_name)
-                if not os.path.exists(dst) and os.path.realpath(dst) != file:
-                    os.symlink(file, dst)
-                elif os.path.exists(dst) and os.path.realpath(dst) != file:
-                    i = 2
+    def tasks(self):
+        yield Task("run", rqmt=self.rqmt, args=range(1, self.concurrent + 1))
+
+    def run(self, task_id):
+        dir_path = self.audio_dir_paths[task_id - 1]
+        search_path = os.path.join(dir_path, "*." + self.file_extension)
+        for file in glob.iglob(search_path, recursive=True):
+            if self.path_must_contain and self.path_must_contain not in file:
+                continue
+            base_name = os.path.basename(file)
+            dst = os.path.join(self.out_audio_dir_path, base_name)
+            if not os.path.exists(dst) and os.path.realpath(dst) != file:
+                os.symlink(file, dst)
+            elif os.path.exists(dst) and os.path.realpath(dst) != file:
+                i = 2
+                new_dst = f"{os.path.splitext(dst)[0]}_{i}.{self.file_extension}"
+                while os.path.exists(new_dst):
+                    if os.path.realpath(new_dst) == file:
+                        break
+                    else:
+                        i += 1
                     new_dst = f"{os.path.splitext(dst)[0]}_{i}.{self.file_extension}"
-                    while os.path.exists(new_dst):
-                        if os.path.realpath(new_dst) == file:
-                            break
-                        else:
-                            i += 1
-                        new_dst = f"{os.path.splitext(dst)[0]}_{i}.{self.file_extension}"
-                    if os.path.realpath(new_dst) != file:
-                        os.symlink(file, new_dst)
+                if os.path.realpath(new_dst) != file:
+                    os.symlink(file, new_dst)
 
 
 class CreateManifestJob(Job):
