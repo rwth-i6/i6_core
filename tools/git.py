@@ -2,7 +2,7 @@ __all__ = ["CloneGitRepositoryJob"]
 
 import logging
 import subprocess as sp
-from typing import Optional
+from typing import Optional, List
 import os
 
 from sisyphus import *
@@ -24,7 +24,7 @@ class CloneGitRepositoryJob(Job):
         commit: Optional[str] = None,
         checkout_folder_name: str = "repository",
         clone_submodules: bool = False,
-        files_to_checkout: Optional[list[str]] = None,
+        files_to_checkout: Optional[List[str]] = None,
     ):
         """
 
