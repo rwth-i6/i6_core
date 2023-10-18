@@ -60,7 +60,7 @@ class CloneGitRepositoryJob(Job):
 
         if self.files_to_checkout is not None:
             args = ["git", "checkout"]
-            commit = self.commit if self.commit is not None else ""
+            commit = self.commit if self.commit is not None else "HEAD"
             args.extend([commit, "--"] + self.files_to_checkout)
             logging.info("running command: %s" % " ".join(args))
             sp.run(args, cwd=repository_dir, check=True)
