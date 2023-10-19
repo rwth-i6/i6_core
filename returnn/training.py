@@ -132,7 +132,7 @@ class ReturnnTrainingJob(Job):
         time_rqmt: float = 4,
         mem_rqmt: float = 4,
         cpu_rqmt: int = 2,
-        launch_cmd: str = "mpirun",
+        distributed_launch_cmd: str = "mpirun",
         horovod_num_processes: Optional[int] = None,
         multi_node_slots: Optional[int] = None,
         returnn_python_exe: Optional[tk.Path] = None,
