@@ -171,7 +171,7 @@ class ReturnnTrainingJob(Job):
 
         self.returnn_python_exe = util.get_returnn_python_exe(returnn_python_exe)
         self.returnn_root = util.get_returnn_root(returnn_root)
-        self.launch_cmd = launch_cmd
+        self.distributed_launch_cmd = distributed_launch_cmd
         self.horovod_num_processes = horovod_num_processes
         self.multi_node_slots = multi_node_slots
         self.returnn_config = ReturnnTrainingJob.create_returnn_config(**kwargs)
