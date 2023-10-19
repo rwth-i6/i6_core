@@ -118,7 +118,7 @@ class ReturnnTrainingJob(Job):
         function of Returnn not all checkpoints are actually available.
     """
 
-    __sis_hash_exclude__ = {"launch_cmd": "mpirun"}
+    __sis_hash_exclude__ = {"distributed_launch_cmd": "mpirun"}
 
     def __init__(
         self,
