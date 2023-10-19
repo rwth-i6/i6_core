@@ -248,7 +248,7 @@ class ReturnnTrainingJob(Job):
         ]
 
         if self.horovod_num_processes:
-            if self.launch_cmd == "torchrun":
+            if self.distributed_launch_cmd == "torchrun":
                 # use torchrun to lauch DDP training when the backend is torch
                 run_cmd = [
                     "torchrun",
