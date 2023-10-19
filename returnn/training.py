@@ -164,7 +164,7 @@ class ReturnnTrainingJob(Job):
         :param returnn_root: file path to the RETURNN repository root folder
         """
         assert isinstance(returnn_config, ReturnnConfig)
-        assert launch_cmd in ["mpirun", "torchrun"]
+        assert distributed_launch_cmd in ["mpirun", "torchrun"]
         self.check_blacklisted_parameters(returnn_config)
         kwargs = locals()
         del kwargs["self"]
