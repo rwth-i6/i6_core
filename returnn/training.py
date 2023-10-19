@@ -276,7 +276,7 @@ class ReturnnTrainingJob(Job):
                     "--report-bindings",
                 ] + run_cmd
             else:
-                raise ValueError(f"invalid launch_cmd {self.launch_cmd!r}")
+                raise ValueError(f"invalid distributed_launch_cmd {self.distributed_launch_cmd!r}")
 
         return run_cmd
 
