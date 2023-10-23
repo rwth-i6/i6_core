@@ -18,6 +18,10 @@ jobs:
         with:
           repository: "rwth-i6/sisyphus"
           path: "sisyphus"
+      - uses: actions/checkout@v2
+        with:
+          repository: "rwth-i6/returnn"
+          path: "returnn"
       - uses: actions/setup-python@v2
         with:
           python-version: 3.8
