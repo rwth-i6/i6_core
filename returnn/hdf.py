@@ -88,13 +88,12 @@ class ReturnnDumpHDFJob(Job):
         with open("dataset.config", "wt") as dataset_file:
             dataset_file.write("#!rnn.py\n")
             dataset_file.write("train = %s\n" % str(data))
-        self.data = "dataset.config"
 
     def run(self):
         if isinstance(self.data, tk.Path):
             data = self.data.get_path()
         else:
-            data = self.data
+            data = "dataset.config"
 
         (fd, tmp_hdf_file) = tempfile.mkstemp(prefix=gs.TMP_PREFIX, suffix=".hdf")
         os.close(fd)
