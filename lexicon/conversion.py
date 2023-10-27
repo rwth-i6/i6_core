@@ -120,7 +120,7 @@ class LexiconUniqueOrthJob(Job):
                 this could lead to INFORMATION LOSS if there are several
                 different synt token sequences in the to-be-merged lemmata
         :param bool deduplicate_special_lemmata: if True, special lemmata will also be considered
-        in the unique process.
+            in the unique process.
         """
         self.set_vis_name("Make Lexicon Orths Unique")
 
