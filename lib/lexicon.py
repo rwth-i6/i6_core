@@ -107,7 +107,7 @@ class Lemma:
         synt = None if not synt else synt[0]
         return Lemma(orth, phon, synt, eval, special)
 
-    def _equals(self, other: Lemma, same_order: bool = True) -> bool:
+    def _equals(self, other: Lemma, *, same_order: bool = True) -> bool:
         """
         Check for lemma equality.
 
