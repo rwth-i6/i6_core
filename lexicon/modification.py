@@ -189,7 +189,6 @@ class MergeLexiconJob(Job):
                         if len(lemma_dict[orth_key]) > 0 and lemma == lemma_dict[orth_key][0]:
                             continue
                     lemma_dict[orth_key].append(lemma)
-            print(lemma_dict)
             merged_lex.lemmata = list(itertools.chain(*[lemma_dict[key] for key in sorted(lemma_dict.keys())]))
         else:
             for lex in lexica:
