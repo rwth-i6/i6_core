@@ -173,7 +173,7 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
         :param lmgc_mem: Memory requirement for the AdvancedTreeSearchLmImageAndGlobalCacheJob
         :param lmgc_alias: Alias for the AdvancedTreeSearchLmImageAndGlobalCacheJob
         :param lmgc_scorer: Dummy scorer for the AdvancedTreeSearchLmImageAndGlobalCacheJob which is required but unused
-        :param separate_lm_image_gc_generation: Whether to generate the LM image and the global cache via two separate jobs for a more stable hash. Whether or not this flag is set is not part of the hash, so using separate jobs is the default.
+        :param separate_lm_image_gc_generation: Whether to generate the LM image and the global cache via two separate jobs for a more stable hash. Whether or not this flag is set is not part of the hash, so NOT using separate jobs is the default.
         :param model_combination_config: Configuration for model combination
         :param model_combination_post_config: Post config for model combination
         :param extra_config: Additional Config for recognition
