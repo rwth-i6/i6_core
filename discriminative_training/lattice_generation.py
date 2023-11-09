@@ -348,7 +348,7 @@ class RawDenominatorLatticeJob(rasr.RasrCommand, Job):
 
         post_config.speech_recognizer.global_cache.read_only = True
         post_config.speech_recognizer.global_cache.file = lm_gc.out_global_cache
-        post_config.speech_recognizer.model_combination.lm.image = lm_gc.lm_image
+        post_config.speech_recognizer.model_combination.lm.image = lm_gc.out_lm_images[1]
 
         # Lattice writer options
         config.speech_recognizer.lattice_archive.path = "raw-denominator.$(TASK)"

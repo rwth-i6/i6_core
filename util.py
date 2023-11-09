@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 import gzip
 import logging
 import os
@@ -6,7 +7,7 @@ import stat
 import subprocess as sp
 import xml.dom.minidom
 import xml.etree.ElementTree as ET
-from typing import Any, List, Optional, Union
+from typing import Dict, Any, List, Optional, Union
 
 from sisyphus import *
 from sisyphus.delayed_ops import DelayedBase, DelayedFormat
@@ -372,3 +373,13 @@ def get_g2p_python(g2p_python: tk.Path) -> tk.Path:
 def get_subword_nmt_repo(subword_nmt_repo: tk.Path) -> tk.Path:
     """gets the path to the root folder of subword-nmt repo"""
     return get_executable_path(subword_nmt_repo, "SUBWORD_NMT_PATH")
+
+
+def update_nested_dict(dict1: Dict[str, Any], dict2: Dict[str, Any]):
+    """updates dict 1 with all the items from dict2, both dict1 and dict2 can be nested dict"""
+    for k, v in dict2.items():
+        if isinstance(v, Mapping):
+            dict1[k] = update_nested_dict(dict1.get(k, {}), v)
+        else:
+            dict1[k] = v
+    return dict1

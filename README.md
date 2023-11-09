@@ -24,7 +24,7 @@ Before contributing to `i6_core`, please have a close look at
 Code style: https://github.com/psf/black
 
 Please coordinate large changes with the maintainers, which are:
- - Nick Rossenbach [@JackTemaki](https://github.com/JackTemaki)
+ - Nick Rossenbach [@JackTemaki](https://github.com/JackTemaki) (vacation substitution by [@Atticus1806](https://github.com/Atticus1806))
  - Wilfried Michel [@michelwi](https://github.com/michelwi)
  - Eugen Beck [@curufinwe](https://github.com/curufinwe)
 

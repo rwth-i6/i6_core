@@ -225,7 +225,7 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
         self.feature_flow.write_to_file("feature.flow")
         util.write_paths_to_file(self.out_lattice_bundle, self.out_single_lattice_caches.values())
         extra_code = "export OMP_NUM_THREADS={0}\nexport TF_DEVICE='{1}'".format(
-            math.ceil(self.cpu / 2), "gpu" if self.use_gpu else "cpu"
+            math.ceil(self.cpu), "gpu" if self.use_gpu else "cpu"
         )
         self.write_run_script(self.exe, "recognition.config", extra_code=extra_code)
 

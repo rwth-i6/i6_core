@@ -74,15 +74,26 @@ class ReturnnDumpHDFJob(Job):
         self.out_hdf = self.output_path("data.hdf")
 
     def tasks(self):
+        if isinstance(self.data, (dict, str)):
+            yield Task("write_config", mini_task=True)
         yield Task("run", resume="run", rqmt=self.rqmt)
 
-    def run(self):
+    def write_config(self):
+        """
+        Optionally writes a config if self.data is either of type str or a dict, i.e.g not a tk.Path
+        """
         data = self.data
-        if isinstance(data, dict):
-            instanciate_delayed(data)
-            data = str(data)
-        elif isinstance(data, tk.Path):
-            data = data.get_path()
+        instanciate_delayed(data)
+        data = str(data)
+        with open("dataset.config", "wt") as dataset_file:
+            dataset_file.write("#!rnn.py\n")
+            dataset_file.write("train = %s\n" % str(data))
+
+    def run(self):
+        if isinstance(self.data, tk.Path):
+            data = self.data.get_path()
+        else:
+            data = "dataset.config"
 
         (fd, tmp_hdf_file) = tempfile.mkstemp(prefix=gs.TMP_PREFIX, suffix=".hdf")
         os.close(fd)
