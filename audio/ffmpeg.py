@@ -108,6 +108,7 @@ class BlissFfmpegJob(Job):
 
         self.out_audio_folder = self.output_path("audio/", directory=True)
         self.out_corpus = self.output_path("corpus.xml.gz")
+        self.out_failed_files = None
         if self.error_threshold > 0:
             self.out_failed_files = self.output_path("failed_files.txt")
 
@@ -139,7 +140,7 @@ class BlissFfmpegJob(Job):
         else:
             c.dump(tk.uncached_path(self.out_corpus))
 
-        if hasattr(self, "out_failed_files"):
+        if self.out_failed_files is not None:
             with open(self.out_failed_files.get_path(), "wt") as out:
                 out.write("\n".join(self.failed_files))
 
