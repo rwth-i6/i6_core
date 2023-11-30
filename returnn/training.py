@@ -250,7 +250,9 @@ class ReturnnTrainingJob(Job):
         if self.horovod_num_processes:
             if self.distributed_launch_cmd == "torchrun":
                 # use torchrun to lauch DDP training when the backend is torch
-                prefix = ["torchrun"]
+                # Instead of using the torchrun binary, directly execute the corresponding Python module
+                # and directly use the correct Python environment.
+                prefix = [self.returnn_python_exe.get_path(), "-mtorch.distributed.run"]
                 if (self.multi_node_slots or 1) == 1:
                     prefix += ["--standalone"]
                 prefix += [
