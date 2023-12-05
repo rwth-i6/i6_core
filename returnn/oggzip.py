@@ -163,7 +163,7 @@ class BlissToOggZipJob(Job):
                 "-av",
                 os.path.join(
                     tmp_dir,
-                    os.path.basename(self.zip_subarchives.path_template).replace(".$(TASK).zip", ".*/*"),
+                    os.path.basename(self.zip_subarchives.path_template).replace(".$(TASK).zip", ".*/"),
                 ),
                 output_folder,
             ]
