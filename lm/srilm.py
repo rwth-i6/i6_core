@@ -426,24 +426,24 @@ class InterpolateNgramLmJob(Job):
     def _create_cmd(self) -> List[str]:
         """creates bash script that will be executed in the run Task"""
         cmd = [self.ngram_exe.get_path()]
-        cmd += ["-order", f"{self.ngram_order} -unk"]
+        cmd += ["-order", str(self.ngram_order), "-unk"]
 
         for i, lm in enumerate(self.ngram_lms):
             if i == 0:
-                c = ["-lm", f"{lm.get_path()}"]
+                c = ["-lm", lm.get_path()]
             elif i == 1:
-                c = ["-mix-lm", f"{lm.get_path()}"]
+                c = ["-mix-lm", lm.get_path()]
             else:
-                c = [f"-mix-lm{i}", f"{lm.get_path()}"]
+                c = [f"-mix-lm{i}", lm.get_path()]
             cmd += c
 
         for i, lmbd in enumerate(self.weights):
             if i == 0:
-                c = ["-lambda", f"{lmbd.get()}"]
+                c = ["-lambda", str(lmbd.get())]
             elif i == 1:
-                c = [f""]
+                c = [""]
             else:
-                c = [f"-mix-lambda{i}", f"{lmbd.get()}"]
+                c = [f"-mix-lambda{i}", str(lmbd.get())]
             cmd += c
         cmd += ["-write-lm", "interpolated.lm.gz"]
 
