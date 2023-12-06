@@ -341,7 +341,7 @@ class ComputeBestMixJob(Job):
         yield Task("run", mini_task=True)
 
     def _create_cmd(self) -> List[str]:
-        """creates bash script that will be executed in the run Task"""
+        """:return: the command"""
         cmd = [self.compute_best_mix_exe.get_path()]
 
         ppl_log = [x.get_path() for x in self.ppl_logs]
