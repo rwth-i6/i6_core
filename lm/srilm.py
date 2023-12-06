@@ -338,26 +338,24 @@ class ComputeBestMixJob(Job):
         self.out_cbm_file = self.output_path("cbm.log")
 
     def tasks(self):
+        yield Task("create_files", mini_task=True)
         yield Task("run", mini_task=True)
 
-    def _get_cmd(self) -> str:
-        """creates command string for the bash call"""
-        cmd = self.compute_best_mix_exe.get_path()
-
-        cmd += " "
+    def create_files(self):
+        """creates bash script that will be executed in the run Task"""
+        cmd = [self.compute_best_mix_exe.get_path()]
 
         ppl_log = [x.get_path() for x in self.ppl_logs]
 
-        cmd += " ".join(ppl_log)
+        cmd += ppl_log
 
-        cmd += " &> cbm.log"
+        cmd += [" &> cbm.log"]
 
-        return cmd
+        create_executable("run.sh", cmd)
 
     def run(self):
         """Call the srilm script and extracts the different weights from the log, then relinks log to output folder"""
-        cmd = self._get_cmd()
-        subprocess.check_call(cmd)
+        subprocess.check_call("./run.sh")
 
         lines = open("cbm.log", "rt").readlines()
         lbds = lines[-2].split("(")[1].replace(")", "")
@@ -425,38 +423,38 @@ class InterpolateNgramLmJob(Job):
         }
 
     def tasks(self):
+        yield Task("create_files", mini_task=True)
         yield Task("run", rqmt=self.rqmt)
 
-    def _get_cmd(self) -> str:
-        """creates command string for the bash call"""
-        cmd = self.ngram_exe.get_path()
-        cmd += f" -order {self.ngram_order} -unk"
+    def create_files(self) -> str:
+        """creates bash script that will be executed in the run Task"""
+        cmd = [self.ngram_exe.get_path()]
+        cmd += [f" -order {self.ngram_order} -unk"]
 
         for i, lm in enumerate(self.ngram_lms):
             if i == 0:
-                c = f" -lm {lm.get_path()}"
+                c = [f" -lm {lm.get_path()}"]
             elif i == 1:
-                c = f" -mix-lm {lm.get_path()}"
+                c = [f" -mix-lm {lm.get_path()}"]
             else:
-                c = f" -mix-lm{i} {lm.get_path()}"
+                c = [f" -mix-lm{i} {lm.get_path()}"]
             cmd += c
 
         for i, lmbd in enumerate(self.weights):
             if i == 0:
-                c = f" -lambda {lmbd.get()}"
+                c = [f" -lambda {lmbd.get()}"]
             elif i == 1:
-                c = f""
+                c = [f""]
             else:
-                c = f" -mix-lambda{i} {lmbd.get()}"
+                c = [f" -mix-lambda{i} {lmbd.get()}"]
             cmd += c
-        cmd += " -write-lm interpolated.lm.gz"
+        cmd += [" -write-lm interpolated.lm.gz"]
 
-        return cmd
+        create_executable("run.sh", cmd)
 
     def run(self):
-        """delete the executable from the hashing"""
-        cmd = self._get_cmd()
-        subprocess.check_call(cmd)
+        """run the previously created bash script"""
+        subprocess.check_call("./run.sh")
         shutil.move("interpolated.lm.gz", self.out_interpolated_lm.get_path())
 
     @classmethod
