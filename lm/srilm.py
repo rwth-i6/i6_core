@@ -441,7 +441,7 @@ class InterpolateNgramLmJob(Job):
             if i == 0:
                 c = ["-lambda", str(lmbd.get())]
             elif i == 1:
-                c = [""]
+                c = []
             else:
                 c = [f"-mix-lambda{i}", str(lmbd.get())]
             cmd += c
