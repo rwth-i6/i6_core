@@ -450,7 +450,7 @@ class InterpolateNgramLmJob(Job):
         return cmd
 
     def run(self):
-        """run the previously created bash script"""
+        """run the command"""
         cmd = self._create_cmd()
         subprocess.check_call(cmd)
         shutil.move("interpolated.lm.gz", self.out_interpolated_lm.get_path())
