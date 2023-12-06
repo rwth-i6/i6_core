@@ -353,7 +353,7 @@ class ComputeBestMixJob(Job):
     def run(self):
         """Call the srilm script and extracts the different weights from the log, then relinks log to output folder"""
         cmd = self._create_cmd()
-        subprocess.check_call(cmd, stdout=open("cbm.log", "wb"), stderr=subprocess.STDOUT)
+        subprocess.check_call(cmd, stdout=open("cbm.log", "wt"), stderr=subprocess.STDOUT)
 
         lines = open("cbm.log", "rt").readlines()
         lbds = lines[-2].split("(")[1].replace(")", "")
