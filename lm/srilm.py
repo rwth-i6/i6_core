@@ -424,7 +424,7 @@ class InterpolateNgramLmJob(Job):
         yield Task("run", rqmt=self.rqmt)
 
     def _create_cmd(self) -> List[str]:
-        """creates bash script that will be executed in the run Task"""
+        """:return: the command"""
         cmd = [self.ngram_exe.get_path()]
         cmd += ["-order", str(self.ngram_order), "-unk"]
 
