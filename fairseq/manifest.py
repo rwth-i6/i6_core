@@ -1,4 +1,5 @@
 from collections import defaultdict
+import errno
 import glob
 import numpy as np
 import os
@@ -45,20 +46,22 @@ class MergeAudioDirsJob(Job):
             if self.path_must_contain and self.path_must_contain not in file:
                 continue
             base_name = os.path.basename(file)
+            creation_complete = False
             dst = os.path.join(self.out_audio_dir_path, base_name)
-            if not os.path.exists(dst) and os.path.realpath(dst) != file:
-                os.symlink(file, dst)
-            elif os.path.exists(dst) and os.path.realpath(dst) != file:
-                i = 2
-                new_dst = f"{os.path.splitext(dst)[0]}_{i}.{self.file_extension}"
-                while os.path.exists(new_dst):
-                    if os.path.realpath(new_dst) == file:
+            i = 2
+            while not creation_complete:
+                while os.path.exists(dst):
+                    if os.path.realpath(dst) == file:
                         break
-                    else:
-                        i += 1
-                    new_dst = f"{os.path.splitext(dst)[0]}_{i}.{self.file_extension}"
+                    dst = f"{os.path.splitext(dst)[0]}_{i}.{self.file_extension}"
+                    i += 1
                 else:
-                    os.symlink(file, new_dst)
+                    try:
+                        os.symlink(file, dst)
+                        creation_complete = True
+                    except OSError as err:
+                        if err.errno != errno.EEXIST:
+                            raise err
 
 
 class CreateManifestJob(Job):
