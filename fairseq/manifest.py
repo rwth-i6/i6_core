@@ -52,6 +52,7 @@ class MergeAudioDirsJob(Job):
             while not creation_complete:
                 while os.path.exists(dst):
                     if os.path.realpath(dst) == file:
+                        creation_complete = True
                         break
                     dst = f"{os.path.splitext(dst)[0]}_{i}.{self.file_extension}"
                     i += 1
