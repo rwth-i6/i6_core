@@ -57,7 +57,7 @@ class MergeAudioDirsJob(Job):
                     else:
                         i += 1
                     new_dst = f"{os.path.splitext(dst)[0]}_{i}.{self.file_extension}"
-                if not os.path.exists(dst) and os.path.realpath(new_dst) != file:
+                else:
                     os.symlink(file, new_dst)
 
 
