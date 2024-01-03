@@ -1,5 +1,6 @@
 __all__ = [
     "AverageTFCheckpointsJob",
+    "AverageTorchCheckpointsJob",
     "Checkpoint",
     "GetBestEpochJob",
     "GetBestTFCheckpointJob",
