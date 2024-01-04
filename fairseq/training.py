@@ -135,12 +135,7 @@ class FairseqHydraTrainingJob(Job):
         max_update=1,
         save_interval=1,
         keep_epochs=None,
-        rqmt={
-            "gpu": 1,
-            "cpu": 2,
-            "mem": 4,
-            "time": 4,
-        },
+        rqmt=None,
         fairseq_python_exe=None,
         fairseq_root,
         cache_manager=CacheManagerType.none,
@@ -215,7 +210,7 @@ class FairseqHydraTrainingJob(Job):
             "mem": 4,
             "time": 4,
         }
-        self.rqmt.update(rqmt)
+        self.rqmt.update(rqmt or {})
         self.gpu_rqmt = self.rqmt["gpu"]
         if self.gpu_rqmt > 1:
             self.rqmt["cpu"] *= self.gpu_rqmt
