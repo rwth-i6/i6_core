@@ -189,7 +189,7 @@ class ComputeNgramLmJob(Job):
         if self.vocab is None:
             relink("vocab", self.out_vocab.get_path())
         else:
-            relink(self.vocab.get_path(), self.out_vocab.get_path())
+            shutil.copy(self.vocab.get_path(), self.out_vocab.get_path())
 
     def compress(self):
         """executes the previously created compression script and relinks the lm from work folder to output folder"""
