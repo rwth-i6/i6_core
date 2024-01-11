@@ -1,6 +1,6 @@
 from sisyphus import Job, Task, tk
 
-from collections import OrderedDict
+from collections import Counter, OrderedDict
 from dataclasses import dataclass
 from typing import Optional, Union
 
@@ -146,3 +146,47 @@ class VocabularyFromLmJob(Job):
         with open(self.out_vocabulary.get_path(), "w") as fout:
             for word in sorted(vocabulary):
                 fout.write(f"{word}\n")
+
+
+class VocabularyFromTextJob(Job):
+    """
+    Extract vocabulary from given text files based on frequency.
+    """
+
+    def __init__(self, file_paths, size=1000000, counts=False):
+        """
+        :param List[Path] file_paths: paths to the text files
+        :param int size: expected size of the vocabulary
+        :param bool counts: whether write the counts of the words into the vocabulary file
+        """
+        self.file_paths = file_paths
+        self.size = size
+        self.counts = counts
+        self.out_vocabulary = self.output_path("vocabulary.txt")
+
+        self.rqmt = {"cpu": 1, "mem": 8, "time": 2}
+
+    def tasks(self):
+        yield Task("run", resume="run", rqmt=self.rqmt)
+
+    def run(self):
+        counter = Counter()
+
+        for file_path in self.file_paths:
+            try:
+                with uopen(file_path, "rt") as input_file:
+                    for line in input_file:
+                        words = line.strip().split()
+                        counter.update(words)
+            except IOError as e:
+                print(f"Error reading file {file_path}: {e}")
+
+        cutoff = min(self.size, len(counter))
+
+        with open(self.out_vocabulary, "w") as vocabulary:
+            if self.counts:
+                for index, (word, count) in enumerate(counter.most_common(cutoff)):
+                    vocabulary.write(f"{word} {count}\n")
+            else:
+                for word in counter.most_common(cutoff):
+                    vocabulary.write(f"{word[0]}\n")
