@@ -8,7 +8,7 @@ from sisyphus import Job, Task, tk
 
 from collections import Counter, OrderedDict
 from dataclasses import dataclass
-from typing import Optional, Union
+from typing import List, Optional, Union
 
 from i6_core.lib.lm import Lm
 from i6_core.lib.lexicon import Lexicon
@@ -159,15 +159,16 @@ class VocabularyFromTextJob(Job):
     Extract vocabulary from given text files based on frequency.
     """
 
-    def __init__(self, file_paths: List[tk.Path], size: int = 1000000, counts: bool = False):
+    def __init__(self, file_paths: List[tk.Path], num_words: int = 1_000_000, include_counts: bool = False):
         """
         :param file_paths: paths to the text files
-        :param size: expected size of the vocabulary
-        :param counts: whether write the counts of the words into the vocabulary file
+        :param num_words: expected size of the vocabulary
+        :param include_counts: whether write the counts of the words into the vocabulary file
         """
         self.file_paths = file_paths
-        self.size = size
-        self.counts = counts
+        self.num_words = num_words
+        self.include_counts = include_counts
+
         self.out_vocabulary = self.output_path("vocabulary.txt")
 
         self.rqmt = {"cpu": 1, "mem": 8, "time": 2}
@@ -179,20 +180,19 @@ class VocabularyFromTextJob(Job):
         counter = Counter()
 
         for file_path in self.file_paths:
-            try:
-                with uopen(file_path, "rt") as input_file:
-                    for line in input_file:
-                        words = line.strip().split()
-                        counter.update(words)
-            except IOError as e:
-                print(f"Error reading file {file_path}: {e}")
+            with uopen(file_path, "rt") as input_file:
+                for line in input_file:
+                    words = line.strip().split()
+                    counter.update(words)
 
-        cutoff = min(self.size, len(counter))
+        cutoff = min(self.num_words, len(counter))
 
         with open(self.out_vocabulary, "w") as vocabulary:
-            if self.counts:
-                for index, (word, count) in enumerate(counter.most_common(cutoff)):
+            if self.include_counts:
+                for (word, count) in counter.most_common(cutoff):
                     vocabulary.write(f"{word} {count}\n")
             else:
-                for word in counter.most_common(cutoff):
-                    vocabulary.write(f"{word[0]}\n")
+                for (word, _) in counter.most_common(cutoff):
+                    vocabulary.write(f"{word}\n")
+
+        return counter
