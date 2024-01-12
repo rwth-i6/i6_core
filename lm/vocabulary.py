@@ -162,7 +162,7 @@ class VocabularyFromTextJob(Job):
     def __init__(self, file_paths: List[tk.Path], size: int = 1000000, counts: bool = False):
         """
         :param file_paths: paths to the text files
-        :param int size: expected size of the vocabulary
+        :param size: expected size of the vocabulary
         :param bool counts: whether write the counts of the words into the vocabulary file
         """
         self.file_paths = file_paths
