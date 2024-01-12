@@ -163,7 +163,7 @@ class VocabularyFromTextJob(Job):
         """
         :param file_paths: paths to the text files
         :param size: expected size of the vocabulary
-        :param bool counts: whether write the counts of the words into the vocabulary file
+        :param counts: whether write the counts of the words into the vocabulary file
         """
         self.file_paths = file_paths
         self.size = size
