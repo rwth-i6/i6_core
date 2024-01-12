@@ -159,7 +159,7 @@ class VocabularyFromTextJob(Job):
     Extract vocabulary from given text files based on frequency.
     """
 
-    def __init__(self, file_paths, size=1000000, counts=False):
+    def __init__(self, file_paths: List[tk.Path], size: int = 1000000, counts: bool = False):
         """
         :param List[Path] file_paths: paths to the text files
         :param int size: expected size of the vocabulary
