@@ -159,17 +159,16 @@ class VocabularyFromTextJob(Job):
     Extract vocabulary from given text files based on frequency.
     """
 
-    def __init__(self, file_paths: List[tk.Path], num_words: int = 1_000_000, include_counts: bool = False):
+    def __init__(self, file_paths: List[tk.Path], num_words: int = 1_000_000):
         """
         :param file_paths: paths to the text files
         :param num_words: expected size of the vocabulary
-        :param include_counts: whether write the counts of the words into the vocabulary file
         """
         self.file_paths = file_paths
         self.num_words = num_words
-        self.include_counts = include_counts
 
         self.out_vocabulary = self.output_path("vocabulary.txt")
+        self.out_vocabulary_with_counts = self.output_path("vocabulary_with_counts.txt")
         self.out_counter = self.output_var("counter")
 
         self.rqmt = {"cpu": 1, "mem": 8, "time": 2}
@@ -188,12 +187,11 @@ class VocabularyFromTextJob(Job):
 
         cutoff = min(self.num_words, len(counter))
 
-        with open(self.out_vocabulary, "w") as vocabulary:
-            if self.include_counts:
-                for (word, count) in counter.most_common(cutoff):
-                    vocabulary.write(f"{word} {count}\n")
-            else:
-                for (word, _) in counter.most_common(cutoff):
-                    vocabulary.write(f"{word}\n")
+        with open(self.out_vocabulary, "w") as vocabulary, open(
+            self.out_vocabulary_with_counts, "w"
+        ) as vocabulary_with_counts:
+            for (word, count) in counter.most_common(cutoff):
+                vocabulary.write(f"{word}\n")
+                vocabulary_with_counts.write(f"{word} {count}\n")
 
         self.out_counter.set(counter)
