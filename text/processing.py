@@ -185,7 +185,7 @@ class HeadJob(Job):
         self.ratio = ratio
         self.zip_output = zip_output
 
-        self.out = self.output_path("out.gz")
+        self.out = self.output_path("out.gz") if self.zip_output else self.output_path("out")
         self.length = self.output_var("length")
 
     def tasks(self):
@@ -202,7 +202,7 @@ class HeadJob(Job):
         if self.ratio:
             assert not self.num_lines
             length = int(self.sh("zcat -f {text_file} | wc -l", True))
-            self.lines = int(length * self.ratio)
+            self.num_lines = int(length * self.ratio)
 
         pipeline = "zcat -f {text_file} | head -n {num_lines}"
         if self.zip_output:
@@ -223,11 +223,17 @@ class TailJob(HeadJob):
 
     def run(self):
         if self.ratio:
-            assert not self.lines
+            assert not self.num_lines
             length = int(self.sh("zcat -f {text_file} | wc -l", True))
-            self.lines = int(length * self.ratio)
+            self.num_lines = int(length * self.ratio)
 
-        self.sh("zcat -f {text_file} | tail -n {num_lines} | gzip > {out}")
+        pipeline = "zcat -f {text_file} | tail -n {num_lines}"
+        if self.zip_output:
+            pipeline += " | gzip"
+        pipeline += " > {out}"
+
+        self.sh(pipeline)
+        self.length.set(self.num_lines)
 
 
 class SetDifferenceJob(Job):
