@@ -1,8 +1,14 @@
+__all__ = [
+    "LmIndexVocabulary",
+    "LmIndexVocabularyFromLexiconJob",
+    "VocabularyFromLmJob",
+    "VocabularyFromTextJob",
+]
 from sisyphus import Job, Task, tk
 
-from collections import OrderedDict
+from collections import Counter, OrderedDict
 from dataclasses import dataclass
-from typing import Optional, Union
+from typing import List, Optional, Union
 
 from i6_core.lib.lm import Lm
 from i6_core.lib.lexicon import Lexicon
@@ -146,3 +152,46 @@ class VocabularyFromLmJob(Job):
         with open(self.out_vocabulary.get_path(), "w") as fout:
             for word in sorted(vocabulary):
                 fout.write(f"{word}\n")
+
+
+class VocabularyFromTextJob(Job):
+    """
+    Extract vocabulary from given text files based on frequency.
+    """
+
+    def __init__(self, file_paths: List[tk.Path], num_words: int = 1_000_000):
+        """
+        :param file_paths: paths to the text files
+        :param num_words: expected size of the vocabulary
+        """
+        self.file_paths = file_paths
+        self.num_words = num_words
+
+        self.out_vocabulary = self.output_path("vocabulary.txt")
+        self.out_vocabulary_with_counts = self.output_path("vocabulary_with_counts.txt")
+        self.out_counter = self.output_var("counter")
+
+        self.rqmt = {"cpu": 1, "mem": 8, "time": 2}
+
+    def tasks(self):
+        yield Task("run", resume="run", rqmt=self.rqmt)
+
+    def run(self):
+        counter = Counter()
+
+        for file_path in self.file_paths:
+            with uopen(file_path, "rt") as input_file:
+                for line in input_file:
+                    words = line.strip().split()
+                    counter.update(words)
+
+        cutoff = min(self.num_words, len(counter))
+
+        with open(self.out_vocabulary, "w") as vocabulary, open(
+            self.out_vocabulary_with_counts, "w"
+        ) as vocabulary_with_counts:
+            for (word, count) in counter.most_common(cutoff):
+                vocabulary.write(f"{word}\n")
+                vocabulary_with_counts.write(f"{word} {count}\n")
+
+        self.out_counter.set(counter)
