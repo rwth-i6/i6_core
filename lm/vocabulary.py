@@ -196,4 +196,4 @@ class VocabularyFromTextJob(Job):
                 for (word, _) in counter.most_common(cutoff):
                     vocabulary.write(f"{word}\n")
 
-        return counter
+        self.out_counter.set(counter)
