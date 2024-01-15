@@ -170,6 +170,7 @@ class VocabularyFromTextJob(Job):
         self.include_counts = include_counts
 
         self.out_vocabulary = self.output_path("vocabulary.txt")
+        self.out_counter = self.output_var("counter")
 
         self.rqmt = {"cpu": 1, "mem": 8, "time": 2}
 
