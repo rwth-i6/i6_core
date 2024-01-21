@@ -345,7 +345,7 @@ class SearchBPEtoWordsJob(Job):
         yield Task("run", mini_task=True)
 
     def run(self):
-        d = eval(util.uopen(self.search_py_output, "rt").read())
+        d = eval(util.uopen(self.search_py_output, "rt").read(), {"nan": float("nan"), "inf": float("inf")})
         assert isinstance(d, dict)  # seq_tag -> bpe string
         assert not os.path.exists(self.out_word_search_results.get_path())
         with util.uopen(self.out_word_search_results, "wt") as out:
@@ -357,7 +357,7 @@ class SearchBPEtoWordsJob(Job):
                     seq_tag = tag_split[0] + "/" + recording_name + "/" + segment_name
                 if isinstance(entry, list):
                     # n-best list as [(score, text), ...]
-                    out.write("%r: [\n" % (seq_tag))
+                    out.write("%r: [\n" % (seq_tag,))
                     for score, text in entry:
                         out.write("(%f, %r),\n" % (score, text.replace("@@ ", "")))
                     out.write("],\n")
@@ -496,7 +496,7 @@ class SearchTakeBestJob(Job):
 
     def run(self):
         """run"""
-        d = eval(util.uopen(self.search_py_output, "rt").read())
+        d = eval(util.uopen(self.search_py_output, "rt").read(), {"nan": float("nan"), "inf": float("inf")})
         assert isinstance(d, dict)  # seq_tag -> bpe string
         assert not os.path.exists(self.out_best_search_results.get_path())
         with util.uopen(self.out_best_search_results, "wt") as out:
@@ -535,7 +535,7 @@ class SearchRemoveLabelJob(Job):
 
     def run(self):
         """run"""
-        d = eval(util.uopen(self.search_py_output, "rt").read())
+        d = eval(util.uopen(self.search_py_output, "rt").read(), {"nan": float("nan"), "inf": float("inf")})
         assert isinstance(d, dict)  # seq_tag -> bpe string
         assert not os.path.exists(self.out_search_results.get_path())
         with util.uopen(self.out_search_results, "wt") as out:
@@ -594,7 +594,7 @@ class SearchBeamJoinScoresJob(Job):
             lsp = numpy.log(sum(numpy.exp(a - a_max) for a in args))
             return a_max + lsp
 
-        d = eval(util.uopen(self.search_py_output, "rt").read())
+        d = eval(util.uopen(self.search_py_output, "rt").read(), {"nan": float("nan"), "inf": float("inf")})
         assert isinstance(d, dict)  # seq_tag -> bpe string
         assert not os.path.exists(self.out_search_results.get_path())
         with util.uopen(self.out_search_results, "wt") as out:
