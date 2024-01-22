@@ -82,6 +82,7 @@ class BlissFfmpegJob(Job):
         hash_binary: bool = False,
         ffmpeg_input_options: Optional[List[str]] = None,
         error_threshold: int = 0,
+        cpu_rqmt: int = 9,
     ):
         """
 
@@ -94,6 +95,7 @@ class BlissFfmpegJob(Job):
                             in which case the binary needs to be hashed
         :param ffmpeg_input_options: list of ffmpeg parameters thare are applied for reading the input files
         :param error_threshold: Allow upto this many files to fail conversion before failing this job
+        :param cpu_rqmt: number of cpu cores to use
         """
         self.corpus_file = corpus_file
         self.ffmpeg_input_options = ffmpeg_input_options
@@ -113,7 +115,7 @@ class BlissFfmpegJob(Job):
             self.out_failed_files = self.output_path("failed_files.txt")
 
         # e.g. 1 core for python and 4x2 cores for ffmpeg, one for input processing and one for output processing
-        self.rqmt = {"time": 4, "cpu": 9, "mem": 8}
+        self.rqmt = {"time": 4, "cpu": cpu_rqmt, "mem": 8}
 
     def tasks(self):
         yield Task("run", rqmt=self.rqmt)
@@ -221,4 +223,5 @@ class BlissFfmpegJob(Job):
             d.pop("ffmpeg_binary")
         if kwargs["error_threshold"] == 0:
             d.pop("error_threshold")
+        d.pop("cpu_rqmt")
         return super().hash(d)
