@@ -82,7 +82,7 @@ class BlissFfmpegJob(Job):
         hash_binary: bool = False,
         ffmpeg_input_options: Optional[List[str]] = None,
         error_threshold: int = 0,
-        cpu_rqmt: int = 9,
+        cpu_rqmt: int = 5,
     ):
         """
 
