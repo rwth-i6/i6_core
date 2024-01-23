@@ -15,7 +15,7 @@ class CloneGitRepositoryJob(Job):
     Clone a git repository given optional branch name and commit hash
     """
 
-    __sis_hash_exclude__ = {"clone_submodules": False, "files_to_checkout": None}
+    __sis_hash_exclude__ = {"clone_submodules": False, "files_to_checkout": None, "patches": None}
 
     def __init__(
         self,
@@ -25,6 +25,7 @@ class CloneGitRepositoryJob(Job):
         checkout_folder_name: str = "repository",
         clone_submodules: bool = False,
         files_to_checkout: Optional[List[str]] = None,
+        patches: Optional[List[str]] = None,
     ):
         """
 
@@ -33,13 +34,16 @@ class CloneGitRepositoryJob(Job):
         :param commit: Git commit hash
         :param checkout_folder_name: Name of the output path repository folder
         :param clone_submodules: Flag to clone submodules if set to True
-        :param files_to_checkout: List of files to be checked out sparsely. If not set, the entire repo is checked out (default behaviour).
+        :param files_to_checkout: List of files to be checked out sparsely.
+            If not set, the entire repo is checked out (default behaviour).
+        :param patches: List of git patch strings to apply after cloning.
         """
         self.url = url
         self.branch = branch
         self.commit = commit
         self.clone_submodules = clone_submodules
         self.files_to_checkout = files_to_checkout
+        self.patches = patches
 
         self.out_repository = self.output_path(checkout_folder_name, True)
 
@@ -74,6 +78,11 @@ class CloneGitRepositoryJob(Job):
             args = ["git", "checkout", self.commit]
             logging.info("running command: %s" % " ".join(args))
             sp.run(args, cwd=repository_dir, check=True)
+        if self.patches is not None:
+            for patch in self.patches:
+                args = ["git", "apply", "-"]
+                logging.info(f"running command: {' '.join(args)} with patch\n{patch}")
+                sp.run(args, input=patch, text=True, cwd=repository_dir, check=True)
 
         if self.clone_submodules:
             args = ["git", "submodule", "update", "--init", "--recursive"]
