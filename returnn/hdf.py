@@ -1,4 +1,6 @@
-__all__ = ["ReturnnDumpHDFJob", "ReturnnRasrDumpHDFJob", "BlissToPcmHDFJob", "RasrAlignmentDumpHDFJob"]
+__all__ = [
+    "ReturnnDumpHDFJob", "ReturnnRasrDumpHDFJob", "BlissToPcmHDFJob", "RasrFeatureDumpHDFJob", "RasrAlignmentDumpHDFJob"
+]
 
 from dataclasses import dataclass
 from enum import Enum, auto
@@ -315,6 +317,112 @@ class BlissToPcmHDFJob(Job):
             audio.close()
 
         out_hdf.close()
+
+
+class RasrFeatureDumpHDFJob(Job):
+    """
+    This Job reads Rasr feature caches and dump them in hdf files.
+    """
+
+    def __init__(
+        self,
+        feature_caches: List[tk.Path],
+        data_type: type = np.float32,
+        returnn_root: Optional[tk.Path] = None,
+        encoding: str = "ascii",
+        filter_list_keep: Optional[tk.Path] = None,
+    ):
+        """
+        :param feature_caches: e.g. output of an FeatureExtractionJob
+        :param data_type: type that is used to store the data
+        :param returnn_root: file path to the RETURNN repository root folder
+        :param encoding: encoding of the segment names in the cache
+        :param filter_list_keep: list of segment names to dump
+        """
+        self.feature_caches = feature_caches
+        self.data_type = data_type
+        self.returnn_root = returnn_root
+        self.encoding = encoding
+        self.filter_list_keep = filter_list_keep
+
+        self.out_hdf_files = [self.output_path(f"data.hdf.{d}") for d in range(len(feature_caches))]
+        self.out_excluded_segments = self.output_path(f"excluded.segments")
+
+        self.rqmt = {"cpu": 1, "mem": 8, "time": 0.5}
+
+    def tasks(self):
+        yield Task("run", rqmt=self.rqmt, args=range(1, (len(self.feature_caches) + 1)))
+        yield Task("merge", mini_task=True)
+
+    def merge(self):
+        excluded_segments = []
+        excluded_files = glob.glob("excluded_segments.*")
+        for p in excluded_files:
+            if os.path.isfile(p):
+                with open(p, "r") as f:
+                    segments = f.read().splitlines()
+                excluded_segments.extend(segments)
+
+        write_paths_to_file(self.out_excluded_segments, excluded_segments)
+
+    def run(self, task_id):
+        feature_cache = FileArchive(self.feature_caches[task_id - 1].get_path(), encoding=self.encoding)
+        if self.filter_list_keep is not None:
+            keep_segments = set(open(self.filter_list_keep.get_path()).read().splitlines())
+        else:
+            keep_segments = None
+
+        # get feature_dim
+        feature = None
+        for file in feature_cache.ft:
+            info = feature_cache.ft[file]
+            seq_name = info.name
+
+            if seq_name.endswith(".attribs"):
+                continue
+
+            feature = feature_cache.read(file, "feat")  # (list[time stamps], list[feature frames])
+            break
+        assert feature is not None
+        feature_dim = feature[1][0].size
+
+        returnn_root = None if self.returnn_root is None else self.returnn_root.get_path()
+        SimpleHDFWriter = get_returnn_simple_hdf_writer(returnn_root)
+        out_hdf = SimpleHDFWriter(
+            filename=self.out_hdf_files[task_id - 1],
+            dim=feature_dim,
+            ndim=2,
+        )
+
+        excluded_segments = []
+
+        for file in feature_cache.ft:
+            info = feature_cache.ft[file]
+            seq_name = info.name
+
+            if seq_name.endswith(".attribs"):
+                continue
+            if keep_segments is not None and seq_name not in keep_segments:
+                excluded_segments.append(seq_name)
+                continue
+
+            # feature
+            feature = feature_cache.read(file, "feat")[1]
+            if not len(feature):
+                excluded_segments.append(seq_name)
+                continue
+
+            data = np.array(feature).astype(np.dtype(self.data_type))
+            out_hdf.insert_batch(
+                inputs=data.reshape(1, -1, feature_dim),
+                seq_len=[data.shape[0]],
+                seq_tag=[seq_name],
+            )
+
+        out_hdf.close()
+
+        if len(excluded_segments):
+            write_paths_to_file(f"excluded_segments.{task_id}", excluded_segments)
 
 
 class RasrAlignmentDumpHDFJob(Job):
