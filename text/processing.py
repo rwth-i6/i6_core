@@ -186,6 +186,7 @@ class HeadJob(Job):
         self.zip_output = zip_output
 
         self.out = self.output_path("out.gz") if self.zip_output else self.output_path("out")
+        self.out.hash_overwrite = (self, "out.gz")
         self.length = self.output_var("length")
 
     def tasks(self):
