@@ -9,6 +9,7 @@ __all__ = [
 
 import os
 from collections.abc import Iterable
+from typing import List
 
 from sisyphus import Job, Task, Path, global_settings as gs
 from sisyphus.delayed_ops import DelayedBase
@@ -121,11 +122,11 @@ class ConcatenateJob(Job):
 
     __sis_hash_exclude = {"zip_out": True, "out_name": "out"}
 
-    def __init__(self, text_files, zip_out=True, out_name="out"):
+    def __init__(self, text_files: List[Path], zip_out: bool = True, out_name: str = "out"):
         """
-        :param list[Path] text_files: input text files
-        :param bool zip_out: apply gzip to the output
-        :param str out_name: user specific name
+        :param text_files: input text files
+        :param zip_out: apply gzip to the output
+        :param out_name: user specific name
         """
         assert text_files
 
@@ -136,6 +137,12 @@ class ConcatenateJob(Job):
 
         assert isinstance(text_files, list)
 
+        for input in text_files:
+            assert isinstance(input, Path) or isinstance(input, str), "input to Concatenate is not a valid path"
+
+        self.text_files = text_files
+        self.zip_out = zip_out
+
         # Skip this job if only one input is present
         if len(text_files) == 1:
             self.out = text_files.pop()
@@ -145,17 +152,13 @@ class ConcatenateJob(Job):
             else:
                 self.out = self.output_path(out_name)
 
-        for input in text_files:
-            assert isinstance(input, Path) or isinstance(input, str), "input to Concatenate is not a valid path"
-
-        self.text_files = text_files
-        self.zip_out = zip_out
-
     def tasks(self):
         yield Task("run", rqmt={"mem": 3, "time": 3})
 
     def run(self):
-        self.f_list = " ".join(gs.file_caching(str(i)) for i in self.text_files)
+        self.f_list = " ".join(
+            gs.file_caching(text_file) if isinstance(text_file, str) else text_file.get_cached_path()
+            for text_file in self.text_files)
         if self.zip_out:
             self.sh("zcat -f {f_list} | gzip > {out}")
         else:
