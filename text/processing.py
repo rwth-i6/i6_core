@@ -158,7 +158,8 @@ class ConcatenateJob(Job):
     def run(self):
         self.f_list = " ".join(
             gs.file_caching(text_file) if isinstance(text_file, str) else text_file.get_cached_path()
-            for text_file in self.text_files)
+            for text_file in self.text_files
+        )
         if self.zip_out:
             self.sh("zcat -f {f_list} | gzip > {out}")
         else:
