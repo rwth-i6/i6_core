@@ -1,5 +1,9 @@
 __all__ = [
-    "ReturnnDumpHDFJob", "ReturnnRasrDumpHDFJob", "BlissToPcmHDFJob", "RasrFeatureDumpHDFJob", "RasrAlignmentDumpHDFJob"
+    "ReturnnDumpHDFJob",
+    "ReturnnRasrDumpHDFJob",
+    "BlissToPcmHDFJob",
+    "RasrFeatureDumpHDFJob",
+    "RasrAlignmentDumpHDFJob",
 ]
 
 from dataclasses import dataclass
