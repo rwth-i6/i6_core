@@ -325,7 +325,7 @@ class BlissToPcmHDFJob(Job):
 
 class RasrFeatureDumpHDFJob(Job):
     """
-    This Job reads Rasr feature caches and dump them in hdf files.
+    This Job reads Rasr feature caches and dumps them in hdf files.
     """
 
     def __init__(
@@ -337,7 +337,7 @@ class RasrFeatureDumpHDFJob(Job):
         filter_list_keep: Optional[tk.Path] = None,
     ):
         """
-        :param feature_caches: e.g. output of an FeatureExtractionJob
+        :param feature_caches: e.g. output of a FeatureExtractionJob
         :param data_type: type that is used to store the data
         :param returnn_root: file path to the RETURNN repository root folder
         :param encoding: encoding of the segment names in the cache
@@ -431,7 +431,7 @@ class RasrFeatureDumpHDFJob(Job):
 
 class RasrAlignmentDumpHDFJob(Job):
     """
-    This Job reads Rasr alignment caches and dump them in hdf files.
+    This Job reads Rasr alignment caches and dumps them in hdf files.
     """
 
     __sis_hash_exclude__ = {"encoding": "ascii", "filter_list_keep": None, "sparse": False}
