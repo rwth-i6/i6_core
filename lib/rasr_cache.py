@@ -323,7 +323,8 @@ class FileArchive:
 
         if typ == "str":
             return self.read_str(size, self.encoding)
-
+        elif typ == "bytes":
+            return self.read_bytes(size)
         elif typ == "feat":
             type_len = self.read_U32()
             typ = self.read_str(type_len)
@@ -337,7 +338,6 @@ class FileArchive:
                 data[i] = self.read_v("f", size)  # size x f32
                 time_[i] = self.read_v("d", 2)  # 2    x f64
             return time_, data
-
         elif typ in ["align", "align_raw"]:
             type_len = self.read_U32()
             file_typ = self.read_str(type_len)
@@ -408,6 +408,8 @@ class FileArchive:
                     return alignment
             else:
                 raise Exception("No valid alignment header found (found: %r). Wrong cache?" % typ)
+        else:
+            raise NotImplementedError(f"Archive type '{typ}' is not yet implemented")
 
     def has_entry(self, filename):
         """
