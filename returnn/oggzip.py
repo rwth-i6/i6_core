@@ -118,15 +118,15 @@ class BlissToOggZipJob(Job):
             args.extend(["--no_ogg"])
         elif self.no_conversion:
             args.extend(["--no_conversion"])
-        elif self.ffmpeg_acodec:
-            args.extend(["--ffmpeg_acodec", self.ffmpeg_acodec])
         else:
-            if self.rasr_cache is not None:
-                args.extend(["--sprint_cache", tk.uncached_path(self.rasr_cache)])
             if self.raw_sample_rate is not None:
                 args.extend(["--raw_sample_rate", str(self.raw_sample_rate)])
             if self.feat_sample_rate is not None:
                 args.extend(["--feat_sample_rate", str(self.feat_sample_rate)])
+            if self.rasr_cache is not None:
+                args.extend(["--sprint_cache", tk.uncached_path(self.rasr_cache)])
+            if self.ffmpeg_acodec:
+                args.extend(["--ffmpeg_acodec", self.ffmpeg_acodec])
 
         sp.check_call(args)
         if self.concurrent == 1:
