@@ -29,7 +29,7 @@ def test_create_bpe_lexicon():
             bpe_vocab=bpe_vocab,
             subword_nmt_repo=subword_nmt_job.out_repository,
             unk_label="<unk>",
-            vocab_blacklist={"<s>", "</s>"},
+            vocab_blacklist={"<unk>", "<s>", "</s>"},
             keep_special_lemmas=True,
         )
         create_bpe_lexicon_job.out_lexicon = Path(os.path.join(tmpdir, "out_lexicon.xml"))
@@ -44,7 +44,7 @@ def test_create_bpe_lexicon():
             bpe_vocab=bpe_vocab,
             subword_nmt_repo=subword_nmt_job.out_repository,
             unk_label="<unk>",
-            vocab_blacklist={"<s>", "</s>"},
+            vocab_blacklist={"<unk>", "<s>", "</s>"},
             keep_special_lemmas=False,
         )
         create_bpe_lexicon_job.out_lexicon = Path(os.path.join(tmpdir, "out_lexicon.xml"))

@@ -34,7 +34,7 @@ class CreateBPELexiconJob(Job):
         :param bpe_codes: bpe codes from the ReturnnTrainBPEJob
         :param bpe_vocab: vocab file to limit which bpe splits can be created
         :param subword_nmt_repo: cloned repository
-        :param unk_label: unknown label if
+        :param unk_label: unknown label, used in case a BPE token is created that is not in the vocab.
         :param vocab_blacklist: which bpe_vocab entries not to load into the "phoneme/bpe-token" inventory
             e.g. remove "<s>" and "</s>"
         :param keep_special_lemmas: If special lemmas should be kept,
@@ -85,7 +85,7 @@ class CreateBPELexiconJob(Job):
                 if line == "{" or line == "}":
                     continue
                 symbol = line.split(":")[0][1:-1]
-                if symbol != self.unk_label and symbol not in self.vocab_blacklist:
+                if symbol not in self.vocab_blacklist:
                     # Fake count vocab filled with -1 so that all merges possible are done
                     vocab_file.write(symbol + " -1\n")
                     symbol = symbol.replace(".", "_")
