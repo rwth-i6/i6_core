@@ -119,12 +119,12 @@ class BlissToOggZipJob(Job):
         elif self.no_conversion:
             args.extend(["--no_conversion"])
         else:
+            if self.rasr_cache is not None:
+                args.extend(["--sprint_cache", tk.uncached_path(self.rasr_cache)])
             if self.raw_sample_rate is not None:
                 args.extend(["--raw_sample_rate", str(self.raw_sample_rate)])
             if self.feat_sample_rate is not None:
                 args.extend(["--feat_sample_rate", str(self.feat_sample_rate)])
-            if self.rasr_cache is not None:
-                args.extend(["--sprint_cache", tk.uncached_path(self.rasr_cache)])
             if self.ffmpeg_acodec:
                 args.extend(["--ffmpeg_acodec", self.ffmpeg_acodec])
 
