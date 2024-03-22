@@ -14,7 +14,7 @@ import i6_core.util as util
 
 class CreateBPELexiconJob(Job):
     """
-    Create a Bliss lexicon from bpe transcriptions that can be used e.g, for lexicon constrained BPE search.
+    In a Bliss lexicon replace the phonetic representation with a BPE decomposition of the words that can be used e.g, for lexicon constrained BPE search.
 
     This job is still in experimental state, and only tested with Flashlight BPE decoding
     """
@@ -45,12 +45,11 @@ class CreateBPELexiconJob(Job):
         self.bpe_vocab = bpe_vocab
         self.subword_nmt_repo = subword_nmt_repo
         self.unk_label = unk_label
-        self.vocab_blacklist = vocab_blacklist
-        if self.vocab_blacklist is None:
+        if vocab_blacklist is None:
             self.vocab_blacklist = set()
         else:
             # convert list to set for faster "in" check
-            self.vocab_blacklist = set(self.vocab_blacklist)
+            self.vocab_blacklist = set(vocab_blacklist)
         self.keep_special_lemmas = keep_special_lemmas
 
         self.out_lexicon = self.output_path("lexicon.xml.gz", cached=True)
@@ -73,7 +72,7 @@ class CreateBPELexiconJob(Job):
             else:
                 special_lemmas.append(l)
 
-        lm_tokens = sorted(list(lm_tokens))
+        lm_tokens = sorted(lm_tokens)
         return lm_tokens, special_lemmas
 
     def _fill_vocab_and_lexicon(self):
