@@ -116,7 +116,6 @@ class DiscountNgramsJob(Job):
         self.ngram_order = ngram_order
         self.counts = counts
         self.vocab = vocab
-        self.opt_discount_data = opt_discount_data
         self.count_exe = count_exe
         self.discount_args = extra_discount_args
 
