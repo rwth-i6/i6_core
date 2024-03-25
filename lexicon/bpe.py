@@ -38,7 +38,9 @@ class CreateBPELexiconJob(Job):
         :param vocab_blacklist: which bpe_vocab entries not to load into the "phoneme/bpe-token" inventory
             e.g. remove "<s>" and "</s>"
         :param keep_special_lemmas: If special lemmas should be kept,
-            usually yes for RASR search and no for Flashlight search
+            usually yes for RASR search and no for Flashlight search.
+            The phonemes of the special lemmas will also be kept, therefore
+            make sure there is no overlap with the BPE vocab.
         """
         self.base_lexicon_path = base_lexicon_path
         self.bpe_codes = bpe_codes
