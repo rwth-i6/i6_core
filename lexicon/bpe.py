@@ -6,7 +6,7 @@ import sys
 from typing import List, Optional, Set, Union
 import xml.etree.ElementTree as ET
 
-from sisyphus import Job, Task, tk, setup_path
+from sisyphus import Job, Task, tk
 
 from i6_core.lib.lexicon import Lexicon, Lemma
 import i6_core.util as util
@@ -60,20 +60,14 @@ class CreateBPELexiconJob(Job):
     def _fill_lm_tokens(self, base_lexicon: Lexicon):
         lm_tokens = set()
         special_lemmas = []
-        for l in base_lexicon.lemmata:
-            if l.special is None:
-                for orth in l.orth:
+        for lemma in base_lexicon.lemmata:
+            if lemma.special is None:
+                for orth in lemma.orth:
                     lm_tokens.add(orth)
-                for token in l.synt or []:  # l.synt can be None
-                    lm_tokens.add(token)
-                for eval in l.eval:
-                    for t in eval:
-                        lm_tokens.add(t)
             else:
-                special_lemmas.append(l)
+                special_lemmas.append(lemma)
 
-        lm_tokens = sorted(lm_tokens)
-        return lm_tokens, special_lemmas
+        return sorted(lm_tokens), special_lemmas
 
     def _fill_vocab_and_lexicon(self):
         lexicon = Lexicon()
@@ -108,8 +102,9 @@ class CreateBPELexiconJob(Job):
         # add special lemmas back to lexicon
         if self.keep_special_lemmas is True:
             for special_lemma in special_lemmas:
-                for phon in special_lemma.phon:
-                    lexicon.add_phoneme(phon, variation="none")
+                for pronunciation_variant in special_lemma.phon:
+                    for phoneme in pronunciation_variant.split():
+                        lexicon.add_phoneme(phoneme, variation=base_lexicon.phonemes[phoneme])
                 lexicon.add_lemma(special_lemma)
 
         apply_binary = os.path.join(self.subword_nmt_repo.get_path(), "apply_bpe.py")
@@ -127,14 +122,17 @@ class CreateBPELexiconJob(Job):
         ]
         sp.run(args, check=True)
 
-        with util.uopen("bpes", "rt") as f:
-            bpe_tokens = [l.strip() for l in f]
+        with util.uopen("bpes", "rt") as bpe_file:
+            bpe_tokens = [line.strip() for line in bpe_file]
 
         w2b = {w: b for w, b in zip(lm_tokens, bpe_tokens)}
 
-        for w, b in w2b.items():
-            b = " ".join([token if token in vocab else self.unk_label for token in b.split()])
-            lexicon.add_lemma(Lemma([w], [b.replace(".", "_")]))
+        for lemma in base_lexicon.lemmata:
+            if lemma.special:
+                continue
+            for orth in lemma.orth:
+                bpe_pron = " ".join([token if token in vocab else self.unk_label for token in w2b[orth].split()])
+                lexicon.add_lemma(Lemma([orth], [bpe_pron.replace(".", "_")], lemma.synt, lemma.eval))
 
         elem = lexicon.to_xml()
         tree = ET.ElementTree(elem)
