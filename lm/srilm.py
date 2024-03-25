@@ -1,5 +1,6 @@
 __all__ = [
     "CountNgramsJob",
+    "DiscountNgramsJob",
     "ComputeNgramLmJob",
     "ComputeNgramLmPerplexityJob",
     "ComputeBestMixJob",
@@ -70,7 +71,7 @@ class CountNgramsJob(Job):
     def create_files(self):
         """creates bash script that will be executed in the run Task"""
         cmd = [
-            f"{self.count_exe} \\\n",
+            f"{self.count_exe.get_path()} \\\n",
             f"  -text {self.data.get_path()} \\\n",
             f"  -order {self.ngram_order} \\\n",
             f"  -write counts \\\n",
@@ -83,6 +84,79 @@ class CountNgramsJob(Job):
         """executes the previously created bash script and relinks outputs from work folder to output folder"""
         subprocess.check_call("./run.sh")
         relink("counts", self.out_counts.get_path())
+
+    @classmethod
+    def hash(cls, kwargs):
+        """delete the queue requirements from the hashing"""
+        del kwargs["mem_rqmt"]
+        del kwargs["cpu_rqmt"]
+        del kwargs["time_rqmt"]
+        del kwargs["fs_rqmt"]
+        return super().hash(kwargs)
+
+
+class DiscountNgramsJob(Job):
+    """
+    Create a file with the discounted ngrams with SRILM
+    """
+
+    def __init__(
+        self,
+        ngram_order: int,
+        counts: tk.Path,
+        vocab: tk.Path,
+        count_exe: tk.Path,
+        *,
+        opt_discount_data: Optional[tk.Path] = None,
+        extra_discount_args: Optional[List[str]] = None,
+        cpu_rqmt: int = 1,
+        mem_rqmt: int = 48,
+        time_rqmt: float = 24,
+        fs_rqmt: str = "100G",
+    ):
+        self.ngram_order = ngram_order
+        self.counts = counts
+        self.vocab = vocab
+        self.opt_discount_data = opt_discount_data
+        self.count_exe = count_exe
+        self.discount_args = extra_discount_args
+
+        self.out_discounts = self.output_path("discounts", cached=True)
+
+        self.rqmt_run = {
+            "cpu": cpu_rqmt,
+            "mem": mem_rqmt,
+            "time": time_rqmt,
+            "qsub_args": f"-l h_fsize={fs_rqmt}",
+        }
+
+    def tasks(self):
+        yield Task("create_files", mini_task=True)
+        yield Task("run", rqmt=self.rqmt_run)
+
+    def create_files(self):
+        """creates bash script to compute discounts"""
+        cmd = [
+            f"{self.count_exe.get_path()} \\\n",
+            f"  -order {self.ngram_order} \\\n",
+            f"  -vocab {self.vocab.get_cached_path()} \\\n",
+        ]
+
+        if self.opt_discount_data is not None:
+            cmd.append(f"  -optimize-discounts {self.opt_discount_data.get_cached_path()} \\\n")
+
+        cmd += [
+            f"  -kn discounts",
+            f"  -read {self.counts.get_cached_path()} \\\n",
+            f"  {' '.join(self.discount_args)} -memuse\n",
+        ]
+
+        create_executable("run.sh", cmd)
+
+    def run(self):
+        """executes the previously created bash script and relinks outputs from work folder to output folder"""
+        subprocess.check_call("./run.sh")
+        relink("discounts", self.out_discounts.get_path())
 
     @classmethod
     def hash(cls, kwargs):
@@ -111,6 +185,7 @@ class ComputeNgramLmJob(Job):
         count_exe: tk.Path,
         *,
         vocab: Optional[tk.Path] = None,
+        discounts: Optional[tk.Path] = None,
         extra_ngram_args: Optional[List[str]] = None,
         mem_rqmt: int = 48,
         time_rqmt: float = 24,
@@ -137,6 +212,7 @@ class ComputeNgramLmJob(Job):
         self.data = data
         self.data_mode = data_mode
         self.vocab = vocab
+        self.discounts = discounts
         self.ngram_args = extra_ngram_args if extra_ngram_args is not None else []
 
         self.count_exe = count_exe
@@ -178,6 +254,12 @@ class ComputeNgramLmJob(Job):
             f"{vocab_str}",
             f"  -order {self.ngram_order} \\\n",
             f"  -lm ngram.lm \\\n",
+        ]
+
+        if self.discounts is not None:
+            cmd.append(f"  -kn {self.discounts.get_path()}")
+
+        cmd += [
             f"  {' '.join(self.ngram_args)} -unk -memuse\n",
         ]
         create_executable("run.sh", cmd)
