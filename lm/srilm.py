@@ -107,7 +107,6 @@ class DiscountNgramsJob(Job):
         vocab: tk.Path,
         count_exe: tk.Path,
         *,
-        opt_discount_data: Optional[tk.Path] = None,
         extra_discount_args: Optional[List[str]] = None,
         cpu_rqmt: int = 1,
         mem_rqmt: int = 48,
@@ -141,9 +140,6 @@ class DiscountNgramsJob(Job):
             f"  -order {self.ngram_order} \\\n",
             f"  -vocab {self.vocab.get_cached_path()} \\\n",
         ]
-
-        if self.opt_discount_data is not None:
-            cmd.append(f"  -optimize-discounts {self.opt_discount_data.get_cached_path()} \\\n")
 
         cmd += [
             f"  -kn discounts",
