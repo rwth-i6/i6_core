@@ -2,6 +2,14 @@
 <lexicon>
   <phoneme-inventory>
     <phoneme>
+      <symbol>[SILENCE]</symbol>
+      <variation>none</variation>
+    </phoneme>
+    <phoneme>
+      <symbol>[UNKNOWN]</symbol>
+      <variation>none</variation>
+    </phoneme>
+    <phoneme>
       <symbol>AA</symbol>
       <variation>context</variation>
     </phoneme>
@@ -172,9 +180,22 @@
   </lemma>
   <lemma special="unknown">
     <orth>[UNKNOWN]</orth>
+    <phon>[UNKNOWN]</phon>
     <synt>
       <tok>&lt;unk&gt;</tok>
     </synt>
+  </lemma>
+  <lemma special="silence">
+    <orth>[SILENCE]</orth>
+    <orth/>
+    <phon>[SILENCE]</phon>
+    <eval/>
+  </lemma>
+  <lemma special="nonsense">
+    <orth>[EXCLAMATION]</orth>
+    <phon>AH Y AH</phon>
+    <phon>UW [SILENCE] UW</phon>
+    <eval/>
   </lemma>
   <lemma>
     <orth>A</orth>
@@ -197,6 +218,10 @@
   <lemma>
     <orth>DINNERTIME</orth>
     <phon>D IH N ER T AY M</phon>
+    <synt>
+      <tok>DINNER</tok>
+      <tok>TIME</tok>
+    </synt>
   </lemma>
   <lemma>
     <orth>EBONY</orth>
@@ -207,12 +232,18 @@
     <phon>IH NG G AH L B ER OW</phon>
   </lemma>
   <lemma>
+    <orth>NEW YORK</orth>
+    <phon>N UW Y AO R K</phon>
+  </lemma>
+  <lemma>
     <orth>POMMES</orth>
     <phon>P AA M Z</phon>
+    <eval><tok>FRIES</tok></eval>
   </lemma>
   <lemma>
     <orth>REMORSEFUL</orth>
     <phon>R IH M AO R S F AH L</phon>
+    <eval/>
   </lemma>
   <lemma>
     <orth>SENTIMENTAL</orth>

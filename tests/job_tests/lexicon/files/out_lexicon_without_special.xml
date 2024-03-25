@@ -1437,6 +1437,10 @@
   <lemma>
     <orth>DINNERTIME</orth>
     <phon>D@@ IN@@ N@@ ER@@ TIME</phon>
+    <synt>
+      <tok>DINNER</tok>
+      <tok>TIME</tok>
+    </synt>
   </lemma>
   <lemma>
     <orth>EBONY</orth>
@@ -1447,12 +1451,20 @@
     <phon>ING@@ LE@@ B@@ OR@@ OUGH</phon>
   </lemma>
   <lemma>
+    <orth>NEW YORK</orth>
+    <phon>NE@@ W Y@@ OR@@ K</phon>
+  </lemma>
+  <lemma>
     <orth>POMMES</orth>
     <phon>PO@@ M@@ M@@ ES</phon>
+    <eval>
+      <tok>FRIES</tok>
+    </eval>
   </lemma>
   <lemma>
     <orth>REMORSEFUL</orth>
     <phon>RE@@ MOR@@ SE@@ FU@@ L</phon>
+    <eval/>
   </lemma>
   <lemma>
     <orth>SENTIMENTAL</orth>

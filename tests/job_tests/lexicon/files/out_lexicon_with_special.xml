@@ -1417,6 +1417,22 @@
       <symbol>Q@@</symbol>
       <variation>context</variation>
     </phoneme>
+    <phoneme>
+      <symbol>[UNKNOWN]</symbol>
+      <variation>none</variation>
+    </phoneme>
+    <phoneme>
+      <symbol>[SILENCE]</symbol>
+      <variation>none</variation>
+    </phoneme>
+    <phoneme>
+      <symbol>AH</symbol>
+      <variation>context</variation>
+    </phoneme>
+    <phoneme>
+      <symbol>UW</symbol>
+      <variation>context</variation>
+    </phoneme>
   </phoneme-inventory>
   <lemma special="sentence-begin">
     <orth>[SENTENCE-BEGIN]</orth>
@@ -1432,9 +1448,22 @@
   </lemma>
   <lemma special="unknown">
     <orth>[UNKNOWN]</orth>
+    <phon>[UNKNOWN]</phon>
     <synt>
       <tok>&lt;unk&gt;</tok>
     </synt>
+  </lemma>
+  <lemma special="silence">
+    <orth>[SILENCE]</orth>
+    <orth/>
+    <phon>[SILENCE]</phon>
+    <eval/>
+  </lemma>
+  <lemma special="nonsense">
+    <orth>[EXCLAMATION]</orth>
+    <phon>AH Y AH</phon>
+    <phon>UW [SILENCE] UW</phon>
+    <eval/>
   </lemma>
   <lemma>
     <orth>A</orth>
@@ -1455,6 +1484,10 @@
   <lemma>
     <orth>DINNERTIME</orth>
     <phon>D@@ IN@@ N@@ ER@@ TIME</phon>
+    <synt>
+      <tok>DINNER</tok>
+      <tok>TIME</tok>
+    </synt>
   </lemma>
   <lemma>
     <orth>EBONY</orth>
@@ -1465,12 +1498,20 @@
     <phon>ING@@ LE@@ B@@ OR@@ OUGH</phon>
   </lemma>
   <lemma>
+    <orth>NEW YORK</orth>
+    <phon>NE@@ W Y@@ OR@@ K</phon>
+  </lemma>
+  <lemma>
     <orth>POMMES</orth>
     <phon>PO@@ M@@ M@@ ES</phon>
+    <eval>
+      <tok>FRIES</tok>
+    </eval>
   </lemma>
   <lemma>
     <orth>REMORSEFUL</orth>
     <phon>RE@@ MOR@@ SE@@ FU@@ L</phon>
+    <eval/>
   </lemma>
   <lemma>
     <orth>SENTIMENTAL</orth>
