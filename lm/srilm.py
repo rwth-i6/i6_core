@@ -113,6 +113,17 @@ class DiscountNgramsJob(Job):
         time_rqmt: float = 24,
         fs_rqmt: str = "100G",
     ):
+        """
+        :param ngram_order: order of the ngram counts, typically 3 or 4.
+        :param counts: file with the ngram counts, see  :class:`CountNgramsJob.out_counts`.
+        :param vocab: vocabulary file for the discounting.
+        :param count_exe: path to the binary.
+        :param extra_discount_args: additional arguments for the discounting step.
+        :param cpu_rqmt: CPU requirements.
+        :param mem_rqmt: memory requirements.
+        :param time_rqmt: time requirements.
+        :param fs_rqmt: file size requirements.
+        """
         self.ngram_order = ngram_order
         self.counts = counts
         self.vocab = vocab
