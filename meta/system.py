@@ -323,14 +323,15 @@ class System:
         self.add_derivatives(corpus, "mfcc", num_deriv, num_features)
         self.add_derivatives(corpus, "uncached_mfcc", num_deriv, num_features)
 
-    def fb_features(self, corpus: str, **kwargs):
+    def fb_features(self, corpus: str, prefix: str = "", **kwargs):
         """
         :param corpus:
         :param kwargs:
+        :param prefix:
         :return:
         """
         self.jobs[corpus]["fb_features"] = f = features.FilterbankJob(self.crp[corpus], **kwargs)
-        f.add_alias("%s_fb_features" % corpus)
+        f.add_alias("%s%s_fb_features" % (prefix, corpus))
         self.feature_caches[corpus]["fb"] = f.out_feature_path["fb"]
         self.feature_bundles[corpus]["fb"] = f.out_feature_bundle["fb"]
 
