@@ -143,8 +143,12 @@ class DiscountNgramsJob(Job):
         cmd += [
             f"  -kn discounts",
             f"  -read {self.counts.get_cached_path()} \\\n",
-            f"  {' '.join(self.discount_args)} -memuse\n",
         ]
+
+        if self.discount_args is not None:
+            cmd += [
+                f"  {' '.join(self.discount_args)} -memuse\n",
+            ]
 
         create_executable("run.sh", cmd)
 
