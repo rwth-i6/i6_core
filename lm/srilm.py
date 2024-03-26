@@ -117,7 +117,7 @@ class DiscountNgramsJob(Job):
         self.counts = counts
         self.vocab = vocab
         self.count_exe = count_exe
-        self.discount_args = extra_discount_args
+        self.discount_args = extra_discount_args or []
 
         self.out_discounts = self.output_path("discounts", cached=True)
 
@@ -138,17 +138,10 @@ class DiscountNgramsJob(Job):
             f"{self.count_exe.get_path()} \\\n",
             f"  -order {self.ngram_order} \\\n",
             f"  -vocab {self.vocab.get_cached_path()} \\\n",
-        ]
-
-        cmd += [
             f"  -kn discounts",
             f"  -read {self.counts.get_cached_path()} \\\n",
+            f"  {' '.join(self.discount_args)} -memuse\n",
         ]
-
-        if self.discount_args is not None:
-            cmd += [
-                f"  {' '.join(self.discount_args)} -memuse\n",
-            ]
 
         create_executable("run.sh", cmd)
 
