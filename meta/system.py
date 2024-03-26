@@ -331,7 +331,7 @@ class System:
         :return:
         """
         self.jobs[corpus]["fb_features"] = f = features.FilterbankJob(self.crp[corpus], **kwargs)
-        f.add_alias("%s%s_fb_features"  % (prefix, corpus))
+        f.add_alias("%s%s_fb_features" % (prefix, corpus))
         self.feature_caches[corpus]["fb"] = f.out_feature_path["fb"]
         self.feature_bundles[corpus]["fb"] = f.out_feature_bundle["fb"]
 
