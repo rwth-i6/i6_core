@@ -1,4 +1,4 @@
-__all__ = ["DownloadTEDLIUM2CorpusJob", "CreateTEDLIUM2BlissCorpusJob"]
+__all__ = ["DownloadTEDLIUM2CorpusJob", "CreateTEDLIUM2BlissCorpusJob", "CreateTEDLIUM2BlissCorpusJobV2"]
 
 import os
 import re
@@ -214,3 +214,63 @@ class CreateTEDLIUM2BlissCorpusJob(Job):
                 text = " ".join(tokens[6:])
                 data.append([rec_name, channel, spk_name, start, end, gender, text])
         return data
+
+
+class CreateTEDLIUM2BlissCorpusJobV2(CreateTEDLIUM2BlissCorpusJob):
+    """
+    It has the same logic as CreateTEDLIUM2BlissCorpusJob but the corpus name is distinct for each partition
+    """
+
+    def __init__(self, corpus_folders):
+        super().__init__(corpus_folders)
+
+    def make_corpus(self):
+        """
+        create bliss corpus from stm file (always include speakers)
+        """
+        for corpus_key in ["train", "dev", "test"]:
+            audio_dir = os.path.join(self.corpus_folders[corpus_key].get_path(), "sph")
+            stm_file = self.out_stm_files[corpus_key].get_path()
+            data = self.load_stm_data(stm_file)
+
+            c = corpus.Corpus()
+            c.name = f"TED-LIUM-2-{corpus_key}"
+
+            speakers = []
+            last_rec_name = ""
+            recording = None
+            for seg in data:
+                rec_name, channel, spk_name, start, end, gender, text = seg
+
+                if not spk_name in speakers:
+                    speakers.append(spk_name)
+                    speaker = corpus.Speaker()
+                    speaker.name = spk_name
+                    if "female" in gender:
+                        speaker.attribs["gender"] = "female"
+                    elif "male" in gender:
+                        speaker.attribs["gender"] = "male"
+                    c.add_speaker(speaker)
+
+                if rec_name != last_rec_name:
+                    if recording:
+                        c.add_recording(recording)
+                    recording = corpus.Recording()
+                    recording.name = rec_name
+                    recording.audio = os.path.join(audio_dir, "%s.sph" % rec_name)
+                    last_rec_name = rec_name
+                    seg_id = 1
+
+                segment = corpus.Segment()
+                segment.name = str(seg_id)
+                segment.start = float(start)
+                segment.end = float(end)
+                segment.speaker_name = spk_name
+                segment.orth = text
+
+                recording.add_segment(segment)
+                seg_id += 1
+
+            # add final recording
+            c.add_recording(recording)
+            c.dump(self.out_corpus_files[corpus_key].get_path())
