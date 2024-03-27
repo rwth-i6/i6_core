@@ -64,8 +64,7 @@ class CreateBPELexiconJob(Job):
         special_lemmas = []
         for lemma in base_lexicon.lemmata:
             if lemma.special is None:
-                for orth in lemma.orth:
-                    lm_tokens.add(orth)
+                lm_tokens.update(lemma.orth)
             else:
                 special_lemmas.append(lemma)
 
