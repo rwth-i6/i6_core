@@ -78,6 +78,7 @@ class CreateBPELexiconJob(Job):
                 line = line.strip()
                 if line == "{" or line == "}":
                     continue
+                # a line is e.g. '"phon": 0,' and we want to get 'phon' only
                 symbol = line.split(":")[0][1:-1]
                 if symbol not in self.vocab_blacklist:
                     # Fake count vocab filled with -1 so that all merges possible are done
