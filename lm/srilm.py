@@ -115,7 +115,7 @@ class DiscountNgramsJob(Job):
     ):
         """
         :param ngram_order: order of the ngram counts, typically 3 or 4.
-        :param counts: file with the ngram counts, see  :class:`CountNgramsJob.out_counts`.
+        :param counts: file with the ngram counts, see :class:`CountNgramsJob.out_counts`.
         :param vocab: vocabulary file for the discounting.
         :param count_exe: path to the binary.
         :param extra_discount_args: additional arguments for the discounting step.
@@ -180,6 +180,8 @@ class ComputeNgramLmJob(Job):
     """
     Generate count based LM with SRILM
     """
+
+    __sis_hash_exclude__ = {"discounts": None}
 
     class DataMode(Enum):
         TEXT = 1
