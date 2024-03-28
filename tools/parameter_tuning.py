@@ -28,7 +28,6 @@ class PickOptimalParametersJob(Job):
         self.parameters = parameters
         self.values = values
         self.mode = mode
-        self.num_values = len(values)
         self.num_parameters = len(parameters[0])
 
         self.out_optimal_parameters = [self.output_var("param_%i" % i, pickle=True) for i in range(self.num_parameters)]
