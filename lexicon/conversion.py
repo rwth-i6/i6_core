@@ -485,3 +485,35 @@ class SpellingConversionJob(Job):
             logging.info("-" * 60)
 
         write_xml(self.out_bliss_lexicon.get_path(), lex.to_xml())
+
+
+class BlissLexiconToLineBasedLexiconJob(Job):
+    """
+    Extract all orth and phone pairs and write them in a line-based file with space separation.
+    Will crash deliberately when an orth entry contains spaces.
+
+    Can be used e.g. for Torchaudio / Flashlight Decoder.
+    """
+
+    def __init__(self, bliss_lexicon: tk.Path):
+        """
+        :param bliss_lexicon: bliss xml lexicon file
+        """
+        self.bliss_lexicon = bliss_lexicon
+
+        self.out_lexicon = self.output_path("lexicon.txt")
+
+    def tasks(self):
+        yield Task("run", mini_task=True)
+
+    def run(self):
+        lex = lexicon.Lexicon()
+        lex.load(self.bliss_lexicon.get_path())
+
+        with open(self.out_lexicon.get_path(), "w") as word_file:
+            for lemma in lex.lemmata:
+                for orth in lemma.orth:
+                    assert not " " in orth, "orth may not contain spaces"
+                    for phon in lemma.phon:
+                        if len(phon) > 0 and len(orth) > 0:  # we can have empty phonemes or orth
+                            word_file.write(f"{orth} {phon}\n")
