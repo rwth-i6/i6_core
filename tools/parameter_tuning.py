@@ -22,10 +22,14 @@ class GetOptimalParametersAsVariableJob(Job):
         mode: Union[Literal["maximize"], Literal["minimize"]],
     ):
         """
-        :param parameters: a row / column matrix of parameters, where the best row should be selected
-        :param values: sequence of tk.Variables with the same length as row, containing int or float.
-            Used to determine the best row of parameters.
-            Some calculations might be done using DelayedOps math beforehand.
+        :param parameters: parameters[best_idx] will be written to self.out_optimal_parameters
+             as Sisyphus output variables.
+             parameters[best_idx] (and thus self.out_optimal_parameters) is a sequence of fixed length,
+             to allow to index into it.
+             Thus, len(parameters[i]) must be the same for all i.
+        :param values: best_idx = argmax(values) or argmin(values).
+              Must have len(values) == len(parameters).
+              Some calculations might be done using DelayedOps math beforehand.
         :param mode: "minimize" or "maximize"
         """
         assert len(parameters) == len(values)
