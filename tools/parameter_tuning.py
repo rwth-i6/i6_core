@@ -1,5 +1,5 @@
 from sisyphus import Job, Task, tk
-from typing import Any, Sequence
+from typing import Any, Literal, Sequence, Union
 
 import numpy as np
 
@@ -14,11 +14,17 @@ class PickOptimalParametersJob(Job):
     Can be used to e.g. pick best lm-scale and prior scale to a corresponding ScliteJob.out_wer.
     """
 
-    def __init__(self, parameters: Sequence[Sequence[Any]], values: Sequence[tk.Variable], mode):
+    def __init__(
+        self,
+        parameters: Sequence[Sequence[Any]],
+        values: Sequence[tk.Variable],
+        mode: Union[Literal["maximize"], Literal["minimize"]],
+    ):
         """
         :param parameters: a row / column matrix of parameters, where the best row should be selected
-        :param values: list of tk.Variables containing int or float, used to determine the best
-            row of parameters. Some calculations might be done using DelayedOps math beforehand.
+        :param values: sequence of tk.Variables with the same length as row, containing int or float.
+            Used to determine the best row of parameters.
+            Some calculations might be done using DelayedOps math beforehand.
         :param mode: "minimize" or "maximize"
         """
         assert len(parameters) == len(values)
