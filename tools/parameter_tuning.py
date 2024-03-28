@@ -1,5 +1,5 @@
 from sisyphus import Job, Task, tk
-from typing import Any, List, Tuple
+from typing import Any, Sequence
 
 import numpy as np
 
@@ -8,14 +8,17 @@ from i6_core.util import instanciate_delayed
 
 class PickOptimalParametersJob(Job):
     """
-    Pick a set of optimal pickleable parameters based on their assigned (dynamic) score value.
+    Pick a set of optimal parameters based on their assigned (dynamic) score value.
+    Each optimal parameter is outputted individually to be accessible in the Sisyphus manager.
+
+    Can be used to e.g. pick best lm-scale and prior scale to a corresponding ScliteJob.out_wer.
     """
 
-    def __init__(self, parameters: List[Tuple[Any]], values: List[tk.Variable], mode="minimize"):
+    def __init__(self, parameters: Sequence[Sequence[Any]], values: Sequence[tk.Variable], mode):
         """
-        :param parameters: list of tuples of parameters, must be pickleable
+        :param parameters: a row / column matrix of parameters, where the best row should be selected
         :param values: list of tk.Variables containing int or float, used to determine the best
-            set of parameters. Some calculations might be done using DelayedOps math.
+            row of parameters. Some calculations might be done using DelayedOps math beforehand.
         :param mode: "minimize" or "maximize"
         """
         assert len(parameters) == len(values)
