@@ -16,6 +16,7 @@ class GetOptimalParametersAsVariableJob(Job):
 
     def __init__(
         self,
+        *,
         parameters: Sequence[Sequence[Any]],
         values: Sequence[tk.Variable],
         mode: Union[Literal["maximize"], Literal["minimize"]],
