@@ -6,7 +6,7 @@ import numpy as np
 from i6_core.util import instanciate_delayed
 
 
-class PickOptimalParametersJob(Job):
+class GetOptimalParametersAsVariableJob(Job):
     """
     Pick a set of optimal parameters based on their assigned (dynamic) score value.
     Each optimal parameter is outputted individually to be accessible in the Sisyphus manager.
