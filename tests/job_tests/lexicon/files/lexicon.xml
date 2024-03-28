@@ -1,0 +1,260 @@
+<?xml version="1.0" ?>
+<lexicon>
+  <phoneme-inventory>
+    <phoneme>
+      <symbol>[SILENCE]</symbol>
+      <variation>none</variation>
+    </phoneme>
+    <phoneme>
+      <symbol>[UNKNOWN]</symbol>
+      <variation>none</variation>
+    </phoneme>
+    <phoneme>
+      <symbol>AA</symbol>
+      <variation>context</variation>
+    </phoneme>
+    <phoneme>
+      <symbol>AE</symbol>
+      <variation>context</variation>
+    </phoneme>
+    <phoneme>
+      <symbol>AH</symbol>
+      <variation>context</variation>
+    </phoneme>
+    <phoneme>
+      <symbol>AO</symbol>
+      <variation>context</variation>
+    </phoneme>
+    <phoneme>
+      <symbol>AW</symbol>
+      <variation>context</variation>
+    </phoneme>
+    <phoneme>
+      <symbol>AY</symbol>
+      <variation>context</variation>
+    </phoneme>
+    <phoneme>
+      <symbol>B</symbol>
+      <variation>context</variation>
+    </phoneme>
+    <phoneme>
+      <symbol>CH</symbol>
+      <variation>context</variation>
+    </phoneme>
+    <phoneme>
+      <symbol>D</symbol>
+      <variation>context</variation>
+    </phoneme>
+    <phoneme>
+      <symbol>DH</symbol>
+      <variation>context</variation>
+    </phoneme>
+    <phoneme>
+      <symbol>EH</symbol>
+      <variation>context</variation>
+    </phoneme>
+    <phoneme>
+      <symbol>ER</symbol>
+      <variation>context</variation>
+    </phoneme>
+    <phoneme>
+      <symbol>EY</symbol>
+      <variation>context</variation>
+    </phoneme>
+    <phoneme>
+      <symbol>F</symbol>
+      <variation>context</variation>
+    </phoneme>
+    <phoneme>
+      <symbol>G</symbol>
+      <variation>context</variation>
+    </phoneme>
+    <phoneme>
+      <symbol>HH</symbol>
+      <variation>context</variation>
+    </phoneme>
+    <phoneme>
+      <symbol>IH</symbol>
+      <variation>context</variation>
+    </phoneme>
+    <phoneme>
+      <symbol>IY</symbol>
+      <variation>context</variation>
+    </phoneme>
+    <phoneme>
+      <symbol>JH</symbol>
+      <variation>context</variation>
+    </phoneme>
+    <phoneme>
+      <symbol>K</symbol>
+      <variation>context</variation>
+    </phoneme>
+    <phoneme>
+      <symbol>L</symbol>
+      <variation>context</variation>
+    </phoneme>
+    <phoneme>
+      <symbol>M</symbol>
+      <variation>context</variation>
+    </phoneme>
+    <phoneme>
+      <symbol>N</symbol>
+      <variation>context</variation>
+    </phoneme>
+    <phoneme>
+      <symbol>NG</symbol>
+      <variation>context</variation>
+    </phoneme>
+    <phoneme>
+      <symbol>OW</symbol>
+      <variation>context</variation>
+    </phoneme>
+    <phoneme>
+      <symbol>OY</symbol>
+      <variation>context</variation>
+    </phoneme>
+    <phoneme>
+      <symbol>P</symbol>
+      <variation>context</variation>
+    </phoneme>
+    <phoneme>
+      <symbol>R</symbol>
+      <variation>context</variation>
+    </phoneme>
+    <phoneme>
+      <symbol>S</symbol>
+      <variation>context</variation>
+    </phoneme>
+    <phoneme>
+      <symbol>SH</symbol>
+      <variation>context</variation>
+    </phoneme>
+    <phoneme>
+      <symbol>T</symbol>
+      <variation>context</variation>
+    </phoneme>
+    <phoneme>
+      <symbol>TH</symbol>
+      <variation>context</variation>
+    </phoneme>
+    <phoneme>
+      <symbol>UH</symbol>
+      <variation>context</variation>
+    </phoneme>
+    <phoneme>
+      <symbol>UW</symbol>
+      <variation>context</variation>
+    </phoneme>
+    <phoneme>
+      <symbol>V</symbol>
+      <variation>context</variation>
+    </phoneme>
+    <phoneme>
+      <symbol>W</symbol>
+      <variation>context</variation>
+    </phoneme>
+    <phoneme>
+      <symbol>Y</symbol>
+      <variation>context</variation>
+    </phoneme>
+    <phoneme>
+      <symbol>Z</symbol>
+      <variation>context</variation>
+    </phoneme>
+    <phoneme>
+      <symbol>ZH</symbol>
+      <variation>context</variation>
+    </phoneme>
+  </phoneme-inventory>
+  <lemma special="sentence-begin">
+    <orth>[SENTENCE-BEGIN]</orth>
+    <synt>
+      <tok>&lt;s&gt;</tok>
+    </synt>
+  </lemma>
+  <lemma special="sentence-end">
+    <orth>[SENTENCE-END]</orth>
+    <synt>
+      <tok>&lt;/s&gt;</tok>
+    </synt>
+  </lemma>
+  <lemma special="unknown">
+    <orth>[UNKNOWN]</orth>
+    <phon>[UNKNOWN]</phon>
+    <synt>
+      <tok>&lt;unk&gt;</tok>
+    </synt>
+  </lemma>
+  <lemma special="silence">
+    <orth>[SILENCE]</orth>
+    <orth/>
+    <phon>[SILENCE]</phon>
+    <eval/>
+  </lemma>
+  <lemma special="nonsense">
+    <orth>[EXCLAMATION]</orth>
+    <phon>AH Y AH</phon>
+    <phon>UW [SILENCE] UW</phon>
+    <eval/>
+  </lemma>
+  <lemma>
+    <orth>A</orth>
+    <phon>AH</phon>
+    <phon>EY</phon>
+  </lemma>
+  <lemma>
+    <orth>ABANDONING</orth>
+    <phon>AH B AE N D AH N IH NG</phon>
+  </lemma>
+  <lemma>
+    <orth>BACKLOG</orth>
+    <phon>B AE K L AA G</phon>
+    <phon>B AE K L AO G</phon>
+  </lemma>
+  <lemma>
+    <orth>CENTERING</orth>
+    <phon>S EH N T ER IH NG</phon>
+  </lemma>
+  <lemma>
+    <orth>DINNERTIME</orth>
+    <phon>D IH N ER T AY M</phon>
+    <synt>
+      <tok>DINNER</tok>
+      <tok>TIME</tok>
+    </synt>
+  </lemma>
+  <lemma>
+    <orth>EBONY</orth>
+    <phon>EH B AH N IY</phon>
+  </lemma>
+  <lemma>
+    <orth>INGLEBOROUGH</orth>
+    <phon>IH NG G AH L B ER OW</phon>
+  </lemma>
+  <lemma>
+    <orth>NEW YORK</orth>
+    <phon>N UW Y AO R K</phon>
+  </lemma>
+  <lemma>
+    <orth>POMMES</orth>
+    <phon>P AA M Z</phon>
+    <eval><tok>FRIES</tok></eval>
+  </lemma>
+  <lemma>
+    <orth>REMORSEFUL</orth>
+    <phon>R IH M AO R S F AH L</phon>
+    <eval/>
+  </lemma>
+  <lemma>
+    <orth>SENTIMENTAL</orth>
+    <phon>S EH N AH M EH N AH L</phon>
+    <phon>S EH N AH M EH N T AH L</phon>
+    <phon>S EH N T AH M EH N AH L</phon>
+    <phon>S EH N T AH M EH N T AH L</phon>
+  </lemma>
+  <lemma>
+    <orth>THEORY</orth>
+    <phon>TH IH R IY</phon>
+    <phon>TH IY ER IY</phon>
+  </lemma>
+</lexicon>
