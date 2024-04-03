@@ -349,7 +349,6 @@ class ReturnnConfig:
 
         # list of parameters that should never be hashed
         disallowed_in_config = [
-            "cleanup_old_models",
             "log_verbosity",
         ]
         for key in disallowed_in_config:
