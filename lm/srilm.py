@@ -108,6 +108,7 @@ class DiscountNgramsJob(Job):
         *,
         vocab: Optional[tk.Path] = None,
         extra_discount_args: Optional[List[str]] = None,
+        use_modified_srilm: bool = False,
         cpu_rqmt: int = 1,
         mem_rqmt: int = 48,
         time_rqmt: float = 24,
@@ -119,6 +120,7 @@ class DiscountNgramsJob(Job):
         :param vocab: vocabulary file for the discounting.
         :param count_exe: path to the binary.
         :param extra_discount_args: additional arguments for the discounting step.
+        :param use_modified_srilm: use the modified SRILM version.
         :param cpu_rqmt: CPU requirements.
         :param mem_rqmt: memory requirements.
         :param time_rqmt: time requirements.
@@ -127,8 +129,10 @@ class DiscountNgramsJob(Job):
         self.ngram_order = ngram_order
         self.counts = counts
         self.vocab = vocab
-        self.count_exe = count_exe
         self.discount_args = extra_discount_args or []
+        self.use_modified_srilm = use_modified_srilm
+
+        self.count_exe = count_exe
 
         self.out_discounts = self.output_path("discounts", cached=True)
 
@@ -153,8 +157,8 @@ class DiscountNgramsJob(Job):
             cmd += [
                 f"  -vocab {self.vocab.get_cached_path()} \\\n",
             ]
+        cmd += ["  -kn discounts"] if not self.use_modified_srilm else [f"  -multi-kn-file discounts"]
         cmd += [
-            f"  -kn discounts",
             f"  -read {self.counts.get_cached_path()} \\\n",
             f"  {' '.join(self.discount_args)} -memuse\n",
         ]
@@ -181,7 +185,10 @@ class ComputeNgramLmJob(Job):
     Generate count based LM with SRILM
     """
 
-    __sis_hash_exclude__ = {"discounts": None}
+    __sis_hash_exclude__ = {
+        "discounts": None,
+        "use_modified_srilm": False,
+    }
 
     class DataMode(Enum):
         TEXT = 1
@@ -197,6 +204,7 @@ class ComputeNgramLmJob(Job):
         vocab: Optional[tk.Path] = None,
         discounts: Optional[tk.Path] = None,
         extra_ngram_args: Optional[List[str]] = None,
+        use_modified_srilm: bool = False,
         mem_rqmt: int = 48,
         time_rqmt: float = 24,
         cpu_rqmt: int = 1,
@@ -209,6 +217,7 @@ class ComputeNgramLmJob(Job):
         :param data_mode: Defines whether input format is text based or count based
         :param vocab: Vocabulary file, one word per line
         :param extra_ngram_args: Extra arguments for the execution call e.g. ['-kndiscount']
+        :param use_modified_srilm: use the modified SRILM version.
         :param count_exe: Path to srilm ngram-count exe
         :param mem_rqmt: Memory requirements of Job (not hashed)
         :param time_rqmt: Time requirements of Job (not hashed)
@@ -224,6 +233,7 @@ class ComputeNgramLmJob(Job):
         self.vocab = vocab
         self.discounts = discounts
         self.ngram_args = extra_ngram_args if extra_ngram_args is not None else []
+        self.use_modified_srilm = use_modified_srilm
 
         self.count_exe = count_exe
 
@@ -267,7 +277,10 @@ class ComputeNgramLmJob(Job):
         ]
 
         if self.discounts is not None:
-            cmd.append(f"  -kn {self.discounts.get_path()}")
+            if not self.use_modified_srilm:
+                cmd.append("  -kn discounts")
+            else:
+                cmd.append(f"  -multi-kn-file {self.discounts.get_path()}")
 
         cmd += [
             f"  {' '.join(self.ngram_args)} -unk -memuse\n",
