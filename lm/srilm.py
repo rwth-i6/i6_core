@@ -157,7 +157,7 @@ class DiscountNgramsJob(Job):
             cmd += [
                 f"  -vocab {self.vocab.get_cached_path()} \\\n",
             ]
-        cmd += ["  -kn discounts"] if not self.use_modified_srilm else [f"  -multi-kn-file discounts"]
+        cmd += ["  -kn discounts\\\n"] if not self.use_modified_srilm else [f"  -multi-kn-file discounts\\\n"]
         cmd += [
             f"  -read {self.counts.get_cached_path()} \\\n",
             f"  {' '.join(self.discount_args)} -memuse\n",
@@ -278,9 +278,9 @@ class ComputeNgramLmJob(Job):
 
         if self.discounts is not None:
             if not self.use_modified_srilm:
-                cmd.append(f"  -kn {self.discounts.get_path()}")
+                cmd.append(f"  -kn {self.discounts.get_path()}\\\n")
             else:
-                cmd.append(f"  -multi-kn-file {self.discounts.get_path()}")
+                cmd.append(f"  -multi-kn-file {self.discounts.get_path()}\\\n")
 
         cmd += [
             f"  {' '.join(self.ngram_args)} -unk -memuse\n",
