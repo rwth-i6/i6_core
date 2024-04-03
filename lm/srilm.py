@@ -278,7 +278,7 @@ class ComputeNgramLmJob(Job):
 
         if self.discounts is not None:
             if not self.use_modified_srilm:
-                cmd.append("  -kn discounts")
+                cmd.append(f"  -kn {self.discounts.get_path()}")
             else:
                 cmd.append(f"  -multi-kn-file {self.discounts.get_path()}")
 
