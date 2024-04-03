@@ -461,7 +461,7 @@ class ComputeBestMixJob(Job):
         subprocess.check_call(cmd, stdout=open("cbm.log", "wb"), stderr=subprocess.STDOUT)
 
         lines = open("cbm.log", "rt").readlines()
-        lbds = lines[-2].split("(")[1].replace(")", "")
+        lbds = lines[-2].split("(")[1].split(")")[0]
         lbds = lbds.split()
 
         for i, v in enumerate(lbds):
