@@ -392,7 +392,7 @@ class SpellingConversionJob(Job):
                         source_orth, target_orth = target_orth, source_orth
                     mapping[source_orth] = target_orth
         num_mappings = len(mapping)
-        logging.info("A total of {} word mapping paris".format(num_mappings))
+        logging.info("A total of {} word mapping pairs".format(num_mappings))
 
         # compile mapping patterns from extra mapping_rules
         mapping_patterns = []
@@ -448,6 +448,8 @@ class SpellingConversionJob(Job):
 
         # spelling conversion
         for source_orth, target_orth in mapping.items():
+            if source_orth == target_orth:
+                continue
             target_lemma = orth2lemma.get(target_orth, None)
             source_lemma = orth2lemma.get(source_orth, None)
             if target_lemma:
