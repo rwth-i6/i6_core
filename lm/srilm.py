@@ -120,8 +120,8 @@ class DiscountNgramsJob(Job):
         :param vocab: vocabulary file for the discounting.
         :param count_exe: path to the binary.
         :param extra_discount_args: additional arguments for the discounting step.
-        :param use_modified_srilm: use the modified SRILM version.
-                                   The SRILM binary ngram-count was modified at i6.
+        :param use_modified_srilm: Use the i6 modified SRILM version by Sundermeyer.
+                                   The SRILM binary ngram-count was modified.
                                    This version is currently only available internally.
         :param cpu_rqmt: CPU requirements.
         :param mem_rqmt: memory requirements.
@@ -220,8 +220,8 @@ class ComputeNgramLmJob(Job):
         :param vocab: Vocabulary file, one word per line
         :param discounts: Discounting file from :class:`DiscountNgramsJob`.
         :param extra_ngram_args: Extra arguments for the execution call e.g. ['-kndiscount']
-        :param use_modified_srilm: Use the modified SRILM version.
-                                   The SRILM binary ngram-count was modified at i6.
+        :param use_modified_srilm: Use the i6 modified SRILM version by Sundermeyer.
+                                   The SRILM binary ngram-count was modified.
                                    This version is currently only available internally.
         :param count_exe: Path to srilm ngram-count exe
         :param mem_rqmt: Memory requirements of Job (not hashed)
