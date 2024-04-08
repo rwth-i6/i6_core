@@ -216,6 +216,7 @@ class ComputeNgramLmJob(Job):
                      the counts file can come from the `CountNgramsJob.out_counts`
         :param data_mode: Defines whether input format is text based or count based
         :param vocab: Vocabulary file, one word per line
+        :param discounts: Discounting file from :class:`DiscountNgramsJob`.
         :param extra_ngram_args: Extra arguments for the execution call e.g. ['-kndiscount']
         :param use_modified_srilm: use the modified SRILM version.
         :param count_exe: Path to srilm ngram-count exe
