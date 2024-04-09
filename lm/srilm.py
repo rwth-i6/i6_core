@@ -112,7 +112,6 @@ class DiscountNgramsJob(Job):
         cpu_rqmt: int = 1,
         mem_rqmt: int = 48,
         time_rqmt: float = 24,
-        fs_rqmt: str = "100G",
     ):
         """
         :param ngram_order: order of the ngram counts, typically 3 or 4.
@@ -126,7 +125,6 @@ class DiscountNgramsJob(Job):
         :param cpu_rqmt: CPU requirements.
         :param mem_rqmt: memory requirements.
         :param time_rqmt: time requirements.
-        :param fs_rqmt: file size requirements.
         """
         self.ngram_order = ngram_order
         self.counts = counts
@@ -142,7 +140,6 @@ class DiscountNgramsJob(Job):
             "cpu": cpu_rqmt,
             "mem": mem_rqmt,
             "time": time_rqmt,
-            "qsub_args": f"-l h_fsize={fs_rqmt}",
         }
 
     def tasks(self):
@@ -178,7 +175,6 @@ class DiscountNgramsJob(Job):
         del kwargs["mem_rqmt"]
         del kwargs["cpu_rqmt"]
         del kwargs["time_rqmt"]
-        del kwargs["fs_rqmt"]
         return super().hash(kwargs)
 
 
