@@ -293,9 +293,9 @@ class CompressCorpusJob(Job):
 
 
 class MergeStrategy(enum.Enum):
-    SUBCORPORA = 0
-    FLAT = 1
-    CONCATENATE = 2
+    SUBCORPORA = 0  # Merge as subcorpora of a common corpus.
+    FLAT = 1  # Flatten corpus structure by ignoring subcorpora.
+    CONCATENATE = 2  # Concatenate all subcorpora, recordings and speakers.
 
 
 class MergeCorporaJob(Job):
