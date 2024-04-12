@@ -342,17 +342,33 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
 
 
 class FilterCorpusBySegmentDurationJob(Job):
-    def __init__(self, bliss_corpus: Path, min_duration: float = 0.1, max_duration: float = 120.0):
+    """
+    Removes all segments from all corpus recordings that don't fall within the specified duration boundaries.
+    """
+
+    __sis_hash_exclude__ = {"delete_empty_recordings": False}
+
+    def __init__(
+        self,
+        bliss_corpus: Path,
+        min_duration: float = 0.1,
+        max_duration: float = 120.0,
+        delete_empty_recordings: bool = True,
+    ):
         """
         :param bliss_corpus: path of the corpus file
         :param min_duration: minimum duration for a segment to keep (in seconds)
         :param max_duration: maximum duration for a segment to keep (in seconds)
+        :param delete_empty_recordings: if true, empty recordings will be removed.
         """
         self.bliss_corpus = bliss_corpus
         self.min_duration = min_duration
         self.max_duration = max_duration
+        self.delete_empty_recordings = delete_empty_recordings
 
         self.out_corpus = self.output_path("corpus.xml.gz", cached=True)
+        if self.delete_empty_recordings:
+            self.out_removed_recordings = self.output_path("removed_recordings.log")
 
     def tasks(self):
         yield Task("run", resume="run", mini_task=True)
@@ -370,4 +386,17 @@ class FilterCorpusBySegmentDurationJob(Job):
         c = corpus.Corpus()
         c.load(self.bliss_corpus.get_path())
         c.filter_segments(good_duration)
+
+        if self.delete_empty_recordings:
+            # Remove the recordings without segments due to the filtering.
+            to_delete = []
+            for rec in c.all_recordings():
+                if not rec.segments:
+                    to_delete.append(rec)
+
+                for rec in to_delete:
+                    c.remove_recording(rec)
+                with open(self.out_removed_recordings, "w") as f:
+                    f.write("\n".join(rec.fullname() for rec in to_delete))
+
         c.dump(self.out_corpus.get_path())
