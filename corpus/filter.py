@@ -252,21 +252,15 @@ class FilterCorpusBySegmentsJob(Job):
         c = corpus.Corpus()
         c.load(tk.uncached_path(self.bliss_corpus))
 
-        to_delete = []
         for rec in c.all_recordings():
             if self.invert_match:
                 rec.segments = [x for x in rec.segments if x.fullname() not in segments and x.name not in segments]
             else:
                 rec.segments = [x for x in rec.segments if x.fullname() in segments or x.name in segments]
 
-            if not rec.segments:
-                to_delete.append(rec)
-
         if self.delete_empty_recordings:
-            for rec in to_delete:
-                c.remove_recording(rec)
-            with open(self.out_removed_recordings, "w") as f:
-                f.write("\n".join(rec.fullname() for rec in to_delete))
+            # Remove the recordings without segments due to the filtering.
+            _delete_empty_recordings(c, self.out_removed_recordings.get_path())
 
         c.dump(tk.uncached_path(self.out_corpus))
 
