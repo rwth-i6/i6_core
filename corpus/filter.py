@@ -223,7 +223,6 @@ class FilterCorpusBySegmentsJob(Job):
         yield Task("run", resume="run", mini_task=True)
 
     def run(self):
-
         segments = []
         for seg in self.segment_file_list:
             with open(tk.uncached_path(seg)) as f:
@@ -259,7 +258,7 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
     Filter segments of a bliss corpus if there are unknowns with respect to a given lexicon
     """
 
-    __sis_hash_exclude__ = {"all_unknown": True}
+    __sis_hash_exclude__ = {"all_unknown": True, "delete_empty_recordings": False}
 
     def __init__(
         self,
@@ -267,19 +266,24 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
         bliss_lexicon: tk.Path,
         case_sensitive: bool = False,
         all_unknown: bool = True,
+        delete_empty_recordings: bool = False,
     ):
         """
         :param bliss_corpus:
         :param bliss_lexicon:
         :param case_sensitive: consider casing for check against lexicon
         :param all_unknown: all words have to be unknown in order for the segment to be discarded
+        :param delete_empty_recordings: if true, empty recordings will be removed.
         """
         self.corpus = bliss_corpus
         self.lexicon = bliss_lexicon
         self.case_sensitive = case_sensitive
         self.all_unknown = all_unknown
+        self.delete_empty_recordings = delete_empty_recordings
 
         self.out_corpus = self.output_path("corpus.xml.gz", cached=True)
+        if self.delete_empty_recordings:
+            self.out_removed_recordings = self.output_path("removed_recordings.log")
 
     def tasks(self):
         yield Task("run", resume="run", mini_task=True)
@@ -321,6 +325,19 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
                 return all(w in vocabulary for w in words)
 
         c.filter_segments(unknown_filter)
+
+        if self.delete_empty_recordings:
+            # Remove the recordings without segments due to the filtering.
+            to_delete = []
+            for rec in c.all_recordings():
+                if not rec.segments:
+                    to_delete.append(rec)
+
+                for rec in to_delete:
+                    c.remove_recording(rec)
+                with open(self.out_removed_recordings, "w") as f:
+                    f.write("\n".join(rec.fullname() for rec in to_delete))
+
         c.dump(self.out_corpus.get_path())
 
 
