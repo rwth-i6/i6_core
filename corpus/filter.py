@@ -363,7 +363,7 @@ class FilterCorpusBySegmentDurationJob(Job):
         bliss_corpus: Path,
         min_duration: float = 0.1,
         max_duration: float = 120.0,
-        delete_empty_recordings: bool = True,
+        delete_empty_recordings: bool = False,
     ):
         """
         :param bliss_corpus: path of the corpus file
