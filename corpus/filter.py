@@ -23,6 +23,24 @@ from sisyphus import *
 Path = setup_path(__package__)
 
 
+def _delete_empty_recordings(corpus: corpus.Corpus, removed_recordings_file: str):
+    """
+    Deletes all recordings that are empty after the filtering done by some of the jobs in this file.
+
+    :param c: Corpus for which to delete the empty recordings.
+    :param removed_recordings_file: File in which to dump all recordings that have been deleted.
+    """
+    to_delete = []
+    for rec in corpus.all_recordings():
+        if not rec.segments:
+            to_delete.append(rec)
+
+        for rec in to_delete:
+            corpus.remove_recording(rec)
+        with open(removed_recordings_file, "w") as f:
+            f.write("\n".join(rec.fullname() for rec in to_delete))
+
+
 class FilterSegmentsByListJob(Job):
     def __init__(self, segment_files: Dict[int, Path], filter_list: Union[List[str], Path], invert_match: bool = False):
         """
@@ -328,15 +346,7 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
 
         if self.delete_empty_recordings:
             # Remove the recordings without segments due to the filtering.
-            to_delete = []
-            for rec in c.all_recordings():
-                if not rec.segments:
-                    to_delete.append(rec)
-
-                for rec in to_delete:
-                    c.remove_recording(rec)
-                with open(self.out_removed_recordings, "w") as f:
-                    f.write("\n".join(rec.fullname() for rec in to_delete))
+            _delete_empty_recordings(c, self.out_removed_recordings.get_path())
 
         c.dump(self.out_corpus.get_path())
 
@@ -389,14 +399,6 @@ class FilterCorpusBySegmentDurationJob(Job):
 
         if self.delete_empty_recordings:
             # Remove the recordings without segments due to the filtering.
-            to_delete = []
-            for rec in c.all_recordings():
-                if not rec.segments:
-                    to_delete.append(rec)
-
-                for rec in to_delete:
-                    c.remove_recording(rec)
-                with open(self.out_removed_recordings, "w") as f:
-                    f.write("\n".join(rec.fullname() for rec in to_delete))
+            _delete_empty_recordings(c, self.out_removed_recordings.get_path())
 
         c.dump(self.out_corpus.get_path())
