@@ -15,6 +15,7 @@ import enum
 import logging
 import math
 import os
+from typing import Dict
 import wave
 import xml.etree.cElementTree as ET
 
@@ -296,6 +297,8 @@ class MergeStrategy(enum.Enum):
     SUBCORPORA = 0  # Merge as subcorpora of a common corpus.
     FLAT = 1  # Flatten corpus structure by ignoring subcorpora.
     CONCATENATE = 2  # Concatenate all subcorpora, recordings and speakers.
+    # Like SUBCORPORA, but flatten each top level subcorpora, and merge subcorpora and recordings with the same name.
+    MERGE_SUBCORPORA_AND_RECORDINGS = 3
 
 
 class MergeCorporaJob(Job):
@@ -321,6 +324,9 @@ class MergeCorporaJob(Job):
     def run(self):
         merged_corpus = corpus.Corpus()
         merged_corpus.name = self.name
+        if self.merge_strategy == MergeStrategy.MERGE_SUBCORPORA_AND_RECORDINGS:
+            sc_name_to_sc: Dict[str, corpus.Corpus] = {}
+            rec_name_to_rec: Dict[str, corpus.Recording] = {}
         for corpus_path in self.bliss_corpora:
             c = corpus.Corpus()
             c.load(tk.uncached_path(corpus_path))
@@ -337,9 +343,32 @@ class MergeCorporaJob(Job):
                     merged_corpus.add_recording(rec)
                 for speaker in c.top_level_speakers():
                     merged_corpus.add_speaker(speaker)
+            elif self.merge_strategy == MergeStrategy.MERGE_SUBCORPORA_AND_RECORDINGS:
+                for sc in c.top_level_subcorpora():
+                    if sc.name not in sc_name_to_sc:
+                        stored_sc = corpus.Corpus()
+                        stored_sc.name = sc.name
+                        merged_corpus.add_subcorpus(stored_sc)
+                        # Store the subcorpus in memory to possibly modify it later on.
+                        sc_name_to_sc[sc.name] = stored_sc
+                    else:
+                        # Retrieve the stored subcorpus to merge all recordings.
+                        stored_sc = sc_name_to_sc[sc.name]
+                    stored_sc.speakers.update(sc.speakers)
+                    for rec in sc.all_recordings():
+                        if rec.name not in rec_name_to_rec:
+                            stored_sc.add_recording(rec)
+                            rec_name_to_rec[rec.name] = rec
+                        else:
+                            # The recording had already been added to some subcorpus.
+                            # Gracefully merge the segments from both recordings.
+                            for seg in rec.segments:
+                                rec_name_to_rec[rec.name].add_segment(seg)
             else:
                 assert False, "invalid merge strategy"
+        # import pdb
 
+        # pdb.set_trace()
         merged_corpus.dump(self.out_merged_corpus.get_path())
 
 
