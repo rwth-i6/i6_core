@@ -297,7 +297,7 @@ class MergeStrategy(enum.Enum):
     SUBCORPORA = 0  # Merge as subcorpora of a common corpus.
     FLAT = 1  # Flatten corpus structure by ignoring subcorpora.
     CONCATENATE = 2  # Concatenate all subcorpora, recordings and speakers.
-    # Like SUBCORPORA, but flatten each top level subcorpora, and merge subcorpora and recordings with the same name.
+    # Flatten each top level subcorpora, and merge subcorpora and recordings with the same name.
     MERGE_SUBCORPORA_AND_RECORDINGS = 3
 
 
