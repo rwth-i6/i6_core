@@ -366,9 +366,7 @@ class MergeCorporaJob(Job):
                                 rec_name_to_rec[rec.name].add_segment(seg)
             else:
                 assert False, "invalid merge strategy"
-        # import pdb
 
-        # pdb.set_trace()
         merged_corpus.dump(self.out_merged_corpus.get_path())
 
 
