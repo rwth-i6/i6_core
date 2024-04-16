@@ -186,7 +186,7 @@ def chunks(l: List, n: int) -> List[List]:
 
 
 def relink(src: str, dst: str):
-    if os.path.exists(dst):
+    if os.path.exists(dst) or os.path.islink(dst):
         os.remove(dst)
     os.link(src, dst)
 
