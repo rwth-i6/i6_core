@@ -344,6 +344,9 @@ class MergeCorporaJob(Job):
                 for speaker in c.top_level_speakers():
                     merged_corpus.add_speaker(speaker)
             elif self.merge_strategy == MergeStrategy.MERGE_SUBCORPORA_AND_RECORDINGS:
+                for rec in c.top_level_recordings():
+                    merged_corpus.add_recording(rec)
+                merged_corpus.speakers.update(c.speakers)
                 for sc in c.top_level_subcorpora():
                     if sc.name not in sc_name_to_sc:
                         stored_sc = corpus.Corpus()
