@@ -326,7 +326,7 @@ class MergeCorporaJob(Job):
         merged_corpus.name = self.name
         if self.merge_strategy == MergeStrategy.MERGE_SUBCORPORA_AND_RECORDINGS:
             sc_name_to_sc: Dict[str, corpus.Corpus] = {}
-            rec_name_to_rec: Dict[str, corpus.Recording] = {}
+            rec_name_to_sc_rec: Dict[str, Dict[str, corpus.Recording]] = collections.defaultdict(dict)
         for corpus_path in self.bliss_corpora:
             c = corpus.Corpus()
             c.load(tk.uncached_path(corpus_path))
@@ -356,14 +356,14 @@ class MergeCorporaJob(Job):
                         stored_sc = sc_name_to_sc[sc.name]
                     stored_sc.speakers.update(sc.speakers)
                     for rec in sc.all_recordings():
-                        if rec.name not in rec_name_to_rec:
+                        if rec.name not in rec_name_to_sc_rec[stored_sc.name]:
                             stored_sc.add_recording(rec)
-                            rec_name_to_rec[rec.name] = rec
+                            rec_name_to_sc_rec[stored_sc.name][rec.name] = rec
                         else:
                             # The recording had already been added to some subcorpus.
                             # Gracefully merge the segments from both recordings.
                             for seg in rec.segments:
-                                rec_name_to_rec[rec.name].add_segment(seg)
+                                rec_name_to_sc_rec[stored_sc.name][rec.name].add_segment(seg)
             else:
                 assert False, "invalid merge strategy"
 
