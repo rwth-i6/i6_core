@@ -23,6 +23,24 @@ from sisyphus import *
 Path = setup_path(__package__)
 
 
+def _delete_empty_recordings(corpus: corpus.Corpus, removed_recordings_file: str):
+    """
+    Deletes all recordings that are empty after the filtering done by some of the jobs in this file.
+
+    :param c: Corpus for which to delete the empty recordings.
+    :param removed_recordings_file: File in which to dump all recordings that have been deleted.
+    """
+    to_delete = []
+    for rec in corpus.all_recordings():
+        if not rec.segments:
+            to_delete.append(rec)
+
+        for rec in to_delete:
+            corpus.remove_recording(rec)
+        with open(removed_recordings_file, "w") as f:
+            f.write("\n".join(rec.fullname() for rec in to_delete))
+
+
 class FilterSegmentsByListJob(Job):
     def __init__(self, segment_files: Dict[int, Path], filter_list: Union[List[str], Path], invert_match: bool = False):
         """
@@ -223,7 +241,6 @@ class FilterCorpusBySegmentsJob(Job):
         yield Task("run", resume="run", mini_task=True)
 
     def run(self):
-
         segments = []
         for seg in self.segment_file_list:
             with open(tk.uncached_path(seg)) as f:
@@ -235,21 +252,15 @@ class FilterCorpusBySegmentsJob(Job):
         c = corpus.Corpus()
         c.load(tk.uncached_path(self.bliss_corpus))
 
-        to_delete = []
         for rec in c.all_recordings():
             if self.invert_match:
                 rec.segments = [x for x in rec.segments if x.fullname() not in segments and x.name not in segments]
             else:
                 rec.segments = [x for x in rec.segments if x.fullname() in segments or x.name in segments]
 
-            if not rec.segments:
-                to_delete.append(rec)
-
         if self.delete_empty_recordings:
-            for rec in to_delete:
-                c.remove_recording(rec)
-            with open(self.out_removed_recordings, "w") as f:
-                f.write("\n".join(rec.fullname() for rec in to_delete))
+            # Remove the recordings without segments due to the filtering.
+            _delete_empty_recordings(c, self.out_removed_recordings.get_path())
 
         c.dump(tk.uncached_path(self.out_corpus))
 
@@ -259,7 +270,7 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
     Filter segments of a bliss corpus if there are unknowns with respect to a given lexicon
     """
 
-    __sis_hash_exclude__ = {"all_unknown": True}
+    __sis_hash_exclude__ = {"all_unknown": True, "delete_empty_recordings": False}
 
     def __init__(
         self,
@@ -267,19 +278,24 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
         bliss_lexicon: tk.Path,
         case_sensitive: bool = False,
         all_unknown: bool = True,
+        delete_empty_recordings: bool = False,
     ):
         """
         :param bliss_corpus:
         :param bliss_lexicon:
         :param case_sensitive: consider casing for check against lexicon
         :param all_unknown: all words have to be unknown in order for the segment to be discarded
+        :param delete_empty_recordings: if true, empty recordings will be removed.
         """
         self.corpus = bliss_corpus
         self.lexicon = bliss_lexicon
         self.case_sensitive = case_sensitive
         self.all_unknown = all_unknown
+        self.delete_empty_recordings = delete_empty_recordings
 
         self.out_corpus = self.output_path("corpus.xml.gz", cached=True)
+        if self.delete_empty_recordings:
+            self.out_removed_recordings = self.output_path("removed_recordings.log")
 
     def tasks(self):
         yield Task("run", resume="run", mini_task=True)
@@ -321,21 +337,42 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
                 return all(w in vocabulary for w in words)
 
         c.filter_segments(unknown_filter)
+
+        if self.delete_empty_recordings:
+            # Remove the recordings without segments due to the filtering.
+            _delete_empty_recordings(c, self.out_removed_recordings.get_path())
+
         c.dump(self.out_corpus.get_path())
 
 
 class FilterCorpusBySegmentDurationJob(Job):
-    def __init__(self, bliss_corpus: Path, min_duration: float = 0.1, max_duration: float = 120.0):
+    """
+    Removes all segments from all corpus recordings that don't fall within the specified duration boundaries.
+    """
+
+    __sis_hash_exclude__ = {"delete_empty_recordings": False}
+
+    def __init__(
+        self,
+        bliss_corpus: Path,
+        min_duration: float = 0.1,
+        max_duration: float = 120.0,
+        delete_empty_recordings: bool = False,
+    ):
         """
         :param bliss_corpus: path of the corpus file
         :param min_duration: minimum duration for a segment to keep (in seconds)
         :param max_duration: maximum duration for a segment to keep (in seconds)
+        :param delete_empty_recordings: if true, empty recordings will be removed.
         """
         self.bliss_corpus = bliss_corpus
         self.min_duration = min_duration
         self.max_duration = max_duration
+        self.delete_empty_recordings = delete_empty_recordings
 
         self.out_corpus = self.output_path("corpus.xml.gz", cached=True)
+        if self.delete_empty_recordings:
+            self.out_removed_recordings = self.output_path("removed_recordings.log")
 
     def tasks(self):
         yield Task("run", resume="run", mini_task=True)
@@ -353,4 +390,9 @@ class FilterCorpusBySegmentDurationJob(Job):
         c = corpus.Corpus()
         c.load(self.bliss_corpus.get_path())
         c.filter_segments(good_duration)
+
+        if self.delete_empty_recordings:
+            # Remove the recordings without segments due to the filtering.
+            _delete_empty_recordings(c, self.out_removed_recordings.get_path())
+
         c.dump(self.out_corpus.get_path())
