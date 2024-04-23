@@ -1,4 +1,5 @@
 import collections
+import copy
 import json
 import logging
 import os.path
@@ -303,6 +304,8 @@ class GraphemicLexiconFromWordListJob(Job):
 class SpellingConversionJob(Job):
     """Spelling conversion for lexicon."""
 
+    __sis_hash_exclude__ = {"keep_original_target_lemmas": False}
+
     def __init__(
         self,
         bliss_lexicon,
@@ -310,6 +313,7 @@ class SpellingConversionJob(Job):
         mapping_file_delimiter=" ",
         mapping_rules=None,
         invert_mapping=False,
+        keep_original_target_lemmas=False,
     ):
         """
         :param Path bliss_lexicon:
@@ -335,6 +339,11 @@ class SpellingConversionJob(Job):
         :param bool invert_mapping:
             invert the input orth mapping
             NOTE: this also affects the pairs which are inferred from mapping_rules
+         :param bool keep_original_target_lemmas:
+            set this option to True if you want to keep the original target lemma in addition.
+            This is needed if a LM contains both spelling variants and we want to clean but keep
+            the usage of all LM probabilities.
+
         """
         self.set_vis_name("Convert Between Regional Orth Spellings")
 
@@ -343,6 +352,7 @@ class SpellingConversionJob(Job):
         self.invert_mapping = invert_mapping
         self.mapping_file_delimiter = mapping_file_delimiter
         self.mapping_rules = mapping_rules
+        self.keep_original_target_lemmas = keep_original_target_lemmas
 
         self.out_bliss_lexicon = self.output_path("lexicon.xml.gz")
 
@@ -462,6 +472,8 @@ class SpellingConversionJob(Job):
                 logging.info("No source lemma for: {}".format(source_orth))
             if target_lemma:
                 if source_lemma:
+                    if self.keep_original_target_lemmas:
+                        copy_target_lemma = copy.deepcopy(target_lemma)
                     for orth in source_lemma.orth:
                         if orth not in target_lemma.orth:
                             target_lemma.orth.append(orth)
@@ -472,7 +484,15 @@ class SpellingConversionJob(Job):
                         if eval not in target_lemma.eval:
                             target_lemma.eval.append(eval)
                     if source_lemma in lex.lemmata:
-                        lex.lemmata.remove(source_lemma)
+                        if not self.keep_original_target_lemmas:
+                            lex.lemmata.remove(source_lemma)
+                        else:
+                            # Replace the source lemma and keep original target lemma as well
+                            # without changing the position in the lexicon
+                            source_position = lex.lemmata.index(source_lemma)
+                            target_position = lex.lemmata.index(target_lemma)
+                            lex.lemmata[source_position] = target_lemma
+                            lex.lemmata[target_position] = copy_target_lemma
                 if not target_lemma.synt:
                     if source_lemma and source_lemma.synt:
                         target_lemma.synt = source_lemma.synt
