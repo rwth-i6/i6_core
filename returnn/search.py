@@ -380,6 +380,7 @@ class SearchOutputRawReplaceJob(Job):
         words = SearchOutputRawReplaceJob(spm, [(" ", ""), ("▁", " ")], output_gzip=True).out_search_results
 
     """
+
     def __init__(
         self, search_py_output: Path, replacement_list: Sequence[Tuple[str, str]], *, output_gzip: bool = False
     ):
