@@ -327,6 +327,6 @@ class TextDictToTextLinesJob(Job):
         assert isinstance(d, dict)  # seq_tag -> text
 
         with uopen(self.out_text_lines, "wt") as out:
-            for seq_tag, entry in sorted(d.items()):
+            for seq_tag, entry in d.items():
                 assert isinstance(entry, str), f"expected str, got {entry!r} (type {type(entry).__name__})"
                 out.write(entry + "\n")
