@@ -5,6 +5,7 @@ __all__ = [
     "SearchBPEtoWordsJob",
     "SearchOutputRawReplaceJob",
     "SearchWordsToCTMJob",
+    "SearchWordsDummyTimesToCTMJob",
     "ReturnnComputeWERJob",
     "SearchRemoveLabelJob",
     "SearchBeamJoinScoresJob",
