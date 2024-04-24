@@ -54,7 +54,6 @@ class TextDictToStmJob(Job):
         remove_punctuation: bool = True,
         punctuation_tokens: Optional[Union[str, List[str]]] = None,
         fix_whitespace: bool = True,
-        name: str = "",
         tag_mapping: Sequence[Tuple[Tuple[str, str, str], Dict[int, Path]]] = (),
     ):
         """
@@ -65,7 +64,6 @@ class TextDictToStmJob(Job):
         :param punctuation_tokens: defines list/string of punctuation tokens
         :param fix_whitespace: should white space be fixed.
             !!!be aware that the corpus loading already fixes white space!!!
-        :param name: new corpus name
         :param tag_mapping: 3-string tuple contains ("short name", "long name", "description") of each tag.
             and the Dict[int, Path] is e.g. the out_single_segment_files of a FilterSegments*Jobs
         """
@@ -78,9 +76,8 @@ class TextDictToStmJob(Job):
         self.punctuation_tokens = punctuation_tokens if punctuation_tokens is not None else []
         self.fix_whitespace = fix_whitespace
         self.tag_mapping = tag_mapping
-        self.name = name
 
-        self.out_stm_path = self.output_path("%scorpus.stm" % name)
+        self.out_stm_path = self.output_path("corpus.stm")
 
     def tasks(self):
         yield Task("run", mini_task=True)
