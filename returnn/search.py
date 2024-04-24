@@ -500,12 +500,17 @@ class SearchWordsDummyTimesToCTMJob(Job):
     When creating the corresponding STM files, make sure it uses the same dummy times.
     """
 
-    def __init__(self, recog_words_file: Path, *, filter_tags: bool = True):
+    def __init__(self, recog_words_file: Path, seq_order_file: Path, *, filter_tags: bool = True):
         """
         :param recog_words_file: search output file from RETURNN
+        :param seq_order_file: file which defines the sequence order, i.e. the order of the segments in the CTM.
+            This is required because sclite requires the same sequence order in the CTM as in the STM file,
+            and the search output (recog_words_file) likely has a different order.
+            This file can be another text-dict format, e.g. via :class:`CorpusToTextDictJob`.
         :param filter_tags: if set to True, tags such as [noise] will be filtered out
         """
         self.recog_words_file = recog_words_file
+        self.seq_order_file = seq_order_file
         self.filter_tags = filter_tags
 
         self.out_ctm_file = self.output_path("search.ctm")
@@ -516,11 +521,18 @@ class SearchWordsDummyTimesToCTMJob(Job):
     def run(self):
         # nan/inf should not be needed, but avoids errors at this point and will print an error below,
         # that we don't expect an N-best list here.
+        seq_order = eval(util.uopen(self.seq_order_file, "rt").read(), {"nan": float("nan"), "inf": float("inf")})
+        assert isinstance(seq_order, (dict, list, tuple))
         d = eval(util.uopen(self.recog_words_file, "rt").read(), {"nan": float("nan"), "inf": float("inf")})
         assert isinstance(d, dict), "only search output file with dict format is supported"
         with util.uopen(self.out_ctm_file.get_path(), "wt") as out:
             out.write(";; <name> <track> <start> <duration> <word> <confidence> [<n-best>]\n")
-            for seg_fullname, text in d.items():
+            for seg_fullname in seq_order:
+                assert isinstance(
+                    seg_fullname, str
+                ), f"invalid seq_order entry {seg_fullname!r} (type {type(seg_fullname).__name__})"
+                assert seg_fullname in d, f"seq_order entry {seg_fullname!r} not found in recog_words_file"
+                text = d[seg_fullname]
                 seg_start = 0.0
                 seg_end = 1.0
                 out.write(";; %s (%f-%f)\n" % (seg_fullname, seg_start, seg_end))
