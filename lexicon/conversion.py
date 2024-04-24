@@ -471,9 +471,9 @@ class SpellingConversionJob(Job):
             else:
                 logging.info("No source lemma for: {}".format(source_orth))
             if target_lemma:
+                if self.keep_original_target_lemmas:
+                    copy_target_lemma = copy.deepcopy(target_lemma)
                 if source_lemma:
-                    if self.keep_original_target_lemmas:
-                        copy_target_lemma = copy.deepcopy(target_lemma)
                     for orth in source_lemma.orth:
                         if orth not in target_lemma.orth:
                             target_lemma.orth.append(orth)
@@ -498,6 +498,9 @@ class SpellingConversionJob(Job):
                         target_lemma.synt = source_lemma.synt
                     else:
                         target_lemma.synt = source_orth.split()
+                        if self.keep_original_target_lemmas:
+                            target_position = lex.lemmata.index(target_lemma)
+                            lex.lemmata.insert(target_position - 1, copy_target_lemma)
                 logging.info(self._lemma_to_str(target_lemma, "final lemma"))
             elif source_lemma:
                 source_lemma.orth.insert(0, target_orth)
