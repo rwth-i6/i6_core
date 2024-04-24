@@ -3,6 +3,7 @@ __all__ = [
     "ReturnnSearchJobV2",
     "ReturnnSearchFromFileJob",
     "SearchBPEtoWordsJob",
+    "SearchOutputRawReplaceJob",
     "SearchWordsToCTMJob",
     "ReturnnComputeWERJob",
     "SearchRemoveLabelJob",
