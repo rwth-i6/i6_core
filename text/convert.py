@@ -43,6 +43,7 @@ class TextDictToStmJob(Job):
     """
     Similar as :class:`CorpusToStmJob`, but does not use the Bliss XML, but instead the text dict as input
     (e.g. via :class:`CorpusToTextDictJob`).
+    Also see :class:`SearchWordsDummyTimesToCTMJob`.
     """
 
     def __init__(
@@ -55,6 +56,7 @@ class TextDictToStmJob(Job):
         punctuation_tokens: Optional[Union[str, List[str]]] = None,
         fix_whitespace: bool = True,
         tag_mapping: Sequence[Tuple[Tuple[str, str, str], Dict[int, Path]]] = (),
+        seg_length_time: float = 1.0,
     ):
         """
         :param text_dict: e.g. via :class:`CorpusToTextDictJob`
@@ -66,6 +68,8 @@ class TextDictToStmJob(Job):
             !!!be aware that the corpus loading already fixes white space!!!
         :param tag_mapping: 3-string tuple contains ("short name", "long name", "description") of each tag.
             and the Dict[int, Path] is e.g. the out_single_segment_files of a FilterSegments*Jobs
+        :param seg_length_time: length of each segment in seconds.
+            should be consistent to :class:`SearchWordsDummyTimesToCTMJob`
         """
         self.set_vis_name("Extract STM from text-dict file")
 
@@ -76,6 +80,7 @@ class TextDictToStmJob(Job):
         self.punctuation_tokens = punctuation_tokens if punctuation_tokens is not None else []
         self.fix_whitespace = fix_whitespace
         self.tag_mapping = tag_mapping
+        self.seg_length_time = seg_length_time
 
         self.out_stm_path = self.output_path("corpus.stm")
 
@@ -111,7 +116,7 @@ class TextDictToStmJob(Job):
                 speaker_name = recording_name  # same as in CorpusToStmJob when no speaker information is available
                 segment_track = 1  # same as in CorpusToStmJob when no track information is available
                 seg_start = 0.0
-                seg_end = 1.0  # consistent to SearchWordsDummyTimesToCTMJob
+                seg_end = self.seg_length_time
 
                 orth = f" {orth.strip()} "
 
