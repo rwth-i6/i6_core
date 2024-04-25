@@ -50,20 +50,16 @@ class TextDictToStmJob(Job):
         self,
         text_dict: Path,
         *,
-        exclude_non_speech: bool = True,
-        non_speech_tokens: Optional[List[str]] = None,
-        remove_punctuation: bool = True,
-        punctuation_tokens: Optional[Union[str, List[str]]] = None,
+        remove_non_speech_tokens: Sequence[str] = (),
+        remove_punctuation_tokens: Union[str, Sequence[str]] = (),
         fix_whitespace: bool = True,
         tag_mapping: Sequence[Tuple[Tuple[str, str, str], Dict[int, Path]]] = (),
         seg_length_time: float = 1.0,
     ):
         """
         :param text_dict: e.g. via :class:`CorpusToTextDictJob`
-        :param exclude_non_speech: non speech tokens should be removed
-        :param non_speech_tokens: defines the list of non speech tokens
-        :param remove_punctuation: should punctuation be removed
-        :param punctuation_tokens: defines list/string of punctuation tokens
+        :param remove_non_speech_tokens: defines the list of non speech tokens to remove
+        :param remove_punctuation_tokens: defines list/string of punctuation tokens to remove
         :param fix_whitespace: should white space be fixed.
             !!!be aware that the corpus loading already fixes white space!!!
         :param tag_mapping: 3-string tuple contains ("short name", "long name", "description") of each tag.
@@ -74,10 +70,8 @@ class TextDictToStmJob(Job):
         self.set_vis_name("Extract STM from text-dict file")
 
         self.text_dict = text_dict
-        self.exclude_non_speech = exclude_non_speech
-        self.non_speech_tokens = non_speech_tokens if non_speech_tokens is not None else []
-        self.remove_punctuation = remove_punctuation
-        self.punctuation_tokens = punctuation_tokens if punctuation_tokens is not None else []
+        self.remove_non_speech_tokens = remove_non_speech_tokens
+        self.remove_punctuation_tokens = remove_punctuation_tokens
         self.fix_whitespace = fix_whitespace
         self.tag_mapping = tag_mapping
         self.seg_length_time = seg_length_time
@@ -120,13 +114,11 @@ class TextDictToStmJob(Job):
 
                 orth = f" {orth.strip()} "
 
-                if self.exclude_non_speech:
-                    for nst in self.non_speech_tokens:
-                        orth = self.replace_recursive(orth, nst)
+                for nst in self.remove_non_speech_tokens:
+                    orth = self.replace_recursive(orth, nst)
 
-                if self.remove_punctuation:
-                    for pt in self.punctuation_tokens:
-                        orth = orth.replace(pt, "")
+                for pt in self.remove_punctuation_tokens:
+                    orth = orth.replace(pt, "")
 
                 if self.fix_whitespace:
                     orth = re.sub(" +", " ", orth)
@@ -149,15 +141,15 @@ class TextDictToStmJob(Job):
                 out.write(';; LABEL "%s" "%s" "%s"\n' % tag)
 
     @classmethod
-    def replace_recursive(cls, orthography, token):
+    def replace_recursive(cls, orthography: str, token: str) -> str:
         """
         recursion is required to find repeated tokens
         string.replace is not sufficient
         some other solution might also work
         """
-        pos = orthography.find(f" {token} ")
-        if pos == -1:
-            return orthography
-        else:
-            orthography = orthography.replace(f" {token} ", " ")
-            return cls.replace_recursive(orthography, token)
+        while True:
+            pos = orthography.find(f" {token} ")
+            if pos == -1:
+                return orthography
+            else:
+                orthography = orthography.replace(f" {token} ", " ")
