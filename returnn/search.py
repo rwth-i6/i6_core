@@ -500,7 +500,14 @@ class SearchWordsDummyTimesToCTMJob(Job):
     When creating the corresponding STM files, make sure it uses the same dummy times.
     """
 
-    def __init__(self, recog_words_file: Path, *, seq_order_file: Optional[Path] = None, filter_tags: bool = True):
+    def __init__(
+        self,
+        recog_words_file: Path,
+        *,
+        seq_order_file: Optional[Path] = None,
+        filter_tags: bool = True,
+        seg_length_time: float = 1.0,
+    ):
         """
         :param recog_words_file: search output file from RETURNN
         :param seq_order_file: file which defines the sequence order, i.e. the order of the segments in the CTM.
@@ -510,10 +517,12 @@ class SearchWordsDummyTimesToCTMJob(Job):
             thus this is optional here.
             This file can be another text-dict format, e.g. via :class:`CorpusToTextDictJob`.
         :param filter_tags: if set to True, tags such as [noise] will be filtered out
+        :param seg_length_time: dummy segment length time, in seconds
         """
         self.recog_words_file = recog_words_file
         self.seq_order_file = seq_order_file
         self.filter_tags = filter_tags
+        self.seg_length_time = seg_length_time
 
         self.out_ctm_file = self.output_path("search.ctm")
 
@@ -539,7 +548,7 @@ class SearchWordsDummyTimesToCTMJob(Job):
                 assert seg_fullname in d, f"seq_order entry {seg_fullname!r} not found in recog_words_file"
                 text = d[seg_fullname]
                 seg_start = 0.0
-                seg_end = 1.0
+                seg_end = self.seg_length_time
                 out.write(";; %s (%f-%f)\n" % (seg_fullname, seg_start, seg_end))
                 words = text.split()
                 time_step_per_word = (seg_end - seg_start) / max(len(words), 1)
