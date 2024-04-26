@@ -61,7 +61,6 @@ class TextDictToStmJob(Job):
         :param remove_non_speech_tokens: defines the list of non speech tokens to remove
         :param remove_punctuation_tokens: defines list/string of punctuation tokens to remove
         :param fix_whitespace: should white space be fixed.
-            !!!be aware that the corpus loading already fixes white space!!!
         :param tag_mapping: 3-string tuple contains ("short name", "long name", "description") of each tag.
             and the Dict[int, Path] is e.g. the out_single_segment_files of a FilterSegments*Jobs
         :param seg_length_time: length of each segment in seconds.
