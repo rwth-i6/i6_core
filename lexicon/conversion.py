@@ -4,6 +4,7 @@ import json
 import logging
 import os.path
 import re
+from typing import List, Optional, Tuple, Union
 import xml.dom.minidom
 import xml.etree.ElementTree as ET
 
@@ -308,18 +309,18 @@ class SpellingConversionJob(Job):
 
     def __init__(
         self,
-        bliss_lexicon,
-        orth_mapping_file,
-        mapping_file_delimiter=" ",
-        mapping_rules=None,
-        invert_mapping=False,
-        keep_original_target_lemmas=False,
+        bliss_lexicon: tk.Path,
+        orth_mapping_file: Union[str, tk.Path],
+        mapping_file_delimiter: str = " ",
+        mapping_rules: Optional[List[Tuple[str, str, str]]] = None,
+        invert_mapping: bool = False,
+        keep_original_target_lemmas: bool = False,
     ):
         """
         :param Path bliss_lexicon:
             input lexicon, whose lemmata all have unique PRIMARY orth
             to reach the above requirements apply LexiconUniqueOrthJob
-        :param str orth_mapping_file:
+        :param str|tk.Path orth_mapping_file:
             orthography mapping file: *.json *.json.gz *.txt *.gz
             in case of plain text file
                 one can adjust mapping_delimiter
@@ -376,16 +377,16 @@ class SpellingConversionJob(Job):
 
     def run(self):
         # load mapping from json or plain text file
-        is_json = self.orth_mapping_file.endswith(".json")
-        is_json |= self.orth_mapping_file.endswith(".json.gz")
+        orth_map_file_str = tk.uncached_path(self.orth_mapping_file)
+        is_json = orth_map_file_str.endswith(".json") | orth_map_file_str.endswith(".json.gz")
         if is_json:
-            with uopen(self.orth_mapping_file, "rt") as f:
+            with uopen(orth_map_file_str, "rt") as f:
                 mapping = json.load(f)
             if self.invert_mapping:
                 mapping = {v: k for k, v in mapping.items()}
         else:
             mapping = dict()
-            with uopen(self.orth_mapping_file, "rt") as f:
+            with uopen(orth_map_file_str, "rt") as f:
                 for line in f:
                     line = line.strip()
                     if not line or line.startswith("#"):
