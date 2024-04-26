@@ -349,10 +349,7 @@ class SpellingConversionJob(Job):
         self.set_vis_name("Convert Between Regional Orth Spellings")
 
         self.bliss_lexicon = bliss_lexicon
-        if isinstance(orth_mapping_file, tk.Path):
-            self.orth_mapping_file = orth_mapping_file.get_path()
-        else:
-            self.orth_mapping_file = orth_mapping_file
+        self.orth_mapping_file = orth_mapping_file
         self.invert_mapping = invert_mapping
         self.mapping_file_delimiter = mapping_file_delimiter
         self.mapping_rules = mapping_rules
@@ -380,16 +377,16 @@ class SpellingConversionJob(Job):
 
     def run(self):
         # load mapping from json or plain text file
-        is_json = self.orth_mapping_file.endswith(".json")
-        is_json |= self.orth_mapping_file.endswith(".json.gz")
+        orth_map_file_str = tk.uncached_path(self.orth_mapping_file)
+        is_json = orth_map_file_str.endswith(".json") | orth_map_file_str.endswith(".json.gz")
         if is_json:
-            with uopen(self.orth_mapping_file, "rt") as f:
+            with uopen(orth_map_file_str, "rt") as f:
                 mapping = json.load(f)
             if self.invert_mapping:
                 mapping = {v: k for k, v in mapping.items()}
         else:
             mapping = dict()
-            with uopen(self.orth_mapping_file, "rt") as f:
+            with uopen(orth_map_file_str, "rt") as f:
                 for line in f:
                     line = line.strip()
                     if not line or line.startswith("#"):
