@@ -35,8 +35,7 @@ def _delete_empty_recordings(corpus: corpus.Corpus, removed_recordings_file: str
         if not rec.segments:
             to_delete.append(rec)
 
-    for rec in to_delete:
-        corpus.remove_recording(rec)
+    corpus.remove_recordings(to_delete)
     with open(removed_recordings_file, "w") as f:
         f.write("\n".join(rec.fullname() for rec in to_delete))
 
