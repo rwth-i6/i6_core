@@ -261,12 +261,15 @@ class CreateTEDLIUM2BlissCorpusJobV2(CreateTEDLIUM2BlissCorpusJob):
                     last_rec_name = rec_name
                     seg_id = 1
 
+                #This solved the TedLium known problem of additional space before apostrof
+                normalized_text = text.replace(" '", "'")
+
                 segment = corpus.Segment()
                 segment.name = str(seg_id)
                 segment.start = float(start)
                 segment.end = float(end)
                 segment.speaker_name = spk_name
-                segment.orth = text
+                segment.orth = normalized_text
 
                 recording.add_segment(segment)
                 seg_id += 1
