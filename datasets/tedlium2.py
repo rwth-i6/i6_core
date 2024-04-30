@@ -219,6 +219,7 @@ class CreateTEDLIUM2BlissCorpusJob(Job):
 class CreateTEDLIUM2BlissCorpusJobV2(CreateTEDLIUM2BlissCorpusJob):
     """
     It has the same logic as CreateTEDLIUM2BlissCorpusJob but the corpus name is distinct for each partition
+    and the common text normalization for eliminating space before apostroph, similarly to Kaldi and ESPNet is applied
     """
 
     def make_corpus(self):
