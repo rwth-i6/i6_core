@@ -221,9 +221,6 @@ class CreateTEDLIUM2BlissCorpusJobV2(CreateTEDLIUM2BlissCorpusJob):
     It has the same logic as CreateTEDLIUM2BlissCorpusJob but the corpus name is distinct for each partition
     """
 
-    def __init__(self, corpus_folders):
-        super().__init__(corpus_folders)
-
     def make_corpus(self):
         """
         create bliss corpus from stm file (always include speakers)
@@ -261,7 +258,7 @@ class CreateTEDLIUM2BlissCorpusJobV2(CreateTEDLIUM2BlissCorpusJob):
                     last_rec_name = rec_name
                     seg_id = 1
 
-                #This solved the TedLium known problem of additional space before apostrof
+                # This solved the TedLium known problem of additional space before apostrophe
                 normalized_text = text.replace(" '", "'")
 
                 segment = corpus.Segment()
