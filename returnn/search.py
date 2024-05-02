@@ -3,7 +3,9 @@ __all__ = [
     "ReturnnSearchJobV2",
     "ReturnnSearchFromFileJob",
     "SearchBPEtoWordsJob",
+    "SearchOutputRawReplaceJob",
     "SearchWordsToCTMJob",
+    "SearchWordsDummyTimesToCTMJob",
     "ReturnnComputeWERJob",
     "SearchRemoveLabelJob",
     "SearchBeamJoinScoresJob",
@@ -15,7 +17,7 @@ import logging
 import os
 import shutil
 import subprocess as sp
-from typing import Any, Union, Set, Dict
+from typing import Any, Optional, Union, Sequence, Set, Dict, Tuple
 
 from sisyphus import *
 
@@ -366,6 +368,60 @@ class SearchBPEtoWordsJob(Job):
             out.write("}\n")
 
 
+class SearchOutputRawReplaceJob(Job):
+    """
+    Converts via replacement list.
+
+    Generalizes over :class:`SearchBPEtoWordsJob`.
+    BPE-to-words::
+
+        words = SearchOutputRawReplaceJob(bpe, [("@@ ", "")], output_gzip=True).out_search_results
+
+    SentencePiece-to-words::
+
+        words = SearchOutputRawReplaceJob(spm, [(" ", ""), ("▁", " ")], output_gzip=True).out_search_results
+
+    """
+
+    def __init__(
+        self, search_py_output: Path, replacement_list: Sequence[Tuple[str, str]], *, output_gzip: bool = False
+    ):
+        """
+        :param search_py_output: a search output file from RETURNN in python format (single or n-best)
+        :param replacement_list: list/sequence of (old, new) pairs to perform ``s.replace(old,new)`` on the raw text
+        :param output_gzip: if True, gzip the output
+        """
+        self.search_py_output = search_py_output
+        self.replacement_list = replacement_list
+        self.out_search_results = self.output_path("search_results.py" + (".gz" if output_gzip else ""))
+
+    def tasks(self):
+        yield Task("run", mini_task=True)
+
+    def run(self):
+        d = eval(util.uopen(self.search_py_output, "rt").read(), {"nan": float("nan"), "inf": float("inf")})
+        assert isinstance(d, dict)  # seq_tag -> bpe string
+        assert not os.path.exists(self.out_search_results.get_path())
+
+        def _transform_text(s: str):
+            for in_, out_ in self.replacement_list:
+                s = s.replace(in_, out_)
+            return s
+
+        with util.uopen(self.out_search_results, "wt") as out:
+            out.write("{\n")
+            for seq_tag, entry in d.items():
+                if isinstance(entry, list):
+                    # n-best list as [(score, text), ...]
+                    out.write("%r: [\n" % (seq_tag,))
+                    for score, text in entry:
+                        out.write("(%f, %r),\n" % (score, _transform_text(text)))
+                    out.write("],\n")
+                else:
+                    out.write("%r: %r,\n" % (seq_tag, _transform_text(entry)))
+            out.write("}\n")
+
+
 class SearchWordsToCTMJob(Job):
     """
     Convert RETURNN search output file into CTM format file (does not support n-best lists yet)
@@ -428,6 +484,100 @@ class SearchWordsToCTMJob(Job):
                         "%s 1 %f %f %s 0.99\n"
                         % (
                             seg.recording.name,
+                            seg_start,
+                            avg_dur,
+                            "<empty-sequence>",
+                        )
+                    )
+
+
+class SearchWordsDummyTimesToCTMJob(Job):
+    """
+    Convert RETURNN search output file into CTM format file (does not support n-best lists yet).
+    Like :class:`SearchWordsToCTMJob` but does not use the Bliss XML corpus for recording names and segment times.
+    Instead, this will just use dummy times.
+
+    When creating the corresponding STM files, make sure it uses the same dummy times.
+    """
+
+    def __init__(
+        self,
+        recog_words_file: Path,
+        *,
+        seq_order_file: Optional[Path] = None,
+        filter_tags: bool = True,
+        seg_length_time: float = 1.0,
+    ):
+        """
+        :param recog_words_file: search output file from RETURNN
+        :param seq_order_file: file which defines the sequence order, i.e. the order of the segments in the CTM.
+            This is required because sclite requires the same sequence order in the CTM as in the STM file,
+            and the search output (recog_words_file) likely has a different order.
+            Alternatively, you can use ``sort_files=True`` in the :class:`ScliteJob`,
+            thus this is optional here.
+            This file can be another text-dict format, e.g. via :class:`CorpusToTextDictJob`.
+        :param filter_tags: if set to True, tags such as [noise] will be filtered out
+        :param seg_length_time: dummy segment length time, in seconds
+        """
+        self.recog_words_file = recog_words_file
+        self.seq_order_file = seq_order_file
+        self.filter_tags = filter_tags
+        self.seg_length_time = seg_length_time
+
+        self.out_ctm_file = self.output_path("search.ctm")
+
+    def tasks(self):
+        yield Task("run", mini_task=True)
+
+    def run(self):
+        # nan/inf should not be needed, but avoids errors at this point and will print an error below,
+        # that we don't expect an N-best list here.
+        d = eval(util.uopen(self.recog_words_file, "rt").read(), {"nan": float("nan"), "inf": float("inf")})
+        assert isinstance(d, dict), "only search output file with dict format is supported"
+        if self.seq_order_file is not None:
+            seq_order = eval(util.uopen(self.seq_order_file, "rt").read(), {"nan": float("nan"), "inf": float("inf")})
+            assert isinstance(seq_order, (dict, list, tuple))
+        else:
+            seq_order = d.keys()
+        with util.uopen(self.out_ctm_file.get_path(), "wt") as out:
+            out.write(";; <name> <track> <start> <duration> <word> <confidence> [<n-best>]\n")
+            for seg_fullname in seq_order:
+                assert isinstance(
+                    seg_fullname, str
+                ), f"invalid seq_order entry {seg_fullname!r} (type {type(seg_fullname).__name__})"
+                assert seg_fullname in d, f"seq_order entry {seg_fullname!r} not found in recog_words_file"
+                text = d[seg_fullname]
+                seg_start = 0.0
+                seg_end = self.seg_length_time
+                out.write(";; %s (%f-%f)\n" % (seg_fullname, seg_start, seg_end))
+                words = text.split()
+                time_step_per_word = (seg_end - seg_start) / max(len(words), 1)
+                avg_dur = time_step_per_word * 0.9
+                count = 0
+                for i in range(len(words)):
+                    if self.filter_tags and words[i].startswith("[") and words[i].endswith("]"):
+                        continue
+                    out.write(
+                        "%s 1 %f %f %s 0.99\n"
+                        % (
+                            seg_fullname,  # originally the recording name, but treat each segment as a recording
+                            seg_start + time_step_per_word * i,
+                            avg_dur,
+                            words[i],
+                        )
+                    )
+                    count += 1
+                if count == 0:
+                    # sclite cannot handle empty sequences, and would stop with an error like:
+                    #   hyp file '4515-11057-0054' and ref file '4515-11057-0053' not synchronized
+                    #   sclite: Alignment failed.  Exiting
+                    # So we make sure it is never empty.
+                    # For the WER, it should not matter, assuming the reference sequence is non-empty,
+                    # you will anyway get a WER of 100% for this sequence.
+                    out.write(
+                        "%s 1 %f %f %s 0.99\n"
+                        % (
+                            seg_fullname,
                             seg_start,
                             avg_dur,
                             "<empty-sequence>",

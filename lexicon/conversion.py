@@ -1,8 +1,10 @@
 import collections
+import copy
 import json
 import logging
 import os.path
 import re
+from typing import List, Optional, Tuple, Union
 import xml.dom.minidom
 import xml.etree.ElementTree as ET
 
@@ -303,19 +305,22 @@ class GraphemicLexiconFromWordListJob(Job):
 class SpellingConversionJob(Job):
     """Spelling conversion for lexicon."""
 
+    __sis_hash_exclude__ = {"keep_original_target_lemmas": False}
+
     def __init__(
         self,
-        bliss_lexicon,
-        orth_mapping_file,
-        mapping_file_delimiter=" ",
-        mapping_rules=None,
-        invert_mapping=False,
+        bliss_lexicon: tk.Path,
+        orth_mapping_file: Union[str, tk.Path],
+        mapping_file_delimiter: str = " ",
+        mapping_rules: Optional[List[Tuple[str, str, str]]] = None,
+        invert_mapping: bool = False,
+        keep_original_target_lemmas: bool = False,
     ):
         """
         :param Path bliss_lexicon:
             input lexicon, whose lemmata all have unique PRIMARY orth
             to reach the above requirements apply LexiconUniqueOrthJob
-        :param str orth_mapping_file:
+        :param str|tk.Path orth_mapping_file:
             orthography mapping file: *.json *.json.gz *.txt *.gz
             in case of plain text file
                 one can adjust mapping_delimiter
@@ -335,6 +340,11 @@ class SpellingConversionJob(Job):
         :param bool invert_mapping:
             invert the input orth mapping
             NOTE: this also affects the pairs which are inferred from mapping_rules
+         :param bool keep_original_target_lemmas:
+            set this option to True if you want to keep the original target lemma in addition.
+            This is needed if a LM contains both spelling variants and we want to clean but keep
+            the usage of all LM probabilities.
+
         """
         self.set_vis_name("Convert Between Regional Orth Spellings")
 
@@ -343,6 +353,7 @@ class SpellingConversionJob(Job):
         self.invert_mapping = invert_mapping
         self.mapping_file_delimiter = mapping_file_delimiter
         self.mapping_rules = mapping_rules
+        self.keep_original_target_lemmas = keep_original_target_lemmas
 
         self.out_bliss_lexicon = self.output_path("lexicon.xml.gz")
 
@@ -366,16 +377,16 @@ class SpellingConversionJob(Job):
 
     def run(self):
         # load mapping from json or plain text file
-        is_json = self.orth_mapping_file.endswith(".json")
-        is_json |= self.orth_mapping_file.endswith(".json.gz")
+        orth_map_file_str = tk.uncached_path(self.orth_mapping_file)
+        is_json = orth_map_file_str.endswith(".json") | orth_map_file_str.endswith(".json.gz")
         if is_json:
-            with uopen(self.orth_mapping_file, "rt") as f:
+            with uopen(orth_map_file_str, "rt") as f:
                 mapping = json.load(f)
             if self.invert_mapping:
                 mapping = {v: k for k, v in mapping.items()}
         else:
             mapping = dict()
-            with uopen(self.orth_mapping_file, "rt") as f:
+            with uopen(orth_map_file_str, "rt") as f:
                 for line in f:
                     line = line.strip()
                     if not line or line.startswith("#"):
@@ -461,6 +472,8 @@ class SpellingConversionJob(Job):
             else:
                 logging.info("No source lemma for: {}".format(source_orth))
             if target_lemma:
+                if self.keep_original_target_lemmas:
+                    copy_target_lemma = copy.deepcopy(target_lemma)
                 if source_lemma:
                     for orth in source_lemma.orth:
                         if orth not in target_lemma.orth:
@@ -472,12 +485,23 @@ class SpellingConversionJob(Job):
                         if eval not in target_lemma.eval:
                             target_lemma.eval.append(eval)
                     if source_lemma in lex.lemmata:
-                        lex.lemmata.remove(source_lemma)
+                        if not self.keep_original_target_lemmas:
+                            lex.lemmata.remove(source_lemma)
+                        else:
+                            # Replace the source lemma and keep original target lemma as well
+                            # without changing the position in the lexicon
+                            source_position = lex.lemmata.index(source_lemma)
+                            target_position = lex.lemmata.index(target_lemma)
+                            lex.lemmata[source_position] = target_lemma
+                            lex.lemmata[target_position] = copy_target_lemma
                 if not target_lemma.synt:
                     if source_lemma and source_lemma.synt:
                         target_lemma.synt = source_lemma.synt
                     else:
                         target_lemma.synt = source_orth.split()
+                if self.keep_original_target_lemmas and not source_lemma:
+                    target_position = lex.lemmata.index(target_lemma)
+                    lex.lemmata.insert(target_position - 1, copy_target_lemma)
                 logging.info(self._lemma_to_str(target_lemma, "final lemma"))
             elif source_lemma:
                 source_lemma.orth.insert(0, target_orth)
