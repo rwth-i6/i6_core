@@ -360,7 +360,7 @@ class MergeCorporaJob(Job):
         to_add_spk = {spk.name: spk for spk in to_add.top_level_speakers()}
         for name, spk in to_add_spk.items():
             if name in base_spk:
-                assert spk == base_spk[name], (
+                assert spk.__dict__ == base_spk[name].__dict__, (
                     f"Found same speaker {name} with different attributes in the base/to be added corpus.\n"
                     f"Speaker attributes (base corpus): {base_spk[name]}.\n"
                     f"Speaker attributes (corpus to be added): {spk}."
@@ -403,7 +403,7 @@ class MergeCorporaJob(Job):
         to_add_spk = {spk.name: spk for spk in to_add.speakers}
         for name, spk in to_add_spk.items():
             if name in base_spk:
-                assert spk == base_spk[name], (
+                assert spk.__dict__ == base_spk[name].__dict__, (
                     f"Found same speaker {name} with different attributes in the base/to be added corpus.\n"
                     f"Speaker attributes (base corpus): {base_spk[name]}.\n"
                     f"Speaker attributes (corpus to be added): {spk}."
