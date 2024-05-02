@@ -1,6 +1,6 @@
 import os
 import tempfile
-from typing import Any
+from typing import Any, Dict
 import pytest
 from sisyphus import setup_path
 from i6_core.corpus.transform import MergeCorporaJob, MergeStrategy
@@ -13,15 +13,15 @@ Path = setup_path(__package__)
 @pytest.mark.skip(reason="Helper class only used in file.")
 class CorpusCreatorHelper:
     @staticmethod
-    def _create_corpus_with_structure(corpus_dict: dict[str, Any]) -> libcorpus.Corpus:
+    def _create_corpus_with_structure(corpus_dict: Dict[str, Any]) -> libcorpus.Corpus:
         """
         Creates a simple corpus from its definition in dictionary form.
         The dictionary can have the following keys and with the respective type:
         - "name": str
-        - "recordings": list[dict[str, Any]]: can have the following keys:
+        - "recordings": list[Dict[str, Any]]: can have the following keys:
             - "name": str
             - "segments": list[str]
-        - "subcorpora": list[dict[str, Any]]: recursive definition of a corpus.
+        - "subcorpora": list[Dict[str, Any]]: recursive definition of a corpus.
 
         :param corpus_dict: Definition of a corpus in dictionary form.
         :return: Corpus object defined by the corpus dictionary provided.
@@ -43,7 +43,7 @@ class CorpusCreatorHelper:
         return corpus
 
     @staticmethod
-    def _check_corpus_with_structure(corpus: libcorpus.Corpus, corpus_dict: dict[str, Any]) -> bool:
+    def _check_corpus_with_structure(corpus: libcorpus.Corpus, corpus_dict: Dict[str, Any]) -> bool:
         """
         Asserts that the corpus passed as parameter has the same structure as the simple corpus dictionary provided.
 
