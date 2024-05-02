@@ -1,8 +1,8 @@
 import os
 import tempfile
-from typing import Any, Optional
+from typing import Any
+import pytest
 from sisyphus import setup_path
-
 from i6_core.corpus.transform import MergeCorporaJob, MergeStrategy
 import i6_core.lib.corpus as libcorpus
 
