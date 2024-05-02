@@ -10,6 +10,7 @@ import i6_core.lib.corpus as libcorpus
 Path = setup_path(__package__)
 
 
+@pytest.mark.skip(reason="Private method only used in file.")
 def _create_corpus_with_structure(corpus_dict: dict[str, Any]) -> libcorpus.Corpus:
     """
     Creates a simple corpus from its definition in dictionary form.
@@ -40,6 +41,7 @@ def _create_corpus_with_structure(corpus_dict: dict[str, Any]) -> libcorpus.Corp
     return corpus
 
 
+@pytest.mark.skip(reason="Private method only used in file.")
 def _check_corpus_with_structure(corpus: libcorpus.Corpus, corpus_dict: dict[str, Any]) -> bool:
     """
     Asserts that the corpus passed as parameter has the same structure as the simple corpus dictionary provided.
