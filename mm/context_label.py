@@ -130,32 +130,3 @@ class GetContextLabelFromDenseTyingJob(Job):
         out_hdf_left_context.close()
         out_hdf_right_context.close()
         out_hdf_center_context.close()
-
-
-def py():
-    aar = AbstractArtefactRepository()
-    runtime_name = "ApptekCluster-ubuntu2204-tf2.13.0-2023-08-25"
-    runtime = aar.get_artefact_factory("runtime", runtime_name).build()
-    gs.worker_wrapper = runtime.worker_wrapper
-
-    alignment_cache_path = tk.Path(
-        "/nas/data/speech/ES_US/8kHz/NameAddr/corpus/batch.1.v1/gmm_sbw_8kHz_20230621.alignment.split-1/NameAddr-batch.1.v1.alignment.cache.1"
-    )
-    allophone_path = tk.Path("/nas/models/asr/artefacts/allophones/ES/8kHz/20230511-gmm-sbw/allophones")
-    dense_tying_path = tk.Path(
-        "/nas/models/asr/jxu/setups/2024-04-22--jxu-multitask-left-right-center-state/work/i6_core/lexicon/allophones/DumpStateTyingJob.D6srwC6nq7bm/output/state-tying"
-    )
-    n_contexts = 34
-    returnn_root = tk.Path("/nas/models/asr/jxu/setups/2024-04-22--jxu-multitask-left-right-center-state/tools/returnn")
-
-    get_context_job = GetContextLabelFromDenseTyingJob(
-        alignment_cache_path=alignment_cache_path,
-        allophone_path=allophone_path,
-        dense_tying_path=dense_tying_path,
-        n_contexts=n_contexts,
-        returnn_root=returnn_root,
-    )
-
-    tk.register_output("out_hdf_left_context", get_context_job.out_hdf_left_context)
-    tk.register_output("out_hdf_right_context", get_context_job.out_hdf_right_context)
-    tk.register_output("out_hdf_center_context", get_context_job.out_hdf_center_context)
