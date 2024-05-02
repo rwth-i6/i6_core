@@ -297,7 +297,7 @@ class MergeStrategy(enum.Enum):
     SUBCORPORA = 0  # Merge as subcorpora of a common corpus.
     FLAT = 1  # Flatten corpus structure by ignoring subcorpora.
     CONCATENATE = 2  # Concatenate all subcorpora, recordings and speakers.
-    MERGE_SUBCORPORA = 3  # Merge subcorpora and recordings with the same name.
+    MERGE_RECURSIVE = 3  # Merge recordings and subcorpora with the same name.
 
 
 class MergeCorporaJob(Job):
@@ -339,7 +339,7 @@ class MergeCorporaJob(Job):
                     merged_corpus.add_recording(rec)
                 for speaker in c.top_level_speakers():
                     merged_corpus.add_speaker(speaker)
-            elif self.merge_strategy == MergeStrategy.MERGE_SUBCORPORA:
+            elif self.merge_strategy == MergeStrategy.MERGE_RECURSIVE:
                 merged_corpus = MergeCorporaJob.merge_corpora(merged_corpus, c)
             else:
                 assert False, "invalid merge strategy"
