@@ -5,7 +5,7 @@ import numpy as np
 
 from i6_core.lib.hdf import get_returnn_simple_hdf_writer
 from i6_core.lib.rasr_cache import FileArchive
-from sisyphus import Job, Path, Task, tk, gs
+from sisyphus import Job, Task, tk, gs
 from apptek_asr.artefacts.factory import AbstractArtefactRepository
 
 
@@ -19,8 +19,8 @@ class GetContextLabelFromDenseTyingJob(Job):
         returnn_root: Optional[tk.Path] = None,
     ):
         """
-        Get past/center/future context label of alignment by calculating back labels from dense tying and write the
-        labels into hdf file.
+        Get past/center/future context label of alignment by calculating back labels from
+        dense tying and write the labels into hdf file.
         (C.f. NoStateTyingDense in rasr
         https://github.com/rwth-i6/rasr/blob/a942e3940c30eeba900c873f3bfb3f48d5b39ddb/src/Am/ClassicStateTying.cc#L272)
 
@@ -56,18 +56,12 @@ class GetContextLabelFromDenseTyingJob(Job):
             if not line.startswith("#"):
                 num_classes = max(num_classes, int(line.strip().split()[1]))
 
-        state_tying = dict(
-            (k, int(v))
-            for l in open(dense_tying_path.get_path())
-            for k, v in [l.strip().split()[0:2]]
-        )
+        state_tying = dict((k, int(v)) for l in open(dense_tying_path.get_path()) for k, v in [l.strip().split()[0:2]])
 
         return state_tying, num_classes
 
     @classmethod
-    def get_target_labels_from_dense(
-        cls, dense_label: int, hmm_state: int, n_contexts: int
-    ) -> Tuple[int, int, int]:
+    def get_target_labels_from_dense(cls, dense_label: int, hmm_state: int, n_contexts: int) -> Tuple[int, int, int]:
         """ """
 
         futureLabel = np.mod(dense_label, n_contexts)
@@ -80,19 +74,11 @@ class GetContextLabelFromDenseTyingJob(Job):
         return futureLabel, centerState, pastLabel
 
     def run(self):
-        returnn_root = (
-            None if self.returnn_root is None else self.returnn_root.get_path()
-        )
+        returnn_root = None if self.returnn_root is None else self.returnn_root.get_path()
         SimpleHDFWriter = get_returnn_simple_hdf_writer(returnn_root)
-        out_hdf_left_context = SimpleHDFWriter(
-            filename=self.out_hdf_left_context, dim=1
-        )
-        out_hdf_right_context = SimpleHDFWriter(
-            filename=self.out_hdf_right_context, dim=1
-        )
-        out_hdf_center_context = SimpleHDFWriter(
-            filename=self.out_hdf_center_context, dim=1
-        )
+        out_hdf_left_context = SimpleHDFWriter(filename=self.out_hdf_left_context, dim=1)
+        out_hdf_right_context = SimpleHDFWriter(filename=self.out_hdf_right_context, dim=1)
+        out_hdf_center_context = SimpleHDFWriter(filename=self.out_hdf_center_context, dim=1)
 
         dense_tying, _ = self.get_tying_and_num_classes(self.dense_tying_path)
 
@@ -105,9 +91,7 @@ class GetContextLabelFromDenseTyingJob(Job):
                 continue
 
             alignment = alignment_cache.read(file, "align")
-            aligned_allophones = [
-                "%s.%d" % (alignment_cache.allophones[t[1]], t[2]) for t in alignment
-            ]
+            aligned_allophones = ["%s.%d" % (alignment_cache.allophones[t[1]], t[2]) for t in alignment]
             dense_targets = [dense_tying[allo] for allo in aligned_allophones]
             hmm_state_ids = [alignment[i][2] for i in range(len(alignment))]
 
@@ -119,9 +103,7 @@ class GetContextLabelFromDenseTyingJob(Job):
             for k, g in itertools.groupby(zip(dense_targets, hmm_state_ids)):
                 segLen = len(list(g))
                 dense_target, hmm_state = k
-                f, c, l = self.get_target_labels_from_dense(
-                    dense_target, hmm_state, self.n_contexts
-                )
+                f, c, l = self.get_target_labels_from_dense(dense_target, hmm_state, self.n_contexts)
 
                 pastLabel_strings = pastLabel_strings + [l] * segLen
                 centerState_strings = centerState_strings + [c] * segLen
@@ -159,16 +141,12 @@ def py():
     alignment_cache_path = tk.Path(
         "/nas/data/speech/ES_US/8kHz/NameAddr/corpus/batch.1.v1/gmm_sbw_8kHz_20230621.alignment.split-1/NameAddr-batch.1.v1.alignment.cache.1"
     )
-    allophone_path = tk.Path(
-        "/nas/models/asr/artefacts/allophones/ES/8kHz/20230511-gmm-sbw/allophones"
-    )
+    allophone_path = tk.Path("/nas/models/asr/artefacts/allophones/ES/8kHz/20230511-gmm-sbw/allophones")
     dense_tying_path = tk.Path(
         "/nas/models/asr/jxu/setups/2024-04-22--jxu-multitask-left-right-center-state/work/i6_core/lexicon/allophones/DumpStateTyingJob.D6srwC6nq7bm/output/state-tying"
     )
     n_contexts = 34
-    returnn_root = tk.Path(
-        "/nas/models/asr/jxu/setups/2024-04-22--jxu-multitask-left-right-center-state/tools/returnn"
-    )
+    returnn_root = tk.Path("/nas/models/asr/jxu/setups/2024-04-22--jxu-multitask-left-right-center-state/tools/returnn")
 
     get_context_job = GetContextLabelFromDenseTyingJob(
         alignment_cache_path=alignment_cache_path,
