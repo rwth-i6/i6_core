@@ -75,7 +75,6 @@ class GetPhonemeLabelsFromNoTyingDense(Job):
 
     @classmethod
     def get_target_labels_from_dense(cls, dense_label: int, dense_label_info: DenseLabelInfo) -> Tuple[int, int, int]:
-        """ """
         num_boundary_classes = 4
         num_word_end_classes = 2
 
@@ -98,6 +97,32 @@ class GetPhonemeLabelsFromNoTyingDense(Job):
 
         return future_label, center_label, past_label
 
+    def sanity_check(self, max_class_index, dense_label_info):
+        # sanity check to make sure that the user is setting all values of the dense tying label info correct
+        max_phone_idx = dense_label_info.n_contexts - 1
+        max_states_idx = dense_label_info.num_hmm_states_per_phon - 1
+        expected_max_class_idx = (max_phone_idx * dense_label_info.num_hmm_states_per_phon) + max_states_idx
+
+        if dense_label_info.use_boundary_classes:
+            num_boundary_classes = 4
+            max_boundary_id = 3
+            expected_max_class_idx *= num_boundary_classes
+            expected_max_class_idx += max_boundary_id
+
+        if dense_label_info.use_word_end_classes:
+            num_word_end_classes = 2
+            expected_max_class_idx *= num_word_end_classes
+            max_word_end_idx = 1
+            expected_max_class_idx += max_word_end_idx
+
+        expected_max_class_idx *= dense_label_info.n_contexts
+        expected_max_class_idx += max_phone_idx
+
+        expected_max_class_idx *= dense_label_info.n_contexts
+        expected_max_class_idx += max_phone_idx
+
+        assert expected_max_class_idx == max_class_index, "something is set wrong in dense tying label info!"
+
     def run(self):
         returnn_root = None if self.returnn_root is None else self.returnn_root.get_path()
         SimpleHDFWriter = get_returnn_simple_hdf_writer(returnn_root)
@@ -106,6 +131,8 @@ class GetPhonemeLabelsFromNoTyingDense(Job):
         out_hdf_center_context = SimpleHDFWriter(filename=self.out_hdf_center_context, dim=1)
 
         dense_tying = self.get_tying_and_num_classes(self.dense_tying_path)
+        max_class_index = max(dense_tying.values())
+        self.sanity_check(max_class_index, self.dense_label_info)
 
         alignment_cache = FileArchive(self.alignment_cache_path)
         alignment_cache.setAllophones(self.allophone_path)
