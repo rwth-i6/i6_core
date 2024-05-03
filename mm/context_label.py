@@ -93,7 +93,7 @@ class GetPhonemeLabelsFromNoTyingDense(Job):
             boundary_class = np.mod(center_state, num_boundary_classes)
             center_state = np.floor_divide(center_state, num_boundary_classes)
 
-        hmm_state_class = np.mod(rescenter_stateult, num_hmm_states_per_phon)
+        hmm_state_class = np.mod(center_state, dense_label_info.num_hmm_states_per_phon)
         center_label = np.floor_divide(center_state, dense_label_info.num_hmm_states_per_phon)
 
         return future_label, center_label, past_label
@@ -124,7 +124,7 @@ class GetPhonemeLabelsFromNoTyingDense(Job):
             center_state_strings = []
             future_label_strings = []
 
-            for k, g in itertools.groupby(hmm_state_ids):
+            for k, g in itertools.groupby(dense_targets):
                 seg_len = len(list(g))
                 f, c, l = self.get_target_labels_from_dense(k, self.dense_label_info)
 
