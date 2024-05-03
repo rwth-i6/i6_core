@@ -1,12 +1,28 @@
 from typing import Tuple, Optional, Dict
 import itertools
+from dataclasses import dataclass
 
 import numpy as np
 
 from i6_core.lib.hdf import get_returnn_simple_hdf_writer
 from i6_core.lib.rasr_cache import FileArchive
-from sisyphus import Job, Task, tk, gs
-from apptek_asr.artefacts.factory import AbstractArtefactRepository
+from sisyphus import Job, Task, tk
+
+
+@dataclass
+class DenseLabelInfo:
+    """
+    Attributes:
+        n_contexts: number of phonemes in lexicon ( usually need to + 1 for non-context # in rasr)
+        use_word_end_classes: if word end class is used for no tying dense label
+        use_boundary_classes: if bounary class is used for no tying dense label
+        num_hmm_states_per_phon: the number of hmm states per phoneme
+    """
+
+    n_contexts: int
+    use_word_end_classes: bool
+    use_boundary_classes: bool
+    num_hmm_states_per_phon: int
 
 
 class GetPhonemeLabelsFromNoTyingDense(Job):
@@ -15,29 +31,25 @@ class GetPhonemeLabelsFromNoTyingDense(Job):
         alignment_cache_path: tk.Path,
         allophone_path: tk.Path,
         dense_tying_path: tk.Path,
-        n_contexts: int,
+        dense_label_info: DenseLabelInfo,
         returnn_root: Optional[tk.Path] = None,
     ):
         """
-        Get past/center/future context label of alignment by calculating back labels from
-        dense tying and write the labels into hdf file.
+        Get past/center/future context label of alignment by calculating back labels from dense tying and write the
+        labels into hdf file.
         (C.f. NoStateTyingDense in rasr
         https://github.com/rwth-i6/rasr/blob/a942e3940c30eeba900c873f3bfb3f48d5b39ddb/src/Am/ClassicStateTying.cc#L272)
 
-
         :param alignment_cache_path: path to alginment cache
         :param allophone_path: path to allohone
-        :param dense_tying_path: path to denser tying file (hint: can be obatained by setting
-            crp.acoustic_model_config.state_tying.type = "no-tying-dense"
-            crp.acoustic_model_config.state_tying.use_boundary_classes = "no"
-            crp.acoustic_model_config.state_tying.use_word_end_classes = "no")
-        :param n_contexts: number of phonemes in lexicon + 1 (for non-context # in rasr)
+        :param dense_tying_path: path to denser tying file
+        :param dense_label_info: the dense label information
         :param returnn_root: path to returnn root
         """
         self.alignment_cache_path = alignment_cache_path
         self.allophone_path = allophone_path
         self.dense_tying_path = dense_tying_path
-        self.n_contexts = n_contexts
+        self.dense_label_info = dense_label_info
         self.returnn_root = returnn_root
 
         self.out_hdf_left_context = self.output_path("left_context.hdf")
@@ -51,27 +63,35 @@ class GetPhonemeLabelsFromNoTyingDense(Job):
 
     @classmethod
     def get_tying_and_num_classes(cls, dense_tying_path: tk.Path) -> Tuple[Dict, int]:
-        num_classes = 0
-        for line in open(dense_tying_path.get_path(), "rt"):
-            if not line.startswith("#"):
-                num_classes = max(num_classes, int(line.strip().split()[1]))
-
         state_tying = dict((k, int(v)) for l in open(dense_tying_path.get_path()) for k, v in [l.strip().split()[0:2]])
 
-        return state_tying, num_classes
+        return state_tying
 
     @classmethod
-    def get_target_labels_from_dense(cls, dense_label: int, hmm_state: int, n_contexts: int) -> Tuple[int, int, int]:
+    def get_target_labels_from_dense(
+        cls, dense_label: int, hmm_state: int, dense_label_info: DenseLabelInfo
+    ) -> Tuple[int, int, int]:
         """ """
+        num_boundary_classes = 4
+        num_word_end_classes = 2
 
-        futureLabel = np.mod(dense_label, n_contexts)
-        popFutureLabel = np.floor_divide(dense_label, n_contexts)
+        future_label = np.mod(dense_label, dense_label_info.n_contexts)
+        pop_future_label = np.floor_divide(dense_label, dense_label_info.n_contexts)
 
-        pastLabel = np.mod(popFutureLabel, n_contexts)
-        centerState = np.floor_divide(popFutureLabel, n_contexts)
-        centerState = np.floor_divide(centerState - hmm_state, 3)
+        past_label = np.mod(pop_future_label, dense_label_info.n_contexts)
+        center_state = np.floor_divide(pop_future_label, dense_label_info.n_contexts)
 
-        return futureLabel, centerState, pastLabel
+        if dense_label_info.use_word_end_classes:
+            np.mod(center_state, num_word_end_classes)
+            center_state = np.floor_divide(center, num_word_end_classes)
+
+        if dense_label_info.use_boundary_classes:
+            np.mod(center_state, num_boundary_classes)
+            center_state = np.floor_divide(center_state, num_boundary_classes)
+
+        center_state = np.floor_divide(center_state - hmm_state, dense_label_info.num_hmm_states_per_phon)
+
+        return future_label, center_state, past_label
 
     def run(self):
         returnn_root = None if self.returnn_root is None else self.returnn_root.get_path()
@@ -80,7 +100,7 @@ class GetPhonemeLabelsFromNoTyingDense(Job):
         out_hdf_right_context = SimpleHDFWriter(filename=self.out_hdf_right_context, dim=1)
         out_hdf_center_context = SimpleHDFWriter(filename=self.out_hdf_center_context, dim=1)
 
-        dense_tying, _ = self.get_tying_and_num_classes(self.dense_tying_path)
+        dense_tying = self.get_tying_and_num_classes(self.dense_tying_path)
 
         alignment_cache = FileArchive(self.alignment_cache_path)
         alignment_cache.setAllophones(self.allophone_path)
@@ -96,34 +116,34 @@ class GetPhonemeLabelsFromNoTyingDense(Job):
             hmm_state_ids = [alignment[i][2] for i in range(len(alignment))]
 
             # optimize the calculation by grouping
-            pastLabel_strings = []
-            centerState_strings = []
-            futureLabel_strings = []
+            past_label_strings = []
+            center_state_strings = []
+            future_label_strings = []
 
             for k, g in itertools.groupby(zip(dense_targets, hmm_state_ids)):
                 segLen = len(list(g))
                 dense_target, hmm_state = k
-                f, c, l = self.get_target_labels_from_dense(dense_target, hmm_state, self.n_contexts)
+                f, c, l = self.get_target_labels_from_dense(dense_target, hmm_state, self.dense_label_info)
 
-                pastLabel_strings = pastLabel_strings + [l] * segLen
-                centerState_strings = centerState_strings + [c] * segLen
-                futureLabel_strings = futureLabel_strings + [f] * segLen
+                past_label_strings = past_label_strings + [l] * segLen
+                center_state_strings = center_state_strings + [c] * segLen
+                future_label_strings = future_label_strings + [f] * segLen
 
             out_hdf_left_context.insert_batch(
-                inputs=np.array(pastLabel_strings).reshape(1, -1, 1),
-                seq_len=[len(pastLabel_strings)],
+                inputs=np.array(past_label_strings).reshape(1, -1, 1),
+                seq_len=[len(past_label_strings)],
                 seq_tag=[f"{info.name}"],
             )
 
             out_hdf_center_context.insert_batch(
-                inputs=np.array(centerState_strings).reshape(1, -1, 1),
-                seq_len=[len(centerState_strings)],
+                inputs=np.array(center_state_strings).reshape(1, -1, 1),
+                seq_len=[len(center_state_strings)],
                 seq_tag=[f"{info.name}"],
             )
 
             out_hdf_right_context.insert_batch(
-                inputs=np.array(futureLabel_strings).reshape(1, -1, 1),
-                seq_len=[len(centerState_strings)],
+                inputs=np.array(future_label_strings).reshape(1, -1, 1),
+                seq_len=[len(center_state_strings)],
                 seq_tag=[f"{info.name}"],
             )
 
