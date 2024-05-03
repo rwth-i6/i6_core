@@ -9,7 +9,7 @@ from sisyphus import Job, Task, tk, gs
 from apptek_asr.artefacts.factory import AbstractArtefactRepository
 
 
-class GetContextLabelFromDenseTyingJob(Job):
+class GetPhonemeLabelsFromNoTyingDense(Job):
     def __init__(
         self,
         alignment_cache_path: tk.Path,
