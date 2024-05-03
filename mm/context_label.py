@@ -49,6 +49,9 @@ class GetPhonemeLabelsFromNoTyingDense(Job):
         self.alignment_cache_path = alignment_cache_path
         self.allophone_path = allophone_path
         self.dense_tying_path = dense_tying_path
+        assert not (
+            dense_label_info.use_boundary_classes and dense_label_info.use_word_end_classes
+        ), "we do not use both class distinctions"
         self.dense_label_info = dense_label_info
         self.returnn_root = returnn_root
 
@@ -71,9 +74,7 @@ class GetPhonemeLabelsFromNoTyingDense(Job):
         return state_tying
 
     @classmethod
-    def get_target_labels_from_dense(
-        cls, dense_label: int, hmm_state: int, dense_label_info: DenseLabelInfo
-    ) -> Tuple[int, int, int]:
+    def get_target_labels_from_dense(cls, dense_label: int, dense_label_info: DenseLabelInfo) -> Tuple[int, int, int]:
         """ """
         num_boundary_classes = 4
         num_word_end_classes = 2
@@ -85,16 +86,17 @@ class GetPhonemeLabelsFromNoTyingDense(Job):
         center_state = np.floor_divide(pop_future_label, dense_label_info.n_contexts)
 
         if dense_label_info.use_word_end_classes:
-            np.mod(center_state, num_word_end_classes)
-            center_state = np.floor_divide(center, num_word_end_classes)
+            word_end_class = np.mod(center_state, num_word_end_classes)
+            center_state = np.floor_divide(center_state, num_word_end_classes)
 
         if dense_label_info.use_boundary_classes:
-            np.mod(center_state, num_boundary_classes)
+            boundary_class = np.mod(center_state, num_boundary_classes)
             center_state = np.floor_divide(center_state, num_boundary_classes)
 
-        center_state = np.floor_divide(center_state - hmm_state, dense_label_info.num_hmm_states_per_phon)
+        hmm_state_class = np.mod(rescenter_stateult, num_hmm_states_per_phon)
+        center_label = np.floor_divide(center_state, dense_label_info.num_hmm_states_per_phon)
 
-        return future_label, center_state, past_label
+        return future_label, center_label, past_label
 
     def run(self):
         returnn_root = None if self.returnn_root is None else self.returnn_root.get_path()
@@ -116,21 +118,19 @@ class GetPhonemeLabelsFromNoTyingDense(Job):
             alignment = alignment_cache.read(file, "align")
             aligned_allophones = ["%s.%d" % (alignment_cache.allophones[t[1]], t[2]) for t in alignment]
             dense_targets = [dense_tying[allo] for allo in aligned_allophones]
-            hmm_state_ids = [align[2] for align in alignment]
 
             # optimize the calculation by grouping
             past_label_strings = []
             center_state_strings = []
             future_label_strings = []
 
-            for k, g in itertools.groupby(zip(dense_targets, hmm_state_ids)):
-                segLen = len(list(g))
-                dense_target, hmm_state = k
-                f, c, l = self.get_target_labels_from_dense(dense_target, hmm_state, self.dense_label_info)
+            for k, g in itertools.groupby(hmm_state_ids):
+                seg_len = len(list(g))
+                f, c, l = self.get_target_labels_from_dense(k, self.dense_label_info)
 
-                past_label_strings = past_label_strings + [l] * segLen
-                center_state_strings = center_state_strings + [c] * segLen
-                future_label_strings = future_label_strings + [f] * segLen
+                past_label_strings = past_label_strings + [l] * seg_len
+                center_state_strings = center_state_strings + [c] * seg_len
+                future_label_strings = future_label_strings + [f] * seg_len
 
             out_hdf_left_context.insert_batch(
                 inputs=np.array(past_label_strings).reshape(1, -1, 1),
