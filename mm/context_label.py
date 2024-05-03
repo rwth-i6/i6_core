@@ -114,7 +114,7 @@ class GetPhonemeLabelsFromNoTyingDense(Job):
             alignment = alignment_cache.read(file, "align")
             aligned_allophones = ["%s.%d" % (alignment_cache.allophones[t[1]], t[2]) for t in alignment]
             dense_targets = [dense_tying[allo] for allo in aligned_allophones]
-            hmm_state_ids = [alignment[i][2] for i in range(len(alignment))]
+            hmm_state_ids = [align[2] for align in alignment]
 
             # optimize the calculation by grouping
             past_label_strings = []
