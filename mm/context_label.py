@@ -68,7 +68,7 @@ class GetPhonemeLabelsFromNoTyingDense(Job):
         yield Task("run", resume="run", rqmt=self.rqmt)
 
     @classmethod
-    def get_tying(cls, dense_tying_path: tk.Path) -> Tuple[Dict, int]:
+    def get_tying(cls, dense_tying_path: tk.Path) -> Dict[str, int]:
         with open(dense_tying_path.get_path()) as dense_tying_file:
             state_tying = {
                 k: int(v) for l in dense_tying_file for k, v in [l.strip().split()[0:2]] if not l.startswith("#")
