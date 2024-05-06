@@ -55,6 +55,7 @@ class GetPhonemeLabelsFromNoTyingDense(Job):
             dense_label_info.use_boundary_classes and dense_label_info.use_word_end_classes
         ), "we do not use both class distinctions"
         self.dense_label_info = dense_label_info
+        self.sparse = sparse
         self.returnn_root = returnn_root
 
         self.out_hdf_left_context = self.output_path("left_context.hdf")
