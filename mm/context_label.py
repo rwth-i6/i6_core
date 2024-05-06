@@ -162,7 +162,7 @@ class GetPhonemeLabelsFromNoTyingDense(Job):
                 continue
 
             alignment = alignment_cache.read(file, "align")
-            if not len(alginment):
+            if not len(alignment):
                 continue
 
             aligned_allophones = ["%s.%d" % (alignment_cache.allophones[t[1]], t[2]) for t in alignment]
