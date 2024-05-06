@@ -32,6 +32,7 @@ class GetPhonemeLabelsFromNoTyingDense(Job):
         allophone_path: tk.Path,
         dense_tying_path: tk.Path,
         dense_label_info: DenseLabelInfo,
+        sparse: bool = False,
         returnn_root: Optional[tk.Path] = None,
     ):
         """
@@ -44,6 +45,7 @@ class GetPhonemeLabelsFromNoTyingDense(Job):
         :param allophone_path: path to allohone
         :param dense_tying_path: path to denser tying file
         :param dense_label_info: the dense label information
+        :param sparse: writes the data to hdf in sparse format
         :param returnn_root: path to returnn root
         """
         self.alignment_cache_path = alignment_cache_path
@@ -126,9 +128,21 @@ class GetPhonemeLabelsFromNoTyingDense(Job):
     def run(self):
         returnn_root = None if self.returnn_root is None else self.returnn_root.get_path()
         SimpleHDFWriter = get_returnn_simple_hdf_writer(returnn_root)
-        out_hdf_left_context = SimpleHDFWriter(filename=self.out_hdf_left_context, dim=1)
-        out_hdf_right_context = SimpleHDFWriter(filename=self.out_hdf_right_context, dim=1)
-        out_hdf_center_context = SimpleHDFWriter(filename=self.out_hdf_center_context, dim=1)
+        out_hdf_left_context = SimpleHDFWriter(
+            filename=self.out_hdf_left_context,
+            dim=self.dense_label_info.n_contexts if self.sparse else 1,
+            ndim=1 if self.sparse else 2,
+        )
+        out_hdf_right_context = SimpleHDFWriter(
+            filename=self.out_hdf_right_context,
+            dim=self.dense_label_info.n_contexts if self.sparse else 1,
+            ndim=1 if self.sparse else 2,
+        )
+        out_hdf_center_context = SimpleHDFWriter(
+            filename=self.out_hdf_center_context,
+            dim=self.dense_label_info.n_contexts if self.sparse else 1,
+            ndim=1 if self.sparse else 2,
+        )
 
         dense_tying = self.get_tying(self.dense_tying_path)
         max_class_index = max(dense_tying.values())
@@ -160,19 +174,25 @@ class GetPhonemeLabelsFromNoTyingDense(Job):
                 future_label_strings = future_label_strings + [f] * seg_len
 
             out_hdf_left_context.insert_batch(
-                inputs=np.array(past_label_strings).reshape(1, -1, 1),
+                inputs=np.array(past_label_strings).reshape(1, -1)
+                if self.sparse
+                else np.array(past_label_strings).reshape(1, -1, 1),
                 seq_len=[len(past_label_strings)],
                 seq_tag=[f"{info.name}"],
             )
 
             out_hdf_center_context.insert_batch(
-                inputs=np.array(center_state_strings).reshape(1, -1, 1),
+                inputs=np.array(center_state_strings).reshape(1, -1)
+                if self.sparse
+                else np.array(center_state_strings).reshape(1, -1, 1),
                 seq_len=[len(center_state_strings)],
                 seq_tag=[f"{info.name}"],
             )
 
             out_hdf_right_context.insert_batch(
-                inputs=np.array(future_label_strings).reshape(1, -1, 1),
+                inputs=np.array(future_label_strings).reshape(1, -1)
+                if self.sparse
+                else np.array(future_label_strings).reshape(1, -1, 1),
                 seq_len=[len(center_state_strings)],
                 seq_tag=[f"{info.name}"],
             )
