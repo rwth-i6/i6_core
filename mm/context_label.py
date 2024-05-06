@@ -81,22 +81,22 @@ class GetPhonemeLabelsFromNoTyingDense(Job):
         num_boundary_classes = 4
         num_word_end_classes = 2
 
-        future_label = np.mod(dense_label, dense_label_info.n_contexts)
-        pop_future_label = np.floor_divide(dense_label, dense_label_info.n_contexts)
+        future_label = dense_label % dense_label_info.n_contexts
+        pop_future_label = dense_label // dense_label_info.n_contexts
 
-        past_label = np.mod(pop_future_label, dense_label_info.n_contexts)
-        center_state = np.floor_divide(pop_future_label, dense_label_info.n_contexts)
+        past_label = pop_future_label % dense_label_info.n_contexts
+        center_state = pop_future_label // dense_label_info.n_contexts
 
         if dense_label_info.use_word_end_classes:
-            word_end_class = np.mod(center_state, num_word_end_classes)
-            center_state = np.floor_divide(center_state, num_word_end_classes)
+            word_end_class = center_state % num_word_end_classes
+            center_state = center_state // num_word_end_classes
 
         if dense_label_info.use_boundary_classes:
-            boundary_class = np.mod(center_state, num_boundary_classes)
-            center_state = np.floor_divide(center_state, num_boundary_classes)
+            boundary_class = center_state % num_boundary_classes
+            center_state = center_state // num_boundary_classes
 
-        hmm_state_class = np.mod(center_state, dense_label_info.num_hmm_states_per_phon)
-        center_label = np.floor_divide(center_state, dense_label_info.num_hmm_states_per_phon)
+        hmm_state_class = center_state % dense_label_info.num_hmm_states_per_phon
+        center_label = center_state // dense_label_info.num_hmm_states_per_phon
 
         return future_label, center_label, past_label
 
