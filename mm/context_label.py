@@ -130,7 +130,7 @@ class GetPhonemeLabelsFromNoTyingDense(Job):
         out_hdf_right_context = SimpleHDFWriter(filename=self.out_hdf_right_context, dim=1)
         out_hdf_center_context = SimpleHDFWriter(filename=self.out_hdf_center_context, dim=1)
 
-        dense_tying = self.get_tying_and_num_classes(self.dense_tying_path)
+        dense_tying = self.get_tying(self.dense_tying_path)
         max_class_index = max(dense_tying.values())
         self.sanity_check(max_class_index, self.dense_label_info)
 
