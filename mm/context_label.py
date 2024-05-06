@@ -70,7 +70,7 @@ class GetPhonemeLabelsFromNoTyingDense(Job):
     @classmethod
     def get_tying(cls, dense_tying_path: tk.Path) -> Dict[str, int]:
         """
-        reads state tying file and return dict "state repr -> state idx" 
+        reads state tying file and return dict "state repr -> state idx"
         """
         with open(dense_tying_path.get_path()) as dense_tying_file:
             state_tying = {
@@ -162,6 +162,9 @@ class GetPhonemeLabelsFromNoTyingDense(Job):
                 continue
 
             alignment = alignment_cache.read(file, "align")
+            if not len(alginment):
+                continue
+
             aligned_allophones = ["%s.%d" % (alignment_cache.allophones[t[1]], t[2]) for t in alignment]
             dense_targets = [dense_tying[allo] for allo in aligned_allophones]
 
