@@ -69,6 +69,9 @@ class GetPhonemeLabelsFromNoTyingDense(Job):
 
     @classmethod
     def get_tying(cls, dense_tying_path: tk.Path) -> Dict[str, int]:
+        """
+        reads state tying file and return dict "state repr -> state idx" 
+        """
         with open(dense_tying_path.get_path()) as dense_tying_file:
             state_tying = {
                 k: int(v) for l in dense_tying_file for k, v in [l.strip().split()[0:2]] if not l.startswith("#")
