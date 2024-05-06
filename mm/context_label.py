@@ -100,7 +100,8 @@ class GetPhonemeLabelsFromNoTyingDense(Job):
 
         return future_label, center_label, past_label
 
-    def sanity_check(self, max_class_index, dense_label_info):
+    @classmethod
+    def sanity_check(cls, max_class_index: int, dense_label_info: DenseLabelInfo):
         # sanity check to make sure that the user is setting all values of the dense tying label info correct
         max_phone_idx = dense_label_info.n_contexts - 1
         max_states_idx = dense_label_info.num_hmm_states_per_phon - 1
