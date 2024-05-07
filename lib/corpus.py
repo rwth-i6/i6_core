@@ -204,6 +204,17 @@ class Corpus(NamedEntity, CorpusSection):
         for sc in self.subcorpora:
             sc.remove_recording(recording)
 
+    def remove_recordings(self, recordings: List[Recording]):
+        recording_fullnames = {recording.fullname() for recording in recordings}
+        to_delete = []
+        for idx, r in enumerate(self.recordings):
+            if r.fullname() in recording_fullnames:
+                to_delete.append(idx)
+        for idx in reversed(to_delete):
+            del self.recordings[idx]
+        for sc in self.subcorpora:
+            sc.remove_recordings(recordings)
+
     def add_recording(self, recording: Recording):
         assert isinstance(recording, Recording)
         recording.corpus = self
