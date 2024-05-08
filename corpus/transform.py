@@ -415,16 +415,24 @@ class MergeCorporaJob(Job):
         base_seg = {seg.name: seg for seg in base.segments}
         add_seg = {seg.name: seg for seg in to_add.segments}
         for name, seg in add_seg.items():
-            assert name not in base_seg, (
-                "The same segment exists in two corpora. "
-                "The MergeCorporaJob can't handle this situation, even if both segments are equal.\n"
-                "Please filter either of the two segments in the corpora to be merged. "
-                f"Affected segment name: {name}.\n"
-                f"Affected recording (base): {base_seg[name].recording.fullname()}.\n"
-                f"Affected recording (to be added): {seg.recording.fullname()}.\n"
-                f"Affected corpus (base): {base_seg[name].recording.corpus.fullname()}.\n"
-                f"Affected corpus (to be added): {seg.recording.corpus.fullname()}.\n"
-            )
+            if name in base_seg:
+                # Only compare segments with respect to their actual segment data.
+                # Don't include the recording to which they belong, since it's bound to change.
+                # Not only because it's a dynamic object, but also because it comes from a completely different corpus.
+                # In practice, the equality check would yield False when comparing segments with recording objects.
+                seg_without_rec = {key: value for key, value in seg.__dict__.items() if key != "recording"}
+                base_seg_without_rec = {
+                    key: value for key, value in base_seg[name].__dict__.items() if key != "recording"
+                }
+                assert seg_without_rec == base_seg_without_rec, (
+                    "The same segment exists in two corpora with different parameters. "
+                    "Please filter either of the two segments in the corpora to be merged. "
+                    f"Affected segment name: {name}.\n"
+                    f"Affected recording (base): {base_seg[name].recording.fullname()}.\n"
+                    f"Affected recording (to be added): {seg.recording.fullname()}.\n"
+                    f"Affected corpus (base): {base_seg[name].recording.corpus.fullname()}.\n"
+                    f"Affected corpus (to be added): {seg.recording.corpus.fullname()}.\n"
+                )
             base.add_segment(seg)
 
 
