@@ -43,7 +43,7 @@ class GetPhonemeLabelsFromNoTyingDense(Job):
 
         :param alignment_cache_path: path to alginment cache
         :param allophone_path: path to allohone
-        :param dense_tying_path: path to denser tying file
+        :param dense_tying_path: path to dense tying file
         :param dense_label_info: the dense label information
         :param sparse: writes the data to hdf in sparse format
         :param returnn_root: path to returnn root
