@@ -430,8 +430,6 @@ class MergeCorporaJob(Job):
                     f"Affected segment name: {name}.\n"
                     f"Affected recording (base): {base_seg[name].recording.fullname()}.\n"
                     f"Affected recording (to be added): {seg.recording.fullname()}.\n"
-                    f"Affected corpus (base): {base_seg[name].recording.corpus.fullname()}.\n"
-                    f"Affected corpus (to be added): {seg.recording.corpus.fullname()}.\n"
                 )
             base.add_segment(seg)
 
