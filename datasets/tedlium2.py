@@ -69,6 +69,8 @@ class CreateTEDLIUM2BlissCorpusJob(Job):
     """
     Processes stm files from TEDLIUM2 corpus folders and creates Bliss corpus files
     Outputs a stm file and a bliss .xml.gz file for each train/dev/test set
+    This job is deprecated due to changes applied to the reference text leading to incomparable results to literature
+    It is recommended to use CreateTEDLIUM2BlissCorpusJobV2
     """
 
     def __init__(self, corpus_folders):
@@ -313,12 +315,14 @@ class CreateTEDLIUM2BlissCorpusJobV2(CreateTEDLIUM2BlissCorpusJob):
                     last_rec_name = rec_name
                     seg_id = 1
 
+                normalized_text = text.replace(" '", "'")
+
                 segment = corpus.Segment()
                 segment.name = str(seg_id)
                 segment.start = float(start)
                 segment.end = float(end)
                 segment.speaker_name = spk_name
-                segment.orth = text
+                segment.orth = normalized_text
 
                 recording.add_segment(segment)
                 seg_id += 1
