@@ -16,6 +16,12 @@ import i6_core.util as util
 
 
 class AlignmentJob(rasr.RasrCommand, Job):
+    """
+    Align a dataset with the given feature scorer.
+    """
+
+    __sis_hash_exclude__ = {"plot_alignment_scores": True}
+
     def __init__(
         self,
         crp,
