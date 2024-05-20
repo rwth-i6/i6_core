@@ -159,6 +159,8 @@ class AlignmentJob(rasr.RasrCommand, Job):
 
         # Plot the data.
         matplotlib.use("Agg")
+        higher_percentile = np.percentile(np_alignment_scores, 90)  # There can be huge outliers.
+        np.clip(np_alignment_scores, np_alignment_scores.min(), higher_percentile, out=np_alignment_scores)
         plt.hist(np_alignment_scores, bins=100)
         plt.xlabel("Average Maximum-Likelihood Score")
         plt.ylabel("Number of Segments")
