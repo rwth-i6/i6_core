@@ -144,7 +144,7 @@ class AlignmentJob(rasr.RasrCommand, Job):
         alignment_scores = []
         for log_file in self.out_log_file.values():
             logging.info("Reading: {}".format(log_file))
-            file_path = tk.uncached_path(log_file)
+            file_path = log_file.get_path()
             document = ET.parse(util.uopen(file_path))
             _seg_list = document.findall(".//segment")
             for seg in _seg_list:
