@@ -157,9 +157,7 @@ class AlignmentJob(rasr.RasrCommand, Job):
         logging.info(
             f"Max {np_alignment_scores.max()}; min {np_alignment_scores.min()}; median {np.median(np_alignment_scores)}"
         )
-        logging.info(
-            f"Total number of segments: {np_alignment_scores.size}; 90-th percentile: {higher_percentile.size}"
-        )
+        logging.info(f"Total number of segments: {np_alignment_scores.size}; 90-th percentile: {higher_percentile}")
 
         # Plot the data.
         matplotlib.use("Agg")
