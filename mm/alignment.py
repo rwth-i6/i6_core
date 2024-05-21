@@ -20,7 +20,7 @@ class AlignmentJob(rasr.RasrCommand, Job):
     Align a dataset with the given feature scorer.
     """
 
-    __sis_hash_exclude__ = {"plot_alignment_scores": True}
+    __sis_hash_exclude__ = {"plot_alignment_scores": False}
 
     def __init__(
         self,
@@ -33,7 +33,7 @@ class AlignmentJob(rasr.RasrCommand, Job):
         rtf=1.0,
         extra_config=None,
         extra_post_config=None,
-        plot_alignment_scores=True,
+        plot_alignment_scores=False,
     ):
         """
         :param rasr.crp.CommonRasrParameters crp:
@@ -46,6 +46,7 @@ class AlignmentJob(rasr.RasrCommand, Job):
         :param extra_config:
         :param extra_post_config:
         :param plot_alignment_scores: Whether to plot the alignment scores (normalized over time) or not.
+            The recommended value is `True`. The default value is `False` for retrocompatibility purposes.
         """
         assert isinstance(feature_scorer, rasr.FeatureScorer)
 
