@@ -232,17 +232,22 @@ class TorchOnnxExportJob(Job):
         :param returnn_config: RETURNN config object
         :param checkpoint: Path to the checkpoint for export
         :param device: target device for graph creation
-        :param input_names: sequence of model input names
+        :param input_names: sequence of model input names.
+            If not specified, will automatically determine from `extern_data` when available in `returnn_config.config`.
         :param output_names: sequence of model output names.
-            If not specified, will automatically determine from model_outputs when available in returnn_config.config.
+            If not specified, will automatically determine from `model_outputs` when available in `returnn_config.config`.
         :param returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
         :param returnn_root: file path to the RETURNN repository root folder
         """
 
         self.returnn_config = returnn_config
         self.checkpoint = checkpoint
+
+        input_names = list(returnn_config.config["extern_data"].keys()) if input_names is None else input_names
+        output_names = list(returnn_config.config["model_outputs"].keys()) if output_names is None else output_names
         self.input_names = input_names
         self.output_names = output_names
+
         self.device = device
         self.returnn_python_exe = util.get_returnn_python_exe(returnn_python_exe)
         self.returnn_root = util.get_returnn_root(returnn_root)
