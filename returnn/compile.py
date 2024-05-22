@@ -9,7 +9,7 @@ import logging
 import os
 import shutil
 import subprocess as sp
-from typing import Optional
+from typing import Optional, Sequence
 
 import i6_core.util as util
 
@@ -214,11 +214,15 @@ class TorchOnnxExportJob(Job):
     Currently only supports PyTorch via tools/torch_export_to_onnx.py
     """
 
+    __sis_hash_exclude__ = {"input_names": None, "output_names": None}
+
     def __init__(
         self,
         *,
         returnn_config: ReturnnConfig,
         checkpoint: PtCheckpoint,
+        input_names: Optional[Sequence[str]] = None,
+        output_names: Optional[Sequence[str]] = None,
         device: str = "cpu",
         returnn_python_exe: Optional[tk.Path] = None,
         returnn_root: Optional[tk.Path] = None,
@@ -228,12 +232,16 @@ class TorchOnnxExportJob(Job):
         :param returnn_config: RETURNN config object
         :param checkpoint: Path to the checkpoint for export
         :param device: target device for graph creation
+        :param input_names: sequence of model output names
+        :param output_names: sequence of model output names
         :param returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
         :param returnn_root: file path to the RETURNN repository root folder
         """
 
         self.returnn_config = returnn_config
         self.checkpoint = checkpoint
+        self.input_names = input_names
+        self.output_names = output_names
         self.device = device
         self.returnn_python_exe = util.get_returnn_python_exe(returnn_python_exe)
         self.returnn_root = util.get_returnn_root(returnn_root)
@@ -260,6 +268,10 @@ class TorchOnnxExportJob(Job):
             "--verbosity",
             "5",
         ]
+        if self.input_names:
+            cmd += ["--input_names", ",".join(self.input_names)]
+        if self.output_names:
+            cmd += ["--output_names", ",".join(self.output_names)]
 
         util.create_executable("compile.sh", cmd)  # convenience file for manual execution
         sp.run(cmd, check=True)
