@@ -242,9 +242,8 @@ class TorchOnnxExportJob(Job):
 
         self.returnn_config = returnn_config
         self.checkpoint = checkpoint
-
-        input_names = list(returnn_config.config["extern_data"].keys()) if input_names is None else input_names
-        output_names = list(returnn_config.config["model_outputs"].keys()) if output_names is None else output_names
+        input_names = list(returnn_config.config["extern_data"].keys()) if ("extern_data" in returnn_config.config and input_names is None) else input_names
+        output_names = list(returnn_config.config["model_outputs"].keys()) if ("model_outputs" in returnn_config.config and output_names is None) else output_names
         self.input_names = input_names
         self.output_names = output_names
 
