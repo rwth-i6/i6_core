@@ -19,7 +19,6 @@ Path = setup_path(__package__)
 class CompileTFGraphJob(Job):
     """
     This Job is a wrapper around the RETURNN tool compile_tf_graph.py
-
     """
 
     __sis_hash_exclude__ = {"device": None, "epoch": None, "rec_step_by_step": None, "rec_json_info": False}
@@ -145,7 +144,7 @@ class CompileNativeOpJob(Job):
     Compile a RETURNN native op into a shared object file.
     """
 
-    __sis_hash_exclude__ = {"search_numpy_blas": True, "blas_lib": None}
+    __sis_hash_exclude__ = {"search_numpy_blas": True, "blas_lib": None, "rqmt": None}
 
     def __init__(
         self,
