@@ -36,7 +36,7 @@ class CompileTFGraphJob(Job):
         output_format: str = "meta",
         returnn_python_exe: Optional[tk.Path] = None,
         returnn_root: Optional[tk.Path] = None,
-        rec_step_by_step: Optional[tk.Path] = None,
+        rec_step_by_step: Optional[str] = None,
         rec_json_info: bool = False,
     ):
         """
