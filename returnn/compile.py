@@ -32,7 +32,7 @@ class CompileTFGraphJob(Job):
         epoch: Optional[Union[int, tk.Variable]] = None,
         verbosity: int = 4,
         device: Optional[str] = None,
-        summaries_tensor_name=None,
+        summaries_tensor_name: Optional[str] = None,
         output_format: str = "meta",
         returnn_python_exe: Optional[tk.Path] = None,
         returnn_root: Optional[tk.Path] = None,
