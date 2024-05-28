@@ -9,7 +9,7 @@ import logging
 import os
 import shutil
 import subprocess as sp
-from typing import Optional, Sequence
+from typing import Any, Dict, Optional, Sequence, Union
 
 import i6_core.util as util
 
@@ -151,17 +151,19 @@ class CompileNativeOpJob(Job):
     def __init__(
         self,
         native_op,
-        returnn_python_exe=None,
-        returnn_root=None,
-        search_numpy_blas=True,
-        blas_lib=None,
+        returnn_python_exe: Optional[tk.Path] = None,
+        returnn_root: Optional[tk.Path] = None,
+        search_numpy_blas: bool = True,
+        blas_lib: Optional[Union[tk.Path, str]] = None,
+        rqmt: Optional[Dict[str, Any]] = None,
     ):
         """
-        :param str native_op: Name of the native op to compile (e.g. NativeLstm2)
-        :param Optional[Path] returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
-        :param Optional[Path] returnn_root: file path to the RETURNN repository root folder
-        :param bool search_numpy_blas: search for blas lib in numpy's .libs folder
-        :param Path|str blas_lib: explicit path to the blas library to use
+        :param native_op: Name of the native op to compile (e.g. NativeLstm2)
+        :param returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
+        :param returnn_root: file path to the RETURNN repository root folder
+        :param search_numpy_blas: search for blas lib in numpy's .libs folder
+        :param blas_lib: explicit path to the blas library to use
+
         """
         self.native_op = native_op
         self.returnn_python_exe = util.get_returnn_python_exe(returnn_python_exe)
@@ -172,7 +174,7 @@ class CompileNativeOpJob(Job):
         self.out_op = self.output_path("%s.so" % native_op)
         self.out_grad_op = self.output_path("GradOf%s.so" % native_op)
 
-        self.rqmt = None
+        self.rqmt = rqmt
 
     def tasks(self):
         if self.rqmt is None:
