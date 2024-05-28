@@ -2,11 +2,8 @@ __all__ = ["CompileTFGraphJob", "CompileNativeOpJob", "TorchOnnxExportJob"]
 
 from sisyphus import *
 
-Path = setup_path(__package__)
-
 import copy
 import logging
-import os
 import shutil
 import subprocess as sp
 from typing import Any, Dict, Optional, Sequence, Union
@@ -15,6 +12,8 @@ import i6_core.util as util
 
 from .config import ReturnnConfig
 from .training import PtCheckpoint
+
+Path = setup_path(__package__)
 
 
 class CompileTFGraphJob(Job):
@@ -270,7 +269,6 @@ class TorchOnnxExportJob(Job):
         yield Task("run", mini_task=True)
 
     def run(self):
-
         returnn_config_path = self.out_returnn_config.get_path()
         self.returnn_config.write(returnn_config_path)
 
