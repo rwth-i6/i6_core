@@ -25,37 +25,37 @@ class CompileTFGraphJob(Job):
 
     def __init__(
         self,
-        returnn_config,
-        train=0,
-        eval=0,
-        search=0,
-        epoch=None,
-        verbosity=4,
-        device=None,
+        returnn_config: Union[ReturnnConfig, tk.Path, str],
+        train: int = 0,
+        eval: int = 0,
+        search: int = 0,
+        epoch: Optional[Union[int, tk.Variable]] = None,
+        verbosity: int = 4,
+        device: Optional[str] = None,
         summaries_tensor_name=None,
-        output_format="meta",
-        returnn_python_exe=None,
-        returnn_root=None,
-        rec_step_by_step=None,
-        rec_json_info=False,
+        output_format: str = "meta",
+        returnn_python_exe: Optional[tk.Path] = None,
+        returnn_root: Optional[tk.Path] = None,
+        rec_step_by_step: Optional[tk.Path] = None,
+        rec_json_info: bool = False,
     ):
         """
 
-        :param ReturnnConfig|Path|str returnn_config: Path to a RETURNN config file
-        :param int train:
-        :param int eval:
-        :param int search:
-        :param int|tk.Variable|None epoch: compile a specific epoch for networks that might change with every epoch
-        :param int log_verbosity: RETURNN log verbosity from 1 (least verbose) to 5 (most verbose)
-        :param str|None device: optimize graph for cpu or gpu. If `None`, defaults to cpu for current RETURNN.
+        :param returnn_config: Path to a RETURNN config file
+        :param train:
+        :param eval:
+        :param search:
+        :param epoch: compile a specific epoch for networks that might change with every epoch
+        :param log_verbosity: RETURNN log verbosity from 1 (least verbose) to 5 (most verbose)
+        :param device: optimize graph for cpu or gpu. If `None`, defaults to cpu for current RETURNN.
             For any RETURNN version before `cd4bc382`, the behavior will depend on the `device` entry in the
             `returnn_conig`, or on the availability of a GPU on the execution host if not defined at all.
         :param summaries_tensor_name:
-        :param str output_format: graph output format, one of ["pb", "pbtxt", "meta", "metatxt"]
-        :param Optional[Path] returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
-        :param Optional[Path] returnn_root: file path to the RETURNN repository root folder
-        :param Optional[str] rec_step_by_step: name of rec layer for step-by-step graph
-        :param bool rec_json_info: whether to enable rec json info for step-by-step graph compilation
+        :param output_format: graph output format, one of ["pb", "pbtxt", "meta", "metatxt"]
+        :param returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
+        :param returnn_root: file path to the RETURNN repository root folder
+        :param rec_step_by_step: name of rec layer for step-by-step graph
+        :param rec_json_info: whether to enable rec json info for step-by-step graph compilation
         """
         self.returnn_config = returnn_config
         self.train = train
