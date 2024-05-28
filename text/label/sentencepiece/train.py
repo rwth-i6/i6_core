@@ -1,3 +1,9 @@
+__all__ = [
+    "TrainSentencePieceJob",
+    "SentencePieceType",
+]
+
+
 from enum import Enum
 import logging
 import shutil
@@ -54,6 +60,7 @@ class TrainSentencePieceJob(Job):
         self.additional_options = additional_options or {}
 
         self.out_model = self.output_path("spm_out.model")
+        self.out_vocab = self.output_path("spm_out.vocab")
 
         self.rqmt = {"cpu": 1, "mem": 2, "time": 4}
 
@@ -80,3 +87,4 @@ class TrainSentencePieceJob(Job):
         )
 
         shutil.move("spm_out.model", self.out_model.get_path())
+        shutil.move("spm_out.vocab", self.out_vocab.get_path())
