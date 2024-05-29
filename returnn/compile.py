@@ -153,7 +153,6 @@ class CompileNativeOpJob(Job):
         returnn_root: Optional[tk.Path] = None,
         search_numpy_blas: bool = True,
         blas_lib: Optional[Union[tk.Path, str]] = None,
-        rqmt: Optional[Dict[str, Any]] = None,
     ):
         """
         :param native_op: Name of the native op to compile (e.g. NativeLstm2)
@@ -172,7 +171,7 @@ class CompileNativeOpJob(Job):
         self.out_op = self.output_path("%s.so" % native_op)
         self.out_grad_op = self.output_path("GradOf%s.so" % native_op)
 
-        self.rqmt = rqmt
+        self.rqmt = None
 
     def tasks(self):
         if self.rqmt is None:
