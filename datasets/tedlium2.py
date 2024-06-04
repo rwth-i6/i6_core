@@ -264,6 +264,7 @@ class CreateTEDLIUM2BlissCorpusJobV2(CreateTEDLIUM2BlissCorpusJob):
                     text = data[idx][6]
                     text = text.replace("imiss", "i miss")
                     text = text.replace("uptheir", "up their")
+                    text = text.replace(" '", "'")
                     data[idx][6] = text
 
                     # train-only: segment boundary non-overlapping extension (kaldi)
@@ -315,14 +316,12 @@ class CreateTEDLIUM2BlissCorpusJobV2(CreateTEDLIUM2BlissCorpusJob):
                     last_rec_name = rec_name
                     seg_id = 1
 
-                normalized_text = text.replace(" '", "'")
-
                 segment = corpus.Segment()
                 segment.name = str(seg_id)
                 segment.start = float(start)
                 segment.end = float(end)
                 segment.speaker_name = spk_name
-                segment.orth = normalized_text
+                segment.orth = text
 
                 recording.add_segment(segment)
                 seg_id += 1
