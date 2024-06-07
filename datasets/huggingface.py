@@ -1,12 +1,16 @@
 """
 https://huggingface.co/docs/datasets/
 """
+from __future__ import annotations
 
-from typing import Optional, Any, Union
+from typing import Optional, Any, Union, TYPE_CHECKING
 from sisyphus import *
 from sisyphus.delayed_ops import DelayedBase
 
 from i6_core.util import instanciate_delayed
+
+if TYPE_CHECKING:
+    from datasets import Split
 
 
 class DownloadAndPrepareHuggingFaceDatasetJob(Job):
@@ -25,8 +29,6 @@ class DownloadAndPrepareHuggingFaceDatasetJob(Job):
     """
 
     __sis_hash_exclude__ = {"split": None, "token": None}
-
-    from datasets import Split
 
     def __init__(
         self,
