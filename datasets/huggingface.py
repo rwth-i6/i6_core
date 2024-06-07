@@ -8,8 +8,6 @@ from sisyphus.delayed_ops import DelayedBase
 
 from i6_core.util import instanciate_delayed
 
-from datasets import load_dataset, Split
-
 
 class DownloadAndPrepareHuggingFaceDatasetJob(Job):
     """
@@ -27,6 +25,8 @@ class DownloadAndPrepareHuggingFaceDatasetJob(Job):
     """
 
     __sis_hash_exclude__ = {"split": None, "token": None}
+
+    from datasets import Split
 
     def __init__(
         self,
@@ -72,6 +72,7 @@ class DownloadAndPrepareHuggingFaceDatasetJob(Job):
 
     def run(self):
         import tempfile
+        from datasets import load_dataset
 
         with tempfile.TemporaryDirectory(prefix=gs.TMP_PREFIX) as tmp_dir:
             ds = load_dataset(
