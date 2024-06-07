@@ -1,7 +1,6 @@
 """
 https://huggingface.co/docs/datasets/
 """
-from __future__ import annotations
 
 from typing import Optional, Any, Union
 from sisyphus import *
