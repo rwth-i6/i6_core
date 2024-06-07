@@ -8,6 +8,8 @@ from sisyphus.delayed_ops import DelayedBase
 
 from i6_core.util import instanciate_delayed
 
+from datasets import load_dataset, Split
+
 
 class DownloadAndPrepareHuggingFaceDatasetJob(Job):
     """
@@ -24,6 +26,8 @@ class DownloadAndPrepareHuggingFaceDatasetJob(Job):
     https://github.com/huggingface/datasets/issues/4179
     """
 
+    __sis_hash_exclude__ = {"split": None, "token": None}
+
     def __init__(
         self,
         path: Union[str, DelayedBase],
@@ -31,6 +35,8 @@ class DownloadAndPrepareHuggingFaceDatasetJob(Job):
         *,
         data_files: Optional[Any] = None,
         revision: Optional[str] = None,
+        split: Optional[Union[str, Split]] = None,
+        token: Optional[Union[str, bool]] = None,
         time_rqmt: float = 1,
         mem_rqmt: float = 2,
         cpu_rqmt: int = 2,
@@ -41,6 +47,8 @@ class DownloadAndPrepareHuggingFaceDatasetJob(Job):
         :param name: Name of the dataset configuration, parameter passed to `Dataset.load_dataset`
         :param data_files: Path(s) to the source data file(s), parameter passed to `Dataset.load_dataset`
         :param revision: Version of the dataset script, parameter passed to `Dataset.load_dataset`
+        :param split: Specifies the split to download e.g "test", parameter passed to `Dataset.load_dataset`
+        :param token: To use as Bearer token for remote files on the Datasets Hub, parameter passed to `Dataset.load_dataset`
         :param float time_rqmt:
         :param float mem_rqmt:
         :param int cpu_rqmt:
@@ -51,6 +59,8 @@ class DownloadAndPrepareHuggingFaceDatasetJob(Job):
         self.name = name
         self.data_files = data_files
         self.revision = revision
+        self.split = split
+        self.token = token
 
         self.rqmt = {"cpu": cpu_rqmt, "mem": mem_rqmt, "time": time_rqmt}
         self.mini_task = mini_task
@@ -62,16 +72,16 @@ class DownloadAndPrepareHuggingFaceDatasetJob(Job):
 
     def run(self):
         import tempfile
-        import datasets
 
         with tempfile.TemporaryDirectory(prefix=gs.TMP_PREFIX) as tmp_dir:
-
-            ds = datasets.load_dataset(
+            ds = load_dataset(
                 instanciate_delayed(self.path),
                 self.name,
                 data_files=instanciate_delayed(self.data_files),
                 revision=self.revision,
                 cache_dir=tmp_dir,
+                split=self.split,
+                token=self.token,
             )
             print("Dataset:")
             print(ds)
@@ -89,5 +99,7 @@ class DownloadAndPrepareHuggingFaceDatasetJob(Job):
             "name": kwargs["name"],
             "data_files": kwargs["data_files"],
             "revision": kwargs["revision"],
+            "split": kwargs["split"],
+            "token": kwargs["token"],
         }
         return super().hash(d)
