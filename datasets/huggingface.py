@@ -9,9 +9,6 @@ from sisyphus.delayed_ops import DelayedBase
 
 from i6_core.util import instanciate_delayed
 
-if TYPE_CHECKING:
-    from datasets import Split
-
 
 class DownloadAndPrepareHuggingFaceDatasetJob(Job):
     """
@@ -37,7 +34,7 @@ class DownloadAndPrepareHuggingFaceDatasetJob(Job):
         *,
         data_files: Optional[Any] = None,
         revision: Optional[str] = None,
-        split: Optional[Union[str, Split]] = None,
+        split: Optional[str] = None,
         token: Optional[Union[str, bool]] = None,
         time_rqmt: float = 1,
         mem_rqmt: float = 2,
