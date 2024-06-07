@@ -24,8 +24,6 @@ class DownloadAndPrepareHuggingFaceDatasetJob(Job):
     https://github.com/huggingface/datasets/issues/4179
     """
 
-    __sis_hash_exclude__ = {"split": None, "token": None}
-
     def __init__(
         self,
         path: Union[str, DelayedBase],
@@ -98,7 +96,9 @@ class DownloadAndPrepareHuggingFaceDatasetJob(Job):
             "name": kwargs["name"],
             "data_files": kwargs["data_files"],
             "revision": kwargs["revision"],
-            "split": kwargs["split"],
-            "token": kwargs["token"],
         }
+        if kwargs["split"] is not None:
+            d["split"] = kwargs["split"]
+        if kwargs["token"] is not None:
+            d["token"] = kwargs["token"]
         return super().hash(d)
