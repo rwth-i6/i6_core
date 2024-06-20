@@ -30,7 +30,7 @@ class SentencePieceType(Enum):
 
 class ApplySentencePieceJob(Job):
     """
-    Train a sentence-piece model to be used with RETURNN
+    Apply the sentence-piece model to text file
 
     See also `https://returnn.readthedocs.io/en/latest/api/datasets.util.vocabulary.html#returnn.datasets.util.vocabulary.SentencePieces`_
     """
@@ -46,10 +46,8 @@ class ApplySentencePieceJob(Job):
     ):
         """
 
-        :param tk.Path training_text: raw text or gzipped text
-        :param int vocab_size: target vocabulary size for the created model
-        :param SentencePieceType model_type: which sentence model to use, use "UNIGRAM" for "typical" SPM
-        :param float character_coverage: official default is 0.9995, but this caused the least used character to be dropped entirely
+        :param tk.Path text: raw text or gzipped text to be converted
+        : TODO
         :param dict|None additional_options: additional trainer options, see `https://github.com/google/sentencepiece/blob/master/doc/options.md`_
         """
 
@@ -83,16 +81,3 @@ class ApplySentencePieceJob(Job):
         with uopen(text_path, "rt") as in_text, uopen(self.out_text, "wt") as out_text:
             for sentence in in_text:
                 out_text.write(" ".join(sp_ctrl.encode_as_pieces(sentence)) + "\n")
-
-        """
-
-        sentencepiece.SentencePieceTrainer.Train(
-            input=training_text_path,
-            model_prefix="spm_out",
-            model_type=self.model_type.value,
-            vocab_size=self.vocab_size,
-            character_coverage=self.character_coverage,
-            **self.additional_options,
-        )
-        shutil.move("spm_out.model", self.out_model.get_path())
-        """
