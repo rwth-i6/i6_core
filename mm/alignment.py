@@ -1,5 +1,6 @@
 __all__ = ["AlignmentJob", "DumpAlignmentJob", "AMScoresFromAlignmentLogJob"]
 
+import logging
 import xml.etree.ElementTree as ET
 import math
 import os
@@ -15,6 +16,12 @@ import i6_core.util as util
 
 
 class AlignmentJob(rasr.RasrCommand, Job):
+    """
+    Align a dataset with the given feature scorer.
+    """
+
+    __sis_hash_exclude__ = {"plot_alignment_scores": False}
+
     def __init__(
         self,
         crp,
@@ -26,6 +33,7 @@ class AlignmentJob(rasr.RasrCommand, Job):
         rtf=1.0,
         extra_config=None,
         extra_post_config=None,
+        plot_alignment_scores=False,
     ):
         """
         :param rasr.crp.CommonRasrParameters crp:
@@ -37,6 +45,8 @@ class AlignmentJob(rasr.RasrCommand, Job):
         :param float rtf:
         :param extra_config:
         :param extra_post_config:
+        :param plot_alignment_scores: Whether to plot the alignment scores (normalized over time) or not.
+            The recommended value is `True`. The default value is `False` for retrocompatibility purposes.
         """
         assert isinstance(feature_scorer, rasr.FeatureScorer)
 
@@ -52,6 +62,7 @@ class AlignmentJob(rasr.RasrCommand, Job):
         self.feature_scorer = feature_scorer
         self.use_gpu = use_gpu
         self.word_boundaries = word_boundaries
+        self.plot_alignment_scores = plot_alignment_scores
 
         self.out_log_file = self.log_file_output_path("alignment", crp, True)
         self.out_single_alignment_caches = dict(
@@ -75,6 +86,8 @@ class AlignmentJob(rasr.RasrCommand, Job):
                 cached=True,
             )
             self.out_word_boundary_bundle = self.output_path("word_boundary.cache.bundle", cached=True)
+        if self.plot_alignment_scores:
+            self.out_plot_avg = self.output_path("score.png")
 
         self.rqmt = {
             "time": max(rtf * crp.corpus_duration / crp.concurrent, 0.5),
@@ -91,6 +104,8 @@ class AlignmentJob(rasr.RasrCommand, Job):
 
         yield Task("create_files", mini_task=True)
         yield Task("run", resume="run", rqmt=rqmt, args=range(1, self.concurrent + 1))
+        if self.plot_alignment_scores:
+            yield Task("plot", resume="plot", rqmt=rqmt)
 
     def create_files(self):
         self.write_config(self.config, self.post_config, "alignment.config")
@@ -120,6 +135,39 @@ class AlignmentJob(rasr.RasrCommand, Job):
                 "word_boundary.cache.%d" % task_id,
                 self.out_single_word_boundary_caches[task_id].get_path(),
             )
+
+    def plot(self):
+        import numpy as np
+        import matplotlib
+        import matplotlib.pyplot as plt
+
+        # Parse the files and search for the average alignment score values (normalized over time).
+        alignment_scores = []
+        for log_file in self.out_log_file.values():
+            logging.info("Reading: {}".format(log_file))
+            file_path = log_file.get_path()
+            document = ET.parse(util.uopen(file_path))
+            _seg_list = document.findall(".//segment")
+            for seg in _seg_list:
+                avg = seg.find(".//score/avg")
+                alignment_scores.append(float(avg.text))
+            del document
+
+        np_alignment_scores = np.asarray(alignment_scores)
+        higher_percentile = np.percentile(np_alignment_scores, 90)  # There can be huge outliers.
+        logging.info(
+            f"Max {np_alignment_scores.max()}; min {np_alignment_scores.min()}; median {np.median(np_alignment_scores)}"
+        )
+        logging.info(f"Total number of segments: {np_alignment_scores.size}; 90-th percentile: {higher_percentile}")
+
+        # Plot the data.
+        matplotlib.use("Agg")
+        np.clip(np_alignment_scores, np_alignment_scores.min(), higher_percentile, out=np_alignment_scores)
+        plt.hist(np_alignment_scores, bins=100)
+        plt.xlabel("Average Maximum-Likelihood Score")
+        plt.ylabel("Number of Segments")
+        plt.title("Histogram of Alignment Scores")
+        plt.savefig(fname=self.out_plot_avg.get_path())
 
     def cleanup_before_run(self, cmd, retry, task_id, *args):
         util.backup_if_exists("alignment.log.%d" % task_id)

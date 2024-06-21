@@ -15,6 +15,7 @@ import enum
 import logging
 import math
 import os
+from typing import Dict
 import wave
 import xml.etree.cElementTree as ET
 
@@ -293,9 +294,10 @@ class CompressCorpusJob(Job):
 
 
 class MergeStrategy(enum.Enum):
-    SUBCORPORA = 0
-    FLAT = 1
-    CONCATENATE = 2
+    SUBCORPORA = 0  # Merge as subcorpora of a common corpus.
+    FLAT = 1  # Flatten corpus structure by ignoring subcorpora.
+    CONCATENATE = 2  # Concatenate all subcorpora, recordings and speakers.
+    MERGE_RECURSIVE = 3  # Merge recordings and subcorpora with the same name.
 
 
 class MergeCorporaJob(Job):
@@ -337,10 +339,99 @@ class MergeCorporaJob(Job):
                     merged_corpus.add_recording(rec)
                 for speaker in c.top_level_speakers():
                     merged_corpus.add_speaker(speaker)
+            elif self.merge_strategy == MergeStrategy.MERGE_RECURSIVE:
+                merged_corpus = MergeCorporaJob.merge_corpora(merged_corpus, c)
             else:
                 assert False, "invalid merge strategy"
 
         merged_corpus.dump(self.out_merged_corpus.get_path())
+
+    @staticmethod
+    def merge_corpora(base: corpus.Corpus, to_add: corpus.Corpus) -> corpus.Corpus:
+        """
+        Merges a given base corpus with another corpus.
+
+        :param base: Base corpus.
+        :param to_add: Corpus to be merged into :param:`base`.
+        :return: Merged corpus.
+        """
+        # Merge speakers.
+        base_spk = {spk.name: spk for spk in base.top_level_speakers()}
+        to_add_spk = {spk.name: spk for spk in to_add.top_level_speakers()}
+        for name, spk in to_add_spk.items():
+            if name in base_spk:
+                assert spk.__dict__ == base_spk[name].__dict__, (
+                    f"Found same speaker {name} with different attributes in the base/to be added corpus.\n"
+                    f"Speaker attributes (base corpus): {base_spk[name]}.\n"
+                    f"Speaker attributes (corpus to be added): {spk}."
+                )
+            else:
+                base.add_speaker(spk)
+
+        # Merge recordings.
+        base_rec = {rec.name: rec for rec in base.top_level_recordings()}
+        add_rec = {rec.name: rec for rec in to_add.top_level_recordings()}
+        for name, rec in add_rec.items():
+            if name in base_rec:
+                MergeCorporaJob.merge_recordings(base_rec[name], rec)
+            else:
+                base.add_recording(rec)
+
+        # Merge subcorpora.
+        base_sc = {sc.name: sc for sc in base.top_level_subcorpora()}
+        add_sc = {sc.name: sc for sc in to_add.top_level_subcorpora()}
+        for name, sc in add_sc.items():
+            if name in base_sc:
+                MergeCorporaJob.merge_corpora(base_sc[name], sc)
+            else:
+                base.add_subcorpus(sc)
+
+        return base
+
+    @staticmethod
+    def merge_recordings(base: corpus.Recording, to_add: corpus.Recording):
+        """
+        Merges a given base recording with another recording.
+
+        :param base: Base recording.
+        :param to_add: Recording to be merged into :param:`base`.
+        """
+        assert base.audio == to_add.audio, "Same recording name points do different audio files"
+
+        # Merge the speakers.
+        base_spk = {spk.name: spk for spk in base.speakers}
+        to_add_spk = {spk.name: spk for spk in to_add.speakers}
+        for name, spk in to_add_spk.items():
+            if name in base_spk:
+                assert spk.__dict__ == base_spk[name].__dict__, (
+                    f"Found same speaker {name} with different attributes in the base/to be added corpus.\n"
+                    f"Speaker attributes (base corpus): {base_spk[name]}.\n"
+                    f"Speaker attributes (corpus to be added): {spk}."
+                )
+            else:
+                base.speakers[name] = spk
+
+        # Merge the segments.
+        base_seg = {seg.name: seg for seg in base.segments}
+        add_seg = {seg.name: seg for seg in to_add.segments}
+        for name, seg in add_seg.items():
+            if name in base_seg:
+                # Only compare segments with respect to their actual segment data.
+                # Don't include the recording to which they belong, since it's bound to change.
+                # Not only because it's a dynamic object, but also because it comes from a completely different corpus.
+                # In practice, the equality check would yield False when comparing segments with recording objects.
+                seg_without_rec = {key: value for key, value in seg.__dict__.items() if key != "recording"}
+                base_seg_without_rec = {
+                    key: value for key, value in base_seg[name].__dict__.items() if key != "recording"
+                }
+                assert seg_without_rec == base_seg_without_rec, (
+                    "The same segment exists in two corpora with different parameters. "
+                    "Please filter either of the two segments in the corpora to be merged. "
+                    f"Affected segment name: {name}.\n"
+                    f"Affected recording (base): {base_seg[name].recording.fullname()}.\n"
+                    f"Affected recording (to be added): {seg.recording.fullname()}.\n"
+                )
+            base.add_segment(seg)
 
 
 class MergeCorpusSegmentsAndAudioJob(Job):
