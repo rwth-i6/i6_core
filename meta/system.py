@@ -40,10 +40,10 @@ class CorpusObject(tk.Object):
         duration: Optional[float] = None,
     ):
         """
-        self.corpus_file: Bliss corpus xml
-        self.audio_dir: Audio directory if paths are relative (usually not needed)
-        self.audio_format: Format type of the audio files, see e.g. get_input_node_type()
-        self.duration: Duration of the corpus, is used to determine job time
+        :param corpus_file: Bliss corpus xml
+        :param audio_dir: Audio directory if paths are relative (usually not needed)
+        :param audio_format: Format type of the audio files, see e.g. get_input_node_type()
+        :param duration: Duration of the corpus, is used to determine job time
         """
         self.corpus_file = corpus_file
         self.audio_dir = audio_dir
