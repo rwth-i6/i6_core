@@ -32,11 +32,23 @@ class CorpusObject(tk.Object):
     A simple container object to track additional information for a bliss corpus
     """
 
-    def __init__(self):
-        self.corpus_file: Optional[tk.Path] = None  # bliss corpus xml
-        self.audio_dir: Optional[tk.Path] = None  # audio directory if paths are relative (usually not needed)
-        self.audio_format: Optional[str] = None  # format type of the audio files, see e.g. get_input_node_type()
-        self.duration: Optional[float] = None  # duration of the corpus, is used to determine job time
+    def __init__(
+        self,
+        corpus_file: Optional[tk.Path] = None,
+        audio_dir: Optional[tk.Path] = None,
+        audio_format: Optional[str] = None,
+        duration: Optional[float] = None,
+    ):
+        """
+        self.corpus_file: Bliss corpus xml
+        self.audio_dir: Audio directory if paths are relative (usually not needed)
+        self.audio_format: Format type of the audio files, see e.g. get_input_node_type()
+        self.duration: Duration of the corpus, is used to determine job time
+        """
+        self.corpus_file = corpus_file
+        self.audio_dir = audio_dir
+        self.audio_format = audio_format
+        self.duration = duration
 
 
 class System:
