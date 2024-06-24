@@ -715,7 +715,6 @@ class SearchCollapseRepeatedLabelsJob(Job):
     def __init__(self, search_py_output: tk.Path, *, output_gzip: bool = False):
         """
         :param search_py_output: a search output file from RETURNN in python format (single or n-best)
-        :param remove_label: label(s) to remove from the output, e.g. "<blank>"
         :param output_gzip: gzip the output
         """
         self.search_py_output = search_py_output
