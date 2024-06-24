@@ -8,6 +8,7 @@ __all__ = [
     "SearchWordsDummyTimesToCTMJob",
     "ReturnnComputeWERJob",
     "SearchRemoveLabelJob",
+    "SearchCollapseRepeatedLabelsJob",
     "SearchBeamJoinScoresJob",
     "SearchTakeBestJob",
 ]
