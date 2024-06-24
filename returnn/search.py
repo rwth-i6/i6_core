@@ -707,6 +707,48 @@ class SearchRemoveLabelJob(Job):
         return " ".join(tokens)
 
 
+class SearchCollapseRepeatedLabelsJob(Job):
+    """
+    Collapse all repeated (white-space delimited) labels.
+    """
+
+    def __init__(self, search_py_output: tk.Path, *, output_gzip: bool = False):
+        """
+        :param search_py_output: a search output file from RETURNN in python format (single or n-best)
+        :param remove_label: label(s) to remove from the output, e.g. "<blank>"
+        :param output_gzip: gzip the output
+        """
+        self.search_py_output = search_py_output
+        self.out_search_results = self.output_path("search_results.py" + (".gz" if output_gzip else ""))
+
+    def tasks(self):
+        """task"""
+        yield Task("run", mini_task=True)
+
+    def run(self):
+        """run"""
+        d = eval(util.uopen(self.search_py_output, "rt").read(), {"nan": float("nan"), "inf": float("inf")})
+        assert isinstance(d, dict)  # seq_tag -> bpe string
+        assert not os.path.exists(self.out_search_results.get_path())
+        with util.uopen(self.out_search_results, "wt") as out:
+            out.write("{\n")
+            for seq_tag, entry in d.items():
+                if isinstance(entry, list):
+                    # n-best list as [(score, text), ...]
+                    out.write("%r: [\n" % (seq_tag,))
+                    for score, text in entry:
+                        out.write("(%f, %r),\n" % (score, self._filter(text)))
+                    out.write("],\n")
+                else:
+                    out.write("%r: %r,\n" % (seq_tag, self._filter(entry)))
+            out.write("}\n")
+
+    def _filter(self, txt: str) -> str:
+        tokens = txt.split(" ")
+        tokens = [t1 for (t1, t2) in zip(tokens, [None] + tokens) if t1 != t2]
+        return " ".join(tokens)
+
+
 class SearchBeamJoinScoresJob(Job):
     """
     Expects a beam of hypotheses.
