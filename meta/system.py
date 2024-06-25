@@ -3,6 +3,7 @@ from __future__ import annotations
 __all__ = ["System", "select_element", "CorpusObject"]
 
 import copy
+from dataclasses import dataclass
 import types
 from typing import Any, Dict, List, Optional, Tuple, Union
 import re
@@ -27,16 +28,16 @@ Path = setup_path(__package__)
 selector_type = Union[str, List, Tuple[str], Tuple[str, str], Tuple[str, str, int]]
 
 
-class CorpusObject(tk.Object):
+@dataclass
+class CorpusObject:
     """
     A simple container object to track additional information for a bliss corpus
     """
 
-    def __init__(self):
-        self.corpus_file: Optional[tk.Path] = None  # bliss corpus xml
-        self.audio_dir: Optional[tk.Path] = None  # audio directory if paths are relative (usually not needed)
-        self.audio_format: Optional[str] = None  # format type of the audio files, see e.g. get_input_node_type()
-        self.duration: Optional[float] = None  # duration of the corpus, is used to determine job time
+    corpus_file: Optional[tk.Path] = None  # Bliss corpus xml
+    audio_dir: Optional[tk.Path] = None  # Audio directory if paths are relative (usually not needed)
+    audio_format: Optional[str] = None  # Format type of the audio files, see e.g. get_input_node_type()
+    duration: Optional[float] = None  # Duration of the corpus, is used to determine job time
 
 
 class System:
