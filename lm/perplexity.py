@@ -66,7 +66,7 @@ class ComputePerplexityJob(rasr.RasrCommand, Job):
         ppl = root.find(".//perplexity")
         self.perplexity.set(float(ppl.text))
 
-        #Retrocompatibility checks
+        # Retrocompatibility checks
         ppl_wo_eos = root.find(".//perplexity-without-eos")
         if ppl_wo_eos is not None:
             self.perplexity_without_eos.set(float(ppl_wo_eos.text))
