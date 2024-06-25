@@ -65,19 +65,31 @@ class ComputePerplexityJob(rasr.RasrCommand, Job):
             root = ET.parse(f)
         ppl = root.find(".//perplexity")
         self.perplexity.set(float(ppl.text))
+
+        #Retrocompatibility checks
         ppl_wo_eos = root.find(".//perplexity-without-eos")
-        self.perplexity_without_eos.set(float(ppl_wo_eos.text))
+        if ppl_wo_eos is not None:
+            self.perplexity_without_eos.set(float(ppl_wo_eos.text))
+
         ppl_wo_unks = root.find(".//perplexity-without-unknowns")
-        self.perplexity_without_unks.set(float(ppl_wo_unks.text))
+        if ppl_wo_unks is not None:
+            self.perplexity_without_unks.set(float(ppl_wo_unks.text))
+
         ppl_wo_eos_wo_unks = root.find(".//perplexity-without-eos-without-unknowns")
-        self.perplexity_without_eos_without_unknowns.set(float(ppl_wo_eos_wo_unks.text))
+        if ppl_wo_eos_wo_unks is not None:
+            self.perplexity_without_eos_without_unknowns.set(float(ppl_wo_eos_wo_unks.text))
 
         num_tokens = root.find(".//num-tokens")
-        self.num_tokens.set(float(num_tokens.text))
+        if num_tokens is not None:
+            self.num_tokens.set(float(num_tokens.text))
+
         num_unks = root.find(".//num-unks")
-        self.num_unks.set(float(num_unks.text))
+        if num_unks is not None:
+            self.num_unks.set(float(num_unks.text))
+
         ratio_unks = root.find(".//unk_ratio")
-        self.ratio_unks.set(float(ratio_unks.text))
+        if ratio_unks is not None:
+            self.ratio_unks.set(float(ratio_unks.text))
 
     def cleanup_before_run(self, cmd, retry, *args):
         util.backup_if_exists("compute_ppl.log")
