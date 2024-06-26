@@ -35,8 +35,8 @@ class ComputePerplexityJob(rasr.RasrCommand, Job):
         self.score_file = self.output_path("word.scores")
         self.num_tokens = self.output_var("num-tokens")
         self.num_unks = self.output_var("num-unks")
-        self.unks_ratio = self.output_var("unk-ratio")
-        aelf.perplexity = self.output_var("perplexity")
+        self.unk_ratio = self.output_var("unk-ratio")
+        self.perplexity = self.output_var("perplexity")
         self.perplexity_without_eos = self.output_var("perplexity-without-eos")
         self.perplexity_without_unknowns = self.output_var("perplexity-without-unknowns")
         self.perplexity_without_eos_without_unknowns = self.output_var("perplexity-without-eos-without-unknowns")
@@ -70,26 +70,38 @@ class ComputePerplexityJob(rasr.RasrCommand, Job):
         ppl_wo_eos = root.find(".//perplexity-without-eos")
         if ppl_wo_eos is not None:
             self.perplexity_without_eos.set(float(ppl_wo_eos.text))
+        else:
+            self.perplexity_without_eos.set(float("inf"))
 
         ppl_wo_unks = root.find(".//perplexity-without-unknowns")
         if ppl_wo_unks is not None:
-            self.perplexity_without_unks.set(float(ppl_wo_unks.text))
+            self.perplexity_without_unknowns.set(float(ppl_wo_unks.text))
+        else:
+            self.perplexity_without_unknowns.set(float("inf"))
 
         ppl_wo_eos_wo_unks = root.find(".//perplexity-without-eos-without-unknowns")
         if ppl_wo_eos_wo_unks is not None:
             self.perplexity_without_eos_without_unknowns.set(float(ppl_wo_eos_wo_unks.text))
+        else:
+            self.perplexity_without_eos_without_unknowns.set(float("inf"))
 
         num_tokens = root.find(".//num-tokens")
         if num_tokens is not None:
             self.num_tokens.set(float(num_tokens.text))
+        else:
+            self.num_tokens.set(float("inf"))
 
         num_unks = root.find(".//num-unks")
         if num_unks is not None:
             self.num_unks.set(float(num_unks.text))
+        else:
+            self.num_unks.set(float("inf"))
 
-        ratio_unks = root.find(".//unk_ratio")
+        ratio_unks = root.find(".//unk-ratio")
         if ratio_unks is not None:
-            self.ratio_unks.set(float(ratio_unks.text))
+            self.unk_ratio.set(float(ratio_unks.text))
+        else:
+            self.unk_ratio.set(float("inf"))
 
     def cleanup_before_run(self, cmd, retry, *args):
         util.backup_if_exists("compute_ppl.log")
