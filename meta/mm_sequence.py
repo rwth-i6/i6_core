@@ -51,26 +51,33 @@ class AlignSplitAccumulateSequence:
             - "align"
 
             An action can be written as e.g. "align!" to indicate that this alignment output
-            should be marked as output, meaning it will stored in `self.selected_alignment`
+            should be marked as output, meaning it will be stored in `self.selected_alignment`
             and get the keep_value for "selected" (or the Sisyphus default if not defined)
-        :param FlowNetwork feature_flow:
-        :param initial_mixtures:
-        :param initial_alignment:
-        :param str parallelization:
-        :param dict seq_extra_args:
-        :param dict align_extra_args:
-        :param dict split_extra_args:
-        :param dict accumulate_extra_args:
-        :param dict[str] align_extra_rqmt:
-        :param dict[str] split_extra_rqmt:
-        :param dict[str] accumulate_extra_rqmt:
+        :param FlowNetwork feature_flow: flow network for feature extraction
+        :param initial_mixtures: initialize the sequence with given mixtures.
+            Can be None only if initial_alignment is given.
+        :param initial_alignment: initialize the sequence with given alignment.
+            can be None only if initial_mixtures are given.
+        :param str parallelization: Unused
+        :param dict[int] seq_extra_args: A dict where the key is the integer index for the step id and
+            values are a kwargs dict passed the respective job
+        :param dict align_extra_args: dict with kwargs added to each AlignmentJob
+        :param dict split_extra_args: dict with kwargs added to each split EstimateMixtureJob
+        :param dict accumulate_extra_args: dict with kwargs added to each accumulate EstimateMixtureJob
+        :param dict[str] align_extra_rqmt: adds the given rqmt for all AlignmentJobs.
+            Be aware that values are added to existing numbers.
+        :param dict[str] split_extra_rqmt: adds the given rqmt for all "split" EstimateMixtureJobs.
+            Be aware that values are added to existing numbers.
+        :param dict[str] accumulate_extra_rqmt: adds the given rqmt for all "accumulate" EstimateMixtureJobs.
+            Be aware that values are added to existing numbers.
         :param dict align_keep_values:
             keep values for alignment jobs, which might be indexed by "default", "selected" or the action index number.
         :param dict split_keep_values:
             keep values for split jobs, which might be indexed by "default", "selected" or the action index number.
         :param dict accumulate_keep_values:
             keep values for accumulate jobs, which might be indexed by "default", "selected" or the action index number.
-        :param feature_scorer:
+        :param feature_scorer: instance of rasr.feature_scorer.FeatureScorer, providing the RASR config to configure
+            the feature scoring logic
         :param bool set to True if you want to avoid using the legacy FSA with incorrect silence forward probabilities.
         :param str|None alias_path: adds an alias with the action name for each job in the sequence at the
             given path
