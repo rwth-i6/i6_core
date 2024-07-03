@@ -164,6 +164,7 @@ class ExtractSeqLensJob(Job):
         key: str,
         output_format: str,
         returnn_config: Optional[ReturnnConfig] = None,
+        returnn_root: Optional[tk.Path] = None,
     ):
         """
         :param dataset: dict for :func:`returnn.datasets.init_dataset`
@@ -175,6 +176,7 @@ class ExtractSeqLensJob(Job):
         :param returnn_config: for the RETURNN global config.
             This is optional and only needed if you use any custom functions (e.g. audio pre_process)
             which expect some configuration in the global config.
+        :param returnn_root: inserted to ``sys.path`` for the RETURNN import.
         """
         super().__init__()
         self.dataset = dataset
@@ -183,6 +185,7 @@ class ExtractSeqLensJob(Job):
         assert output_format in {"py", "txt"}
         self.output_format = output_format
         self.returnn_config = returnn_config
+        self.returnn_root = returnn_root
 
         self.out_returnn_config_file = self.output_path("returnn.config")
         self.out_file = self.output_path(f"seq_lens.{output_format}")
@@ -219,6 +222,11 @@ class ExtractSeqLensJob(Job):
         """run"""
         import tempfile
         import shutil
+        import sys
+
+        if self.returnn_root is not None:
+            sys.path.insert(0, self.returnn_root.get_path())
+
         from returnn.config import set_global_config, Config
         from returnn.datasets import init_dataset
 
