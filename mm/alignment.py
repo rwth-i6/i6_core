@@ -421,7 +421,11 @@ class AMScoresFromAlignmentLogJob(Job):
 
 class ComputeTSEJob(Job):
     """
-    Compute TSE of some alignment compared to a reference
+    Compute word-level TSE (measured in frames) of some alignment. This is the average shift of word-start and word-end
+    times compared to a reference. The word-start is set at the first frame which contains an allophone belonging to the
+    word and word-end is the last frame. Silence/blank is ignored.
+
+    See also https://arxiv.org/abs/2210.09951
     """
 
     def __init__(
