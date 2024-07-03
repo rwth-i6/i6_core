@@ -154,8 +154,6 @@ class SpeakerLabelHDFFromBlissJob(Job):
 class ExtractSeqLensJob(Job):
     """
     Extracts sequence lengths from a dataset for one specific key.
-
-    Also see: :class:`i6_experiments.users.schmitt.corpus.statistics.GetSeqLenFileJob`
     """
 
     # noinspection PyShadowingBuiltins
