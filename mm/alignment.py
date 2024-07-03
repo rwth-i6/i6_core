@@ -6,8 +6,7 @@ import os
 import shutil
 import statistics
 import xml.etree.ElementTree as ET
-from collections.abc import Callable
-from typing import Counter, List, Optional, Tuple, Union
+from typing import Callable, Counter, List, Optional, Tuple, Union
 
 from sisyphus import *
 
