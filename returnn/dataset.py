@@ -156,21 +156,22 @@ class ExtractSeqLensJob(Job):
     Extracts sequence lengths from a dataset for one specific key.
     """
 
-    # noinspection PyShadowingBuiltins
     def __init__(
         self,
         dataset: Dict[str, Any],
         post_dataset: Optional[Dict[str, Any]] = None,
         *,
         key: str,
-        format: str,
+        output_format: str,
         returnn_config: Optional[ReturnnConfig] = None,
     ):
         """
         :param dataset: dict for :func:`returnn.datasets.init_dataset`
         :param post_dataset: extension of the dataset dict, which is not hashed
         :param key: e.g. "data", "classes" or whatever the dataset provides
-        :param format: "py" or "txt"
+        :param output_format: "py" or "txt".
+            "py" will write a Python dict seq_tag -> seq_len.
+            "txt" will write one seq_len per line.
         :param returnn_config: for the RETURNN global config.
             This is optional and only needed if you use any custom functions (e.g. audio pre_process)
             which expect some configuration in the global config.
@@ -179,12 +180,12 @@ class ExtractSeqLensJob(Job):
         self.dataset = dataset
         self.post_dataset = post_dataset
         self.key = key
-        assert format in {"py", "txt"}
-        self.format = format
+        assert output_format in {"py", "txt"}
+        self.output_format = output_format
         self.returnn_config = returnn_config
 
         self.out_returnn_config_file = self.output_path("returnn.config")
-        self.out_file = self.output_path(f"seq_lens.{format}")
+        self.out_file = self.output_path(f"seq_lens.{output_format}")
 
         self.rqmt = {"gpu": 0, "cpu": 1, "mem": 4, "time": 1}
 
@@ -231,7 +232,7 @@ class ExtractSeqLensJob(Job):
         dataset.init_seq_order(epoch=1)
 
         with tempfile.NamedTemporaryFile("w") as tmp_file:
-            if self.format == "py":
+            if self.output_format == "py":
                 tmp_file.write("{\n")
 
             seq_idx = 0
@@ -241,15 +242,15 @@ class ExtractSeqLensJob(Job):
                 seq_len = dataset.get_seq_length(seq_idx)
                 assert self.key in seq_len.keys()
                 seq_len_ = seq_len[self.key]
-                if self.format == "py":
+                if self.output_format == "py":
                     tmp_file.write(f"{seq_tag!r}: {seq_len_},\n")
-                elif self.format == "txt":
+                elif self.output_format == "txt":
                     tmp_file.write(f"{seq_len_}\n")
                 else:
-                    raise ValueError(f"{self}: invalid format {self.format!r}")
+                    raise ValueError(f"{self}: invalid output_format {self.output_format!r}")
                 seq_idx += 1
 
-            if self.format == "py":
+            if self.output_format == "py":
                 tmp_file.write("}\n")
             tmp_file.flush()
 
