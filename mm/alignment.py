@@ -1,4 +1,4 @@
-__all__ = ["AlignmentJob", "DumpAlignmentJob", "AMScoresFromAlignmentLogJob", "ComputeTSEJob"]
+__all__ = ["AlignmentJob", "DumpAlignmentJob", "AMScoresFromAlignmentLogJob", "ComputeTimeStampErrorJob"]
 
 import logging
 import math
