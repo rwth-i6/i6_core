@@ -197,8 +197,6 @@ class ExtractSeqLensJob(Job):
         """hash"""
         parsed_args = parsed_args.copy()
         parsed_args.pop("post_dataset")
-        if not parsed_args["returnn_config"]:
-            parsed_args.pop("returnn_config")
         return super().hash(parsed_args)
 
     def tasks(self):
