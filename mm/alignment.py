@@ -578,15 +578,21 @@ class ComputeTimeStampErrorJob(Job):
                 discarded_seqs += 1
                 continue
 
-            # Sometimes different feature extraction or subsampling may produce mismatched lengths that are different by one frame, so cut off at the shorter length
+            # Sometimes different feature extraction or subsampling may produce mismatched lengths that are different by a few frames, so cut off at the shorter length
             shorter_seq_length = min(hyp_seq_length, ref_seq_length)
-            hyp_word_ends[-1] = min(hyp_word_ends[-1], shorter_seq_length)
-            ref_word_ends[-1] = min(ref_word_ends[-1], shorter_seq_length)
 
-            assert all(start < shorter_seq_length for start in hyp_word_starts)
-            assert all(start < shorter_seq_length for start in ref_word_starts)
-            assert all(end <= shorter_seq_length for end in hyp_word_ends)
-            assert all(end <= shorter_seq_length for end in ref_word_ends)
+            for i in range(len(hyp_word_ends) - 1, 0, -1):
+                if hyp_word_ends[i] > shorter_seq_length:
+                    hyp_word_ends[i] = shorter_seq_length
+                    hyp_word_starts[i] = min(hyp_word_starts[i], hyp_word_ends[i] - 1)
+                else:
+                    break
+            for i in range(len(ref_word_ends) - 1, 0, -1):
+                if ref_word_ends[i] > shorter_seq_length:
+                    ref_word_ends[i] = shorter_seq_length
+                    ref_word_starts[i] = min(ref_word_starts[i], ref_word_ends[i] - 1)
+                else:
+                    break
 
             seq_word_start_diffs = [start - ref_start for start, ref_start in zip(hyp_word_starts, ref_word_starts)]
             seq_word_end_diffs = [end - ref_end for end, ref_end in zip(hyp_word_ends, ref_word_ends)]
