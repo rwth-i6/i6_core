@@ -109,7 +109,7 @@ class DiscountNgramsJob(Job):
         count_exe: tk.Path,
         *,
         vocab: Optional[tk.Path] = None,
-        data_for_opt: Optional[tk.Path] = None,
+        data_for_optimization: Optional[tk.Path] = None,
         extra_discount_args: Optional[List[str]] = None,
         use_modified_srilm: bool = False,
         cpu_rqmt: int = 1,
@@ -121,7 +121,7 @@ class DiscountNgramsJob(Job):
         :param counts: file with the ngram counts, see :class:`CountNgramsJob.out_counts`.
         :param count_exe: path to the binary.
         :param vocab: vocabulary file for the discounting.
-        :param data_for_opt: the discounting will be optimized on this dataset.
+        :param data_for_optimization: the discounting will be optimized on this dataset.
         :param extra_discount_args: additional arguments for the discounting step.
         :param use_modified_srilm: Use the i6 modified SRILM version by Sundermeyer.
                                    The SRILM binary ngram-count was modified.
@@ -133,7 +133,7 @@ class DiscountNgramsJob(Job):
         self.ngram_order = ngram_order
         self.counts = counts
         self.vocab = vocab
-        self.data_for_opt = data_for_opt
+        self.data_for_opt = data_for_optimization
         self.discount_args = extra_discount_args or []
         self.use_modified_srilm = use_modified_srilm
 
