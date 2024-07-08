@@ -228,7 +228,7 @@ class BlissToPcmHDFJob(Job):
     __sis_hash_exclude__ = {
         "multi_channel_strategy": BaseStrategy(),
         "rounding": RoundingScheme.start_and_duration,
-        "round_factor": 1.0,
+        "round_factor": 1,
     }
 
     def __init__(
@@ -239,7 +239,7 @@ class BlissToPcmHDFJob(Job):
         multi_channel_strategy: BaseStrategy = BaseStrategy(),
         returnn_root: Optional[tk.Path] = None,
         rounding: RoundingScheme = RoundingScheme.start_and_duration,
-        round_factor: float = 1.0,
+        round_factor: int = 1,
     ):
         """
 
@@ -254,7 +254,7 @@ class BlissToPcmHDFJob(Job):
         :param rounding: defines how timestamps should be rounded if they do not exactly fall onto a sample:
             start_and_duration will round down the start time and the duration of the segment
             rasr_compatible will round up the start time and round down the end time
-        :param round_factor: do the rounding based on a sampling rate that is scaled by this factor
+        :param round_factor: do the rounding based on a sampling rate that is scaled down by this factor
         """
         self.set_vis_name("Dump audio to HDF")
         assert output_dtype in ["float64", "float32", "int32", "int16"]
@@ -296,20 +296,15 @@ class BlissToPcmHDFJob(Job):
             for segment in recording.segments:
                 if (not segments_whitelist) or (segment.fullname() in segments_whitelist):
                     if self.rounding == self.RoundingScheme.start_and_duration:
-                        start = int(int(segment.start * audio.samplerate / self.round_factor) * self.round_factor)
-                        duration = int(
+                        start = int(segment.start * audio.samplerate / self.round_factor) * self.round_factor
+                        duration = (
                             int((segment.end - segment.start) * audio.samplerate / self.round_factor)
                             * self.round_factor
                         )
                     elif self.rounding == self.RoundingScheme.rasr_compatible:
-                        start = math.ceil(
-                            math.ceil(segment.start * audio.samplerate / self.round_factor) * self.round_factor
-                        )
+                        start = math.ceil(segment.start * audio.samplerate / self.round_factor) * self.round_factor
                         duration = (
-                            math.floor(
-                                math.floor(segment.end * audio.samplerate / self.round_factor) * self.round_factor
-                            )
-                            - start
+                            math.floor(segment.end * audio.samplerate / self.round_factor) * self.round_factor - start
                         )
                     else:
                         raise NotImplementedError(f"RoundingScheme {self.rounding} not implemented.")
