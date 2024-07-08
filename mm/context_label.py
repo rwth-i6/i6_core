@@ -24,6 +24,35 @@ class DenseLabelInfo:
     use_boundary_classes: bool
     num_hmm_states_per_phon: int
 
+    def num_center_labels(self) -> int:
+        """
+        :return: number of center labels
+        """
+        return self.n_contexts * self.num_hmm_states_per_phon * self._factor()
+
+    def num_diphone_labels(self) -> int:
+        """
+        :return: number of diphone labels
+        """
+        return self.num_center_labels() * self.n_contexts
+
+    def num_triphone_labels(self) -> int:
+        """
+        :return: number of triphone labels
+        """
+        return self.num_center_labels() * (self.n_contexts**2)
+
+    def _factor(self) -> int:
+        """
+        :return: num labels factor introduced by word-end/word-boundary augmentation
+        """
+        if self.use_word_end_classes:
+            return 2
+        elif self.use_boundary_classes:
+            return 4
+        else:
+            return 1
+
 
 class GetPhonemeLabelsFromNoTyingDense(Job):
     def __init__(
