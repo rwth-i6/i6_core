@@ -100,6 +100,8 @@ class DiscountNgramsJob(Job):
     Create a file with the discounted ngrams with SRILM
     """
 
+    __sis_hash_exclude__ = {"data_for_optimization": None}
+
     def __init__(
         self,
         ngram_order: int,
@@ -107,6 +109,7 @@ class DiscountNgramsJob(Job):
         count_exe: tk.Path,
         *,
         vocab: Optional[tk.Path] = None,
+        data_for_opt: Optional[tk.Path] = None,
         extra_discount_args: Optional[List[str]] = None,
         use_modified_srilm: bool = False,
         cpu_rqmt: int = 1,
@@ -116,8 +119,9 @@ class DiscountNgramsJob(Job):
         """
         :param ngram_order: order of the ngram counts, typically 3 or 4.
         :param counts: file with the ngram counts, see :class:`CountNgramsJob.out_counts`.
-        :param vocab: vocabulary file for the discounting.
         :param count_exe: path to the binary.
+        :param vocab: vocabulary file for the discounting.
+        :param data_for_opt: the discounting will be optimized on this dataset.
         :param extra_discount_args: additional arguments for the discounting step.
         :param use_modified_srilm: Use the i6 modified SRILM version by Sundermeyer.
                                    The SRILM binary ngram-count was modified.
@@ -129,6 +133,7 @@ class DiscountNgramsJob(Job):
         self.ngram_order = ngram_order
         self.counts = counts
         self.vocab = vocab
+        self.data_for_opt = data_for_opt
         self.discount_args = extra_discount_args or []
         self.use_modified_srilm = use_modified_srilm
 
@@ -153,10 +158,10 @@ class DiscountNgramsJob(Job):
             f"  -order {self.ngram_order} \\\n",
         ]
         if self.vocab is not None:
-            cmd += [
-                f"  -vocab {self.vocab.get_cached_path()} \\\n",
-            ]
-        cmd += ["  -kn discounts\\\n"] if not self.use_modified_srilm else [f"  -multi-kn-file discounts\\\n"]
+            cmd.append(f"  -vocab {self.vocab.get_cached_path()} \\\n")
+        cmd += ["  -kn discounts\\\n"] if not self.use_modified_srilm else [f"  -multi-kn-file discounts \\\n"]
+        if self.data_for_opt is not None:
+            cmd.append(f"  -optimize-discounts {self.data_for_opt.get_cached_path()} \\\n")
         cmd += [
             f"  -read {self.counts.get_cached_path()} \\\n",
             f"  {' '.join(self.discount_args)} -memuse\n",
@@ -410,7 +415,7 @@ class ComputeNgramLmPerplexityJob(Job):
                     if ln == "sentences,":
                         self.out_num_sentences.set(int(line[idx - 1]))
                     if ln == "words,":
-                        self.out_num_words.set(int(line[idx - 1]))
+                        self.out_num_words.set(float(line[idx - 1]))
                     if ln == "OOVs":
                         self.out_num_oovs.set(int(line[idx - 1]))
                     if ln == "ppl=":
