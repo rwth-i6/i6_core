@@ -46,8 +46,8 @@ class DenseLabelInfo:
         """
         :return: num labels factor introduced by word-end/word-boundary augmentation
         """
-        assert (
-            not self.use_word_end_classes and self.use_boundary_classes
+        assert not (
+            self.use_word_end_classes and self.use_boundary_classes
         ), "can only set either word-end or boundary classes"
 
         if self.use_word_end_classes:
