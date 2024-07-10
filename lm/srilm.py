@@ -133,7 +133,7 @@ class DiscountNgramsJob(Job):
         self.ngram_order = ngram_order
         self.counts = counts
         self.vocab = vocab
-        self.data_for_optimization= data_for_optimization
+        self.data_for_optimization = data_for_optimization
         self.discount_args = extra_discount_args or []
         self.use_modified_srilm = use_modified_srilm
 
