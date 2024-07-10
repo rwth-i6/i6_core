@@ -415,7 +415,7 @@ class ComputeNgramLmPerplexityJob(Job):
                     if ln == "sentences,":
                         self.out_num_sentences.set(int(line[idx - 1]))
                     if ln == "words,":
-                        self.out_num_words.set(float(line[idx - 1]))
+                        self.out_num_words.set(int(float(line[idx - 1])))
                     if ln == "OOVs":
                         self.out_num_oovs.set(int(line[idx - 1]))
                     if ln == "ppl=":
