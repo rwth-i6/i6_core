@@ -133,7 +133,7 @@ class DiscountNgramsJob(Job):
         self.ngram_order = ngram_order
         self.counts = counts
         self.vocab = vocab
-        self.data_for_opt = data_for_optimization
+        self.data_for_optimization= data_for_optimization
         self.discount_args = extra_discount_args or []
         self.use_modified_srilm = use_modified_srilm
 
@@ -160,8 +160,8 @@ class DiscountNgramsJob(Job):
         if self.vocab is not None:
             cmd.append(f"  -vocab {self.vocab.get_cached_path()} \\\n")
         cmd += ["  -kn discounts\\\n"] if not self.use_modified_srilm else [f"  -multi-kn-file discounts \\\n"]
-        if self.data_for_opt is not None:
-            cmd.append(f"  -optimize-discounts {self.data_for_opt.get_cached_path()} \\\n")
+        if self.data_for_optimization is not None:
+            cmd.append(f"  -optimize-discounts {self.data_for_optimization.get_cached_path()} \\\n")
         cmd += [
             f"  -read {self.counts.get_cached_path()} \\\n",
             f"  {' '.join(self.discount_args)} -memuse\n",
