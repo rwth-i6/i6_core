@@ -390,6 +390,97 @@ class DumpAlignmentJob(rasr.RasrCommand, Job):
         )
 
 
+class PlotAlignmentJob(Job):
+    """
+    Plots an alignment from its log file.
+    This is a separate job from the tasks available in :func:`i6_core.mm.alignment.AlignmentJob.plot`
+    and :func:`i6_core.
+    """
+
+    def __init__(
+        self,
+        alignment_log_file: tk.Path,
+        clip_low: Optional[int] = None,
+        clip_high: Optional[int] = None,
+        clip_percentile_low: Optional[int] = None,
+        clip_percentile_high: Optional[int] = None,
+        num_bins: int = 50
+    ):
+        """
+        :param alignment_log_file: Alignment log file from the alignment job.
+        :param clip_low: Number symbolizing the absolute number at which the plot will be clipped to the left.
+            Can't be given in conjunction to :param:`clip_percentile_low`. By default clips at the minimum value.
+        :param clip_high: Number symbolizing the absolute number at which the plot will be clipped to the right.
+            Can't be given in conjunction to :param:`clip_percentile_high`.
+            By default clips at the 95th percentile (for removing huge outliers).
+        :param clip_percentile_low: Number symbolizing the percentile at which the plot will be clipped to the left.
+            Can't be given in conjunction to :param:`clip_low`. By default clips at the minimum value.
+        :param clip_percentile_high: Number symbolizing the absolute number at which the plot will be clipped to the right.
+            Can't be given in conjunction to :param:`clip_high`.
+            By default clips at the 95th percentile (for removing huge outliers).
+        :param num_bins: Number of histogram bins. By default `50`.
+        """
+        self.alignment_log_file = alignment_log_file
+        clip_low_dict = {"clip_low": clip_low, "clip_percentile_low": clip_percentile_low}
+        clip_low_diff_none_values = [lower_val for lower_val in clip_low_dict.values() if lower_val is not None]
+        assert len(clip_low_diff_none_values) <= 1, (
+            f"More than one value for the low clip explicitly given (different from None): {clip_low_dict.items()}. "
+            "Please only give one value."
+        )
+        clip_high_dict = {"clip_high": clip_high, "clip_percentile_high": clip_percentile_high}
+        clip_high_diff_none_values = [upper_val for upper_val in clip_high_dict.values() if upper_val is not None]
+        assert len(clip_high_diff_none_values) <= 1, (
+            f"More than one value for the high clip explicitly given (different from None): {clip_high_dict.items()}. "
+            "Please only give one value."
+        )
+        self.num_bins = num_bins
+
+        self.out_plot = self.output_path("plot.png")
+
+        self.rqmt = {"cpu": 1, "mem": 1.0, "time": 1.0}
+
+    def tasks(self):
+        yield Task("plot", resume="plot", rqmt=self.rqmt)
+
+    def plot(self):
+        import numpy as np
+        import matplotlib
+        import matplotlib.pyplot as plt
+
+        # Parse the files and search for the average alignment score values (normalized over time).
+        alignment_scores = []
+        for log_file in self.out_log_file.values():
+            logging.info("Reading: {}".format(log_file))
+            file_path = log_file.get_path()
+            document = ET.parse(util.uopen(file_path))
+            _seg_list = document.findall(".//segment")
+            for seg in _seg_list:
+                avg = seg.find(".//score/avg")
+                alignment_scores.append(float(avg.text))
+            del document
+
+        np_alignment_scores = np.asarray(alignment_scores)
+        min_value = np_alignment_scores.min()
+        p95_value = np.percentile(np_alignment_scores, 95)
+        logging.info("STATS:")
+        logging.info(f"Max: {np_alignment_scores.max()}")
+        logging.info(f"Min: {min_value}")
+        logging.info(f"Median {np.median(np_alignment_scores)}")
+        logging.info(f"95-th percentile: {p95_value}")
+        logging.info(f"Total number of segments: {np_alignment_scores.size}")
+
+        # Plot the data.
+        matplotlib.use("Agg")
+        clip_low = self.clip_low or self.clip_percentile_high or min_value
+        clip_high = self.clip_high or self.clip_percentile_high or p95_value
+        np.clip(np_alignment_scores, clip_low, clip_high, out=np_alignment_scores)
+        plt.hist(np_alignment_scores, bins=self.num_bins)
+        plt.xlabel("Average Maximum-Likelihood Score")
+        plt.ylabel("Number of Segments")
+        plt.title("Histogram of Alignment Scores")
+        plt.savefig(fname=self.out_plot_avg.get_path())
+
+
 class AMScoresFromAlignmentLogJob(Job):
     def __init__(self, logs):
         self.logs = logs
