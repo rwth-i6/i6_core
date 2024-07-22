@@ -243,16 +243,11 @@ class TorchOnnxExportJob(Job):
         self.checkpoint = checkpoint
 
         # Get the list here, because ReturnnConfig serialization might potentially reorder via `sort_config=True`.
-        input_names = (
-            list(returnn_config.config["extern_data"].keys())
-            if ("extern_data" in returnn_config.config and input_names is None)
-            else input_names
-        )
-        output_names = (
-            list(returnn_config.config["model_outputs"].keys())
-            if ("model_outputs" in returnn_config.config and output_names is None)
-            else output_names
-        )
+
+        if "extern_data" in returnn_config.config and input_names is None:
+            input_names = [name for k in returnn_config.config["extern_data"].keys() for name in [k, f"{k}:size1"]]
+        if "model_outputs" in returnn_config.config and output_names is None:
+            output_names = [name for k in returnn_config.config["model_outputs"].keys() for name in [k, f"{k}:size1"]]
         self.input_names = input_names
         self.output_names = output_names
 
