@@ -297,13 +297,9 @@ class TorchOnnxExportJob(Job):
         try:
             from returnn.tensor import Tensor
         except ImportError:
-            try:
-                # old RETURNN, relevant?
-                from returnn.tf.util.data import Data as Tensor
-            except ImportError:
-                # For backwards compatibility assume dynamic time axis (i.e. axis 1 in
-                # BTF order) if we cannot import the Tensor class.
-                return [name for k in data_dict.keys() for name in [k, f"{k}:size1"]]
+            # For backwards compatibility assume dynamic time axis (i.e. axis 1 in
+            # BTF order) if we cannot import the Tensor class.
+            return [name for k in data_dict.keys() for name in [k, f"{k}:size1"]]
 
         names = []
         for name, opts in data_dict.items():
