@@ -294,12 +294,7 @@ class TorchOnnxExportJob(Job):
         if returnn_root not in sys.path:
             sys.path.append(returnn_root)
 
-        try:
-            from returnn.tensor import Tensor
-        except ImportError:
-            # For backwards compatibility assume dynamic time axis (i.e. axis 1 in
-            # BTF order) if we cannot import the Tensor class.
-            return [name for k in data_dict.keys() for name in [k, f"{k}:size1"]]
+        from returnn.tensor import Tensor
 
         names = []
         for name, opts in data_dict.items():
