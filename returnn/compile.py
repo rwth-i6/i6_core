@@ -300,10 +300,8 @@ class TorchOnnxExportJob(Job):
         for name, opts in data_dict.items():
             names.append(name)
             tensor = Tensor(name=name, **opts)
-            for i, dim in enumerate(tensor.shape):
-                # We need seq lengths if there is a dim size that is not a scalar.
-                if dim is None:
-                    # i+1 because the batch dim is implicit in RETURNN and for
-                    # historical reasons not part of `Tensor.dims`
-                    names.append(f"{name}:size{i + 1}")
+            for i, dim in enumerate(tensor.dims):
+                # We need seq lengths if there is a dyn size which is not a scalar.
+                if dim.dyn_size_ext and dim.dyn_size_ext.dims:
+                    names.append(f"{name}:size{i}")
         return names
