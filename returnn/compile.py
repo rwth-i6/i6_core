@@ -277,11 +277,15 @@ class TorchOnnxExportJob(Job):
         # output tensor <-> tensor name association.
         input_names = self.input_names
         if input_names is None and "extern_data" in self.returnn_config.config:
-            input_names = self.collect_tensor_names(str(self.returnn_root), self.returnn_config.config["extern_data"])
+            input_names = self.collect_tensor_names(
+                str(self.returnn_root),
+                self.returnn_config.config["extern_data"],
+            )
         output_names = self.output_names
         if output_names is None and "model_outputs" in self.returnn_config.config:
             output_names = self.collect_tensor_names(
-                str(self.returnn_root), self.returnn_config.config["model_outputs"]
+                str(self.returnn_root),
+                self.returnn_config.config["model_outputs"],
             )
         if input_names:
             cmd += ["--input_names", ",".join(input_names)]
