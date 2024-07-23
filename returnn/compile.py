@@ -6,7 +6,8 @@ import copy
 import logging
 import shutil
 import subprocess as sp
-from typing import Any, Dict, Optional, Sequence, Union
+import sys
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 import i6_core.util as util
 
@@ -242,12 +243,6 @@ class TorchOnnxExportJob(Job):
         self.returnn_config = returnn_config
         self.checkpoint = checkpoint
 
-        # Get the list here, because ReturnnConfig serialization might potentially reorder via `sort_config=True`.
-
-        if "extern_data" in returnn_config.config and input_names is None:
-            input_names = [name for k in returnn_config.config["extern_data"].keys() for name in [k, f"{k}:size1"]]
-        if "model_outputs" in returnn_config.config and output_names is None:
-            output_names = [name for k in returnn_config.config["model_outputs"].keys() for name in [k, f"{k}:size1"]]
         self.input_names = input_names
         self.output_names = output_names
 
@@ -276,10 +271,48 @@ class TorchOnnxExportJob(Job):
             "--verbosity",
             "5",
         ]
-        if self.input_names:
-            cmd += ["--input_names", ",".join(self.input_names)]
-        if self.output_names:
-            cmd += ["--output_names", ",".join(self.output_names)]
+
+        # Pass the tensor names here because ReturnnConfig serialization might
+        # potentially reorder via `sort_config=True`, and the order matters for
+        # output tensor <-> tensor name association.
+        input_names = self.input_names or self.collect_tensor_names(
+            str(self.returnn_root), self.returnn_config.config.get("extern_data", {})
+        )
+        output_names = self.output_names or self.collect_tensor_names(
+            str(self.returnn_root), self.returnn_config.config.get("model_outputs", {})
+        )
+        if input_names:
+            cmd += ["--input_names", ",".join(input_names)]
+        if output_names:
+            cmd += ["--output_names", ",".join(output_names)]
 
         util.create_executable("compile.sh", cmd)  # convenience file for manual execution
         sp.run(cmd, check=True)
+
+    @staticmethod
+    def collect_tensor_names(returnn_root: str, data_dict: Dict[str, Any]) -> List[str]:
+        if returnn_root not in sys.path:
+            sys.path.append(returnn_root)
+
+        try:
+            from returnn.tensor import Tensor
+        except ImportError:
+            try:
+                # old RETURNN, relevant?
+                from returnn.tf.util.data import Data as Tensor
+            except ImportError:
+                # For backwards compatibility assume dynamic time axis (i.e. axis 1 in
+                # BTF order) if we cannot import the Tensor class.
+                return [name for k in data_dict.keys() for name in [k, f"{k}:size1"]]
+
+        names = []
+        for name, opts in data_dict.items():
+            names.append(name)
+            tensor = Tensor(name=name, **opts)
+            for i, dim in enumerate(tensor.shape):
+                # `None` means the dim is dynamic
+                if dim is None:
+                    # i+1 because the batch dim is implicit in RETURNN and for
+                    # historical reasons not part of `Tensor.dims`
+                    names.append(f"{name}:size{i + 1}")
+        return names
