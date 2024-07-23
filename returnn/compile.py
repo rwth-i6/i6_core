@@ -275,12 +275,14 @@ class TorchOnnxExportJob(Job):
         # Pass the tensor names here because ReturnnConfig serialization might
         # potentially reorder via `sort_config=True`, and the order matters for
         # output tensor <-> tensor name association.
-        input_names = self.input_names or self.collect_tensor_names(
-            str(self.returnn_root), self.returnn_config.config.get("extern_data", {})
-        )
-        output_names = self.output_names or self.collect_tensor_names(
-            str(self.returnn_root), self.returnn_config.config.get("model_outputs", {})
-        )
+        input_names = self.input_names
+        if input_names is None and "extern_data" in self.returnn_config.config:
+            input_names = self.collect_tensor_names(str(self.returnn_root), self.returnn_config.config["extern_data"])
+        output_names = self.output_names
+        if output_names is None and "model_outputs" in self.returnn_config.config:
+            output_names = self.collect_tensor_names(
+                str(self.returnn_root), self.returnn_config.config["model_outputs"]
+            )
         if input_names:
             cmd += ["--input_names", ",".join(input_names)]
         if output_names:
