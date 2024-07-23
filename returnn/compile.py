@@ -301,7 +301,7 @@ class TorchOnnxExportJob(Job):
             names.append(name)
             tensor = Tensor(name=name, **opts)
             for i, dim in enumerate(tensor.shape):
-                # `None` means the dim is dynamic
+                # We need seq lengths if there is a dim size that is not a scalar.
                 if dim is None:
                     # i+1 because the batch dim is implicit in RETURNN and for
                     # historical reasons not part of `Tensor.dims`
