@@ -1,4 +1,4 @@
-__all__ = ["ExtractDatasetMeanStddevJob"]
+__all__ = ["ExtractDatasetMeanStddevJob", "SpeakerLabelHDFFromBlissJob", "ExtractSeqLensJob"]
 
 from sisyphus import *
 
