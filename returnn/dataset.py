@@ -227,10 +227,15 @@ class ExtractSeqLensJob(Job):
 
         from returnn.config import set_global_config, Config
         from returnn.datasets import init_dataset
+        from returnn.log import log
 
         config = Config()
         config.load_file(self.out_returnn_config_file.get_path())
         set_global_config(config)
+
+        if not config.has("log_verbosity"):
+            config.typed_dict["log_verbosity"] = 4
+        log.init_by_config(config)
 
         dataset_dict = config.typed_value("dataset")
         assert isinstance(dataset_dict, dict)
