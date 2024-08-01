@@ -405,7 +405,11 @@ class PlotAlignmentJob(Job):
         clip_high: Optional[int] = None,
         clip_percentile_low: Optional[int] = None,
         clip_percentile_high: Optional[int] = None,
-        num_bins: int = 50
+        zoom_x_min: Optional[float] = None,
+        zoom_x_max: Optional[float] = None,
+        zoom_y_min: Optional[float] = None,
+        zoom_y_max: Optional[float] = None,
+        num_bins: int = 50,
     ):
         """
         :param alignment_log_file: Alignment log file from the alignment job.
@@ -421,6 +425,10 @@ class PlotAlignmentJob(Job):
         :param clip_percentile_high: Number symbolizing the absolute number at which the plot will be clipped to the right.
             If given along with any other value restricting the maximum, the most restrictive value will prevail.
             By default clips at the maximum value.
+        :param zoom_x_min: Minimum X value in which to zoom in on the plot. If `None`, won't zoom in.
+        :param zoom_x_max: Maximum X value in which to zoom in on the plot. If `None`, won't zoom in.
+        :param zoom_y_min: Minimum Y value in which to zoom in on the plot. If `None`, won't zoom in.
+        :param zoom_y_max: Maximum Y value in which to zoom in on the plot. If `None`, won't zoom in.
         :param num_bins: Number of histogram bins. By default `50`.
         """
         self.alignment_log_file = alignment_log_file
@@ -428,6 +436,10 @@ class PlotAlignmentJob(Job):
         self.clip_high = clip_high
         self.clip_percentile_low = clip_percentile_low
         self.clip_percentile_high = clip_percentile_high
+        self.zoom_x_min = zoom_x_min
+        self.zoom_x_max = zoom_x_max
+        self.zoom_y_min = zoom_y_min
+        self.zoom_y_max = zoom_y_max
         self.num_bins = num_bins
 
         self.out_plot = self.output_path("plot.png")
@@ -482,6 +494,8 @@ class PlotAlignmentJob(Job):
         plt.xlabel("Average Maximum-Likelihood Score")
         plt.ylabel("Number of Segments")
         plt.title("Histogram of Alignment Scores")
+        plt.gca().set_xlim(left=self.zoom_x_min, right=self.zoom_x_max)
+        plt.gca().set_ylim(left=self.zoom_y_min, right=self.zoom_y_max)
         plt.savefig(fname=self.out_plot_avg.get_path())
 
 
