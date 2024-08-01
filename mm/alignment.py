@@ -400,7 +400,7 @@ class PlotAlignmentJob(Job):
 
     def __init__(
         self,
-        alignment_log_file: tk.Path,
+        alignment_log_files: List[tk.Path],
         clip_low: Optional[int] = None,
         clip_high: Optional[int] = None,
         clip_percentile_low: Optional[int] = None,
@@ -412,7 +412,7 @@ class PlotAlignmentJob(Job):
         num_bins: int = 50,
     ):
         """
-        :param alignment_log_file: Alignment log file from the alignment job.
+        :param alignment_log_files: Alignment log files from the alignment job.
         :param clip_low: Number symbolizing the absolute number at which the plot will be clipped to the left.
             If given along with any other value restricting the minimum, the most restrictive value will prevail.
             By default clips at the minimum value. Has priority over :param:`clip_percentile_low`.
@@ -431,7 +431,7 @@ class PlotAlignmentJob(Job):
         :param zoom_y_max: Maximum Y value in which to zoom in on the plot. If `None`, won't zoom in.
         :param num_bins: Number of histogram bins. By default `50`.
         """
-        self.alignment_log_file = alignment_log_file
+        self.alignment_log_files = alignment_log_files
         self.clip_low = clip_low
         self.clip_high = clip_high
         self.clip_percentile_low = clip_percentile_low
@@ -456,7 +456,7 @@ class PlotAlignmentJob(Job):
 
         # Parse the files and search for the average alignment score values (normalized over time).
         alignment_scores = []
-        for log_file in self.out_log_file.values():
+        for log_file in self.alignment_log_files:
             logging.info("Reading: {}".format(log_file))
             file_path = log_file.get_path()
             document = ET.parse(util.uopen(file_path))
