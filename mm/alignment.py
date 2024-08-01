@@ -394,8 +394,8 @@ class DumpAlignmentJob(rasr.RasrCommand, Job):
 class PlotAlignmentJob(Job):
     """
     Plots an alignment from its log file.
-    This is a separate job from the tasks available in :func:`i6_core.mm.alignment.AlignmentJob.plot`
-    and :func:`i6_core.
+    This is an isolate job based on the tasks available in :func:`i6_core.mm.alignment.AlignmentJob.plot`
+    and :func:`i6_core.corpus.filter.FilterSegmentsByAlignmentConfidenceJob.plot`.
     """
 
     def __init__(
@@ -410,30 +410,24 @@ class PlotAlignmentJob(Job):
         """
         :param alignment_log_file: Alignment log file from the alignment job.
         :param clip_low: Number symbolizing the absolute number at which the plot will be clipped to the left.
-            Can't be given in conjunction to :param:`clip_percentile_low`. By default clips at the minimum value.
+            If given along with any other value restricting the minimum, the most restrictive value will prevail.
+            By default clips at the minimum value. Has priority over :param:`clip_percentile_low`.
         :param clip_high: Number symbolizing the absolute number at which the plot will be clipped to the right.
-            Can't be given in conjunction to :param:`clip_percentile_high`.
-            By default clips at the 95th percentile (for removing huge outliers).
+            If given along with any other value restricting the maximum, the most restrictive value will prevail.
+            By default clips at the maximum value. Has priority over :param:`clip_percentile_high`.
         :param clip_percentile_low: Number symbolizing the percentile at which the plot will be clipped to the left.
-            Can't be given in conjunction to :param:`clip_low`. By default clips at the minimum value.
+            If given along with any other value restricting the minimum, the most restrictive value will prevail.
+            By default clips at the minimum value.
         :param clip_percentile_high: Number symbolizing the absolute number at which the plot will be clipped to the right.
-            Can't be given in conjunction to :param:`clip_high`.
-            By default clips at the 95th percentile (for removing huge outliers).
+            If given along with any other value restricting the maximum, the most restrictive value will prevail.
+            By default clips at the maximum value.
         :param num_bins: Number of histogram bins. By default `50`.
         """
         self.alignment_log_file = alignment_log_file
-        clip_low_dict = {"clip_low": clip_low, "clip_percentile_low": clip_percentile_low}
-        clip_low_diff_none_values = [lower_val for lower_val in clip_low_dict.values() if lower_val is not None]
-        assert len(clip_low_diff_none_values) <= 1, (
-            f"More than one value for the low clip explicitly given (different from None): {clip_low_dict.items()}. "
-            "Please only give one value."
-        )
-        clip_high_dict = {"clip_high": clip_high, "clip_percentile_high": clip_percentile_high}
-        clip_high_diff_none_values = [upper_val for upper_val in clip_high_dict.values() if upper_val is not None]
-        assert len(clip_high_diff_none_values) <= 1, (
-            f"More than one value for the high clip explicitly given (different from None): {clip_high_dict.items()}. "
-            "Please only give one value."
-        )
+        self.clip_low = clip_low
+        self.clip_high = clip_high
+        self.clip_percentile_low = clip_percentile_low
+        self.clip_percentile_high = clip_percentile_high
         self.num_bins = num_bins
 
         self.out_plot = self.output_path("plot.png")
@@ -462,18 +456,27 @@ class PlotAlignmentJob(Job):
 
         np_alignment_scores = np.asarray(alignment_scores)
         min_value = np_alignment_scores.min()
-        p95_value = np.percentile(np_alignment_scores, 95)
+        max_value = np_alignment_scores.max()
         logging.info("STATS:")
-        logging.info(f"Max: {np_alignment_scores.max()}")
         logging.info(f"Min: {min_value}")
         logging.info(f"Median {np.median(np_alignment_scores)}")
-        logging.info(f"95-th percentile: {p95_value}")
+        logging.info(f"Max: {max_value}")
         logging.info(f"Total number of segments: {np_alignment_scores.size}")
 
         # Plot the data.
         matplotlib.use("Agg")
-        clip_low = self.clip_low or self.clip_percentile_high or min_value
-        clip_high = self.clip_high or self.clip_percentile_high or p95_value
+        if self.clip_low is not None and self.clip_percentile_low is not None:
+            # Plot the most restrictive (highest).
+            clip_value_low = np.percentile(self.clip_percentile_low or 0)
+            clip_low = self.clip_low if self.clip_low > clip_value_low else clip_value_low
+        else:
+            clip_low = self.clip_low or self.clip_percentile_low or min_value
+        if self.clip_high is not None and self.clip_percentile_high is not None:
+            # Plot the most restrictive (lowest).
+            clip_value_high = np.percentile(self.clip_percentile_high or 0)
+            clip_high = self.clip_high if self.clip_high < clip_value_high else clip_value_high
+        else:
+            clip_high = self.clip_high or self.clip_percentile_high or max_value
         np.clip(np_alignment_scores, clip_low, clip_high, out=np_alignment_scores)
         plt.hist(np_alignment_scores, bins=self.num_bins)
         plt.xlabel("Average Maximum-Likelihood Score")
