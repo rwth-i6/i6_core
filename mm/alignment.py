@@ -659,9 +659,10 @@ class ComputeTimeStampErrorJob(Job):
                 self.hyp_silence_phone,
                 self.hyp_upsample_factor,
             )
-            assert len(hyp_word_starts) == len(
-                hyp_word_ends
-            ), f"Found different number of word starts ({len(hyp_word_starts)}) than word ends ({len(hyp_word_ends)}). Something seems to be broken."
+            assert len(hyp_word_starts) == len(hyp_word_ends), (
+                f"Found different number of word starts ({len(hyp_word_starts)}) "
+                f"than word ends ({len(hyp_word_ends)}). Something seems to be broken."
+            )
 
             if self.hyp_seq_tag_transform is not None:
                 ref_seq_tag = self.hyp_seq_tag_transform(hyp_seq_tag)
@@ -675,9 +676,10 @@ class ComputeTimeStampErrorJob(Job):
                 self.ref_silence_phone,
                 self.ref_upsample_factor,
             )
-            assert len(ref_word_starts) == len(
-                ref_word_ends
-            ), f"Found different number of word starts ({len(hyp_word_starts)}) than word ends ({len(hyp_word_ends)}) in reference. Something seems to be broken."
+            assert len(ref_word_starts) == len(ref_word_ends), (
+                f"Found different number of word starts ({len(hyp_word_starts)}) "
+                f"than word ends ({len(hyp_word_ends)}) in reference. Something seems to be broken."
+            )
 
             if len(hyp_word_starts) != len(ref_word_starts):
                 logging.warning(
