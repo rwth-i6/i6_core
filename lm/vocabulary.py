@@ -3,6 +3,7 @@ __all__ = [
     "LmIndexVocabularyFromLexiconJob",
     "VocabularyFromLmJob",
     "VocabularyFromTextJob",
+    "GetOovRateJob",
 ]
 from sisyphus import Job, Task, tk
 
@@ -195,3 +196,38 @@ class VocabularyFromTextJob(Job):
                 vocabulary_with_counts.write(f"{word} {count}\n")
 
         self.out_counter.set(counter)
+
+
+class GetOovRateJob(Job):
+    """
+    Obtains the OOV rate of a text file given a vocabulary file with one word per line.
+    """
+
+    def __init__(self, text_file: tk.Path, vocab_file: tk.Path):
+        self.text_file = text_file
+        self.vocab_file = vocab_file
+
+        self.out_oov_rate = self.output_var("oov_rate")
+
+        self.rqmt = {"cpu": 1, "mem": 5.0, "time": 2.0}
+
+    def tasks(self):
+        yield Task("run", resume="run", rqmt=self.rqmt)
+
+    def run(self):
+        vocab = set()
+        with uopen(self.vocab_file.get_path(), "rt") as in_vocab:
+            for word in in_vocab:
+                vocab.add(word.strip())
+
+        total_words = 0
+        oov_words = 0
+        with uopen(self.text_file.get_path(), "rt") as in_text:
+            for line in in_text:
+                split_line = line.strip().split()
+                for word in split_line:
+                    if word not in vocab:
+                        oov_words += 1
+                total_words += len(split_line)
+
+        self.out_oov_rate.set(oov_words / total_words)
