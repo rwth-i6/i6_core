@@ -477,18 +477,8 @@ class PlotAlignmentJob(Job):
 
         # Plot the data.
         matplotlib.use("Agg")
-        if self.clip_low is not None and self.clip_percentile_low is not None:
-            # Plot the most restrictive (highest).
-            clip_value_low = np.percentile(self.clip_percentile_low or 0)
-            clip_low = self.clip_low if self.clip_low > clip_value_low else clip_value_low
-        else:
-            clip_low = self.clip_low or self.clip_percentile_low or min_value
-        if self.clip_high is not None and self.clip_percentile_high is not None:
-            # Plot the most restrictive (lowest).
-            clip_value_high = np.percentile(self.clip_percentile_high or 0)
-            clip_high = self.clip_high if self.clip_high < clip_value_high else clip_value_high
-        else:
-            clip_high = self.clip_high or self.clip_percentile_high or max_value
+        clip_low = max(self.clip_low, np.percentile(self.clip_percentile_low), min_value)
+        clip_high = min(self.clip_high, np.percentile(self.clip_percentile_high), max_value)
         np.clip(np_alignment_scores, clip_low, clip_high, out=np_alignment_scores)
         plt.hist(np_alignment_scores, bins=self.num_bins)
         plt.xlabel("Average Maximum-Likelihood Score")
