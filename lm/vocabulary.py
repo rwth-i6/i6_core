@@ -215,10 +215,8 @@ class GetOovRateJob(Job):
         yield Task("run", resume="run", rqmt=self.rqmt)
 
     def run(self):
-        vocab = set()
         with uopen(self.vocab_file.get_path(), "rt") as in_vocab:
-            for word in in_vocab:
-                vocab.add(word.strip())
+            vocab = set(word.strip() for word in in_vocab)
 
         total_words = 0
         oov_words = 0
