@@ -209,7 +209,7 @@ class GetOovRateJob(Job):
 
         self.out_oov_rate = self.output_var("oov_rate")
 
-        self.rqmt = {"cpu": 1, "mem": 5.0, "time": 2.0}
+        self.rqmt = {"cpu": 1, "mem": 1.0, "time": 2.0}
 
     def tasks(self):
         yield Task("run", resume="run", rqmt=self.rqmt)
