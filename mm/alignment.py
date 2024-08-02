@@ -432,10 +432,15 @@ class PlotAlignmentJob(Job):
         :param num_bins: Number of histogram bins. By default `50`.
         """
         self.alignment_log_files = alignment_log_files
+        assert clip_low < clip_high
         self.clip_low = clip_low
         self.clip_high = clip_high
+        assert 0.0 <= clip_percentile_low <= 100.0, "Lower percentile should be between 0 and 100"
+        assert 0.0 <= clip_percentile_high <= 100.0, "Higher percentile should be between 0 and 100"
+        assert clip_percentile_low < clip_percentile_high, "Lower percentile should be lower than higher percentile"
         self.clip_percentile_low = clip_percentile_low
         self.clip_percentile_high = clip_percentile_high
+        
         self.zoom_x_min = zoom_x_min
         self.zoom_x_max = zoom_x_max
         self.zoom_y_min = zoom_y_min
