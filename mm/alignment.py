@@ -440,7 +440,6 @@ class PlotAlignmentJob(Job):
         assert clip_percentile_low < clip_percentile_high, "Lower percentile should be lower than higher percentile"
         self.clip_percentile_low = clip_percentile_low
         self.clip_percentile_high = clip_percentile_high
-        
         self.zoom_x_min = zoom_x_min
         self.zoom_x_max = zoom_x_max
         self.zoom_y_min = zoom_y_min
