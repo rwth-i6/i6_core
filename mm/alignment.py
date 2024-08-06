@@ -414,13 +414,13 @@ class PlotAlignmentJob(Job):
         """
         :param alignment_log_files: Alignment log files from the alignment job.
         :param clip_low: Number symbolizing the absolute number at which the plot will be clipped to the left.
-            If given along with any other value restricting the minimum, the most restrictive value will prevail.
+            If given along with any other value restricting the minimum, the most restrictive value (max) will prevail.
         :param clip_high: Number symbolizing the absolute number at which the plot will be clipped to the right.
-            If given along with any other value restricting the maximum, the most restrictive value will prevail.
+            If given along with any other value restricting the maximum, the most restrictive value (min) will prevail.
         :param clip_percentile_low: Number symbolizing the percentile at which the plot will be clipped to the left.
-            If given along with any other value restricting the minimum, the most restrictive value will prevail.
+            If given along with any other value restricting the minimum, the most restrictive value (max) will prevail.
         :param clip_percentile_high: Number symbolizing the absolute number at which the plot will be clipped to the right.
-            If given along with any other value restricting the maximum, the most restrictive value will prevail.
+            If given along with any other value restricting the maximum, the most restrictive value (min) will prevail.
         :param zoom_x_min: Minimum X value in which to zoom in on the plot. If `None`, won't zoom in.
         :param zoom_x_max: Maximum X value in which to zoom in on the plot. If `None`, won't zoom in.
         :param zoom_y_min: Minimum Y value in which to zoom in on the plot. If `None`, won't zoom in.
