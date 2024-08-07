@@ -391,6 +391,104 @@ class DumpAlignmentJob(rasr.RasrCommand, Job):
         )
 
 
+class PlotAlignmentJob(Job):
+    """
+    Plots an alignment from its log file.
+    This is an isolate job based on the tasks available in :func:`i6_core.mm.alignment.AlignmentJob.plot`
+    and :func:`i6_core.corpus.filter.FilterSegmentsByAlignmentConfidenceJob.plot`.
+    """
+
+    def __init__(
+        self,
+        alignment_log_files: List[tk.Path],
+        clip_low: float = float("-inf"),
+        clip_high: float = float("inf"),
+        clip_percentile_low: float = 0.0,
+        clip_percentile_high: float = 100.0,
+        zoom_x_min: Optional[float] = None,
+        zoom_x_max: Optional[float] = None,
+        zoom_y_min: Optional[float] = None,
+        zoom_y_max: Optional[float] = None,
+        num_bins: int = 50,
+    ):
+        """
+        :param alignment_log_files: Alignment log files from the alignment job.
+        :param clip_low: Number symbolizing the absolute number at which the plot will be clipped to the left.
+            If given along with any other value restricting the minimum, the most restrictive value (max) will prevail.
+        :param clip_high: Number symbolizing the absolute number at which the plot will be clipped to the right.
+            If given along with any other value restricting the maximum, the most restrictive value (min) will prevail.
+        :param clip_percentile_low: Number symbolizing the percentile at which the plot will be clipped to the left.
+            If given along with any other value restricting the minimum, the most restrictive value (max) will prevail.
+        :param clip_percentile_high: Number symbolizing the absolute number at which the plot will be clipped to the right.
+            If given along with any other value restricting the maximum, the most restrictive value (min) will prevail.
+        :param zoom_x_min: Minimum X value in which to zoom in on the plot. If `None`, won't zoom in.
+        :param zoom_x_max: Maximum X value in which to zoom in on the plot. If `None`, won't zoom in.
+        :param zoom_y_min: Minimum Y value in which to zoom in on the plot. If `None`, won't zoom in.
+        :param zoom_y_max: Maximum Y value in which to zoom in on the plot. If `None`, won't zoom in.
+        :param num_bins: Number of histogram bins. By default `50`.
+        """
+        self.alignment_log_files = alignment_log_files
+        assert clip_low < clip_high
+        self.clip_low = clip_low
+        self.clip_high = clip_high
+        assert 0.0 <= clip_percentile_low <= 100.0, "Lower percentile should be between 0 and 100"
+        assert 0.0 <= clip_percentile_high <= 100.0, "Higher percentile should be between 0 and 100"
+        assert clip_percentile_low < clip_percentile_high, "Lower percentile should be lower than higher percentile"
+        self.clip_percentile_low = clip_percentile_low
+        self.clip_percentile_high = clip_percentile_high
+        self.zoom_x_min = zoom_x_min
+        self.zoom_x_max = zoom_x_max
+        self.zoom_y_min = zoom_y_min
+        self.zoom_y_max = zoom_y_max
+        self.num_bins = num_bins
+
+        self.out_plot = self.output_path("plot.png")
+
+        self.rqmt = {"cpu": 1, "mem": 1.0, "time": 1.0}
+
+    def tasks(self):
+        yield Task("plot", resume="plot", rqmt=self.rqmt)
+
+    def plot(self):
+        import numpy as np
+        import matplotlib
+        import matplotlib.pyplot as plt
+
+        # Parse the files and search for the average alignment score values (normalized over time).
+        alignment_scores = []
+        for log_file in self.alignment_log_files:
+            logging.info("Reading: {}".format(log_file))
+            file_path = log_file.get_path()
+            document = ET.parse(util.uopen(file_path))
+            _seg_list = document.findall(".//segment")
+            for seg in _seg_list:
+                avg = seg.find(".//score/avg")
+                alignment_scores.append(float(avg.text))
+            del document
+
+        np_alignment_scores = np.asarray(alignment_scores)
+        min_value = np_alignment_scores.min()
+        max_value = np_alignment_scores.max()
+        logging.info("STATS:")
+        logging.info(f"Min: {min_value}")
+        logging.info(f"Median {np.median(np_alignment_scores)}")
+        logging.info(f"Max: {max_value}")
+        logging.info(f"Total number of segments: {np_alignment_scores.size}")
+
+        # Plot the data.
+        matplotlib.use("Agg")
+        clip_low = max(self.clip_low, np.percentile(self.clip_percentile_low), min_value)
+        clip_high = min(self.clip_high, np.percentile(self.clip_percentile_high), max_value)
+        np.clip(np_alignment_scores, clip_low, clip_high, out=np_alignment_scores)
+        plt.hist(np_alignment_scores, bins=self.num_bins)
+        plt.xlabel("Average Maximum-Likelihood Score")
+        plt.ylabel("Number of Segments")
+        plt.title("Histogram of Alignment Scores")
+        plt.gca().set_xlim(left=self.zoom_x_min, right=self.zoom_x_max)
+        plt.gca().set_ylim(left=self.zoom_y_min, right=self.zoom_y_max)
+        plt.savefig(fname=self.out_plot_avg.get_path())
+
+
 class AMScoresFromAlignmentLogJob(Job):
     def __init__(self, logs):
         self.logs = logs
@@ -551,9 +649,10 @@ class ComputeTimeStampErrorJob(Job):
                 self.hyp_silence_phone,
                 self.hyp_upsample_factor,
             )
-            assert len(hyp_word_starts) == len(
-                hyp_word_ends
-            ), f"Found different number of word starts ({len(hyp_word_starts)}) than word ends ({len(hyp_word_ends)}). Something seems to be broken."
+            assert len(hyp_word_starts) == len(hyp_word_ends), (
+                f"Found different number of word starts ({len(hyp_word_starts)}) "
+                f"than word ends ({len(hyp_word_ends)}). Something seems to be broken."
+            )
 
             if self.hyp_seq_tag_transform is not None:
                 ref_seq_tag = self.hyp_seq_tag_transform(hyp_seq_tag)
@@ -567,9 +666,10 @@ class ComputeTimeStampErrorJob(Job):
                 self.ref_silence_phone,
                 self.ref_upsample_factor,
             )
-            assert len(ref_word_starts) == len(
-                ref_word_ends
-            ), f"Found different number of word starts ({len(hyp_word_starts)}) than word ends ({len(hyp_word_ends)}) in reference. Something seems to be broken."
+            assert len(ref_word_starts) == len(ref_word_ends), (
+                f"Found different number of word starts ({len(hyp_word_starts)}) "
+                f"than word ends ({len(hyp_word_ends)}) in reference. Something seems to be broken."
+            )
 
             if len(hyp_word_starts) != len(ref_word_starts):
                 logging.warning(
