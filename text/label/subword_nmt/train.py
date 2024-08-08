@@ -88,6 +88,8 @@ class TrainBPEModelJob(Job):
 
 
 class ReturnnTrainBpeJob(Job):
+    __sis_hash_exclude__ = {"allow_special_labels": False}
+
     """
     Create Bpe codes and vocab files compatible with RETURNN BytePairEncoding
     Repository:
@@ -111,6 +113,7 @@ class ReturnnTrainBpeJob(Job):
         bpe_size: int,
         unk_label: str = "UNK",
         subword_nmt_repo: Optional[tk.Path] = None,
+        allow_special_labels: bool = False,
     ):
         """
         :param text_file: corpus text file, .gz compressed or uncompressed
@@ -122,6 +125,7 @@ class ReturnnTrainBpeJob(Job):
         self.bpe_size = bpe_size
         self.subword_nmt_repo = util.get_subword_nmt_repo(subword_nmt_repo)
         self.unk_label = unk_label
+        self.allow_special_labels = allow_special_labels
 
         self.out_bpe_codes = self.output_path("bpe.codes")
         self.out_bpe_vocab = self.output_path("bpe.vocab")
@@ -163,6 +167,8 @@ class ReturnnTrainBpeJob(Job):
             "--out",
             self.out_bpe_vocab.get_path(),
         ]
+        if self.allow_special_labels:
+            bpe_vocab_cmd += ["--allow_special_labels"]
 
         util.create_executable("create_bpe_vocab.sh", bpe_vocab_cmd)
         sp.run(bpe_vocab_cmd, check=True)
