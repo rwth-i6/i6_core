@@ -572,8 +572,10 @@ class ComputeTimeStampErrorJob(Job):
         self.out_boundary_frame_differences = self.output_var("boundary_frame_differences")
         self.out_plot_boundary_frame_differences = self.output_path("boundary_frame_differences.png")
 
+        self.rqmt = None
+
     def tasks(self):
-        yield Task("run", resume="run", mini_task=True)
+        yield Task("run", resume="run", rqmt=self.rqmt, mini_task=self.rqmt is None)
         yield Task("plot", resume="plot", mini_task=True)
 
     @staticmethod
