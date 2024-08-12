@@ -287,13 +287,20 @@ class TorchOnnxExportJob(Job):
                 str(self.returnn_root),
                 self.returnn_config.config["model_outputs"],
             )
+        
+        cmd_bkp = list(cmd)
+        
         if input_names:
             cmd += ["--input_names", ",".join(input_names)]
         if output_names:
             cmd += ["--output_names", ",".join(output_names)]
 
-        util.create_executable("compile.sh", cmd)  # convenience file for manual execution
-        sp.run(cmd, check=True)
+        try:
+            util.create_executable("compile.sh", cmd)  # convenience file for manual execution
+            sp.run(cmd, check=True)
+        except sp.CalledProcessError as e:
+            util.create_executable("compile.sh", cmd_bkp)
+            sp.run(cmd_bkp, check=True)
 
     @staticmethod
     def collect_tensor_names(returnn_root: str, data_dict: Dict[str, Any]) -> List[str]:
