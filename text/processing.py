@@ -126,7 +126,7 @@ class ConcatenateJob(Job):
         """
         :param text_files: input text files
         :param zip_out: apply gzip to the output
-        :param out_name: user specific name
+        :param out_name: user specific file name for the output file
         """
         assert text_files
 
@@ -280,16 +280,16 @@ class WriteToTextFileJob(Job):
     Write a given content into a text file, one entry per line
     """
 
-    def __init__(
-        self,
-        content,
-    ):
+    __sis_hash_exclude__ = {"out_name": "file.txt"}
+
+    def __init__(self, content, out_name: str = "file.txt"):
         """
         :param list|dict|str content: input which will be written into a text file
+        :param out_name: user specific file name for the output file
         """
         self.content = content
 
-        self.out_file = self.output_path("file.txt")
+        self.out_file = self.output_path(out_name)
 
     def tasks(self):
         yield Task("run", mini_task=True)
