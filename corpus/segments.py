@@ -176,8 +176,7 @@ class ShuffleAndSplitSegmentsJob(Job):
         self.shuffle_seed = shuffle_seed
 
         self.out_segments = {
-            k: self.output_path(f"{k}.segments{'.gz' if zip_output else ''}")
-            for k in self.split.keys()
+            k: self.output_path(f"{k}.segments{'.gz' if zip_output else ''}") for k in self.split.keys()
         }
 
     def tasks(self):
