@@ -394,7 +394,7 @@ def parse_text_dict(path: Union[str, tk.Path]) -> Dict[str, str]:
     """
 
     with uopen(path, "rt") as text_dict_file:
-        txt = "".join(line for line in text_dict_file)
+        txt = "".join(line.strip() for line in text_dict_file)
     d = eval(txt, {"nan": float("nan"), "inf": float("inf")})
     assert isinstance(d, dict), f"expected a text dict, but found {type(d)}"
     return d
