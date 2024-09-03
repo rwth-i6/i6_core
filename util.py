@@ -389,12 +389,11 @@ def parse_text_dict(path: Union[str, tk.Path]) -> Dict[str, str]:
     """
     Loads the text dict at :param:`path`.
 
-    Works around https://github.com/rwth-i6/i6_core/issues/539 by stripping the newlines
-    from the text dict before parsing.
+    Works around https://github.com/rwth-i6/i6_core/issues/539 (``OverflowError: line number table is too long``)
+    by stripping the newlines from the text dict before the ``eval``.
     """
 
     with uopen(path, "rt") as text_dict_file:
-        # removing the newlines works around an overflow of the line number table in python3.10
         txt = "".join(line for line in text_dict_file)
     d = eval(txt, {"nan": float("nan"), "inf": float("inf")})
     assert isinstance(d, dict), f"expected a text dict, but found {type(d)}"
