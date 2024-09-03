@@ -383,3 +383,24 @@ def update_nested_dict(dict1: Dict[str, Any], dict2: Dict[str, Any]):
         else:
             dict1[k] = v
     return dict1
+
+
+def parse_text_dict(path: Union[str, tk.Path]) -> Dict[str, str]:
+    """
+    Loads the text dict at :param:`path` making sure not to trigger line counter overflow.
+    """
+
+    with uopen(path, "rt") as text_dict_file:
+        txt = text_dict_file.read()
+
+    # remove leading and trailing dict brackets
+    txt = txt.strip().strip("{}").strip()
+
+    lines = txt.splitlines()
+    result = {
+        k: v
+        # parse chunkwise to avoid line counter overflow when the text dict is very large
+        for chunk in chunks(lines, max(1, len(lines) // 1000))
+        for k, v in eval("\n".join(["{", *chunk, "}"]), {"nan": float("nan"), "inf": float("inf")}).items()
+    }
+    return result
