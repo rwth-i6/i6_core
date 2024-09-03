@@ -387,20 +387,15 @@ def update_nested_dict(dict1: Dict[str, Any], dict2: Dict[str, Any]):
 
 def parse_text_dict(path: Union[str, tk.Path]) -> Dict[str, str]:
     """
-    Loads the text dict at :param:`path` making sure not to trigger line counter overflow.
+    Loads the text dict at :param:`path`.
+
+    Works around https://github.com/rwth-i6/i6_core/issues/539 by stripping the newlines
+    from the text dict before parsing.
     """
 
     with uopen(path, "rt") as text_dict_file:
-        txt = text_dict_file.read()
-
-    # remove leading and trailing dict brackets
-    txt = txt.strip().strip("{}").strip()
-
-    lines = txt.splitlines()
-    result = {
-        k: v
-        # parse chunkwise to avoid line counter overflow when the text dict is very large
-        for chunk in chunks(lines, max(1, len(lines) // 1000))
-        for k, v in eval("\n".join(["{", *chunk, "}"]), {"nan": float("nan"), "inf": float("inf")}).items()
-    }
-    return result
+        # removing the newlines works around an overflow of the line number table in python3.10
+        txt = "".join(line for line in text_dict_file)
+    d = eval(txt, {"nan": float("nan"), "inf": float("inf")})
+    assert isinstance(d, dict), f"expected a text dict, but found {type(d)}"
+    return d
