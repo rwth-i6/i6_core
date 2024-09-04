@@ -3,7 +3,7 @@ __all__ = [
     "DumpAlignmentJob",
     "PlotAlignmentJob",
     "AMScoresFromAlignmentLogJob",
-    "ComputeTimeStampErrorJob"
+    "ComputeTimeStampErrorJob",
 ]
 
 import logging
