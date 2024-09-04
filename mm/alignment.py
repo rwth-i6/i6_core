@@ -1,4 +1,10 @@
-__all__ = ["AlignmentJob", "DumpAlignmentJob", "AMScoresFromAlignmentLogJob", "ComputeTimeStampErrorJob"]
+__all__ = [
+    "AlignmentJob",
+    "DumpAlignmentJob",
+    "PlotAlignmentJob",
+    "AMScoresFromAlignmentLogJob",
+    "ComputeTimeStampErrorJob",
+]
 
 import logging
 import math
@@ -477,16 +483,16 @@ class PlotAlignmentJob(Job):
 
         # Plot the data.
         matplotlib.use("Agg")
-        clip_low = max(self.clip_low, np.percentile(self.clip_percentile_low), min_value)
-        clip_high = min(self.clip_high, np.percentile(self.clip_percentile_high), max_value)
+        clip_low = max(self.clip_low, np.percentile(np_alignment_scores, self.clip_percentile_low), min_value)
+        clip_high = min(self.clip_high, np.percentile(np_alignment_scores, self.clip_percentile_high), max_value)
         np.clip(np_alignment_scores, clip_low, clip_high, out=np_alignment_scores)
         plt.hist(np_alignment_scores, bins=self.num_bins)
         plt.xlabel("Average Maximum-Likelihood Score")
         plt.ylabel("Number of Segments")
         plt.title("Histogram of Alignment Scores")
         plt.gca().set_xlim(left=self.zoom_x_min, right=self.zoom_x_max)
-        plt.gca().set_ylim(left=self.zoom_y_min, right=self.zoom_y_max)
-        plt.savefig(fname=self.out_plot_avg.get_path())
+        plt.gca().set_ylim(bottom=self.zoom_y_min, top=self.zoom_y_max)
+        plt.savefig(fname=self.out_plot.get_path())
 
 
 class AMScoresFromAlignmentLogJob(Job):
