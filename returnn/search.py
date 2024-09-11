@@ -449,7 +449,7 @@ class SearchWordsToCTMJob(Job):
         d = eval(util.uopen(self.recog_words_file.get_path(), "rt").read())
         assert isinstance(d, dict), "only search output file with dict format is supported"
         with util.uopen(self.out_ctm_file.get_path(), "wt") as out:
-            out.write(";; <name> <track> <start> <duration> <word> <confidence> [<n-best>]\n")
+            out.write(";; <name> <track> <start> <duration> <word> <confidence>\n")
             for seg in corpus.segments():
                 seg_start = 0.0 if seg.start == float("inf") else seg.start
                 seg_end = 0.0 if seg.end == float("inf") else seg.end
@@ -541,7 +541,7 @@ class SearchWordsDummyTimesToCTMJob(Job):
         else:
             seq_order = d.keys()
         with util.uopen(self.out_ctm_file.get_path(), "wt") as out:
-            out.write(";; <name> <track> <start> <duration> <word> <confidence> [<n-best>]\n")
+            out.write(";; <name> <track> <start> <duration> <word> <confidence>\n")
             for seg_fullname in seq_order:
                 assert isinstance(
                     seg_fullname, str
