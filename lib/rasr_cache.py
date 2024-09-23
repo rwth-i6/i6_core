@@ -331,7 +331,6 @@ class FileArchive:
             # print(typ)
             assert typ in {"vector-f32", "f32"}
             count = self.read_U32()
-            print(f"count: {count}")
             data = [None] * count  # type: typing.List[typing.Optional[numpy.ndarray]]
             time_ = [None] * count  # type: typing.List[typing.Optional[numpy.ndarray]]
             if typ == "vector-f32":
@@ -341,12 +340,8 @@ class FileArchive:
                     time_[i] = self.read_v("d", 2)  # 2    x f64
             elif typ == "f32":
                 for i in range(count):
-                    #size = self.read_U32()
-                    #print(f"size = {size}")
-                    data[i] = self.read_v("f", 1)  # size x f32
-                    print(f"data = {data[i]}")
-                    time_[i] = self.read_v("d", 2)  # 2    x f64
-                    print(f"time = {time_[i]}")
+                    data[i] = self.read_v("f", 1)  # 1 x f32
+                    time_[i] = self.read_v("d", 2)  # 2 x f64
             return time_, data
         elif typ in ["align", "align_raw"]:
             type_len = self.read_U32()
