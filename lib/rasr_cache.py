@@ -928,7 +928,7 @@ class MixtureSet:
             self.densities[n, 1] = cov_idx
 
         self.num_mixtures = self.read_u32()
-        self.mixtures: List[Optional[Tuple[List[int], List[float]]]] = [None] * self.num_mixtures  # nopep8
+        self.mixtures: List[Optional[Tuple[List[int], List[float]]]] = [None] * self.num_mixtures
         for n in range(self.num_mixtures):
             num_densities = self.read_u32()
             dns_idx = []
