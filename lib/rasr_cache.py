@@ -13,7 +13,7 @@ import logging
 import mmap
 import numpy
 import os
-import typing
+from typing import Dict, List, Optional, Tuple
 import zlib
 from struct import pack, unpack
 
@@ -53,7 +53,7 @@ class FileArchive:
     def __init__(self, filename, must_exists=False, encoding="ascii"):
         self.encoding = encoding
 
-        self.ft = {}  # type: typing.Dict[str,FileInfo]
+        self.ft: Dict[str, FileInfo] = {}
         if os.path.exists(filename):
             self.allophones = []
             self.f = open(filename, "rb")
@@ -331,8 +331,8 @@ class FileArchive:
             # print(typ)
             assert typ in {"vector-f32", "f32"}
             count = self.read_U32()
-            data = [None] * count  # type: typing.List[typing.Optional[numpy.ndarray]]
-            time_ = [None] * count  # type: typing.List[typing.Optional[numpy.ndarray]]
+            data: List[Optional[numpy.ndarray]] = [None] * count
+            time_: List[Optional[numpy.ndarray]] = [None] * count
             if typ == "vector-f32":
                 for i in range(count):
                     size = self.read_U32()
@@ -572,9 +572,9 @@ class FileArchiveBundle:
         :param str encoding: encoding used in the files
         """
         # filename -> FileArchive
-        self.archives = {}  # type: typing.Dict[str,FileArchive]
+        self.archives: Dict[str, FileArchive] = {}
         # archive content file -> FileArchive
-        self.files = {}  # type: typing.Dict[str,FileArchive]
+        self.files: Dict[str, FileArchive] = {}
         self._short_seg_names = {}
         for line in open(filename).read().splitlines():
             self.archives[line] = a = FileArchive(line, must_exists=True, encoding=encoding)
@@ -928,7 +928,7 @@ class MixtureSet:
             self.densities[n, 1] = cov_idx
 
         self.num_mixtures = self.read_u32()
-        self.mixtures = [None] * self.num_mixtures  # type: typing.List[typing.Optional[typing.Tuple[typing.List[int],typing.List[float]]]]  # nopep8
+        self.mixtures: List[Optional[Tuple[List[int], List[float]]]] = [None] * self.num_mixtures  # nopep8
         for n in range(self.num_mixtures):
             num_densities = self.read_u32()
             dns_idx = []
