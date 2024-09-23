@@ -329,14 +329,24 @@ class FileArchive:
             type_len = self.read_U32()
             typ = self.read_str(type_len)
             # print(typ)
-            assert typ == "vector-f32"
+            assert typ in {"vector-f32", "f32"}
             count = self.read_U32()
+            print(f"count: {count}")
             data = [None] * count  # type: typing.List[typing.Optional[numpy.ndarray]]
             time_ = [None] * count  # type: typing.List[typing.Optional[numpy.ndarray]]
-            for i in range(count):
-                size = self.read_U32()
-                data[i] = self.read_v("f", size)  # size x f32
-                time_[i] = self.read_v("d", 2)  # 2    x f64
+            if typ == "vector-f32":
+                for i in range(count):
+                    size = self.read_U32()
+                    data[i] = self.read_v("f", size)  # size x f32
+                    time_[i] = self.read_v("d", 2)  # 2    x f64
+            elif typ == "f32":
+                for i in range(count):
+                    #size = self.read_U32()
+                    #print(f"size = {size}")
+                    data[i] = self.read_v("f", 1)  # size x f32
+                    print(f"data = {data[i]}")
+                    time_[i] = self.read_v("d", 2)  # 2    x f64
+                    print(f"time = {time_[i]}")
             return time_, data
         elif typ in ["align", "align_raw"]:
             type_len = self.read_U32()
@@ -923,9 +933,7 @@ class MixtureSet:
             self.densities[n, 1] = cov_idx
 
         self.num_mixtures = self.read_u32()
-        self.mixtures = [
-            None
-        ] * self.num_mixtures  # type: typing.List[typing.Optional[typing.Tuple[typing.List[int],typing.List[float]]]]  # nopep8
+        self.mixtures = [None] * self.num_mixtures  # type: typing.List[typing.Optional[typing.Tuple[typing.List[int],typing.List[float]]]]  # nopep8
         for n in range(self.num_mixtures):
             num_densities = self.read_u32()
             dns_idx = []
