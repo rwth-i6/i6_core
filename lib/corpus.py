@@ -326,7 +326,7 @@ class CorpusV2(Corpus):
         """
         for r in self.recordings:
             yield from r.segments.values()
-        for sc in self.subcorpora:
+        for sc in self.subcorpora.values():
             yield from sc.segments()
 
     def get_segment_by_name(self, name: str) -> Segment:
@@ -393,7 +393,7 @@ class CorpusV2(Corpus):
 
     def all_speakers(self) -> Iterable[Speaker]:
         yield from self.speakers.values()
-        for sc in self.subcorpora:
+        for sc in self.subcorpora.values():
             yield from sc.all_speakers()
 
     def top_level_recordings(self) -> Iterable[RecordingV2]:
@@ -443,7 +443,7 @@ class CorpusV2(Corpus):
         """
         for r in self.recordings.values():
             r.segments = [s for s in r.segments.values() if filter_function(self, r, s)]
-        for sc in self.subcorpora:
+        for sc in self.subcorpora.values():
             sc.filter_segments(filter_function)
 
     def _dump_internal(self, out: TextIO, indentation: str = ""):
