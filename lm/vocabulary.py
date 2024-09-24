@@ -159,7 +159,7 @@ class VocabularyFromTextJob(Job):
     Extract vocabulary from given text files based on frequency.
     """
 
-    def __init__(self, file_paths: List[tk.Path], num_words: int = 1_000_000):
+    def __init__(self, file_paths: List[tk.Path], num_words: Union[int, tk.Variable] = 1_000_000):
         """
         :param file_paths: paths to the text files
         :param num_words: expected size of the vocabulary
@@ -185,12 +185,14 @@ class VocabularyFromTextJob(Job):
                     words = line.strip().split()
                     counter.update(words)
 
-        cutoff = min(self.num_words, len(counter))
+        num_words = self.num_words if isinstance(self.num_words, int) else self.num_words.get()
+
+        cutoff = min(num_words, len(counter))
 
         with open(self.out_vocabulary, "w") as vocabulary, open(
             self.out_vocabulary_with_counts, "w"
         ) as vocabulary_with_counts:
-            for (word, count) in counter.most_common(cutoff):
+            for word, count in counter.most_common(cutoff):
                 vocabulary.write(f"{word}\n")
                 vocabulary_with_counts.write(f"{word} {count}\n")
 
