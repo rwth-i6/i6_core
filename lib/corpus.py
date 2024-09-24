@@ -356,28 +356,45 @@ class CorpusV2(Corpus):
 
     def get_segment_by_full_name(self, name: str) -> Optional[Segment]:
         """
-        :return: the segment specified by its full name
+        Obtains a segment from the corpus given its full name in the corpus.
+
+        :param name: The full name of the segment.
+        :return: The segment to be searched for, or `None` if not found.
+        """
+        split_segment_name = name.split("/")
+        potential_corpus_name = split_segment_name[0]
+        if self.name == potential_corpus_name:
+            # The name was the own corpus'. This can happen the first iteration when giving the full segment name,
+            # for instance 'base_corpus/subcorpus1/subcorpus2/recording/segment'.
+            # Get rid of the first part for the search.
+            name = split_segment_name[1:]
+
+        return self._get_segment_by_full_name(name)
+
+    def _get_segment_by_full_name(self, name: str) -> Optional[Segment]:
+        """
+        :param name: The name of the segment to be searched for, relative to the current corpus.
+        :return: The segment whose name coincides with :param:`name` relative to the current corpus,
+            or `None` if not found.
         """
         if name == "":
             # Found nothing.
             return None
 
-        if name in self.segments:
-            return self.segments[name]
+        # Base case: the recording name comes first, and the segment name appears immediately afterwards.
+        recording_name = name.split("/")[0]
+        segment_name = name[len(f"{recording_name}/") :]
+        if recording_name in self.recordings:
+            return self.recordings[recording_name][segment_name]
         else:
-            subcorpus_name = name.split("/")[0]
-            segment_name_from_subcorpus = name[len(f"{subcorpus_name}/") :]
-            if self.name == subcorpus_name:
-                # The name was the own corpus'. This can happen when giving the full segment name.
-                # Ignore the former part.
-                subcorpus_name = name.split("/")[0]
-                segment_name_from_subcorpus = name[len(f"{subcorpus_name}/") :]
-
+            # Recursive case: look one level deeper to the indicated subcorpus.
+            subcorpus_name = recording_name
+            segment_full_name_from_subcorpus = segment_name
             assert subcorpus_name in self.subcorpora, (
                 f"Subcorpus '{subcorpus_name}' required for accessing segment '{name}' "
                 "not found in the list of subcorpora: {list(self.subcorpora.keys())}."
             )
-            return self.subcorpora[subcorpus_name].get_segment_by_full_name(segment_name_from_subcorpus)
+            return self.subcorpora[subcorpus_name].get_segment_by_full_name(segment_full_name_from_subcorpus)
 
     def get_recording_by_full_name(self, name: str) -> Optional[RecordingV2]:
         """
