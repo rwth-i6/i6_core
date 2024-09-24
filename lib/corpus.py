@@ -60,7 +60,7 @@ class CorpusParser(sax.handler.ContentHandler):
             assert isinstance(
                 e, (Corpus, CorpusV2)
             ), "<subcorpus> may only occur within a <corpus> or <subcorpus> element"
-            subcorpus = type(e)()
+            subcorpus = ()
             subcorpus.name = attrs["name"]
             subcorpus.parent_corpus = e
             if isinstance(e, Corpus):
@@ -321,7 +321,7 @@ class Corpus(NamedEntity, CorpusSection):
             out.write("%s</subcorpus>\n" % (indentation,))
 
 
-class CorpusV2(Corpus):
+class CorpusV2(NamedEntity, CorpusSection):
     """
     This class represents a corpus in the Bliss format. It is also used to represent subcorpora when the parent_corpus
     attribute is set. Corpora with include statements can be read but are written back as a single file.
@@ -333,9 +333,9 @@ class CorpusV2(Corpus):
     def __init__(self):
         super().__init__()
 
-        self.parent_corpus: Optional[Corpus] = None
+        self.parent_corpus: Optional[CorpusV2] = None
 
-        self.subcorpora: Dict[str, Corpus] = {}
+        self.subcorpora: Dict[str, CorpusV2] = {}
         self.recordings: Dict[str, RecordingV2] = {}
 
     def segments(self) -> Iterable[Segment]:
@@ -452,7 +452,7 @@ class CorpusV2(Corpus):
             sc.remove_recordings(recordings)
 
     def add_recording(self, recording: RecordingV2):
-        assert isinstance(recording, Recording)
+        assert isinstance(recording, RecordingV2)
         recording.corpus = self
         self.recordings[recording.name] = recording
 
@@ -480,6 +480,26 @@ class CorpusV2(Corpus):
             r.segments = [s for s in r.segments.values() if filter_function(self, r, s)]
         for sc in self.subcorpora.values():
             sc.filter_segments(filter_function)
+
+    def load(self, path: str):
+        """
+        :param path: corpus .xml or .xml.gz
+        """
+        open_fun = gzip.open if path.endswith(".gz") else open
+
+        with open_fun(path, "rt") as f:
+            handler = CorpusParser(self, path)
+            sax.parse(f, handler)
+
+    def dump(self, path: str):
+        """
+        :param path: target .xml or .xml.gz path
+        """
+        open_fun = gzip.open if path.endswith(".gz") else open
+
+        with open_fun(path, "wt") as f:
+            f.write('<?xml version="1.0" encoding="utf-8"?>\n')
+            self._dump_internal(f)
 
     def _dump_internal(self, out: TextIO, indentation: str = ""):
         if self.parent_corpus is None:
@@ -541,17 +561,30 @@ class Recording(NamedEntity, CorpusSection):
         self.segments.append(segment)
 
 
-class RecordingV2(Recording):
+class RecordingV2(NamedEntity, CorpusSection):
+    """
+    Represents a recording, which is an entity composed of an audio file and a set of segments.
+
+    The difference with respect to :class:`i6_core.lib.corpus.Recording` is that this class allows access
+    from the parent corpus to any segment in O(1).
+    """
+
     def __init__(self):
         super().__init__()
         self.audio: Optional[str] = None
-        self.corpus: Optional[Corpus] = None
+        self.corpus: Optional[CorpusV2] = None
         self.segments: Dict[str, Segment] = {}
 
-    def add_segment(self, segment: Segment):
-        assert isinstance(segment, Segment)
-        segment.recording = self
-        self.segments[segment.name] = segment
+    def fullname(self) -> str:
+        return self.corpus.fullname() + "/" + self.name
+
+    def speaker(self, speaker_name: Optional[str] = None) -> Speaker:
+        if speaker_name is None:
+            speaker_name = self.speaker_name
+        if speaker_name in self.speakers:
+            return self.speakers[speaker_name]
+        else:
+            return self.corpus.speaker(speaker_name, self.default_speaker)
 
     def dump(self, out: TextIO, indentation: str = ""):
         out.write('%s<recording name="%s" audio="%s">\n' % (indentation, self.name, self.audio))
@@ -563,6 +596,11 @@ class RecordingV2(Recording):
 
         for s in self.segments.values():
             s.dump(out, indentation + "  ")
+
+    def add_segment(self, segment: Segment):
+        assert isinstance(segment, Segment)
+        segment.recording = self
+        self.segments[segment.name] = segment
 
 
 class Segment(NamedEntity):
