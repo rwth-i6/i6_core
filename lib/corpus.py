@@ -331,12 +331,10 @@ class CorpusV2(Corpus):
         """
         :return: the segment specified by its name
         """
-        for seg in self.segments():
-            if seg.name == name:
-                return seg
-        assert False, f"Segment '{name}' was not found in corpus"
+        assert name in self.segments, f"Segment '{name}' was not found in corpus"
+        return self.segments[name]
 
-     def get_segment_by_full_name(self, name: str) -> Optional[Segment]:
+    def get_segment_by_full_name(self, name: str) -> Optional[Segment]:
         """
         :return: the segment specified by its full name
         """
@@ -349,9 +347,19 @@ class CorpusV2(Corpus):
         else:
             subcorpus_name = name.split("/")[0]
             segment_name_from_subcorpus = name[len(f"{subcorpus_name}/"):]
+            if self.name == subcorpus_name:
+                # The name was the own corpus'. This can happen when giving the full segment name.
+                # Ignore the former part.
+                subcorpus_name = name.split("/")[0]
+                segment_name_from_subcorpus = name[len(f"{subcorpus_name}/"):]
+
+            assert subcorpus_name in self.subcorpora, (
+                f"Subcorpus '{subcorpus_name}' required for accessing segment '{name}' "
+                "not found in the list of subcorpora: {list(self.subcorpora.keys())}."
+            )
             return self.subcorpora[subcorpus_name].get_segment_by_full_name(segment_name_from_subcorpus)
 
-    def get_recording_by_full_name(self, name: str) -> Optional[Segment]:
+    def get_recording_by_full_name(self, name: str) -> Optional[RecordingV2]:
         """
         :return: the segment specified by its full name
         """
@@ -359,14 +367,24 @@ class CorpusV2(Corpus):
             # Found nothing.
             return None
 
-        if name in self.segments:
-            return self.segments[name]
+        if name in self.recordings:
+            return self.recordings[name]
         else:
             subcorpus_name = name.split("/")[0]
-            segment_name_from_subcorpus = name[len(f"{subcorpus_name}/"):]
-            return self.subcorpora[subcorpus_name].get_segment_by_full_name(segment_name_from_subcorpus)
+            recording_name_from_subcorpus = name[len(f"{subcorpus_name}/"):]
+            if self.name == subcorpus_name:
+                # The name was the own corpus'. This can happen when giving the full recording name.
+                # Ignore the former part.
+                subcorpus_name = name.split("/")[0]
+                recording_name_from_subcorpus = name[len(f"{subcorpus_name}/"):]
 
-    def all_recordings(self) -> Iterable[Recording]:
+            assert subcorpus_name in self.subcorpora, (
+                f"Subcorpus '{subcorpus_name}' required for accessing recording '{name}' "
+                "not found in the list of subcorpora: {list(self.subcorpora.keys())}."
+            )
+            return self.subcorpora[subcorpus_name].get_recording_by_full_name(recording_name_from_subcorpus)
+
+    def all_recordings(self) -> Iterable[RecordingV2]:
         yield from self.recordings.values()
         for sc in self.subcorpora.values():
             yield from sc.all_recordings()
@@ -376,32 +394,32 @@ class CorpusV2(Corpus):
         for sc in self.subcorpora:
             yield from sc.all_speakers()
 
-    def top_level_recordings(self) -> Iterable[Recording]:
+    def top_level_recordings(self) -> Iterable[RecordingV2]:
         yield from self.recordings.values()
 
-    def top_level_subcorpora(self) -> Iterable[Corpus]:
+    def top_level_subcorpora(self) -> Iterable[CorpusV2]:
         yield from self.subcorpora.values()
 
     def top_level_speakers(self) -> Iterable[Speaker]:
         yield from self.speakers.values()
 
-    def remove_recording(self, recording: Recording):
+    def remove_recording(self, recording: RecordingV2):
         del self.recordings[recording.name]
         for sc in self.subcorpora.values():
             sc.remove_recording(recording)
 
-    def remove_recordings(self, recordings: List[Recording]):
+    def remove_recordings(self, recordings: List[RecordingV2]):
         for recording in recordings:
             del self.recordings[recording.name]
         for sc in self.subcorpora:
             sc.remove_recordings(recordings)
 
-    def add_recording(self, recording: Recording):
+    def add_recording(self, recording: RecordingV2):
         assert isinstance(recording, Recording)
         recording.corpus = self
         self.recordings[recording.name] = recording
 
-    def add_subcorpus(self, corpus: Corpus):
+    def add_subcorpus(self, corpus: CorpusV2):
         assert isinstance(corpus, Corpus)
         corpus.parent_corpus = self
         self.subcorpora[corpus.name] = corpus
