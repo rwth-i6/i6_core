@@ -165,8 +165,8 @@ class Corpus(NamedEntity, CorpusSection):
         for r in self.recordings:
             yield from r.segments
 
-    for sc in self.subcorpora:
-        yield from sc.segments()
+        for sc in self.subcorpora:
+            yield from sc.segments()
 
     def get_segment_by_name(self, name: str) -> Segment:
         """
