@@ -57,45 +57,63 @@ class CorpusParser(sax.handler.ContentHandler):
             assert len(self.elements) == 1, "<corpus> may only occur as the root element"
             e.name = attrs["name"]
         elif name == "subcorpus":
-            assert isinstance(e, Corpus), "<subcorpus> may only occur within a <corpus> or <subcorpus> element"
-            subcorpus = Corpus()
+            assert isinstance(
+                e, (Corpus, CorpusV2)
+            ), "<subcorpus> may only occur within a <corpus> or <subcorpus> element"
+            subcorpus = type(e)()
             subcorpus.name = attrs["name"]
             subcorpus.parent_corpus = e
-            e.subcorpora.append(subcorpus)
+            if isinstance(e, Corpus):
+                e.subcorpora.append(subcorpus)
+            elif isinstance(e, CorpusV2):
+                e.subcorpora[subcorpus.name] = subcorpus
             self.elements.append(subcorpus)
         elif name == "include":
-            assert isinstance(e, Corpus), "<include> may only occur within a <corpus> or <subcorpus> element"
+            assert isinstance(
+                e, (Corpus, CorpusV2)
+            ), "<include> may only occur within a <corpus> or <subcorpus> element"
             path = os.path.join(os.path.dirname(self.path), attrs["file"])
-            c = Corpus()
+            c = type(e)()
             c.load(path)
             if c.name != e.name:
                 print(
                     "Warning: included corpus (%s) has a different name than the current corpus (%s)" % (c.name, e.name)
                 )
-            for sc in c.subcorpora:
-                sc.parent_corpus = e.parent_corpus
-            for r in c.recordings:
-                r.corpus = e
-            e.subcorpora.extend(c.subcorpora)
-            e.recordings.extend(c.recordings)
+            if isinstance(e, Corpus):
+                for sc in c.subcorpora:
+                    sc.parent_corpus = e.parent_corpus
+                for r in c.recordings:
+                    r.corpus = e
+                e.subcorpora.extend(c.subcorpora)
+                e.recordings.extend(c.recordings)
+            elif isinstance(e, CorpusV2):
+                for sc in c.subcorpora.values():
+                    sc.parent_corpus = e.parent_corpus
+                for r in c.recordings.values():
+                    r.corpus = e
+                e.subcorpora.update({sc.name: sc for sc in c.subcorpora.values()})
+                e.recordings.update({r.name: r for r in c.recordings.values()})
             e.speakers.update(c.speakers)
         elif name == "recording":
-            assert isinstance(e, Corpus), "<recording> may only occur within a <corpus> or <subcorpus> element"
-            rec = Recording()
+            assert isinstance(
+                e, (Corpus, CorpusV2)
+            ), "<recording> may only occur within a <corpus> or <subcorpus> element"
+            if isinstance(e, Corpus):
+                rec = Recording()
+            elif isinstance(e, CorpusV2):
+                rec = RecordingV2()
             rec.name = attrs["name"]
             rec.audio = attrs["audio"]
-            rec.corpus = e
-            e.recordings.append(rec)
+            e.add_recording(rec)
             self.elements.append(rec)
         elif name == "segment":
-            assert isinstance(e, Recording), "<segment> may only occur within a <recording> element"
+            assert isinstance(e, (Recording, RecordingV2)), "<segment> may only occur within a <recording> element"
             seg = Segment()
             seg.name = attrs.get("name", str(len(e.segments) + 1))
             seg.start = float(attrs.get("start", "0.0"))
             seg.end = float(attrs.get("end", "0.0"))
             seg.track = int(attrs["track"]) if "track" in attrs else None
-            seg.recording = e
-            e.segments.append(seg)
+            e.add_segment(seg)
             self.elements.append(seg)
         elif name == "speaker-description":
             assert isinstance(
@@ -517,6 +535,17 @@ class RecordingV2(Recording):
         assert isinstance(segment, Segment)
         segment.recording = self
         self.segments[segment.name] = segment
+
+    def dump(self, out: TextIO, indentation: str = ""):
+        out.write('%s<recording name="%s" audio="%s">\n' % (indentation, self.name, self.audio))
+
+        for s in self.speakers.values():
+            s.dump(out, indentation + "  ")
+        if self.speaker_name is not None:
+            out.write('%s  <speaker name="%s"/>\n' % (indentation, self.speaker_name))
+
+        for s in self.segments.values():
+            s.dump(out, indentation + "  ")
 
 
 class Segment(NamedEntity):
