@@ -1,6 +1,7 @@
 """
 Helper functions and classes for Bliss xml corpus loading and writing
 """
+
 from __future__ import annotations
 
 __all__ = ["NamedEntity", "CorpusSection", "Corpus", "Recording", "Segment", "Speaker"]
@@ -163,8 +164,9 @@ class Corpus(NamedEntity, CorpusSection):
         """
         for r in self.recordings:
             yield from r.segments
+
     for sc in self.subcorpora:
-            yield from sc.segments()
+        yield from sc.segments()
 
     def get_segment_by_name(self, name: str) -> Segment:
         """
@@ -346,12 +348,12 @@ class CorpusV2(Corpus):
             return self.segments[name]
         else:
             subcorpus_name = name.split("/")[0]
-            segment_name_from_subcorpus = name[len(f"{subcorpus_name}/"):]
+            segment_name_from_subcorpus = name[len(f"{subcorpus_name}/") :]
             if self.name == subcorpus_name:
                 # The name was the own corpus'. This can happen when giving the full segment name.
                 # Ignore the former part.
                 subcorpus_name = name.split("/")[0]
-                segment_name_from_subcorpus = name[len(f"{subcorpus_name}/"):]
+                segment_name_from_subcorpus = name[len(f"{subcorpus_name}/") :]
 
             assert subcorpus_name in self.subcorpora, (
                 f"Subcorpus '{subcorpus_name}' required for accessing segment '{name}' "
@@ -371,12 +373,12 @@ class CorpusV2(Corpus):
             return self.recordings[name]
         else:
             subcorpus_name = name.split("/")[0]
-            recording_name_from_subcorpus = name[len(f"{subcorpus_name}/"):]
+            recording_name_from_subcorpus = name[len(f"{subcorpus_name}/") :]
             if self.name == subcorpus_name:
                 # The name was the own corpus'. This can happen when giving the full recording name.
                 # Ignore the former part.
                 subcorpus_name = name.split("/")[0]
-                recording_name_from_subcorpus = name[len(f"{subcorpus_name}/"):]
+                recording_name_from_subcorpus = name[len(f"{subcorpus_name}/") :]
 
             assert subcorpus_name in self.subcorpora, (
                 f"Subcorpus '{subcorpus_name}' required for accessing recording '{name}' "
@@ -515,7 +517,6 @@ class RecordingV2(Recording):
         assert isinstance(segment, Segment)
         segment.recording = self
         self.segments[segment.name] = segment
-
 
 
 class Segment(NamedEntity):
