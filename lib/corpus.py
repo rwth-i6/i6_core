@@ -60,7 +60,7 @@ class CorpusParser(sax.handler.ContentHandler):
             assert isinstance(
                 e, (Corpus, CorpusV2)
             ), "<subcorpus> may only occur within a <corpus> or <subcorpus> element"
-            subcorpus = ()
+            subcorpus = type(e)()
             subcorpus.name = attrs["name"]
             subcorpus.parent_corpus = e
             if isinstance(e, Corpus):
