@@ -374,9 +374,9 @@ class CorpusV2(NamedEntity, CorpusSection):
             # Get rid of the first part for the search.
             name = split_segment_name[1:]
 
-        return self._get_segment_by_full_name(name)
+        return self._get_segment_by_relative_name(name)
 
-    def _get_segment_by_full_name(self, name: str) -> Optional[Segment]:
+    def _get_segment_by_relative_name(self, name: str) -> Segment:
         """
         :param name: The name of the segment to be searched for, relative to the current corpus.
         :return: The segment whose name coincides with :param:`name` relative to the current corpus,
