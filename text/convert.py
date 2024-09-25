@@ -3,10 +3,10 @@ __all__ = [
     "TextDictToStmJob",
 ]
 
-from typing import Optional, Union, Sequence, Dict, List, Tuple
+from typing import Union, Sequence, Dict, Tuple
 import re
 from sisyphus import Job, Path, Task
-from i6_core.util import uopen
+from i6_core.util import parse_text_dict, uopen
 
 
 class TextDictToTextLinesJob(Job):
@@ -30,8 +30,7 @@ class TextDictToTextLinesJob(Job):
     def run(self):
         # nan/inf should not be needed, but avoids errors at this point and will print an error below,
         # that we don't expect an N-best list here.
-        d = eval(uopen(self.text_dict, "rt").read(), {"nan": float("nan"), "inf": float("inf")})
-        assert isinstance(d, dict)  # seq_tag -> text
+        d = parse_text_dict(self.text_dict)
 
         with uopen(self.out_text_lines, "wt") as out:
             for seq_tag, entry in d.items():
@@ -83,8 +82,7 @@ class TextDictToStmJob(Job):
     def run(self):
         # nan/inf should not be needed, but avoids errors at this point and will print an error below,
         # that we don't expect an N-best list here.
-        c = eval(uopen(self.text_dict, "rt").read(), {"nan": float("nan"), "inf": float("inf")})
-        assert isinstance(c, dict)
+        c = parse_text_dict(self.text_dict)
 
         all_tags = [
             ("d%d" % i, "default%d" % i, "all other segments of category %d" % i)
