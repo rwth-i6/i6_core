@@ -347,12 +347,17 @@ class CorpusV2(NamedEntity, CorpusSection):
         for sc in self.subcorpora.values():
             yield from sc.segments()
 
-    def get_segment_by_name(self, name: str) -> Segment:
+    def segment_map(self) -> Dict[str, Segment]:
         """
-        :return: the segment specified by its name
+        :return: A mapping from full segment names into the actual segments.
+            Note that this is similar to what the function :func:`get_segment_by_full_name` does,
+            but giving more control to the user.
         """
-        assert name in self.segments, f"Segment '{name}' was not found in corpus"
-        return self.segments[name]
+        seg_map = {seg.fullname(): seg for rec in self.recordings.values() for seg in rec.segments.values()}
+        for sc in self.subcorpora.values():
+            seg_map.update(sc.segment_map())
+
+        return seg_map
 
     def get_segment_by_full_name(self, name: str) -> Optional[Segment]:
         """
