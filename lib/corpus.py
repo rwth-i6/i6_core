@@ -58,7 +58,7 @@ class CorpusParser(sax.handler.ContentHandler):
             e.name = attrs["name"]
         elif name == "subcorpus":
             assert isinstance(e, Corpus), "<subcorpus> may only occur within a <corpus> or <subcorpus> element"
-            subcorpus = type(e)()
+            subcorpus = Corpus()
             subcorpus.name = attrs["name"]
             subcorpus.parent_corpus = e
             e.subcorpora.append(subcorpus)
@@ -162,7 +162,6 @@ class Corpus(NamedEntity, CorpusSection):
         """
         for r in self.recordings:
             yield from r.segments
-
         for sc in self.subcorpora:
             yield from sc.segments()
 
