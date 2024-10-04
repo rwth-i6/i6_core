@@ -309,7 +309,7 @@ class Corpus(NamedEntity, CorpusSection):
         """
         :return: Mapping from recording fullnames to actual recordings.
         """
-        return {rec.fullname(): rec for rec in self.recordings}
+        return {rec.fullname(): rec for rec in self.all_recordings()}
 
 
 class Recording(NamedEntity, CorpusSection):
