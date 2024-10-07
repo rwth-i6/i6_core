@@ -293,16 +293,15 @@ class WriteToTextFileJob(Job):
         yield Task("run", mini_task=True)
 
     def run(self):
+        content = util.instanciate_delayed(self.content)
         with open(self.out_file.get_path(), "w") as f:
-            if isinstance(self.content, str):
-                f.write(self.content)
-            elif isinstance(self.content, DelayedBase):
-                f.write(str(self.content.get()))
-            elif isinstance(self.content, dict):
-                for key, val in self.content.items():
+            if isinstance(content, str):
+                f.write(content)
+            elif isinstance(content, dict):
+                for key, val in content.items():
                     f.write(f"{key}: {val}\n")
-            elif isinstance(self.content, Iterable):
-                for line in self.content:
+            elif isinstance(content, Iterable):
+                for line in content:
                     f.write(f"{line}\n")
             else:
                 raise NotImplementedError
