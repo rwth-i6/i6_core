@@ -282,7 +282,7 @@ class WriteToTextFileJob(Job):
 
     def __init__(self, content, out_name: str = "file.txt"):
         """
-        :param list|dict|str content: input which will be written into a text file
+        :param list|dict|str|DelayedBase content: input which will be written into a text file
         :param out_name: user specific file name for the output file
         """
         self.content = content
@@ -296,6 +296,8 @@ class WriteToTextFileJob(Job):
         with open(self.out_file.get_path(), "w") as f:
             if isinstance(self.content, str):
                 f.write(self.content)
+            elif isinstance(self.content, DelayedBase):
+                f.write(str(self.content.get()))
             elif isinstance(self.content, dict):
                 for key, val in self.content.items():
                     f.write(f"{key}: {val}\n")
