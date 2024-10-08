@@ -9,7 +9,7 @@ __all__ = [
 
 import os
 from collections.abc import Iterable
-from typing import List
+from typing import List, Union
 
 from sisyphus import Job, Task, Path, global_settings as gs
 from sisyphus.delayed_ops import DelayedBase
@@ -280,9 +280,9 @@ class WriteToTextFileJob(Job):
 
     __sis_hash_exclude__ = {"out_name": "file.txt"}
 
-    def __init__(self, content, out_name: str = "file.txt"):
+    def __init__(self, content: Union[str, dict, Iterable, DelayedBase], out_name: str = "file.txt"):
         """
-        :param list|dict|str|DelayedBase content: input which will be written into a text file
+        :param content: input which will be written into a text file
         :param out_name: user specific file name for the output file
         """
         self.content = content
