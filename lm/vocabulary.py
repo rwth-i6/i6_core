@@ -185,7 +185,7 @@ class VocabularyFromTextJob(Job):
                     words = line.strip().split()
                     counter.update(words)
 
-        num_words = self.num_words if isinstance(self.num_words, int) else self.num_words.get()
+        num_words = self.num_words.get() if isinstance(self.num_words, tk.Variable) else self.num_words
 
         cutoff = min(num_words, len(counter))
 
