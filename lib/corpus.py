@@ -1,6 +1,7 @@
 """
 Helper functions and classes for Bliss xml corpus loading and writing
 """
+
 from __future__ import annotations
 
 __all__ = ["NamedEntity", "CorpusSection", "Corpus", "Recording", "Segment", "Speaker"]
@@ -83,8 +84,7 @@ class CorpusParser(sax.handler.ContentHandler):
             rec = Recording()
             rec.name = attrs["name"]
             rec.audio = attrs["audio"]
-            rec.corpus = e
-            e.recordings.append(rec)
+            e.add_recording(rec)
             self.elements.append(rec)
         elif name == "segment":
             assert isinstance(e, Recording), "<segment> may only occur within a <recording> element"
@@ -93,8 +93,7 @@ class CorpusParser(sax.handler.ContentHandler):
             seg.start = float(attrs.get("start", "0.0"))
             seg.end = float(attrs.get("end", "0.0"))
             seg.track = int(attrs["track"]) if "track" in attrs else None
-            seg.recording = e
-            e.segments.append(seg)
+            e.add_segment(seg)
             self.elements.append(seg)
         elif name == "speaker-description":
             assert isinstance(
@@ -300,6 +299,18 @@ class Corpus(NamedEntity, CorpusSection):
         else:
             out.write("%s</subcorpus>\n" % (indentation,))
 
+    def get_segment_mapping(self) -> Dict[str, Segment]:
+        """
+        :return: Mapping from segment fullnames to actual segments.
+        """
+        return {seg.fullname(): seg for seg in self.segments()}
+
+    def get_recording_mapping(self) -> Dict[str, Recording]:
+        """
+        :return: Mapping from recording fullnames to actual recordings.
+        """
+        return {rec.fullname(): rec for rec in self.all_recordings()}
+
 
 class Recording(NamedEntity, CorpusSection):
     def __init__(self):
@@ -336,6 +347,12 @@ class Recording(NamedEntity, CorpusSection):
         assert isinstance(segment, Segment)
         segment.recording = self
         self.segments.append(segment)
+
+    def get_segment_mapping(self) -> Dict[str, Segment]:
+        """
+        :return: Mapping from segment fullnames to actual segments.
+        """
+        return {seg.fullname(): seg for seg in self.segments}
 
 
 class Segment(NamedEntity):
