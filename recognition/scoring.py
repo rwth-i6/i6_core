@@ -666,6 +666,7 @@ class KaldiScorerJob(Job):
 
         return wer
 
+
 class IntersectStmCtm(Job):
     def __init__(self, stm_path: tk.Path, ctm_path: tk.Path):
         self.stm_path = stm_path
@@ -694,7 +695,7 @@ class IntersectStmCtm(Job):
         segment_comments = []
         with uopen(self.ctm_path, "rt") as ctm_in:
             for line_num, line in enumerate(ctm_in, 1):
-                if line_num == 1 and line.startswith(";; <name>"): # header
+                if line_num == 1 and line.startswith(";; <name>"):  # header
                     ctm_lines[None].append(line)
                 elif line.startswith(";"):
                     segment_comments.append(line)

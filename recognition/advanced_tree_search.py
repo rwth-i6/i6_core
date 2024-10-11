@@ -539,20 +539,20 @@ class AdvancedTreeSearchWithRescoringJob(AdvancedTreeSearchJob):
 
 class RescoreLatticeCacheJob(rasr.RasrCommand, Job):
     def __init__(
-            self,
-            crp,
-            lattice_cache,
-            rescorer_type="single-best",
-            max_hypotheses=5,
-            pruning_threshold=16.0,
-            history_limit=0,
-            rescoring_lookahead_scale=1.0,
-            rtf: float = 1.0,
-            cpu: int = 1,
-            mem: float = 4.0,
-            use_gpu: bool = False,
-            extra_config=None,
-            extra_post_config=None,
+        self,
+        crp,
+        lattice_cache,
+        rescorer_type="single-best",
+        max_hypotheses=5,
+        pruning_threshold=16.0,
+        history_limit=0,
+        rescoring_lookahead_scale=1.0,
+        rtf: float = 1.0,
+        cpu: int = 1,
+        mem: float = 4.0,
+        use_gpu: bool = False,
+        extra_config=None,
+        extra_post_config=None,
     ):
         self.set_vis_name("Rescore Lattice")
 
@@ -610,18 +610,18 @@ class RescoreLatticeCacheJob(rasr.RasrCommand, Job):
 
     @classmethod
     def create_config(
-            cls,
-            crp,
-            lattice_cache,
-            rescorer_type,
-            max_hypotheses,
-            pruning_threshold,
-            history_limit,
-            rescoring_lookahead_scale,
-            cpu,
-            extra_config,
-            extra_post_config,
-            **kwargs,
+        cls,
+        crp,
+        lattice_cache,
+        rescorer_type,
+        max_hypotheses,
+        pruning_threshold,
+        history_limit,
+        rescoring_lookahead_scale,
+        cpu,
+        extra_config,
+        extra_post_config,
+        **kwargs,
     ):
         config, post_config = rasr.build_config_from_mapping(
             crp,
