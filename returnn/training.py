@@ -287,6 +287,8 @@ class ReturnnTrainingJob(Job):
         return run_cmd
 
     def info(self):
+        import numpy as np
+
         def try_load_lr_log(file_path: str) -> Optional[dict]:
             # Used in parsing the learning rates
             @dataclass
@@ -296,7 +298,7 @@ class ReturnnTrainingJob(Job):
 
             try:
                 with open(file_path, "rt") as file:
-                    return eval(file.read().strip())
+                    return eval(file.read().strip(), {"EpochData": EpochData, "np": np})
             except FileExistsError:
                 return None
             except FileNotFoundError:
