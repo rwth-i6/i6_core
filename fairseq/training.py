@@ -38,6 +38,13 @@ class FairseqHydraConfig:
         self.package_name = package_name
         self.check_consistency()
 
+    @property
+    def data(self):
+        """
+        Get the underlying data of the FairseqHydraConfig
+        """
+        return self.config_dict
+
     def write(self, path: str):
         config_dict = self.config_dict.copy()
         config_dict = util.update_nested_dict(config_dict, self.post_config_dict)
@@ -170,6 +177,24 @@ class FairseqHydraTrainingJob(Job):
         kwargs = locals()
         del kwargs["self"]
 
+        # check for start checkpoint
+        #if (
+        #    fairseq_hydra_config.data.get("checkpoint", {}).get("restore_file", None) is not None
+        #    and fairseq_hydra_config.data["checkpoint"]["restore_file"] != "checkpoint_last.pt"
+        #    and os.path.exists(os.path.join(self.output_path("checkpoints", directory=True), "checkpoint_last.pt"))
+        #):
+        #    # start_checkpoint provided but checkpoint_last.pt exists: start_checkpoint will be ignored
+        #    print(
+        #        "Warning: start_checkpoint will be ignored as checkpoint_last.pt exists in output directory"
+        #    )
+        #    fairseq_hydra_config.data["checkpoint"]["restore_file"] = "checkpoint_last.pt"
+
+        
+        self.start_checkpoint = None
+        if fairseq_hydra_config.data.get("checkpoint", {}).get("restore_file") is not None:
+            self.start_checkpoint = fairseq_hydra_config.data["checkpoint"]["restore_file"]
+            fairseq_hydra_config.data["checkpoint"]["restore_file"] = "checkpoint_last.pt"
+
         self.command_line_args = command_line_args or []
         stored_epochs = list(range(save_interval, max_epoch, save_interval)) + [max_epoch]
 
@@ -231,9 +256,26 @@ class FairseqHydraTrainingJob(Job):
         }
         res.update(FairseqHydraConfig(config_dict, post_config_dict))
         return res
+    
+    def _fairseq_prepare_checkpoint(self, start_checkpoint):
+        # rename the start checkpoint to checkpoint_last.pt if it is not None and checkpoint_last.pt does not exist
+        if start_checkpoint is None:
+            return
+        if not os.path.exists(start_checkpoint):
+            raise FileNotFoundError(f"Start checkpoint {start_checkpoint} does not exist")
+        if not os.path.exists(os.path.join(self.out_checkpoint_dir.get_path(), "checkpoint_last.pt")):
+            os.link(
+                start_checkpoint,
+                os.path.join(self.out_checkpoint_dir.get_path(), "checkpoint_last.pt")
+            )
+            os.link(
+                start_checkpoint,
+                os.path.join(self.out_checkpoint_dir.get_path(), os.path.basename(start_checkpoint))
+            )
 
     def create_files(self):
         self.fairseq_hydra_config.write(self.out_fairseq_hydra_yaml.get_path())
+        self._fairseq_prepare_checkpoint(self.start_checkpoint)
         util.create_executable("fairseq.sh", self._get_run_cmd())
 
     def run(self):
