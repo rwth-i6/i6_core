@@ -177,7 +177,23 @@ class FairseqHydraTrainingJob(Job):
         kwargs = locals()
         del kwargs["self"]
 
+<<<<<<< HEAD
         # save start checkpoint and rename to checkpoint_latest
+=======
+        # check for start checkpoint
+        #if (
+        #    fairseq_hydra_config.data.get("checkpoint", {}).get("restore_file", None) is not None
+        #    and fairseq_hydra_config.data["checkpoint"]["restore_file"] != "checkpoint_last.pt"
+        #    and os.path.exists(os.path.join(self.output_path("checkpoints", directory=True), "checkpoint_last.pt"))
+        #):
+        #    # start_checkpoint provided but checkpoint_last.pt exists: start_checkpoint will be ignored
+        #    print(
+        #        "Warning: start_checkpoint will be ignored as checkpoint_last.pt exists in output directory"
+        #    )
+        #    fairseq_hydra_config.data["checkpoint"]["restore_file"] = "checkpoint_last.pt"
+
+        
+>>>>>>> c5d0a9f (fix when using restore_file)
         self.start_checkpoint = None
         if fairseq_hydra_config.data.get("checkpoint", {}).get("restore_file") is not None:
             self.start_checkpoint = fairseq_hydra_config.data["checkpoint"]["restore_file"]
