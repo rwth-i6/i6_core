@@ -256,10 +256,10 @@ class ReturnnTrainingJob(Job):
                 # Instead of using the torchrun binary, directly execute the corresponding Python module
                 # and directly use the correct Python environment.
                 prefix = [self.returnn_python_exe.get_path(), "-mtorch.distributed.run"]
-                mn_slots = self.multi_node_slots or 1
-                if mn_slots == 1:
+                multi_node_slots = self.multi_node_slots or 1
+                if multi_node_slots == 1:
                     prefix += ["--standalone"]
-                elif mn_slots > 1:
+                elif multi_node_slots > 1:
                     rdzv_id = self.job_id().replace("/", "_")
                     prefix += [
                         f'--rdzv-id="{rdzv_id}"',
@@ -267,8 +267,8 @@ class ReturnnTrainingJob(Job):
                         f'--rdzv-endpoint={rdzv_node_addr or "$RDZV_NODE_ADDR"}',
                     ]
                 prefix += [
-                    f"--nnodes={mn_slots}",
-                    f"--nproc-per-node={self.horovod_num_processes // mn_slots}",
+                    f"--nnodes={multi_node_slots}",
+                    f"--nproc-per-node={self.horovod_num_processes // multi_node_slots}",
                 ]
                 run_cmd = prefix + run_cmd[1:]
             elif self.distributed_launch_cmd == "mpirun":
