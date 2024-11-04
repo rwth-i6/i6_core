@@ -243,7 +243,7 @@ class ReturnnTrainingJob(Job):
             self.rqmt["gpu"] *= self.horovod_num_processes // (self.multi_node_slots or 1)
             self.rqmt["mem"] *= self.horovod_num_processes // (self.multi_node_slots or 1)
 
-    def _get_run_cmd(self, rdzv_node_addr: Optional[str] = None):
+    def _get_run_cmd(self, *, rdzv_node_addr: Optional[str] = None):
         run_cmd = [
             self.returnn_python_exe.get_path(),
             self.returnn_root.join_right("rnn.py").get_path(),
