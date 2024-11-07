@@ -915,10 +915,10 @@ class RescoreLatticeCacheJob(rasr.RasrCommand, Job):
         self.use_gpu = use_gpu
 
         self.out_log_file = self.log_file_output_path("rescoring", crp, True)
-        self.out_single_lattice_caches = dict(
-            (task_id, self.output_path("lattice.cache.%d" % task_id, cached=True))
+        self.out_single_lattice_caches = {
+            task_id: self.output_path("lattice.cache.%d" % task_id, cached=True)
             for task_id in range(1, crp.concurrent + 1)
-        )
+        }
         self.out_lattice_bundle = self.output_path("lattice.bundle", cached=True)
         self.out_lattice_path = util.MultiOutputPath(
             self, "lattice.cache.$(TASK)", self.out_single_lattice_caches, cached=True
