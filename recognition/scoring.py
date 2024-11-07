@@ -17,6 +17,7 @@ from typing import List, Optional, Dict, Tuple
 
 from sisyphus import *
 from i6_core.lib.corpus import *
+from i6_core.util import uopen
 
 Path = setup_path(__package__)
 
