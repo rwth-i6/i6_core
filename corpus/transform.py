@@ -659,6 +659,6 @@ class MapRecordingsJob(Job):
         c = corpus.Corpus()
         c.load(self.bliss_corpus.get_path())
 
-        c.recordings = list(map(self.recording_callable, corpus.all_recordings()))
+        c.recordings = list(map(self.recording_callable, c.all_recordings()))
 
         c.dump(self.out_bliss_corpus.get_path())
