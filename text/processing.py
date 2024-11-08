@@ -9,7 +9,7 @@ __all__ = [
 
 import os
 from collections.abc import Iterable
-from typing import List
+from typing import List, Union
 
 from sisyphus import Job, Task, Path, global_settings as gs
 from sisyphus.delayed_ops import DelayedBase
@@ -280,9 +280,9 @@ class WriteToTextFileJob(Job):
 
     __sis_hash_exclude__ = {"out_name": "file.txt"}
 
-    def __init__(self, content, out_name: str = "file.txt"):
+    def __init__(self, content: Union[str, dict, Iterable, DelayedBase], out_name: str = "file.txt"):
         """
-        :param list|dict|str content: input which will be written into a text file
+        :param content: input which will be written into a text file
         :param out_name: user specific file name for the output file
         """
         self.content = content
@@ -293,14 +293,15 @@ class WriteToTextFileJob(Job):
         yield Task("run", mini_task=True)
 
     def run(self):
+        content = util.instanciate_delayed(self.content)
         with open(self.out_file.get_path(), "w") as f:
-            if isinstance(self.content, str):
-                f.write(self.content)
-            elif isinstance(self.content, dict):
-                for key, val in self.content.items():
+            if isinstance(content, str):
+                f.write(content)
+            elif isinstance(content, dict):
+                for key, val in content.items():
                     f.write(f"{key}: {val}\n")
-            elif isinstance(self.content, Iterable):
-                for line in self.content:
+            elif isinstance(content, Iterable):
+                for line in content:
                     f.write(f"{line}\n")
             else:
                 raise NotImplementedError
