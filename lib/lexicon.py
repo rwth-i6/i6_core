@@ -3,10 +3,13 @@ Library for the RASR Lexicon files
 
 For format details visit: `https://www-i6.informatik.rwth-aachen.de/rwth-asr/manual/index.php/Lexicon`_
 """
+from __future__ import annotations
+
 __all__ = ["Lemma", "Lexicon"]
 
 from collections import OrderedDict
-from typing import Optional, List
+import itertools
+from typing import Optional, List, Set
 import xml.etree.ElementTree as ET
 
 from i6_core.util import uopen
@@ -103,6 +106,42 @@ class Lemma:
             eval.append(tokens)
         synt = None if not synt else synt[0]
         return Lemma(orth, phon, synt, eval, special)
+
+    def _equals(self, other: Lemma, *, same_order: bool = True) -> bool:
+        """
+        Check for lemma equality.
+
+        :param other: Other lemma to compare :param:`self` to.
+        :param same_order: Whether the order in the different lemma elements matters or not.
+        :return: Whether :param:`self` and :param:`other` are equal or not.
+        """
+        if same_order:
+            return (
+                self.orth == other.orth
+                and self.phon == other.phon
+                and self.special == other.special
+                and self.synt == other.synt
+                and self.eval == other.eval
+            )
+        else:
+            if self.synt is not None and other.synt is not None:
+                equal_synt = set(self.synt) == set(other.synt)
+            else:
+                equal_synt = self.synt == other.synt
+
+            return (
+                set(self.orth) == set(other.orth)
+                and set(self.phon) == set(other.phon)
+                and self.special == other.special
+                and equal_synt
+                and set(itertools.chain(*self.eval)) == set(itertools.chain(*other.eval))
+            )
+
+    def __eq__(self, other: Lemma) -> bool:
+        return self._equals(other, same_order=False)
+
+    def __ne__(self, other: Lemma) -> bool:
+        return not self.__eq__(other)
 
 
 class Lexicon:
