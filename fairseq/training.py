@@ -254,11 +254,11 @@ class FairseqHydraTrainingJob(Job):
             raise FileNotFoundError(f"Start checkpoint {start_checkpoint} does not exist")
         if not os.path.exists(os.path.join(self.out_checkpoint_dir.get_path(), "checkpoint_last.pt")):
             print(f"Linking {start_checkpoint} to {self.out_checkpoint_dir.get_path()}")
-            os.link(
+            os.symlink(
                 start_checkpoint,
                 os.path.join(self.out_checkpoint_dir.get_path(), "checkpoint_last.pt")
             )
-            os.link(
+            os.symlink(
                 start_checkpoint,
                 os.path.join(self.out_checkpoint_dir.get_path(), os.path.basename(start_checkpoint))
             )
