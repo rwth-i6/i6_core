@@ -178,10 +178,7 @@ class FairseqHydraTrainingJob(Job):
         del kwargs["self"]
 
         # save start checkpoint and rename to checkpoint_latest
-        self.start_checkpoint = None
-        if fairseq_hydra_config.data.get("checkpoint", {}).get("restore_file") is not None:
-            self.start_checkpoint = fairseq_hydra_config.data["checkpoint"]["restore_file"]
-            fairseq_hydra_config.data["checkpoint"]["restore_file"] = "checkpoint_last.pt"
+        self.start_checkpoint = fairseq_hydra_config.data.get("checkpoint", {}).pop("restore_file")
 
         self.command_line_args = command_line_args or []
         stored_epochs = list(range(save_interval, max_epoch, save_interval)) + [max_epoch]
