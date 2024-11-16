@@ -60,8 +60,8 @@ class SentenceLengthHistogramJob(Job):
                 counter_words[num_words] += 1
                 counter_chars[num_chars] += 1
 
-                if (self.max_words is not None or self.max_chars is not None) and (
-                    num_words > self.max_words or num_chars > self.max_chars
+                if (self.max_words is not None and num_words > self.max_words) or (
+                    self.max_chars is not None and num_chars > self.max_chars
                 ):
                     f_out.write(f"{line}\n")
                     num_sentences_removed += 1
