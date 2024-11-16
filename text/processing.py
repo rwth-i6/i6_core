@@ -377,9 +377,6 @@ class SplitTextFileJob(Job):
                 file_path = f"split.{file_id:04}.txt"
                 assert os.path.isfile(file_path) and os.path.getsize(file_path) > 0
 
-            if self.in_text_file.get_path().endswith(".gz"):
-                os.remove(text_file)
-
             if self.zip_output:
                 logging.info("Compressing file")
                 compress_cmd = ["gzip"] + [
