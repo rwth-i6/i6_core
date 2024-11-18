@@ -655,7 +655,7 @@ class MapRecordingsJob(Job):
     def tasks(self):
         yield Task("run", resume="run", rqmt=self.rqmt)
 
-    def map_recordings(corpus: corpus.Corpus, recording_callable: Callable[[corpus.Recording], corpus.Recording]):
+    def map_recordings(self, corpus: corpus.Corpus, recording_callable: Callable[[corpus.Recording], corpus.Recording]):
         """
         Applies the mapping provided in :param:`recording_callable` to all recordings in :param:`corpus`.
         :return: Nothing. The corpus is modified in-place.
@@ -666,8 +666,8 @@ class MapRecordingsJob(Job):
         c = corpus.Corpus()
         c.load(self.bliss_corpus.get_path())
 
-        map_recordings(c, self.recording_callable)
+        self.map_recordings(c, self.recording_callable)
         for sc in c.subcorpora:
-            map_recordings(sc, self.recording_callable)
+            self.map_recordings(sc, self.recording_callable)
 
         c.dump(self.out_bliss_corpus.get_path())
