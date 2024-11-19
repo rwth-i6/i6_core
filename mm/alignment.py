@@ -928,6 +928,8 @@ class PlotViterbiAlignmentJob(Job):
         return fig
 
     def run(self, task_id):
+        import matplotlib
+
         # Get the alignment information: segment_id -> alignment.
         align_cache = rasr_cache.FileArchive(self.alignment_files[task_id - 1].get_path())
         align_cache.setAllophones(self.allophone_file.get_path())
@@ -938,6 +940,11 @@ class PlotViterbiAlignmentJob(Job):
         }
         # Get the central part of the allophones based on the allophone IDs provided.
         for seq_tag, alignments in segment_id_to_alignment.items():
+            # In some rare cases, the alignment doesn't have to reach a satisfactory end.
+            # In these cases, the final alignment is empty. Skip those cases.
+            if len(alignments) == 0:
+                continue
+
             for i, (timestamp, allo_id, hmm_state, weight) in enumerate(alignments):
                 allophone = align_cache.allophones[allo_id]
                 # Get the central part of the allophone.
@@ -948,4 +955,6 @@ class PlotViterbiAlignmentJob(Job):
             viterbi_matrix = self.make_viterbi_matrix(alignment_indices)
             fig = self.plot(viterbi_matrix, phonemes)
             # The plot will be purposefully divided into subdirectories (depending on seq_tag).
-            fig.savefig(os.path.join(self.out_plot_dir.get_path(), seq_tag))
+            os.makedirs(os.path.dirname(os.path.join(self.out_plot_dir.get_path(), seq_tag)), exist_ok=True)
+            fig.savefig(os.path.join(self.out_plot_dir.get_path(), f"{seq_tag}.png"))
+            matplotlib.pyplot.close(fig)
