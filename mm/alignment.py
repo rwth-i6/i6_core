@@ -4,6 +4,8 @@ __all__ = [
     "PlotAlignmentJob",
     "AMScoresFromAlignmentLogJob",
     "ComputeTimeStampErrorJob",
+    "DumpSegmentTextAlignmentJob",
+    "PlotViterbiAlignmentJob",
 ]
 
 import logging
@@ -12,8 +14,9 @@ import os
 import shutil
 import statistics
 import xml.etree.ElementTree as ET
-from typing import Callable, Counter, List, Optional, Tuple, Union
+from typing import Callable, Counter, Iterable, List, Optional, Tuple, Union
 
+import numpy as np
 from sisyphus import *
 
 Path = setup_path(__package__)
@@ -147,7 +150,6 @@ class AlignmentJob(rasr.RasrCommand, Job):
             )
 
     def plot(self):
-        import numpy as np
         import matplotlib
         import matplotlib.pyplot as plt
 
@@ -789,3 +791,160 @@ class ComputeTimeStampErrorJob(Job):
             plt.xticks(rotation=45)
 
             plt.savefig(plot_file)
+
+
+class DumpSegmentTextAlignmentJob(Job):
+    """
+    Dumps all text and alignments for the given corpus and alignment files in a human-readable csv format.
+    """
+
+    def __init__(
+        self,
+        corpus_file: tk.Path,
+        alignment_files: Iterable[tk.Path],
+        allophone_file: tk.Path,
+        csv_separator: str = ";",
+    ):
+        """
+        :param corpus_file: Corpus file to get the text from.
+        :param alignment_files: Alignment files to get the alignments from.
+            Must correspond to the corpus given in :param:`corpus_file` for the job to work properly.
+        :param allophone_file: Allophone file with which the alignments given in :param:`alignment_files` were dumped.
+        :param csv_separator: Output file separator.
+        """
+        self.corpus_file = corpus_file
+        self.alignment_files = alignment_files
+        self.allophone_file = allophone_file
+        self.csv_separator = csv_separator
+
+        self.out_text_alignment_pairs = self.output_path("segment_txt_alignment.csv")
+
+        self.rqmt = {"cpu": 1, "mem": 2.0, "time": 1.0}
+
+    def tasks(self):
+        yield Task("run", resume="run", rqmt=self.rqmt, args=range(1, len(self.alignment_files) + 1))
+
+    def run(self, task_id):
+        # Get the alignment information: segment_id -> alignment.
+        align_cache = rasr_cache.FileArchive(self.alignment_files[task_id - 1].get_path())
+        align_cache.setAllophones(self.allophone_file.get_path())
+        segment_id_to_alignment = {
+            seq_tag: align_cache.read(seq_tag, "align")
+            for seq_tag in align_cache.ft.keys()
+            if not seq_tag.endswith(".attribs")
+        }
+        # Get the allophones based on the allophone IDs provided.
+        for seq_tag, alignments in segment_id_to_alignment.items():
+            for i, (timestamp, allo_id, hmm_state, weight) in enumerate(alignments):
+                segment_id_to_alignment[seq_tag][i] = f"{align_cache.allophones[allo_id]}.{hmm_state}"
+            segment_id_to_alignment[seq_tag] = " ".join(segment_id_to_alignment[seq_tag])
+
+        # Get the corpus information: segment_id -> text.
+        c = corpus.Corpus()
+        c.load(self.corpus_file.get_path())
+        segment_id_to_text = {segment.fullname(): segment.orth for segment in c.segments()}
+
+        with uopen(self.out_text_alignment_pairs.get_path(), "wt") as f:
+            f.write(f"segment_id{self.csv_separator}segment_text{self.csv_separator}segment_alignment\n")
+            for segment_id in set(segment_id_to_alignment.keys()).intersection(set(segment_id_to_text.keys())):
+                f.write(
+                    f"{segment_id}{self.csv_separator}"
+                    f"{segment_id_to_text[segment_id]}{self.csv_separator}"
+                    f"{segment_id_to_alignment[segment_id]}{self.csv_separator}\n"
+                )
+
+
+class PlotViterbiAlignmentJob(Job):
+    """
+    Plots the alignments of each segment in the specified alignment files.
+
+    Original job author: dmann.
+    """
+
+    def __init__(self, alignment_files: Iterable[tk.Path], allophone_file: tk.Path):
+        self.alignment_files = alignment_files
+        self.allophone_file = allophone_file
+
+        self.out_plot_dir = self.output_path("plots", directory=True)
+
+        self.rqmt = {"cpu": 1, "mem": 2.0, "time": 1.0}
+
+    def tasks(self):
+        yield Task("run", resume="run", rqmt=self.rqmt, args=range(1, len(self.alignment_files) + 1))
+
+    def extract_phoneme_sequence(alignment: np.array) -> Tuple[np.array, np.array]:
+        """
+        :param alignment: Monophone alignment, for instance: `np.array(["a", "a", "b", ...])`.
+        :return: Monophone sequence (ordered as given),
+            as well as the indices corresponding to the monophone sequence from the Viterbi alignment.
+        """
+        boundaries = np.concatenate(
+            [
+                np.where(alignment[:-1] != alignment[1:])[0],
+                [len(alignment) - 1],  # manually add boundary of last allophone
+            ]
+        )
+
+        lengths = boundaries - np.concatenate([[-1], boundaries[:-1]])
+        phonemes = alignment[boundaries]
+        monotonic_idx_alignment = np.repeat(np.arange(len(phonemes)), lengths)
+        return phonemes, monotonic_idx_alignment
+
+    def make_viterbi_matrix(label_idx_seq: np.array) -> np.array:
+        """
+        :return: Matrix corresponding to the Viterbi alignment.
+        """
+        num_alignments = len(label_idx_seq)
+        max_timestamp = max(label_idx_seq) + 1
+        viterbi_matrix = np.zeros((max_timestamp, num_alignments), dtype=np.float32)
+        for t, idx in enumerate(label_idx_seq):
+            alignment_matrix[idx, t] = 1.0
+        return viterbi_matrix
+
+    def plot(viterbi_matrix: np.array, allophone_sequence: List[str]):
+        """
+        :param viterbi_matrix: Matrix to be plotted, corresponding to the Viterbi alignment.
+        :param allophone_sequence: Allophone sequence (Y-axis tick labels).
+        :return: Plot corresponding to the monotonic alignment.
+        """
+        import matplotlib
+        import matplotlib.pyplot as plt
+
+        matplotlib.use("Agg")
+
+        max_timestamp, num_alignments = np.shape(matrix)
+
+        fig, ax = plt.subplots(figsize=(10, 10))
+        ax.set_xlabel("Frame")
+        ax.xaxis.set_label_coords(0.98, -0.03)
+        ax.set_xbound(0, num_alignments - 1)
+        ax.set_ybound(-0.5, max_timestamp - 0.5)
+
+        ax.set_yticks(np.arange(max_timestamp))
+        ax.set_yticklabels(allophone_sequence)
+
+        ax.imshow(viterbi_matrix, cmap="Blues", interpolation="nearest", aspect="auto", origin="lower")
+        return fig
+
+    def run(self, task_id):
+        # Get the alignment information: segment_id -> alignment.
+        align_cache = rasr_cache.FileArchive(self.alignment_files[task_id - 1].get_path())
+        align_cache.setAllophones(self.allophone_file.get_path())
+        segment_id_to_alignment = {
+            seq_tag: align_cache.read(seq_tag, "align")
+            for seq_tag in align_cache.ft.keys()
+            if not seq_tag.endswith(".attribs")
+        }
+        # Get the central part of the allophones based on the allophone IDs provided.
+        for seq_tag, alignments in segment_id_to_alignment.items():
+            for i, (timestamp, allo_id, hmm_state, weight) in enumerate(alignments):
+                allophone = align_cache.allophones[allo_id]
+                # Get the central part of the allophone.
+                segment_id_to_alignment[seq_tag][i] = allophone.split("{")[0]
+
+            center_allophones = np.array(segment_id_to_alignment[seq_tag])
+            phonemes, alignment_indices = self.extract_phoneme_sequence(center_allophones)
+            matrix = self.make_viterbi_matrix(alignment_indices)
+            fig = self.plot(matrix, phonemes)
+            # The plot will be purposefully divided into subdirectories (depending on seq_tag).
+            fig.savefig(os.path.join(self.out_plot_dir.get_path(), seq_tag))
