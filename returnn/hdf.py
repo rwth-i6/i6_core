@@ -187,10 +187,7 @@ class ReturnnRasrDumpHDFJob(ReturnnDumpHDFJob):
         self.alignment = alignment
         self.rasr_exe = rasr.RasrCommand.select_exe(crp.nn_trainer_exe, "nn-trainer")
         self.feature_flow = ReturnnRasrTrainingJob.create_flow(feature_flow, alignment)
-        (
-            self.rasr_config,
-            self.rasr_post_config,
-        ) = ReturnnRasrTrainingJob.create_config(
+        (self.rasr_config, self.rasr_post_config,) = ReturnnRasrTrainingJob.create_config(
             crp=crp,
             alignment=alignment,
             num_classes=num_classes,
