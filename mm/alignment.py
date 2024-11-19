@@ -913,7 +913,7 @@ class PlotViterbiAlignmentJob(Job):
 
         matplotlib.use("Agg")
 
-        max_timestamp, num_alignments = np.shape(matrix)
+        max_timestamp, num_alignments = np.shape(viterbi_matrix)
 
         fig, ax = plt.subplots(figsize=(10, 10))
         ax.set_xlabel("Frame")
@@ -945,7 +945,7 @@ class PlotViterbiAlignmentJob(Job):
 
             center_allophones = np.array(segment_id_to_alignment[seq_tag])
             phonemes, alignment_indices = self.extract_phoneme_sequence(center_allophones)
-            matrix = self.make_viterbi_matrix(alignment_indices)
-            fig = self.plot(matrix, phonemes)
+            viterbi_matrix = self.make_viterbi_matrix(alignment_indices)
+            fig = self.plot(viterbi_matrix, phonemes)
             # The plot will be purposefully divided into subdirectories (depending on seq_tag).
             fig.savefig(os.path.join(self.out_plot_dir.get_path(), seq_tag))
