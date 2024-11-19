@@ -867,6 +867,7 @@ class PlotViterbiAlignmentJob(Job):
         self.allophone_file = allophone_file
 
         self.out_plot_dir = self.output_path("plots", directory=True)
+        self.out_empty_alignment_seq_tags = self.output_path("empty_alignment_seq_tags.txt")
 
         self.rqmt = {"cpu": 1, "mem": 2.0, "time": 1.0}
 
@@ -939,10 +940,12 @@ class PlotViterbiAlignmentJob(Job):
             if not seq_tag.endswith(".attribs")
         }
         # Get the central part of the allophones based on the allophone IDs provided.
+        empty_alignment_seq_tags = []
         for seq_tag, alignments in segment_id_to_alignment.items():
             # In some rare cases, the alignment doesn't have to reach a satisfactory end.
             # In these cases, the final alignment is empty. Skip those cases.
             if len(alignments) == 0:
+                empty_alignment_seq_tags.append(seq_tag)
                 continue
 
             for i, (timestamp, allo_id, hmm_state, weight) in enumerate(alignments):
@@ -958,3 +961,7 @@ class PlotViterbiAlignmentJob(Job):
             os.makedirs(os.path.dirname(os.path.join(self.out_plot_dir.get_path(), seq_tag)), exist_ok=True)
             fig.savefig(os.path.join(self.out_plot_dir.get_path(), f"{seq_tag}.png"))
             matplotlib.pyplot.close(fig)
+
+        with open(self.out_empty_alignment_seq_tags.get_path(), "wt") as f:
+            for seq_tag in empty_alignment_seq_tags:
+                f.write(f"{seq_tag}\n")
