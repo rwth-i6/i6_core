@@ -21,6 +21,7 @@ from sisyphus import *
 
 Path = setup_path(__package__)
 
+import i6_core.lib.corpus as corpus
 import i6_core.lib.rasr_cache as rasr_cache
 import i6_core.rasr as rasr
 import i6_core.util as util
@@ -844,7 +845,7 @@ class DumpSegmentTextAlignmentJob(Job):
         c.load(self.corpus_file.get_path())
         segment_id_to_text = {segment.fullname(): segment.orth for segment in c.segments()}
 
-        with uopen(self.out_text_alignment_pairs.get_path(), "wt") as f:
+        with util.uopen(self.out_text_alignment_pairs.get_path(), "wt") as f:
             f.write(f"segment_id{self.csv_separator}segment_text{self.csv_separator}segment_alignment\n")
             for segment_id in set(segment_id_to_alignment.keys()).intersection(set(segment_id_to_text.keys())):
                 f.write(
@@ -872,7 +873,7 @@ class PlotViterbiAlignmentJob(Job):
     def tasks(self):
         yield Task("run", resume="run", rqmt=self.rqmt, args=range(1, len(self.alignment_files) + 1))
 
-    def extract_phoneme_sequence(alignment: np.array) -> Tuple[np.array, np.array]:
+    def extract_phoneme_sequence(self, alignment: np.array) -> Tuple[np.array, np.array]:
         """
         :param alignment: Monophone alignment, for instance: `np.array(["a", "a", "b", ...])`.
         :return: Monophone sequence (ordered as given),
@@ -890,7 +891,7 @@ class PlotViterbiAlignmentJob(Job):
         monotonic_idx_alignment = np.repeat(np.arange(len(phonemes)), lengths)
         return phonemes, monotonic_idx_alignment
 
-    def make_viterbi_matrix(label_idx_seq: np.array) -> np.array:
+    def make_viterbi_matrix(self, label_idx_seq: np.array) -> np.array:
         """
         :return: Matrix corresponding to the Viterbi alignment.
         """
@@ -898,10 +899,10 @@ class PlotViterbiAlignmentJob(Job):
         max_timestamp = max(label_idx_seq) + 1
         viterbi_matrix = np.zeros((max_timestamp, num_alignments), dtype=np.float32)
         for t, idx in enumerate(label_idx_seq):
-            alignment_matrix[idx, t] = 1.0
+            viterbi_matrix[idx, t] = 1.0
         return viterbi_matrix
 
-    def plot(viterbi_matrix: np.array, allophone_sequence: List[str]):
+    def plot(self, viterbi_matrix: np.array, allophone_sequence: List[str]):
         """
         :param viterbi_matrix: Matrix to be plotted, corresponding to the Viterbi alignment.
         :param allophone_sequence: Allophone sequence (Y-axis tick labels).
