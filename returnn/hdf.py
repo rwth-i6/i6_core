@@ -1,4 +1,10 @@
-__all__ = ["ReturnnDumpHDFJob", "ReturnnRasrDumpHDFJob", "BlissToPcmHDFJob", "RasrAlignmentDumpHDFJob"]
+__all__ = [
+    "ReturnnDumpHDFJob",
+    "ReturnnRasrDumpHDFJob",
+    "BlissToPcmHDFJob",
+    "RasrAlignmentDumpHDFJob",
+    "DumpSegmentTextAlignmentJob",
+]
 
 from dataclasses import dataclass
 from enum import Enum, auto
@@ -10,7 +16,7 @@ import shutil
 import soundfile as sf
 import subprocess as sp
 import tempfile
-from typing import List, Optional
+from typing import Iterable, List, Optional
 
 from .rasr_training import ReturnnRasrTrainingJob
 from i6_core.lib import corpus
@@ -181,7 +187,10 @@ class ReturnnRasrDumpHDFJob(ReturnnDumpHDFJob):
         self.alignment = alignment
         self.rasr_exe = rasr.RasrCommand.select_exe(crp.nn_trainer_exe, "nn-trainer")
         self.feature_flow = ReturnnRasrTrainingJob.create_flow(feature_flow, alignment)
-        (self.rasr_config, self.rasr_post_config,) = ReturnnRasrTrainingJob.create_config(
+        (
+            self.rasr_config,
+            self.rasr_post_config,
+        ) = ReturnnRasrTrainingJob.create_config(
             crp=crp,
             alignment=alignment,
             num_classes=num_classes,
@@ -441,3 +450,64 @@ class RasrAlignmentDumpHDFJob(Job):
 
         if len(excluded_segments):
             write_paths_to_file(f"excluded_segments.{task_id}", excluded_segments)
+
+
+class DumpSegmentTextAlignmentJob(Job):
+    """
+    Dumps all text and alignments for the given corpus and alignment files in a human-readable csv format.
+    """
+
+    def __init__(
+        self,
+        corpus_file: tk.Path,
+        alignment_files: Iterable[tk.Path],
+        allophone_file: tk.Path,
+        csv_separator: str = ";",
+    ):
+        """
+        :param corpus_file: Corpus file to get the text from.
+        :param alignment_files: Alignment files to get the alignments from.
+            Must correspond to the corpus given in :param:`corpus_file` for the job to work properly.
+        :param allophone_file: Allophone file with which the alignments given in :param:`alignment_files` were dumped.
+        :param csv_separator: Output file separator.
+        """
+        self.corpus_file = corpus_file
+        self.alignment_files = alignment_files
+        self.allophone_file = allophone_file
+        self.csv_separator = csv_separator
+
+        self.out_text_alignment_pairs = self.output_path("segment_txt_alignment.csv")
+
+        self.rqmt = {"cpu": 1, "mem": 2.0, "time": 1.0}
+
+    def tasks(self):
+        yield Task("run", resume="run", rqmt=self.rqmt, args=range(1, len(self.alignment_files) + 1))
+
+    def run(self, task_id):
+        # Get the alignment information: segment_id -> alignment.
+        align_cache = FileArchive(self.alignment_files[task_id - 1].get_path())
+        align_cache.setAllophones(self.allophone_file.get_path())
+        segment_id_to_alignment = {
+            align_key: align_cache.read(align_key, "align")
+            for align_key in align_cache.ft.keys()
+            if not align_key.endswith(".attribs")
+        }
+        # Get the allophones based on the allophone ID provided.
+        for align_key, alignments in segment_id_to_alignment.items():
+            for i, (timestamp, allo_id, hmm_state, weight) in enumerate(alignments):
+                segment_id_to_alignment[align_key][i] = f"{align_cache.allophones[allo_id]}.{hmm_state}"
+            segment_id_to_alignment[align_key] = " ".join(segment_id_to_alignment[align_key])
+
+        # Get the corpus information: segment_id -> text.
+        c = corpus.Corpus()
+        c.load(self.corpus_file.get_path())
+        segment_id_to_text = {segment.fullname(): segment.orth for segment in c.segments()}
+
+        with uopen(self.out_text_alignment_pairs.get_path(), "wt") as f:
+            f.write(f"segment_id{self.csv_separator}segment_text{self.csv_separator}segment_alignment\n")
+            for segment_id in set(segment_id_to_alignment.keys()).intersection(set(segment_id_to_text.keys())):
+                f.write(
+                    f"{segment_id}{self.csv_separator}"
+                    f"{segment_id_to_text[segment_id]}{self.csv_separator}"
+                    f"{segment_id_to_alignment[segment_id]}{self.csv_separator}\n"
+                )
