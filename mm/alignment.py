@@ -823,6 +823,7 @@ class DumpSegmentTextAlignmentJob(Job):
         corpus_file: tk.Path,
         alignment_files: Iterable[tk.Path],
         allophone_file: tk.Path,
+        seq_tags_to_dump: Optional[tk.Path] = None,
         csv_separator: str = ";",
     ):
         """
@@ -830,11 +831,14 @@ class DumpSegmentTextAlignmentJob(Job):
         :param alignment_files: Alignment files to get the alignments from.
             Must correspond to the corpus given in :param:`corpus_file` for the job to work properly.
         :param allophone_file: Allophone file with which the alignments given in :param:`alignment_files` were dumped.
+        :param seq_tags_to_dump: Specific sequence tags to dump.
+            By default, dump all sequences given in :param:`alignment_files`.
         :param csv_separator: Output file separator.
         """
         self.corpus_file = corpus_file
         self.alignment_files = alignment_files
         self.allophone_file = allophone_file
+        self.seq_tags_to_dump = seq_tags_to_dump
         self.csv_separator = csv_separator
 
         self.out_text_alignment_pairs = self.output_path("segment_txt_alignment.csv.gz")
@@ -860,9 +864,22 @@ class DumpSegmentTextAlignmentJob(Job):
         c.load(self.corpus_file.get_path())
         seq_tag_to_text = {seq_tag: segment.orth for seq_tag, segment in c.get_segment_mapping()}
 
+        if self.seq_tags_to_dump is not None:
+            with uopen(self.seq_tags_to_dump.get_path(), "rt") as f:
+                seq_tags_to_dump = []
+                for seq_tag in f:
+                    seq_tag = seq_tag.strip()
+                    assert seq_tag in seq_tag_to_alignment, (
+                        f"The sequence tag {seq_tag} provided in seq_tags_to_plot "
+                        "is not in the provided alignment files."
+                    )
+                    seq_tags_to_dump.append(seq_tag)
+        else:
+            seq_tags_to_dump = seq_tag_to_alignment.keys()
+
         with util.uopen(self.out_text_alignment_pairs.get_path(), "wt") as f:
             f.write(f"seq_tag{self.csv_separator}segment_text{self.csv_separator}segment_alignment\n")
-            for seq_tag in set(seq_tag_to_alignment.keys()).intersection(set(seq_tag_to_text.keys())):
+            for seq_tag in set(seq_tags_to_dump).intersection(set(seq_tag_to_text.keys())):
                 f.write(
                     f"{seq_tag}{self.csv_separator}"
                     f"{seq_tag_to_text[seq_tag]}{self.csv_separator}"
@@ -886,8 +903,8 @@ class PlotViterbiAlignmentJob(Job):
         :param alignment_files: Alignment files to be plotted.
         :param allophone_file: Allophone file used in the alignment process.
         :param seq_tags_to_plot: Specific sequence tags to plot.
-            By default plot all sequences given in :param:`alignment_files`.
-        :param corpus_file: Corpus used to generate the alignments. By default the plots have no title.
+            By default, plot all sequences given in :param:`alignment_files`.
+        :param corpus_file: Corpus used to generate the alignments. By default, the plots have no title.
             If provided, the plots will have the text from the respective segment as title,
             whenever the segment is available in the corpus. This should only be given for convenience.
         """
@@ -976,15 +993,18 @@ class PlotViterbiAlignmentJob(Job):
 
         if self.seq_tags_to_plot is not None:
             with uopen(self.seq_tags_to_plot.get_path(), "rt") as f:
-                seq_tags = [line.strip() for line in f]
+                seq_tags_to_plot = []
+                for seq_tag in f:
+                    seq_tag = seq_tag.strip()
+                    assert seq_tag in seq_tag_to_alignment, (
+                        f"The sequence tag {seq_tag} provided in seq_tags_to_plot "
+                        "is not in the provided alignment files."
+                    )
+                    seq_tags_to_plot.append(seq_tag)
         else:
-            seq_tags = seq_tag_to_alignment.keys()
+            seq_tags_to_plot = seq_tag_to_alignment.keys()
         empty_alignment_seq_tags = []
-        for seq_tag in seq_tags:
-            assert (
-                seq_tag in seq_tag_to_alignment
-            ), f"The sequence tag {seq_tag} is not in the provided alignment files."
-            alignments = seq_tag_to_alignment[seq_tag]
+        for seq_tag in seq_tags_to_plot:
             # In some rare cases, the alignment doesn't have to reach a satisfactory end.
             # In these cases, the final alignment is empty. Skip those cases.
             if len(alignments) == 0:
