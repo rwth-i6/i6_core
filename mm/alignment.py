@@ -837,7 +837,7 @@ class DumpSegmentTextAlignmentJob(Job):
         self.allophone_file = allophone_file
         self.csv_separator = csv_separator
 
-        self.out_text_alignment_pairs = self.output_path("segment_txt_alignment.csv")
+        self.out_text_alignment_pairs = self.output_path("segment_txt_alignment.csv.gz")
 
         self.rqmt = {"cpu": 1, "mem": 2.0, "time": 1.0}
 
