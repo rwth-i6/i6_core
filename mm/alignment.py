@@ -872,7 +872,7 @@ class DumpSegmentTextAlignmentJob(Job):
         seq_tag_to_text = {seq_tag: segment.orth for seq_tag, segment in c.get_segment_mapping().items()}
 
         if self.seq_tags_to_dump is not None:
-            with uopen(self.seq_tags_to_dump.get_path(), "rt") as f:
+            with util.uopen(self.seq_tags_to_dump.get_path(), "rt") as f:
                 seq_tags_to_dump = []
                 for seq_tag in f:
                     seq_tag = seq_tag.strip()
@@ -1010,7 +1010,7 @@ class PlotViterbiAlignmentJob(Job):
             seq_tag_to_text = {seq_tag: segment.orth for seq_tag, segment in c.get_segment_mapping().items()}
 
         if self.seq_tags_to_plot is not None:
-            with uopen(self.seq_tags_to_plot.get_path(), "rt") as f:
+            with util.uopen(self.seq_tags_to_plot.get_path(), "rt") as f:
                 seq_tags_to_plot = []
                 for seq_tag in f:
                     seq_tag = seq_tag.strip()
