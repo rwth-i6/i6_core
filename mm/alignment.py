@@ -989,7 +989,7 @@ class PlotViterbiAlignmentJob(Job):
 
         ax.set_title(title)
 
-        ax.imshow(viterbi_matrix, cmap="Blues", interpolation="nearest", aspect="auto", origin="lower")
+        ax.imshow(viterbi_matrix, cmap="Blues", interpolation="none", aspect="auto", origin="lower")
 
         # The plot will be purposefully divided into subdirectories.
         os.makedirs(os.path.dirname(os.path.join(self.out_plot_dir.get_path(), file_name)), exist_ok=True)
