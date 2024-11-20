@@ -876,17 +876,24 @@ class PlotViterbiAlignmentJob(Job):
     """
 
     def __init__(
-        self, alignment_files: Iterable[tk.Path], allophone_file: tk.Path, corpus_file: Optional[tk.Path] = None
+        self,
+        alignment_files: Iterable[tk.Path],
+        allophone_file: tk.Path,
+        seq_tags_to_plot: Optional[tk.Path] = None,
+        corpus_file: Optional[tk.Path] = None,
     ):
         """
         :param alignment_files: Alignment files to be plotted.
         :param allophone_file: Allophone file used in the alignment process.
-        :param corpus_file: Corpus used to generate the alignments.
-            If provided, the plots will have their respective text as title,
+        :param seq_tags_to_plot: Specific sequence tags to plot.
+            By default plot all sequences given in :param:`alignment_files`.
+        :param corpus_file: Corpus used to generate the alignments. By default the plots have no title.
+            If provided, the plots will have the text from the respective segment as title,
             whenever the segment is available in the corpus. This should only be given for convenience.
         """
         self.alignment_files = alignment_files
         self.allophone_file = allophone_file
+        self.seq_tags_to_plot = seq_tags_to_plot
         self.corpus_file = corpus_file
 
         self.out_plot_dir = self.output_path("plots", directory=True)
@@ -967,8 +974,17 @@ class PlotViterbiAlignmentJob(Job):
             c.load(self.corpus_file.get_path())
             seq_tag_to_text = {seq_tag: segment.orth for seq_tag, segment in c.get_segment_mapping()}
 
+        if self.seq_tags_to_plot is not None:
+            with uopen(self.seq_tags_to_plot.get_path(), "rt") as f:
+                seq_tags = [line.strip() for line in f]
+        else:
+            seq_tags = seq_tag_to_alignment.keys()
         empty_alignment_seq_tags = []
-        for seq_tag, alignments in seq_tag_to_alignment.items():
+        for seq_tag in seq_tags:
+            assert (
+                seq_tag in seq_tag_to_alignment
+            ), f"The sequence tag {seq_tag} is not in the provided alignment files."
+            alignments = seq_tag_to_alignment[seq_tag]
             # In some rare cases, the alignment doesn't have to reach a satisfactory end.
             # In these cases, the final alignment is empty. Skip those cases.
             if len(alignments) == 0:
@@ -983,7 +999,7 @@ class PlotViterbiAlignmentJob(Job):
             center_allophones = np.array(seq_tag_to_alignment[seq_tag])
             phonemes, alignment_indices = self.extract_phoneme_sequence(center_allophones)
             viterbi_matrix = self.make_viterbi_matrix(alignment_indices)
-            fig = self.plot(viterbi_matrix, phonemes, seq_tag_to_text.get(seq_tag, ""))
+            fig = self.plot(viterbi_matrix, phonemes, title=seq_tag_to_text.get(seq_tag, ""))
             # The plot will be purposefully divided into subdirectories (depending on seq_tag).
             os.makedirs(os.path.dirname(os.path.join(self.out_plot_dir.get_path(), seq_tag)), exist_ok=True)
             fig.savefig(os.path.join(self.out_plot_dir.get_path(), f"{seq_tag}.png"))
