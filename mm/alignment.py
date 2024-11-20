@@ -830,7 +830,7 @@ class DumpSegmentTextAlignmentJob(Job):
     def __init__(
         self,
         corpus_file: tk.Path,
-        alignment_files: Iterable[tk.Path],
+        alignment_caches: Iterable[tk.Path],
         allophone_file: tk.Path,
         seq_tags_to_dump: Optional[tk.Path] = None,
         frame_size: float = 0.25,
@@ -838,16 +838,16 @@ class DumpSegmentTextAlignmentJob(Job):
     ):
         """
         :param corpus_file: Corpus file to get the text from.
-        :param alignment_files: Alignment files to get the alignments from.
+        :param alignment_caches: Alignment files to get the alignments from.
             Must correspond to the corpus given in :param:`corpus_file` for the job to work properly.
-        :param allophone_file: Allophone file with which the alignments given in :param:`alignment_files` were dumped.
+        :param allophone_file: Allophone file with which the alignments given in :param:`alignment_caches` were dumped.
         :param seq_tags_to_dump: Specific sequence tags to dump.
-            By default, dump all sequences given in :param:`alignment_files`.
+            By default, dump all sequences given in :param:`alignment_caches`.
         :param frame_size: Frame size. Only used to calculate the timestamps of the alignments.
         :param frame_step: Frame step. Only used to calculate the timestamps of the alignments.
         """
         self.corpus_file = corpus_file
-        self.alignment_files = alignment_files
+        self.alignment_caches = alignment_caches
         self.allophone_file = allophone_file
         self.seq_tags_to_dump = seq_tags_to_dump
         self.frame_size = frame_size
@@ -858,11 +858,11 @@ class DumpSegmentTextAlignmentJob(Job):
         self.rqmt = {"cpu": 1, "mem": 2.0, "time": 1.0}
 
     def tasks(self):
-        yield Task("run", resume="run", rqmt=self.rqmt, args=range(1, len(self.alignment_files) + 1))
+        yield Task("run", resume="run", rqmt=self.rqmt, args=range(1, len(self.alignment_caches) + 1))
 
     def run(self, task_id):
         # Get the alignment information: seq_tag -> alignment.
-        align_cache = rasr_cache.FileArchive(self.alignment_files[task_id - 1].get_path())
+        align_cache = rasr_cache.FileArchive(self.alignment_caches[task_id - 1].get_path())
         align_cache.setAllophones(self.allophone_file.get_path())
         seq_tag_to_alignments = get_seq_tag_to_alignment_mapping(align_cache)
 
@@ -907,21 +907,21 @@ class PlotViterbiAlignmentJob(Job):
 
     def __init__(
         self,
-        alignment_files: Iterable[tk.Path],
+        alignment_caches: Iterable[tk.Path],
         allophone_file: tk.Path,
         seq_tags_to_plot: Optional[tk.Path] = None,
         corpus_file: Optional[tk.Path] = None,
     ):
         """
-        :param alignment_files: Alignment files to be plotted.
+        :param alignment_caches: Alignment files to be plotted.
         :param allophone_file: Allophone file used in the alignment process.
         :param seq_tags_to_plot: Specific sequence tags to plot.
-            By default, plot all sequences given in :param:`alignment_files`.
+            By default, plot all sequences given in :param:`alignment_caches`.
         :param corpus_file: Corpus used to generate the alignments. By default, the plots have no title.
             If provided, the plots will have the text from the respective segment as title,
             whenever the segment is available in the corpus. This should only be given for convenience.
         """
-        self.alignment_files = alignment_files
+        self.alignment_caches = alignment_caches
         self.allophone_file = allophone_file
         self.seq_tags_to_plot = seq_tags_to_plot
         self.corpus_file = corpus_file
@@ -932,7 +932,7 @@ class PlotViterbiAlignmentJob(Job):
         self.rqmt = {"cpu": 1, "mem": 2.0, "time": 1.0}
 
     def tasks(self):
-        yield Task("run", resume="run", rqmt=self.rqmt, args=range(1, len(self.alignment_files) + 1))
+        yield Task("run", resume="run", rqmt=self.rqmt, args=range(1, len(self.alignment_caches) + 1))
 
     def extract_phoneme_sequence(self, alignment: np.array) -> Tuple[np.array, np.array]:
         """
@@ -999,7 +999,7 @@ class PlotViterbiAlignmentJob(Job):
     def run(self, task_id):
         import matplotlib
 
-        align_cache = rasr_cache.FileArchive(self.alignment_files[task_id - 1].get_path())
+        align_cache = rasr_cache.FileArchive(self.alignment_caches[task_id - 1].get_path())
         align_cache.setAllophones(self.allophone_file.get_path())
         seq_tag_to_alignments = get_seq_tag_to_alignment_mapping(align_cache)
 
