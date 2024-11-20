@@ -873,8 +873,6 @@ class DumpSegmentTextAlignmentJob(Job):
 class PlotViterbiAlignmentJob(Job):
     """
     Plots the alignments of each segment in the specified alignment files.
-
-    Original job author: dmann.
     """
 
     def __init__(
