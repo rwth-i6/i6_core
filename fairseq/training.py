@@ -241,7 +241,7 @@ class FairseqHydraTrainingJob(Job):
         }
         res.update(FairseqHydraConfig(config_dict, post_config_dict))
         return res
-    
+
     def _fairseq_prepare_checkpoint(self, start_checkpoint):
         # rename the start checkpoint to checkpoint_last.pt if it is not None and checkpoint_last.pt does not exist
         if start_checkpoint is None:
@@ -251,13 +251,9 @@ class FairseqHydraTrainingJob(Job):
             raise FileNotFoundError(f"Start checkpoint {start_checkpoint} does not exist")
         if not os.path.exists(os.path.join(self.out_checkpoint_dir.get_path(), "checkpoint_last.pt")):
             print(f"Linking {start_checkpoint} to {self.out_checkpoint_dir.get_path()}")
+            os.symlink(start_checkpoint, os.path.join(self.out_checkpoint_dir.get_path(), "checkpoint_last.pt"))
             os.symlink(
-                start_checkpoint,
-                os.path.join(self.out_checkpoint_dir.get_path(), "checkpoint_last.pt")
-            )
-            os.symlink(
-                start_checkpoint,
-                os.path.join(self.out_checkpoint_dir.get_path(), os.path.basename(start_checkpoint))
+                start_checkpoint, os.path.join(self.out_checkpoint_dir.get_path(), os.path.basename(start_checkpoint))
             )
 
     def create_files(self):
