@@ -1,4 +1,4 @@
-__all__ = ["ComputePerplexityJob"]
+__all__ = ["ComputePerplexityJob", "ComputePerplexityJobV2"]
 
 from sisyphus import *
 
