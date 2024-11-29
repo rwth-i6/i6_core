@@ -144,5 +144,5 @@ class ComputePerplexityJobV2(ComputePerplexityJob):
 
     @classmethod
     def hash(cls, kwargs):
-        config, post_config, num_images = cls.create_config(**kwargs)
+        config, post_config = cls.create_config(**kwargs)
         return super().hash({"config": config, "exe": kwargs["crp"].lm_util_exe})
