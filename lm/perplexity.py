@@ -135,7 +135,7 @@ class ComputePerplexityJob(rasr.RasrCommand, Job):
         return config, post_config
 
 
-class ComputePerplexityJobV2(ComputePerplexityJobV2):
+class ComputePerplexityJobV2(ComputePerplexityJob):
     """
     Update of ComputePerplexityJob with a custom hash function that only hashes relevant inputs.
     Previous version will change hash even if unrelated components in the CommonRasrParameters object
