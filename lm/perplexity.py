@@ -133,3 +133,16 @@ class ComputePerplexityJob(rasr.RasrCommand, Job):
         post_config._update(extra_post_config)
 
         return config, post_config
+
+
+class ComputePerplexityJobV2(ComputePerplexityJobV2):
+    """
+    Update of ComputePerplexityJob with a custom hash function that only hashes relevant inputs.
+    Previous version will change hash even if unrelated components in the CommonRasrParameters object
+    change their value, e.g. the acoustic-model.
+    """
+
+    @classmethod
+    def hash(cls, kwargs):
+        config, post_config, num_images = cls.create_config(**kwargs)
+        return super().hash({"config": config, "exe": kwargs["crp"].lm_util_exe})
