@@ -14,9 +14,10 @@ import shutil
 import subprocess
 from collections.abc import Iterable
 import tempfile
-from typing import List, Union
+from typing import List, Optional, Union
 
-from sisyphus import Job, Task, Path, global_settings as gs, toolkit as tk
+from i6_core.text.info import CountLinesJob
+from sisyphus import Job, Task, Path, delayed_ops, global_settings as gs, toolkit as tk
 from sisyphus.delayed_ops import DelayedBase
 
 import i6_core.util as util
@@ -317,7 +318,7 @@ class SplitTextFileJob(Job):
         self,
         text_file: tk.Path,
         num_lines_per_split: int,
-        num_text_file_lines: int,
+        num_text_file_lines: Optional[int] = None,
         zip_output: bool = True,
     ):
         """
@@ -332,12 +333,21 @@ class SplitTextFileJob(Job):
         """
         self.in_text_file = text_file
         self.num_lines_per_split = num_lines_per_split
-        self.num_text_file_lines = num_text_file_lines
         self.zip_output = zip_output
 
-        self.num_output_files = num_text_file_lines // num_lines_per_split + int(
-            bool(num_text_file_lines % num_lines_per_split)
-        )
+        if num_text_file_lines is not None:
+            self.num_text_file_lines = num_text_file_lines
+
+            self.num_output_files = self.num_text_file_lines // num_lines_per_split + int(
+                bool(self.num_text_file_lines % num_lines_per_split)
+            )
+        else:
+            self.num_text_file_lines = CountLinesJob(text_file).out_num_sentences
+            delayed_num_lines = delayed_ops.DelayedGetItem(self.num_text_file_lines)
+
+            self.num_output_files = delayed_num_lines // num_lines_per_split + int(
+                bool(delayed_num_lines % num_lines_per_split)
+            )
 
         self.out_split_text_files = {
             k: self.output_path(f'split.{k:04}.{"txt.gz" if zip_output else "txt"}')
