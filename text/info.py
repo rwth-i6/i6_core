@@ -1,6 +1,7 @@
 __all__ = ["SentenceLengthHistogramJob"]
 
 from collections import Counter
+import subprocess
 from typing import Optional
 
 from i6_core.util import uopen
@@ -88,3 +89,24 @@ class SentenceLengthHistogramJob(Job):
         ax.plot(x, y, "s")
 
         fig.savefig(fig_path, bbox_inches="tight")
+
+
+class CountLinesJob(Job):
+    def __init__(self, input_text: tk.Path):
+        self.input_text = input_text
+
+        self.out_num_sentences = self.output_var("num_sentences.txt")
+
+        self.rqmt = {"cpu": 1, "mem": 1, "time": 1}
+
+    def tasks(self):
+        yield Task("run", rqmt=self.rqmt)
+
+    def run(self):
+        zcat_cmd = ["zcat", "-f", "ted2_transcripts.gz"]
+        zcat_res = subprocess.run(zcat_cmd, check=True, capture_output=True)
+
+        wc_cmd = ["wc", "-l"]
+        wc_res = subprocess.run(wc_cmd, input=zcat_res.stdout, check=True, capture_output=True)
+
+        self.out_num_sentences.set(int(wc_res.stdout.decode("utf-8").strip()))
