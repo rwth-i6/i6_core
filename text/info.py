@@ -1,4 +1,4 @@
-__all__ = ["SentenceLengthHistogramJob"]
+__all__ = ["SentenceLengthHistogramJob", "CountLinesJob"]
 
 from collections import Counter
 import subprocess
