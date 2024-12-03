@@ -103,7 +103,7 @@ class CountLinesJob(Job):
         yield Task("run", rqmt=self.rqmt)
 
     def run(self):
-        zcat_cmd = ["zcat", "-f", "ted2_transcripts.gz"]
+        zcat_cmd = ["zcat", "-f", self.input_text.get_path()]
         zcat_res = subprocess.run(zcat_cmd, check=True, capture_output=True)
 
         wc_cmd = ["wc", "-l"]
