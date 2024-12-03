@@ -16,8 +16,7 @@ from collections.abc import Iterable
 import tempfile
 from typing import List, Optional, Union
 
-from i6_core.text.info import CountLinesJob
-from sisyphus import Job, Task, Path, delayed_ops, global_settings as gs, toolkit as tk
+from sisyphus import Job, Task, Path, global_settings as gs, toolkit as tk
 from sisyphus.delayed_ops import DelayedBase
 
 import i6_core.util as util
