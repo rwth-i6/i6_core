@@ -4,6 +4,7 @@ __all__ = [
     "AdvancedTreeSearchWithRescoringJob",
     "BidirectionalAdvancedTreeSearchJob",
     "BuildGlobalCacheJob",
+    "RescoreLatticeCacheJob",
 ]
 
 from sisyphus import *
@@ -880,3 +881,148 @@ class BuildGlobalCacheJob(rasr.RasrCommand, Job):
     def hash(cls, kwargs):
         config, post_config = cls.create_config(**kwargs)
         return super().hash({"config": config, "exe": kwargs["crp"].speech_recognizer_exe})
+
+
+class RescoreLatticeCacheJob(rasr.RasrCommand, Job):
+    def __init__(
+        self,
+        crp: rasr.CommonRasrParameters,
+        lattice_cache: tk.Path,
+        rescorer_type: str = "single-best",
+        max_hypotheses: int = 5,
+        pruning_threshold: float = 16.0,
+        history_limit: int = 0,
+        rescoring_lookahead_scale: float = 1.0,
+        rtf: float = 1.0,
+        cpu: int = 1,
+        mem: float = 4.0,
+        use_gpu: bool = False,
+        extra_config=None,
+        extra_post_config=None,
+    ):
+        self.set_vis_name("Rescore Lattice")
+
+        kwargs = locals()
+        del kwargs["self"]
+
+        (
+            self.config,
+            self.post_config,
+        ) = RescoreLatticeCacheJob.create_config(**kwargs)
+        self.input_lattice_cache = lattice_cache
+        self.exe = self.select_exe(crp.flf_tool_exe, "flf-tool")
+        self.concurrent = crp.concurrent
+        self.use_gpu = use_gpu
+
+        self.out_log_file = self.log_file_output_path("rescoring", crp, True)
+        self.out_single_lattice_caches = {
+            task_id: self.output_path("lattice.cache.%d" % task_id, cached=True)
+            for task_id in range(1, crp.concurrent + 1)
+        }
+        self.out_lattice_bundle = self.output_path("lattice.bundle", cached=True)
+        self.out_lattice_path = util.MultiOutputPath(
+            self, "lattice.cache.$(TASK)", self.out_single_lattice_caches, cached=True
+        )
+        self.cpu = cpu
+        self.rqmt = {
+            "time": max(crp.corpus_duration * rtf / crp.concurrent, 0.5),
+            "cpu": cpu,
+            "gpu": 1 if self.use_gpu else 0,
+            "mem": mem,
+        }
+
+    def tasks(self):
+        yield Task("create_files", mini_task=True)
+        yield Task("run", resume="run", rqmt=self.rqmt, args=range(1, self.concurrent + 1))
+
+    def create_files(self):
+        self.write_config(self.config, self.post_config, "rescoring.config")
+        util.write_paths_to_file(self.out_lattice_bundle, self.out_single_lattice_caches.values())
+        extra_code = "export OMP_NUM_THREADS={0}\nexport TF_DEVICE='{1}'".format(
+            math.ceil(self.cpu), "gpu" if self.use_gpu else "cpu"
+        )
+        self.write_run_script(self.exe, "rescoring.config", extra_code=extra_code)
+
+    def run(self, task_id):
+        self.run_script(task_id, self.out_log_file[task_id])
+        shutil.move(
+            "lattice.cache.%d" % task_id,
+            self.out_single_lattice_caches[task_id].get_path(),
+        )
+
+    def cleanup_before_run(self, cmd, retry, task_id, *args):
+        util.backup_if_exists("search.log.%d" % task_id)
+        util.delete_if_exists("lattice.cache.%d" % task_id)
+
+    @classmethod
+    def create_config(
+        cls,
+        crp: rasr.CommonRasrParameters,
+        lattice_cache: tk.Path,
+        rescorer_type: str,
+        max_hypotheses: int,
+        pruning_threshold: float,
+        history_limit: int,
+        rescoring_lookahead_scale: float,
+        cpu,
+        extra_config,
+        extra_post_config,
+        **kwargs,
+    ):
+        config, post_config = rasr.build_config_from_mapping(
+            crp,
+            {
+                "corpus": "flf-lattice-tool.corpus",
+                "lexicon": "flf-lattice-tool.lexicon",
+                "language_model": "flf-lattice-tool.network.rescorer.lm",
+            },
+            parallelize=True,
+        )
+
+        config.flf_lattice_tool.network.initial_nodes = "segment"
+        config.flf_lattice_tool.network.segment.type = "speech-segment"
+        config.flf_lattice_tool.network.segment.links = "0->archive-reader:1 0->archive-writer:1"
+
+        config.flf_lattice_tool.network.archive_reader.type = "archive-reader"
+        config.flf_lattice_tool.network.archive_reader.links = "rescorer"
+        config.flf_lattice_tool.network.archive_reader.format = "flf"
+        config.flf_lattice_tool.network.archive_reader.path = lattice_cache
+        post_config.flf_lattice_tool.network.archive_reader.info = True
+
+        rescorer_config = config.flf_lattice_tool.network.rescorer
+        rescorer_config.type = "push-forward-rescoring"
+        rescorer_config.links = "archive-writer"
+        rescorer_config.key = "lm"
+        rescorer_config.rescorer_type = rescorer_type
+        rescorer_config.max_hypotheses = max_hypotheses
+        rescorer_config.pruning_threshold = pruning_threshold
+        rescorer_config.history_limit = history_limit
+        rescorer_config.lookahead_scale = rescoring_lookahead_scale
+
+        config.flf_lattice_tool.network.archive_writer.type = "archive-writer"
+        config.flf_lattice_tool.network.archive_writer.links = "sink:1"
+        config.flf_lattice_tool.network.archive_writer.format = "flf"
+        config.flf_lattice_tool.network.archive_writer.path = "lattice.cache.$(TASK)"
+        post_config.flf_lattice_tool.network.archive_writer.info = True
+
+        config.flf_lattice_tool.network.sink.type = "sink"
+        post_config.flf_lattice_tool.network.sink.warn_on_empty_lattice = True
+        post_config.flf_lattice_tool.network.sink.error_on_empty_lattice = False
+
+        post_config["*"].session.intra_op_parallelism_threads = cpu
+        post_config["*"].session.inter_op_parallelism_threads = 1
+
+        config._update(extra_config)
+        post_config._update(extra_post_config)
+
+        return config, post_config
+
+    @classmethod
+    def hash(cls, kwargs):
+        config, post_config = cls.create_config(**kwargs)
+        return super().hash(
+            {
+                "config": config,
+                "exe": kwargs["crp"].flf_tool_exe,
+            }
+        )

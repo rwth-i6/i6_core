@@ -4,6 +4,7 @@ __all__ = [
     "Hub5ScoreJob",
     "QuaeroScorerJob",
     "KaldiScorerJob",
+    "IntersectStmCtm",
 ]
 
 import os
@@ -16,6 +17,7 @@ from typing import List, Optional, Dict, Tuple
 
 from sisyphus import *
 from i6_core.lib.corpus import *
+from i6_core.util import uopen
 
 Path = setup_path(__package__)
 
@@ -664,3 +666,52 @@ class KaldiScorerJob(Job):
         os.chdir(old_dir)
 
         return wer
+
+
+class IntersectStmCtm(Job):
+    def __init__(self, stm_path: tk.Path, ctm_path: tk.Path):
+        self.stm_path = stm_path
+        self.ctm_path = ctm_path
+
+        self.out_stm = self.output_path("intersected.stm")
+        self.out_ctm = self.output_path("intersected.ctm")
+
+        self.rqmt = None
+
+    def tasks(self):
+        yield Task("run", resume="run", mini_task=self.rqmt is None, rqmt=self.rqmt)
+
+    def run(self):
+        stm_lines = collections.defaultdict(list)
+        ctm_lines = collections.defaultdict(list)
+
+        with uopen(self.stm_path, "rt") as stm_in:
+            for line in stm_in:
+                if line.startswith(";"):
+                    stm_lines[None].append(line)
+                else:
+                    recording = line.split()[0]
+                    stm_lines[recording].append(line)
+
+        segment_comments = []
+        with uopen(self.ctm_path, "rt") as ctm_in:
+            for line_num, line in enumerate(ctm_in, 1):
+                if line_num == 1 and line.startswith(";; <name>"):  # header
+                    ctm_lines[None].append(line)
+                elif line.startswith(";"):
+                    segment_comments.append(line)
+                else:
+                    recording = line.split()[0]
+                    if segment_comments:
+                        ctm_lines[recording].extend(segment_comments)
+                        segment_comments = []
+                    ctm_lines[recording].append(line)
+
+        common_recordings = set(stm_lines.keys()).intersection(set(ctm_lines.keys()))
+
+        for path, lines in [(self.out_stm, stm_lines), (self.out_ctm, ctm_lines)]:
+            with uopen(path, "wt") as out:
+                out.write("".join(lines[None]))
+                del lines[None]
+                for r in common_recordings:
+                    out.write("".join(lines[r]))
