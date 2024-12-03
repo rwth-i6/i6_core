@@ -336,8 +336,8 @@ class SplitTextFileJob(Job):
         self.num_text_file_lines = num_text_file_lines
         self.zip_output = zip_output
 
-        self.num_output_files = self.num_text_file_lines // num_lines_per_split + int(
-            bool(self.num_text_file_lines % num_lines_per_split)
+        self.num_output_files = self.num_text_file_lines // self.num_lines_per_split + int(
+            bool(self.num_text_file_lines % self.num_lines_per_split)
         )
 
         self.out_split_text_files = {
