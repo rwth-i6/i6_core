@@ -1,25 +1,4 @@
 [tool.black]
 line-length = 120
-
-[tool.ruff]
-line-length = 120
-extend-exclude = ["users", "__init__.py"]
-
-[tool.ruff.lint]
-extend-ignore = [
-    "E501", # Line too long
-]
-extend-select = [
-    "I",  # isort
-    "C4",  # comprehensions
-]
-
-[tool.ruff.lint.isort]
-known-first-party = ["i6_core", "apptek_asr"]
-known-third-party = ["sisyphus", "onnx"]
-lines-after-imports = 2
-force-sort-within-sections = true
-section-order = ["future", "standard-library", "third-party", "second-party", "first-party", "local-folder"]
-
-[tool.ruff.lint.isort.sections]
-"second-party" = ["i6_models"]
+target-version = ["py38"]
+exclude = 'files'
