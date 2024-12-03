@@ -95,7 +95,7 @@ class CountLinesJob(Job):
     def __init__(self, input_text: tk.Path):
         self.input_text = input_text
 
-        self.out_num_sentences = self.output_var("num_sentences.txt")
+        self.out_num_lines = self.output_var("num_lines")
 
         self.rqmt = {"cpu": 1, "mem": 1, "time": 1}
 
