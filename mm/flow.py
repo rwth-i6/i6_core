@@ -95,7 +95,7 @@ def dump_alignment_flow(feature_net, original_alignment, new_alignment):
     assert "features" in feature_net.get_output_ports()
     net = FlowNetwork()
     net.add_output("alignments")
-    net.add_param("orthography")
+    net.add_param(["id", "orthography", "TASK"])
 
     mapping = net.add_net(feature_net)
     net.interconnect_inputs(feature_net, mapping)
