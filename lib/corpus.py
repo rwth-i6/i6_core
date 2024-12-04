@@ -123,7 +123,7 @@ class CorpusParser(sax.handler.ContentHandler):
             # writing, thus we remove multiple spaces and newlines
             text = self.chars.strip()
             text = re.sub(" +", " ", text)
-            text = re.sub("\n", "", text)
+            text = re.sub("\n", " ", text)
             e.orth = text
         elif isinstance(e, Speaker) and name != "speaker-description":
             # we allow all sorts of elements within a speaker description
