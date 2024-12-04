@@ -7,6 +7,7 @@ __all__ = [
     "MergeCorpusSegmentsAndAudioJob",
     "ShiftCorpusSegmentStartJob",
     "ApplyLexiconToCorpusJob",
+    "MapRecordingsJob",
 ]
 
 import bisect
@@ -15,7 +16,7 @@ import enum
 import logging
 import math
 import os
-from typing import Dict
+from typing import Callable, Dict
 import wave
 import xml.etree.cElementTree as ET
 
@@ -632,3 +633,41 @@ class ApplyLexiconToCorpusJob(Job):
                 )
 
         c.dump(self.out_corpus.get_path())
+
+
+class MapRecordingsJob(Job):
+    """
+    Applies a function to all recordings of a given corpus.
+    """
+
+    def __init__(self, bliss_corpus: tk.Path, recording_callable: Callable[[corpus.Recording], corpus.Recording]):
+        """
+        :param bliss_corpus: Corpus for which to sort the segments.
+        :param recording_callable: Callable to modify a given recording. Returns the modified recording.
+        """
+        self.bliss_corpus = bliss_corpus
+        self.recording_callable = recording_callable
+
+        self.out_bliss_corpus = self.output_path("out.xml.gz")
+
+        self.rqmt = {"cpu": 1, "mem": 2.0, "time": 1.0}
+
+    def tasks(self):
+        yield Task("run", resume="run", rqmt=self.rqmt)
+
+    def map_recordings(self, corpus: corpus.Corpus, recording_callable: Callable[[corpus.Recording], corpus.Recording]):
+        """
+        Applies the mapping provided in :param:`recording_callable` to all recordings in :param:`corpus`.
+        :return: Nothing. The corpus is modified in-place.
+        """
+        corpus.recordings = list(map(recording_callable, corpus.recordings))
+
+    def run(self):
+        c = corpus.Corpus()
+        c.load(self.bliss_corpus.get_path())
+
+        self.map_recordings(c, self.recording_callable)
+        for sc in c.subcorpora:
+            self.map_recordings(sc, self.recording_callable)
+
+        c.dump(self.out_bliss_corpus.get_path())
