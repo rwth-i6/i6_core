@@ -13,8 +13,8 @@ from sisyphus import Job, Task, tk
 class DenseLabelInfo:
     """
     Attributes:
-        n_contexts: number of phonemes in lexicon
-            This includes non-word phonemes, like [SILENCE], [NOISE] or [MUSIC] and non-context # in rasr.
+        n_contexts: number of phonemes in lexicon + number of non-word phonemes (like [SILENCE], [NOISE] or [MUSIC])
+            and + 1 for non-context # in rasr.
         use_word_end_classes: if word end class is used for no tying dense label
         use_boundary_classes: if bounary class is used for no tying dense label
         num_hmm_states_per_phon: the number of hmm states per phoneme
