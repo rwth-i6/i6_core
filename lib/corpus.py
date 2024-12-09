@@ -116,7 +116,7 @@ class CorpusParser(sax.handler.ContentHandler):
     def endElement(self, name: str):
         e = self.elements[-1]
 
-        if name == "orth" or name == "left-context-orth" or name == "right-context-orth":
+        if name in {"orth", "left-context-orth", "right-context-orth"}:
             assert isinstance(e, Segment)
             # we do some processing of the text that goes into the orth tag to get a nicer formating, some corpora may have
             # multiline content in the orth tag, but to keep it that way might not be consistent with the indentation during
