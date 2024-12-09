@@ -358,6 +358,7 @@ class Recording(NamedEntity, CorpusSection):
 class Segment(NamedEntity):
     def __init__(
         self,
+        *,
         start: float = 0.0,
         end: float = 0.0,
         track: Optional[int] = None,
