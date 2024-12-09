@@ -161,13 +161,14 @@ class Lexicon:
         """
         root = ET.Element("lexicon")
 
-        pi = ET.SubElement(root, "phoneme-inventory")
-        for symbol, variation in self.phonemes.items():
-            p = ET.SubElement(pi, "phoneme")
-            s = ET.SubElement(p, "symbol")
-            s.text = symbol
-            v = ET.SubElement(p, "variation")
-            v.text = variation
+        if self.phonemes:
+            pi = ET.SubElement(root, "phoneme-inventory")
+            for symbol, variation in self.phonemes.items():
+                p = ET.SubElement(pi, "phoneme")
+                s = ET.SubElement(p, "symbol")
+                s.text = symbol
+                v = ET.SubElement(p, "variation")
+                v.text = variation
 
         for l in self.lemmata:
             root.append(l.to_xml())
