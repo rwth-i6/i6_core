@@ -372,8 +372,8 @@ class Segment(NamedEntity):
         :param end: Segment end.
         :param track: Segment track/channel.
         :param orth: Segment text.
-        :param left_context_orth: Optional left context when aligning (specific to RASR).
-        :param right_context_orth: Optional right context when aligning (specific to RASR).
+        :param left_context_orth: Optional left context when aligning (specific for RASR alignment).
+        :param right_context_orth: Optional right context when aligning (specific for RASR alignment).
         :param speaker_name: Speaker name.
         :param recording: Recording in which the segment is embedded.
         """
@@ -408,9 +408,15 @@ class Segment(NamedEntity):
         if self.orth is not None:
             out.write("%s  <orth> %s </orth>\n" % (indentation, saxutils.escape(self.orth)))
         if self.left_context_orth is not None:
-            out.write("%s  <left-context-orth> %s </left-context-orth>\n" % (indentation, saxutils.escape(self.left_context_orth)))
+            out.write(
+                "%s  <left-context-orth> %s </left-context-orth>\n"
+                % (indentation, saxutils.escape(self.left_context_orth))
+            )
         if self.right_context_orth is not None:
-            out.write("%s  <right-context-orth> %s </right-context-orth>\n" % (indentation, saxutils.escape(self.right_context_orth)))
+            out.write(
+                "%s  <right-context-orth> %s </right-context-orth>\n"
+                % (indentation, saxutils.escape(self.right_context_orth))
+            )
         if has_child_element:
             out.write("%s</segment>\n" % indentation)
         else:
