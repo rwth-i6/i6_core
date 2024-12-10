@@ -394,14 +394,7 @@ class Segment(NamedEntity):
         """
         :return: Left context orth (if any) + orth + right context orth (if any).
         """
-        text = ""
-        if self.left_context_orth is not None:
-            text += self.left_context_orth.strip() + " "
-        text += self.orth
-        if self.right_context_orth is not None:
-            text += " " + self.right_context_orth.strip()
-
-        return text
+        return " ".join([s for s in [self.left_context_orth, self.orth, self.right_context_orth] if s])
 
     def fullname(self) -> str:
         return self.recording.fullname() + "/" + self.name
