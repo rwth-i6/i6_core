@@ -383,12 +383,25 @@ class Segment(NamedEntity):
         self.start = start
         self.end = end
         self.track = track
-        self.orth = orth
+        self._orth = orth
         self.left_context_orth = left_context_orth
         self.right_context_orth = right_context_orth
         self.speaker_name = speaker_name
 
-        self.recording = recording
+        self.recording = recording           
+
+    def full_orth(self) -> str:
+        """
+        :return: Left context orth (if any) + orth + right context orth (if any).
+        """
+        text = ""
+        if self.left_context_orth is not None:
+            text += self.left_context_orth.strip() + " "
+        text += self.orth
+        if self.right_context_orth is not None:
+            text += " " + self.right_context_orth.strip()
+
+        return text
 
     def fullname(self) -> str:
         return self.recording.fullname() + "/" + self.name
