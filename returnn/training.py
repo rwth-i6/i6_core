@@ -52,7 +52,7 @@ class Checkpoint:
     Checkpoint object which holds the (Tensorflow) index file path as tk.Path,
     and will return the checkpoint path as common prefix of the .index/.meta/.data[...]
 
-    A checkpoint object should directly be assigned to a RasrConfig entry (do not call `.ckpt_path`)
+    A checkpoint object should be directly assigned to a RasrConfig entry (do not call `.ckpt_path`)
     so that the hash will resolve correctly
     """
 
