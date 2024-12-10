@@ -383,7 +383,7 @@ class Segment(NamedEntity):
         self.start = start
         self.end = end
         self.track = track
-        self._orth = orth
+        self.orth = orth
         self.left_context_orth = left_context_orth
         self.right_context_orth = right_context_orth
         self.speaker_name = speaker_name
