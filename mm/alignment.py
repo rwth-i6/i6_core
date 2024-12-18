@@ -859,6 +859,7 @@ class DumpSegmentTextAlignmentJob(Job):
 
     def tasks(self):
         yield Task("run", resume="run", rqmt=self.rqmt, args=range(1, len(self.alignment_caches) + 1))
+        yield Task("merge", resume="merge")
 
     def run(self, task_id):
         # Get the alignment information: seq_tag -> alignment.
@@ -884,7 +885,7 @@ class DumpSegmentTextAlignmentJob(Job):
         else:
             seq_tags_to_dump = seq_tag_to_alignments.keys()
 
-        with util.uopen(self.out_text_alignment_pairs.get_path(), "wt") as f:
+        with util.uopen(f"intermediate_segment_txt_alignment.{task_id}.txt.gz", "wt") as f:
             for seq_tag in set(seq_tags_to_dump).intersection(set(seq_tag_to_text.keys())):
                 res = f"{seq_tag}\n"
                 res += f"{seq_tag_to_text[seq_tag]}\n"
@@ -898,6 +899,14 @@ class DumpSegmentTextAlignmentJob(Job):
                     )
                 res += "\n"
                 f.write(res)
+
+    def merge(self):
+        with util.uopen(self.out_text_alignment_pairs.get_path(), "wt") as f_out:
+            for i in range(1, len(self.alignment_caches) + 1):
+                with util.uopen(f"intermediate_segment_txt_alignment.{i}.txt.gz", "rt") as f_in:
+                    for line in f_in:
+                        f_out.write(line)
+                f_out.write("\n")
 
 
 class PlotViterbiAlignmentJob(Job):
