@@ -390,6 +390,12 @@ class Segment(NamedEntity):
 
         self.recording = recording
 
+    def full_orth(self) -> str:
+        """
+        :return: Left context orth (if any) + orth + right context orth (if any).
+        """
+        return " ".join([s for s in [self.left_context_orth, self.orth, self.right_context_orth] if s])
+
     def fullname(self) -> str:
         return self.recording.fullname() + "/" + self.name
 
