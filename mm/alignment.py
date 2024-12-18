@@ -870,7 +870,7 @@ class DumpSegmentTextAlignmentJob(Job):
         # Get the corpus information: seq_tag -> text.
         c = corpus.Corpus()
         c.load(self.corpus_file.get_path())
-        seq_tag_to_text = {seq_tag: segment.orth for seq_tag, segment in c.get_segment_mapping().items()}
+        seq_tag_to_text = {seq_tag: segment.full_orth() for seq_tag, segment in c.get_segment_mapping().items()}
 
         if self.seq_tags_to_dump is not None:
             with util.uopen(self.seq_tags_to_dump.get_path(), "rt") as f:
@@ -1016,7 +1016,7 @@ class PlotViterbiAlignmentJob(Job):
         if self.corpus_file is not None:
             c = corpus.Corpus()
             c.load(self.corpus_file.get_path())
-            seq_tag_to_text = {seq_tag: segment.orth for seq_tag, segment in c.get_segment_mapping().items()}
+            seq_tag_to_text = {seq_tag: segment.full_orth() for seq_tag, segment in c.get_segment_mapping().items()}
 
         if self.seq_tags_to_plot is not None:
             with util.uopen(self.seq_tags_to_plot.get_path(), "rt") as f:
