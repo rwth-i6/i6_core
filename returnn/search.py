@@ -449,7 +449,12 @@ class SearchWordsToCTMJob(Job):
         d = eval(util.uopen(self.recog_words_file.get_path(), "rt").read())
         assert isinstance(d, dict), "only search output file with dict format is supported"
         with util.uopen(self.out_ctm_file.get_path(), "wt") as out:
-            out.write(";; <name> <track> <start> <duration> <word> <confidence> [<n-best>]\n")
+            # Do not print optional [n-best] header, some downstream evaluation pipelines
+            # use the number of headers for validation. Since we do not print n-best-list
+            # information this validation fails and discards the entire search outputs.
+            #
+            # See https://github.com/rwth-i6/i6_core/pull/542.
+            out.write(";; <name> <track> <start> <duration> <word> <confidence>\n")
             for seg in corpus.segments():
                 seg_start = 0.0 if seg.start == float("inf") else seg.start
                 seg_end = 0.0 if seg.end == float("inf") else seg.end
@@ -541,7 +546,12 @@ class SearchWordsDummyTimesToCTMJob(Job):
         else:
             seq_order = d.keys()
         with util.uopen(self.out_ctm_file.get_path(), "wt") as out:
-            out.write(";; <name> <track> <start> <duration> <word> <confidence> [<n-best>]\n")
+            # Do not print optional [n-best] header, some downstream evaluation pipelines
+            # use the number of headers for validation. Since we do not print n-best-list
+            # information this validation fails and discards the entire search outputs.
+            #
+            # See https://github.com/rwth-i6/i6_core/pull/542.
+            out.write(";; <name> <track> <start> <duration> <word> <confidence>\n")
             for seg_fullname in seq_order:
                 assert isinstance(
                     seg_fullname, str

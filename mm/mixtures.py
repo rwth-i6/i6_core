@@ -14,6 +14,7 @@ import tempfile
 from typing import Dict, Optional, Union
 
 from sisyphus import *
+from sisyphus.delayed_ops import DelayedBase
 
 Path = setup_path(__package__)
 
@@ -514,8 +515,8 @@ class CreateDummyMixturesJob(Job):
         yield Task("run", mini_task=True)
 
     def run(self):
-        num_mixtures = int(self.num_mixtures.get() if isinstance(self.num_mixtures, tk.Variable) else self.num_mixtures)
-        num_features = int(self.num_features.get() if isinstance(self.num_features, tk.Variable) else self.num_features)
+        num_mixtures = int(self.num_mixtures.get() if isinstance(self.num_mixtures, DelayedBase) else self.num_mixtures)
+        num_features = int(self.num_features.get() if isinstance(self.num_features, DelayedBase) else self.num_features)
 
         with open(tk.uncached_path(self.out_mixtures), "wb") as f:
             f.write(b"MIXSET\0\0")

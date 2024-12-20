@@ -112,7 +112,7 @@ class ReturnnDumpHDFJob(Job):
             args += ["--epoch", f"{self.epoch}"]
 
         sp.check_call(args)
-        os.chmod(tmp_hdf_file, 644)
+        os.chmod(tmp_hdf_file, 0o644)
         shutil.move(tmp_hdf_file, self.out_hdf.get_path())
 
     @classmethod
