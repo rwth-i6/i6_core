@@ -69,7 +69,6 @@ class CreateBPELexiconJob(Job):
         self.additional_words = additional_words
 
         self.out_lexicon = self.output_path("lexicon.xml.gz", cached=True)
-        self.out_num_phoneme = self.output_var("num_outputs")  # needed in case add_all_bpe_phonemes set to False
 
     def tasks(self):
         yield Task("run", resume="run", mini_task=True)
@@ -184,4 +183,3 @@ class CreateBPELexiconJob(Job):
         elem = lexicon.to_xml()
         tree = ET.ElementTree(elem)
         util.write_xml(self.out_lexicon.get_path(), tree)
-        self.out_num_phoneme.set(len(lexicon.phonemes))
