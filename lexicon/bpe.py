@@ -19,6 +19,7 @@ class CreateBPELexiconJob(Job):
 
     This job is still in experimental state, and only tested with Flashlight BPE decoding
     """
+
     __sis_hash_exclude__ = {"skip_unk_lemmas": False, "add_all_bpe_phonemes": True, "additional_words": None}
 
     def __init__(
