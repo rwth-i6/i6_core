@@ -229,7 +229,7 @@ class BlissToPcmHDFJob(Job):
     __sis_hash_exclude__ = {
         "multi_channel_strategy": BaseStrategy(),
         "rounding": RoundingScheme.start_and_duration,
-        "round_factor": 1,
+        "round_factor": 1.0,
     }
 
     def __init__(
@@ -240,7 +240,7 @@ class BlissToPcmHDFJob(Job):
         multi_channel_strategy: BaseStrategy = BaseStrategy(),
         returnn_root: Optional[tk.Path] = None,
         rounding: RoundingScheme = RoundingScheme.start_and_duration,
-        round_factor: int = 1,
+        round_factor: float = 1.0,
     ):
         """
 
