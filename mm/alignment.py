@@ -11,12 +11,12 @@ import itertools
 import logging
 import math
 import os
+import re
 import shutil
 import statistics
 import xml.etree.ElementTree as ET
 from typing import Callable, Counter, List, Optional, Tuple, Union
 
-import regex as re
 from sisyphus import *
 
 Path = setup_path(__package__)
