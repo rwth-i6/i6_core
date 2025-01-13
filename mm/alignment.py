@@ -820,9 +820,9 @@ class GetBiggestAllophoneFileJob(Job):
             if highest_num_allo == -1:
                 for i, line in enumerate(lines):
                     header_match = allophone_header_regex.match(line)
-                    assert header_match, (
-                        f"Expected allophone header '# Number of allophones: [0-9]+', but found '{line}'."
-                    )
+                    assert (
+                        header_match
+                    ), f"Expected allophone header '# Number of allophones: [0-9]+', but found '{line}'."
                     num_allophones = int(header_match.group(1))
                     if num_allophones > highest_num_allo:
                         highest_num_allo = num_allophones
@@ -836,4 +836,6 @@ class GetBiggestAllophoneFileJob(Job):
                     f"{self.allophone_files[highest_num_allo_idx].get_path()}."
                 )
         
-        shutil.copyfile(self.allophone_files[highest_num_allo_idx].get_path(), self.out_biggest_allophone_file.get_path())
+        shutil.copyfile(
+            self.allophone_files[highest_num_allo_idx].get_path(), self.out_biggest_allophone_file.get_path()
+        )
