@@ -835,7 +835,7 @@ class GetBiggestAllophoneFileJob(Job):
                     f"Allophone file {self.allophone_files[i].get_path()} isn't a subset of the biggest allophone file "
                     f"{self.allophone_files[highest_num_allo_idx].get_path()}."
                 )
-        
+
         shutil.copyfile(
             self.allophone_files[highest_num_allo_idx].get_path(), self.out_biggest_allophone_file.get_path()
         )
