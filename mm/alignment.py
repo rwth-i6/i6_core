@@ -4,8 +4,10 @@ __all__ = [
     "PlotAlignmentJob",
     "AMScoresFromAlignmentLogJob",
     "ComputeTimeStampErrorJob",
+    "GetBiggestAllophoneFileJob",
 ]
 
+import itertools
 import logging
 import math
 import os
@@ -14,6 +16,7 @@ import statistics
 import xml.etree.ElementTree as ET
 from typing import Callable, Counter, List, Optional, Tuple, Union
 
+import regex as re
 from sisyphus import *
 
 Path = setup_path(__package__)
@@ -789,3 +792,48 @@ class ComputeTimeStampErrorJob(Job):
             plt.xticks(rotation=45)
 
             plt.savefig(plot_file)
+
+
+class GetBiggestAllophoneFileJob(Job):
+    """
+    Obtains the biggest allophone file from all allophone files passed as parameter.
+
+    All allophone files must be a common prefix of the biggest allophone file.
+    If this condition isn't met, the job will fail.
+    """
+
+    def __init__(self, allophone_files: List[tk.Path]):
+        self.allophone_files = allophone_files
+
+        self.out_biggest_allophone_file = self.output_path("allophone_file.txt")
+
+        self.rqmt = {"cpu": 1, "mem": 1.0, "time": 1.0}
+
+    def tasks(self):
+        yield Task("run", resume="run", rqmt=self.rqmt)
+
+    def run(self):
+        allophone_files = [util.uopen(allophone_file.get_path(), "rt") for allophone_file in self.allophone_files]
+        allophone_header_regex = re.compile(r"# Number of allophones: (\d+)")
+        highest_num_allo, highest_num_allo_idx = -1, 0
+        for lines in itertools.zip_longest(*allophone_files):
+            if highest_num_allo == -1:
+                for i, line in enumerate(lines):
+                    header_match = allophone_header_regex.match(line)
+                    assert header_match, (
+                        f"Expected allophone header '# Number of allophones: [0-9]+', but found '{line}'."
+                    )
+                    num_allophones = int(header_match.group(1))
+                    if num_allophones > highest_num_allo:
+                        highest_num_allo = num_allophones
+                        highest_num_allo_idx = i
+                continue
+
+            for i, line in enumerate(lines):
+                assert line == lines[highest_num_allo_idx] or line is None, (
+                    f"Expected allophone '{lines[highest_num_allo_idx]}' but found {line}.\n"
+                    f"Allophone file {self.allophone_files[i].get_path()} isn't a subset of the biggest allophone file "
+                    f"{self.allophone_files[highest_num_allo_idx].get_path()}."
+                )
+        
+        shutil.copyfile(self.allophone_files[highest_num_allo_idx].get_path(), self.out_biggest_allophone_file.get_path())
