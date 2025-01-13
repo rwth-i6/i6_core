@@ -11,7 +11,6 @@ import itertools
 import logging
 import math
 import os
-import re
 import shutil
 import statistics
 import xml.etree.ElementTree as ET
@@ -814,16 +813,19 @@ class GetBiggestAllophoneFileJob(Job):
 
     def run(self):
         allophone_files = [util.uopen(allophone_file.get_path(), "rt") for allophone_file in self.allophone_files]
-        allophone_header_regex = re.compile(r"# Number of allophones: (\d+)")
         highest_num_allo, highest_num_allo_idx = -1, 0
         for lines in itertools.zip_longest(*allophone_files):
             if highest_num_allo == -1:
                 for i, line in enumerate(lines):
-                    header_match = allophone_header_regex.match(line)
                     assert (
-                        header_match
+                        line.startswith("# Number of allophones: ")
                     ), f"Expected allophone header '# Number of allophones: [0-9]+', but found '{line}'."
-                    num_allophones = int(header_match.group(1))
+                    try:
+                        num_allophones = int(line.split()[4])
+                    except ValueError:
+                        raise AssertionError(
+                            f"Expected allophone header '# Number of allophones: [0-9]+', but found '{line}'."
+                        )
                     if num_allophones > highest_num_allo:
                         highest_num_allo = num_allophones
                         highest_num_allo_idx = i
