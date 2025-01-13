@@ -817,8 +817,8 @@ class GetBiggestAllophoneFileJob(Job):
         for lines in itertools.zip_longest(*allophone_files):
             if highest_num_allo == -1:
                 for i, line in enumerate(lines):
-                    assert (
-                        line.startswith("# Number of allophones: ")
+                    assert line.startswith(
+                        "# Number of allophones: "
                     ), f"Expected allophone header '# Number of allophones: [0-9]+', but found '{line}'."
                     try:
                         num_allophones = int(line.split()[4])
