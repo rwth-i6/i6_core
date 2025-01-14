@@ -25,20 +25,20 @@ class TrainBPEModelJob(Job):
 
     def __init__(
         self,
-        text_corpus,
-        symbols=1000,
-        min_frequency=2,
-        dict_input=False,
-        total_symbols=False,
-        subword_nmt_repo=None,
+        text_corpus: tk.Path,
+        symbols: int = 1000,
+        min_frequency: int = 2,
+        dict_input: bool = False,
+        total_symbols: bool = False,
+        subword_nmt_repo: Optional[tk.Path] = None,
     ):
         """
-        :param Path text_corpus:
-        :param int symbols:
-        :param int min_frequency:
-        :param bool dict_input:
-        :param bool total_symbols:
-        :param Optional[Path] subword_nmt_repo:
+        :param text_corpus: text corpus path.
+        :param symbols: number of symbols.
+        :param min_frequency: mimumu frequency of a symbol.
+        :param dict_input: input file will be interpreted as a dict.
+        :param total_symbols: this param is not set in the `learn_bpe.py`.
+        :param subword_nmt_repo: path to subword_nmt repo.
         """
         self.text_corpus = text_corpus
         self.symbols = symbols
