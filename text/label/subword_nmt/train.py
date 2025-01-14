@@ -117,9 +117,10 @@ class ReturnnTrainBpeJob(Job):
     ):
         """
         :param text_file: corpus text file, .gz compressed or uncompressed
-        :param int bpe_size: number of BPE merge operations
-        :param str unk_label: unknown label
-        :param Path|None subword_nmt_repo: subword nmt repository path. see also `CloneGitRepositoryJob`
+        :param bpe_size: number of BPE merge operations
+        :param unk_label: unknown label
+        :param subword_nmt_repo: subword nmt repository path. see also `CloneGitRepositoryJob`
+        :param allow_special_labels: allows special labels during vocab creation.
         """
         self.text_file = text_file
         self.bpe_size = bpe_size
