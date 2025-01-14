@@ -813,31 +813,16 @@ class GetLongestAllophoneFileJob(Job):
 
     def run(self):
         allophone_files = [util.uopen(allophone_file.get_path(), "rt") for allophone_file in self.allophone_files]
-        highest_num_allo, highest_num_allo_idx = -1, 0
-        for lines in itertools.zip_longest(*allophone_files):
-            if highest_num_allo == -1:
-                for i, line in enumerate(lines):
-                    assert line.startswith(
-                        "# Number of allophones: "
-                    ), f"Expected allophone header '# Number of allophones: [0-9]+', but found '{line}'."
-                    try:
-                        num_allophones = int(line.split()[4])
-                    except ValueError:
-                        raise AssertionError(
-                            f"Expected allophone header '# Number of allophones: [0-9]+', but found '{line}'."
-                        )
-                    if num_allophones > highest_num_allo:
-                        highest_num_allo = num_allophones
-                        highest_num_allo_idx = i
-                continue
-
-            for i, line in enumerate(lines):
-                assert line == lines[highest_num_allo_idx] or line is None, (
-                    f"Expected allophone '{lines[highest_num_allo_idx]}' but found {line}.\n"
-                    f"Allophone file {self.allophone_files[i].get_path()} isn't a subset of the longest allophone file "
-                    f"{self.allophone_files[highest_num_allo_idx].get_path()}."
-                )
-
-        shutil.copyfile(
-            self.allophone_files[highest_num_allo_idx].get_path(), self.out_longest_allophone_file.get_path()
-        )
+        with open(self.out_longest_allophone_file.get_path(), "wt") as f:
+            for i, lines in enumerate(itertools.zip_longest(*allophone_files)):
+                # Keep removing redundant elements until a relevant one is found.
+                while lines[0] is None:
+                    lines = lines[1:]
+                first_non_null = lines[0]
+                if first_non_null.startswith("#"):
+                    assert all(line.startswith("#") or line is None for line in lines)
+                    # Don't write any comments since RASR ignores them anyway.
+                else:
+                    line_set = {*lines} - {None}
+                    assert len(line_set) == 1, f"Line {i}: expected only one different line, but found {line_set}."
+                    f.write(list(line_set)[0])
