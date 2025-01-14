@@ -824,5 +824,5 @@ class GetLongestAllophoneFileJob(Job):
                     # Don't write any comments since RASR ignores them anyway.
                 else:
                     line_set = {*lines} - {None}
-                    assert len(line_set) == 1, f"Line {i}: expected only one different line, but found {line_set}."
+                    assert len(line_set) == 1, f"Line {i}: expected only one allophone, but found {line_set}."
                     f.write(list(line_set)[0])
