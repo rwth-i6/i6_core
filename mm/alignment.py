@@ -4,7 +4,7 @@ __all__ = [
     "PlotAlignmentJob",
     "AMScoresFromAlignmentLogJob",
     "ComputeTimeStampErrorJob",
-    "GetBiggestAllophoneFileJob",
+    "GetLongestAllophoneFileJob",
 ]
 
 import itertools
@@ -793,18 +793,18 @@ class ComputeTimeStampErrorJob(Job):
             plt.savefig(plot_file)
 
 
-class GetBiggestAllophoneFileJob(Job):
+class GetLongestAllophoneFileJob(Job):
     """
-    Obtains the biggest allophone file from all allophone files passed as parameter.
+    Obtains the longest allophone file from all allophone files passed as parameter.
 
-    All allophone files must be a common prefix of the biggest allophone file.
+    All allophone files must be a common prefix of the longest allophone file.
     If this condition isn't met, the job will fail.
     """
 
     def __init__(self, allophone_files: List[tk.Path]):
         self.allophone_files = allophone_files
 
-        self.out_biggest_allophone_file = self.output_path("allophone_file.txt")
+        self.out_longest_allophone_file = self.output_path("allophone_file.txt")
 
         self.rqmt = {"cpu": 1, "mem": 1.0, "time": 1.0}
 
@@ -834,10 +834,10 @@ class GetBiggestAllophoneFileJob(Job):
             for i, line in enumerate(lines):
                 assert line == lines[highest_num_allo_idx] or line is None, (
                     f"Expected allophone '{lines[highest_num_allo_idx]}' but found {line}.\n"
-                    f"Allophone file {self.allophone_files[i].get_path()} isn't a subset of the biggest allophone file "
+                    f"Allophone file {self.allophone_files[i].get_path()} isn't a subset of the longest allophone file "
                     f"{self.allophone_files[highest_num_allo_idx].get_path()}."
                 )
 
         shutil.copyfile(
-            self.allophone_files[highest_num_allo_idx].get_path(), self.out_biggest_allophone_file.get_path()
+            self.allophone_files[highest_num_allo_idx].get_path(), self.out_longest_allophone_file.get_path()
         )
