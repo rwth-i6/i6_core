@@ -813,16 +813,9 @@ class GetLongestAllophoneFileJob(Job):
 
     def run(self):
         allophone_files = [util.uopen(allophone_file.get_path(), "rt") for allophone_file in self.allophone_files]
+        allophone_files_no_comments = [filter(lambda line: not line.startswith("#"), f) for f in allophone_files]
         with open(self.out_longest_allophone_file.get_path(), "wt") as f:
-            for i, lines in enumerate(itertools.zip_longest(*allophone_files)):
-                # Keep removing redundant elements until a relevant one is found.
-                while lines[0] is None:
-                    lines = lines[1:]
-                first_non_null = lines[0]
-                if first_non_null.startswith("#"):
-                    assert all(line.startswith("#") or line is None for line in lines)
-                    # Don't write any comments since RASR ignores them anyway.
-                else:
-                    line_set = {*lines} - {None}
-                    assert len(line_set) == 1, f"Line {i}: expected only one allophone, but found {line_set}."
-                    f.write(list(line_set)[0])
+            for i, lines in enumerate(itertools.zip_longest(*allophone_files_no_comments)):
+                line_set = {*lines} - {None}
+                assert len(line_set) == 1, f"Line {i}: expected only one allophone, but found two or more: {line_set}."
+                f.write(list(line_set)[0])
