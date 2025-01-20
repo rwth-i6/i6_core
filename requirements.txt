@@ -1,5 +1,6 @@
 black==22.3.0
 h5py
+librosa
 matplotlib
 numpy
 soundfile
