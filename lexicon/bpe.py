@@ -111,20 +111,21 @@ class CreateBPELexiconJob(Job):
             with util.uopen(self.additional_words.get_path(), "rt") as f:
                 for line in f:
                     line = line.strip()
-                    additional_words_list.update(line)
+                    additional_words_list.add(line)
         return sorted(additional_words_list)
 
     def run(self):
         base_lexicon = Lexicon()
         base_lexicon.load(self.base_lexicon_path)
 
-        lm_tokens, special_lemmas = self._fill_lm_tokens(base_lexicon)
         additional_words_list = self._fill_additional_words()
+        print(additional_words_list)
+        for w in additional_words_list:
+            base_lexicon.add_lemma(Lemma([w], None))  # add empty lemmata with only orth for additional words
+        lm_tokens, special_lemmas = self._fill_lm_tokens(base_lexicon)
 
         with util.uopen("words", "wt") as f:
             for t in lm_tokens:
-                f.write(f"{t}\n")
-            for t in additional_words_list:
                 f.write(f"{t}\n")
 
         vocab, lexicon = self._fill_vocab_and_lexicon()
@@ -155,7 +156,7 @@ class CreateBPELexiconJob(Job):
         with util.uopen("bpes", "rt") as bpe_file:
             bpe_tokens = [line.strip() for line in bpe_file]
 
-        w2b = {w: b for w, b in zip(lm_tokens + additional_words_list, bpe_tokens)}
+        w2b = {w: b for w, b in zip(lm_tokens, bpe_tokens)}
 
         used_vocab = set()
         for lemma in base_lexicon.lemmata:
@@ -168,14 +169,6 @@ class CreateBPELexiconJob(Job):
                     continue
                 used_vocab.update(set(bpe_pron.split()))
                 lexicon.add_lemma(Lemma([orth], [bpe_pron.replace(".", "_")], lemma.synt, lemma.eval))
-
-        for word in additional_words_list:
-            bpe_pron = " ".join([token if token in vocab else self.unk_label for token in w2b[word].split()])
-            if self.skip_unk_lemmas and self.unk_label in bpe_pron.split():
-                logging.info(f"Lemma {word} is skipped due to unknown BPE vocab.")
-                continue
-            used_vocab.update(set(bpe_pron.split()))
-            lexicon.add_lemma(Lemma([word], [bpe_pron.replace(".", "_")]))
 
         if not self.add_all_bpe_phonemes:
             for symbol in sorted(used_vocab):
