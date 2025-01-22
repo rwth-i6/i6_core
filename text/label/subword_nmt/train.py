@@ -35,7 +35,7 @@ class TrainBPEModelJob(Job):
         """
         :param text_corpus: text corpus path.
         :param symbols: number of symbols.
-        :param min_frequency: mimumu frequency of a symbol.
+        :param min_frequency: minimum frequency of a symbol.
         :param dict_input: input file will be interpreted as a dict.
         :param total_symbols: this param is not set in the `learn_bpe.py`.
         :param subword_nmt_repo: path to subword_nmt repo.
