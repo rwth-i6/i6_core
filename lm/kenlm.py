@@ -109,6 +109,7 @@ class KenLMplzJob(Job):
                 p1 = sp.Popen(zcat_command, stdout=sp.PIPE)
                 p2 = sp.Popen(lmplz_command, stdin=p1.stdout, stdout=sp.PIPE)
                 sp.check_call("gzip", stdin=p2.stdout, stdout=lm_file)
+                p2.wait()
                 if p2.returncode:
                     raise sp.CalledProcessError(p2.returncode, cmd=lmplz_command)
 
