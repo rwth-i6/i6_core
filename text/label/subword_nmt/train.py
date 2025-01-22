@@ -120,7 +120,7 @@ class ReturnnTrainBpeJob(Job):
         :param bpe_size: number of BPE merge operations
         :param unk_label: unknown label
         :param subword_nmt_repo: subword nmt repository path. see also `CloneGitRepositoryJob`
-        :param allow_special_labels: allows special labels during vocab creation.
+        :param allow_special_labels: whether to allow special labels during vocab creation, like `[SILENCE]`.
         """
         self.text_file = text_file
         self.bpe_size = bpe_size
