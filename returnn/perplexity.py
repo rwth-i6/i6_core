@@ -23,8 +23,8 @@ class ReturnnCalculatePerplexityJob(Job):
     def __init__(
         self,
         returnn_config: ReturnnConfig,
-        returnn_model: Union[PtCheckpoint, Checkpoint],
-        eval_dataset: tk.Path,
+        returnn_model: PtCheckpoint,
+        eval_dataset: ReturnnConfig,
         *,
         log_verbosity: int = 3,
         returnn_root: tk.Path,
@@ -32,20 +32,10 @@ class ReturnnCalculatePerplexityJob(Job):
     ):
         returnn_config.config.pop("train")
         returnn_config.config.pop("dev")
-        returnn_config.config["eval_datasets"] = {"eval": eval_dataset}
+        returnn_config.update(eval_dataset)
 
-        # TODO verify paths
-        if isinstance(returnn_model, PtCheckpoint):
-            model_path = returnn_model.path
-            self.add_input(returnn_model.path)
-        elif isinstance(returnn_model, Checkpoint):
-            model_path = returnn_model.index_path
-            self.add_input(returnn_model.index_path)
-        else:
-            raise NotImplementedError(f"returnn model has unknown type: {type(returnn_model)}")
-
+        model_path = returnn_model.path
         returnn_config.config["model"] = model_path
-
         returnn_config.post_config["log_verbosity"] = log_verbosity
 
         self.returnn_config = returnn_config
@@ -55,7 +45,7 @@ class ReturnnCalculatePerplexityJob(Job):
 
         self.out_returnn_config_file = self.output_path("returnn.config")
         self.out_returnn_log = self.output_path("returnn.log")
-        self.out_perplexities = self.output_var("ppl_score")
+        self.out_perplexity = self.output_var("ppl_score")
 
         self.rqmt = {"gpu": 0, "cpu": 2, "mem": 4, "time": 4}
 
@@ -75,17 +65,15 @@ class ReturnnCalculatePerplexityJob(Job):
 
     def create_files(self):
         self.returnn_config.write(self.out_returnn_config_file.get_path())
-
         util.create_executable("rnn.sh", self._get_run_cmd())
 
     def run(self):
         sp.check_call(self._get_run_cmd())
-
         shutil.move("returnn_log", self.out_returnn_log.get_path())
 
-    def gather(self):
-        for data_key in self.out_perplexities.keys():
-            print(data_key)
+        # TODO get ppl
+        ppl = None
+        self.out_perplexity.set(ppl)
 
     @classmethod
     def hash(cls, parsed_args):
