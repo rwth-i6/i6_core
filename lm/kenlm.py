@@ -14,7 +14,8 @@ class CompileKenLMJob(Job):
     """
     Compile KenLM and store a folder containing the binaries.
 
-    Please make sure the needed libraries (e.g. boost, zlib) are on your system or image
+    Please make sure the needed libraries (e.g. boost, zlib) are on your system or image.
+    On Ubuntu: build-essential libeigen3-dev libboost-all-dev cmake zlib1g-dev libbz2-dev liblzma-dev
     """
 
     def __init__(self, *, repository: tk.Path):
