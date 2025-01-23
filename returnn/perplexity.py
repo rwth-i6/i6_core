@@ -1,81 +1,49 @@
-__all__ = ["ReturnnCalculatePerplexityJob"]
+__all__ = ["ExtractPerplexityFromLearningRatesFileJob"]
 
-import shutil
-import subprocess as sp
-from typing import Union
+import ast
+from typing import List
 
 from sisyphus import Job, Task, setup_path, tk
 
-import i6_core.util as util
 
-from .config import ReturnnConfig
-from .training import PtCheckpoint, Checkpoint
 
 Path = setup_path(__package__)
 
 
-class ReturnnCalculatePerplexityJob(Job):
+class ExtractPerplexityFromLearningRatesFileJob(Job):
     """
-    Calculates the perplexity of a language model trained in RETURNN
-    on an evaluation data set
+    Extracts the perplexity from the RETURNN learning rates files.
     """
 
     def __init__(
         self,
-        returnn_config: ReturnnConfig,
-        returnn_model: PtCheckpoint,
-        eval_dataset: ReturnnConfig,
-        *,
-        log_verbosity: int = 3,
-        returnn_root: tk.Path,
-        returnn_python_exe: tk.Path,
+        returnn_learning_rates: tk.Path,
+        eval_datasets: List[str],
+        loss_names: List[str],
     ):
-        returnn_config.config.pop("train")
-        returnn_config.config.pop("dev")
-        returnn_config.update(eval_dataset)
+        self.returnn_learning_rates = returnn_learning_rates
+        self.eval_datasets = sorted(eval_datasets)
+        self.loss_names = sorted(loss_names)
 
-        model_path = returnn_model.path
-        returnn_config.config["model"] = model_path
-        returnn_config.post_config["log_verbosity"] = log_verbosity
+        self.out_perplexities = self.output_path("ppl.txt")
 
-        self.returnn_config = returnn_config
-
-        self.returnn_python_exe = returnn_python_exe
-        self.returnn_root = returnn_root
-
-        self.out_returnn_config_file = self.output_path("returnn.config")
-        self.out_returnn_log = self.output_path("returnn.log")
-        self.out_perplexity = self.output_var("ppl_score")
-
-        self.rqmt = {"gpu": 0, "cpu": 2, "mem": 4, "time": 4}
+        self.rqmt = {"gpu": 0, "cpu": 1, "mem": 1, "time": 1}
 
     def tasks(self):
-        yield Task("create_files", mini_task=True)
-        yield Task("run", resume="run", rqmt=self.rqmt)
-        yield Task("gather", mini_task=True)
-
-    def _get_run_cmd(self):
-        run_cmd = [
-            self.returnn_python_exe.get_path(),
-            self.returnn_root.join_right("rnn.py").get_path(),
-            self.out_returnn_config_file.get_path(),
-            "++task eval",
-        ]
-        return run_cmd
-
-    def create_files(self):
-        self.returnn_config.write(self.out_returnn_config_file.get_path())
-        util.create_executable("rnn.sh", self._get_run_cmd())
+        yield Task("run", resume="run", mini_task=True)
 
     def run(self):
-        sp.check_call(self._get_run_cmd())
-        shutil.move("returnn_log", self.out_returnn_log.get_path())
+        with open(self.returnn_learning_rates.get_path(), "rt", encoding="utf-8") as f_in:
+            data = f_in.read()
+            lr_dict = ast.literal_eval(data)
+            lr_dict = sorted(lr_dict.items(), reverse=True)
+            last_entry = lr_dict[0]
 
-        # TODO get ppl
-        ppl = None
-        self.out_perplexity.set(ppl)
+        res = []
+        for data_set in self.eval_datasets:
+            for loss in self.loss_names:
+                full_name = f"{data_set}_loss_{loss}"
+                res.append(f"{data_set} - {loss}: {last_entry[full_name]} \n")
 
-    @classmethod
-    def hash(cls, parsed_args):
-        del parsed_args["log_verbosity"]
-        return super().hash(parsed_args)
+        with open(self.out_perplexities.get_path(), "wt", encoding="utf-8") as f_out:
+            f_out.writelines(res)
