@@ -4,8 +4,10 @@ __all__ = [
     "PlotAlignmentJob",
     "AMScoresFromAlignmentLogJob",
     "ComputeTimeStampErrorJob",
+    "GetLongestAllophoneFileJob",
 ]
 
+import itertools
 import logging
 import math
 import os
@@ -789,3 +791,31 @@ class ComputeTimeStampErrorJob(Job):
             plt.xticks(rotation=45)
 
             plt.savefig(plot_file)
+
+
+class GetLongestAllophoneFileJob(Job):
+    """
+    Obtains the longest allophone file from all allophone files passed as parameter.
+
+    All allophone files must be a common prefix of the longest allophone file.
+    If this condition isn't met, the job will fail.
+    """
+
+    def __init__(self, allophone_files: List[tk.Path]):
+        self.allophone_files = allophone_files
+
+        self.out_longest_allophone_file = self.output_path("allophone_file.txt")
+
+        self.rqmt = {"cpu": 1, "mem": 1.0, "time": 1.0}
+
+    def tasks(self):
+        yield Task("run", resume="run", rqmt=self.rqmt)
+
+    def run(self):
+        allophone_files = [util.uopen(allophone_file.get_path(), "rt") for allophone_file in self.allophone_files]
+        allophone_files_no_comments = [filter(lambda line: not line.startswith("#"), f) for f in allophone_files]
+        with open(self.out_longest_allophone_file.get_path(), "wt") as f:
+            for i, lines in enumerate(itertools.zip_longest(*allophone_files_no_comments)):
+                line_set = {*lines} - {None}
+                assert len(line_set) == 1, f"Line {i}: expected only one allophone, but found two or more: {line_set}."
+                f.write(list(line_set)[0])
