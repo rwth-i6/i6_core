@@ -119,7 +119,6 @@ class CreateBPELexiconJob(Job):
         base_lexicon.load(self.base_lexicon_path)
 
         additional_words_list = self._fill_additional_words()
-        print(additional_words_list)
         for w in additional_words_list:
             base_lexicon.add_lemma(Lemma([w], None))  # add empty lemmata with only orth for additional words
         lm_tokens, special_lemmas = self._fill_lm_tokens(base_lexicon)
