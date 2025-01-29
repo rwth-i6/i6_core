@@ -3,11 +3,8 @@ __all__ = ["ExtractPerplexityFromLearningRatesFileJob"]
 import ast
 from typing import List
 
-from sisyphus import Job, Task, setup_path, tk
+from sisyphus import Job, Task, tk
 
-
-
-Path = setup_path(__package__)
 
 
 class ExtractPerplexityFromLearningRatesFileJob(Job):
@@ -19,13 +16,13 @@ class ExtractPerplexityFromLearningRatesFileJob(Job):
         self,
         returnn_learning_rates: tk.Path,
         eval_datasets: List[str],
-        loss_names: List[str],
     ):
         self.returnn_learning_rates = returnn_learning_rates
         self.eval_datasets = sorted(eval_datasets)
-        self.loss_names = sorted(loss_names)
 
-        self.out_perplexities = self.output_path("ppl.txt")
+        self.out_ppl_file = self.output_path("ppl.txt")
+
+        self.out_perplexities = {f"ppl_{d}": self.output_var(f"ppl_{d}") for d in eval_datasets}
 
         self.rqmt = {"gpu": 0, "cpu": 1, "mem": 1, "time": 1}
 
@@ -41,9 +38,8 @@ class ExtractPerplexityFromLearningRatesFileJob(Job):
 
         res = []
         for data_set in self.eval_datasets:
-            for loss in self.loss_names:
-                full_name = f"{data_set}_loss_{loss}"
-                res.append(f"{data_set} - {loss}: {last_entry[full_name]} \n")
+            full_name = f"{data_set}_loss_ppl" # TODO actually check which name fits
+            res.append(f"{data_set} - ppl: {last_entry[full_name]} \n")
 
-        with open(self.out_perplexities.get_path(), "wt", encoding="utf-8") as f_out:
+        with open(self.out_ppl_file.get_path(), "wt", encoding="utf-8") as f_out:
             f_out.writelines(res)
