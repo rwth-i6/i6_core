@@ -157,9 +157,12 @@ class SegmentCorpusByRegexJob(Job):
 
 
 class ShuffleAndSplitSegmentsJob(Job):
+    __sis_hash_exclude__ = {"zip_output": False}
     default_split = {"train": 0.9, "dev": 0.1}
 
-    def __init__(self, segment_file, split=None, shuffle=True, shuffle_seed=0x3C5EA3E47D4E0077):
+    def __init__(
+        self, segment_file, split=None, shuffle=True, shuffle_seed=0x3C5EA3E47D4E0077, zip_output: bool = False
+    ):
         if split is None:
             split = dict(**self.default_split)
 
@@ -172,13 +175,15 @@ class ShuffleAndSplitSegmentsJob(Job):
         self.shuffle = shuffle
         self.shuffle_seed = shuffle_seed
 
-        self.out_segments = {k: self.output_path("%s.segments" % k) for k in self.split.keys()}
+        self.out_segments = {
+            k: self.output_path(f"{k}.segments{'.gz' if zip_output else ''}") for k in self.split.keys()
+        }
 
     def tasks(self):
         yield Task("run", mini_task=True)
 
     def run(self):
-        with open(self.segment_file.get_path()) as f:
+        with uopen(self.segment_file.get_path(), "rt", encoding="utf-8") as f:
             segments = f.readlines()
 
         if self.shuffle:
@@ -191,7 +196,7 @@ class ShuffleAndSplitSegmentsJob(Job):
         split_idx[-1] = n  # just in case we get numeric errors that drop the last element
 
         for i, k in enumerate(ordered_keys):
-            with open(self.out_segments[k].get_path(), "wt") as f:
+            with uopen(self.out_segments[k].get_path(), "wt", encoding="utf-8") as f:
                 f.writelines(segments[split_idx[i] : split_idx[i + 1]])
 
     @classmethod

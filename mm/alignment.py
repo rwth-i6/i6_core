@@ -1,5 +1,13 @@
-__all__ = ["AlignmentJob", "DumpAlignmentJob", "AMScoresFromAlignmentLogJob", "ComputeTimeStampErrorJob"]
+__all__ = [
+    "AlignmentJob",
+    "DumpAlignmentJob",
+    "PlotAlignmentJob",
+    "AMScoresFromAlignmentLogJob",
+    "ComputeTimeStampErrorJob",
+    "GetLongestAllophoneFileJob",
+]
 
+import itertools
 import logging
 import math
 import os
@@ -477,16 +485,16 @@ class PlotAlignmentJob(Job):
 
         # Plot the data.
         matplotlib.use("Agg")
-        clip_low = max(self.clip_low, np.percentile(self.clip_percentile_low), min_value)
-        clip_high = min(self.clip_high, np.percentile(self.clip_percentile_high), max_value)
+        clip_low = max(self.clip_low, np.percentile(np_alignment_scores, self.clip_percentile_low), min_value)
+        clip_high = min(self.clip_high, np.percentile(np_alignment_scores, self.clip_percentile_high), max_value)
         np.clip(np_alignment_scores, clip_low, clip_high, out=np_alignment_scores)
         plt.hist(np_alignment_scores, bins=self.num_bins)
         plt.xlabel("Average Maximum-Likelihood Score")
         plt.ylabel("Number of Segments")
         plt.title("Histogram of Alignment Scores")
         plt.gca().set_xlim(left=self.zoom_x_min, right=self.zoom_x_max)
-        plt.gca().set_ylim(left=self.zoom_y_min, right=self.zoom_y_max)
-        plt.savefig(fname=self.out_plot_avg.get_path())
+        plt.gca().set_ylim(bottom=self.zoom_y_min, top=self.zoom_y_max)
+        plt.savefig(fname=self.out_plot.get_path())
 
 
 class AMScoresFromAlignmentLogJob(Job):
@@ -783,3 +791,31 @@ class ComputeTimeStampErrorJob(Job):
             plt.xticks(rotation=45)
 
             plt.savefig(plot_file)
+
+
+class GetLongestAllophoneFileJob(Job):
+    """
+    Obtains the longest allophone file from all allophone files passed as parameter.
+
+    All allophone files must be a common prefix of the longest allophone file.
+    If this condition isn't met, the job will fail.
+    """
+
+    def __init__(self, allophone_files: List[tk.Path]):
+        self.allophone_files = allophone_files
+
+        self.out_longest_allophone_file = self.output_path("allophone_file.txt")
+
+        self.rqmt = {"cpu": 1, "mem": 1.0, "time": 1.0}
+
+    def tasks(self):
+        yield Task("run", resume="run", rqmt=self.rqmt)
+
+    def run(self):
+        allophone_files = [util.uopen(allophone_file.get_path(), "rt") for allophone_file in self.allophone_files]
+        allophone_files_no_comments = [filter(lambda line: not line.startswith("#"), f) for f in allophone_files]
+        with open(self.out_longest_allophone_file.get_path(), "wt") as f:
+            for i, lines in enumerate(itertools.zip_longest(*allophone_files_no_comments)):
+                line_set = {*lines} - {None}
+                assert len(line_set) == 1, f"Line {i}: expected only one allophone, but found two or more: {line_set}."
+                f.write(list(line_set)[0])

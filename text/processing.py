@@ -5,13 +5,18 @@ __all__ = [
     "TailJob",
     "SetDifferenceJob",
     "WriteToTextFileJob",
+    "SplitTextFileJob",
 ]
 
+import logging
 import os
+import shutil
+import subprocess
 from collections.abc import Iterable
-from typing import List
+import tempfile
+from typing import List, Optional, Union
 
-from sisyphus import Job, Task, Path, global_settings as gs
+from sisyphus import Job, Task, Path, global_settings as gs, toolkit as tk
 from sisyphus.delayed_ops import DelayedBase
 
 import i6_core.util as util
@@ -120,13 +125,11 @@ class ConcatenateJob(Job):
     Concatenate all given input files (gz or raw)
     """
 
-    __sis_hash_exclude = {"zip_out": True, "out_name": "out"}
-
     def __init__(self, text_files: List[Path], zip_out: bool = True, out_name: str = "out"):
         """
         :param text_files: input text files
         :param zip_out: apply gzip to the output
-        :param out_name: user specific name
+        :param out_name: user specific file name for the output file
         """
         assert text_files
 
@@ -280,29 +283,112 @@ class WriteToTextFileJob(Job):
     Write a given content into a text file, one entry per line
     """
 
-    def __init__(
-        self,
-        content,
-    ):
+    __sis_hash_exclude__ = {"out_name": "file.txt"}
+
+    def __init__(self, content: Union[str, dict, Iterable, DelayedBase], out_name: str = "file.txt"):
         """
-        :param list|dict|str content: input which will be written into a text file
+        :param content: input which will be written into a text file
+        :param out_name: user specific file name for the output file
         """
         self.content = content
 
-        self.out_file = self.output_path("file.txt")
+        self.out_file = self.output_path(out_name)
 
     def tasks(self):
         yield Task("run", mini_task=True)
 
     def run(self):
+        content = util.instanciate_delayed(self.content)
         with open(self.out_file.get_path(), "w") as f:
-            if isinstance(self.content, str):
-                f.write(self.content)
-            elif isinstance(self.content, dict):
-                for key, val in self.content.items():
+            if isinstance(content, str):
+                f.write(content)
+            elif isinstance(content, dict):
+                for key, val in content.items():
                     f.write(f"{key}: {val}\n")
-            elif isinstance(self.content, Iterable):
-                for line in self.content:
+            elif isinstance(content, Iterable):
+                for line in content:
                     f.write(f"{line}\n")
             else:
                 raise NotImplementedError
+
+
+class SplitTextFileJob(Job):
+    def __init__(
+        self,
+        text_file: tk.Path,
+        num_lines_per_split: int,
+        num_text_file_lines: Optional[int] = None,
+        zip_output: bool = True,
+    ):
+        """
+        Job splits a text file into several smaller files.
+
+        https://stackoverflow.com/a/45761990/2062195
+
+        :param text_file: Input text file to be processed.
+        :param num_lines_per_split: Number of lines per split.
+        :param num_text_file_lines: Number of lines in the input text file.
+        :param zip_output: compress the output files.
+        """
+        self.in_text_file = text_file
+        self.num_lines_per_split = num_lines_per_split
+        self.num_text_file_lines = num_text_file_lines
+        self.zip_output = zip_output
+
+        if num_text_file_lines is not None:
+            self.num_output_files = self.num_text_file_lines // self.num_lines_per_split + int(
+                bool(self.num_text_file_lines % self.num_lines_per_split)
+            )
+        else:
+            raise NotImplementedError
+
+        self.out_split_text_files = {
+            k: self.output_path(f'split.{k:04}.{"txt.gz" if zip_output else "txt"}')
+            for k in range(1, self.num_output_files + 1)
+        }
+
+        self.run_rqmt = {"cpu": 1, "mem": 12.0, "time": 6.0}
+
+    def tasks(self):
+        yield Task("run", rqmt=self.run_rqmt)
+
+    def run(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            if self.in_text_file.get_path().endswith(".gz"):
+                logging.info("Un-compressing file")
+                text_file = f"{tmp_dir}/input_file.txt"
+                with open(text_file, "wt") as f_in:
+                    uncompress_cmd = ["gzip", "-cdk", self.in_text_file.get_path()]
+                    subprocess.run(uncompress_cmd, check=True, stdout=f_in)
+            else:
+                text_file = self.in_text_file.get_path()
+
+            logging.info("Split lines")
+            split_cmd = [
+                "split",
+                "-l",
+                str(self.num_lines_per_split),
+                "--suffix-length=4",
+                "--numeric-suffixes=1",
+                "--additional-suffix=.txt",
+                text_file,
+                f"{tmp_dir}/split.",
+            ]
+            subprocess.run(split_cmd, check=True)
+
+            for file_id in range(1, self.num_output_files + 1):
+                file_path = f"split.{file_id:04}.txt"
+                assert os.path.isfile(file_path) and os.path.getsize(file_path) > 0
+
+            if self.zip_output:
+                logging.info("Compressing file")
+                compress_cmd = ["gzip"] + [
+                    f"{tmp_dir}/split.{file_id:04}.txt" for file_id in range(1, self.num_output_files + 1)
+                ]
+                subprocess.run(compress_cmd, check=True)
+
+            for file_id in range(1, self.num_output_files + 1):
+                shutil.move(
+                    f"{tmp_dir}/split.{file_id:04}.txt.gz" if self.zip_output else f"split.{file_id:04}.txt",
+                    self.out_split_text_files[file_id].get_path(),
+                )
