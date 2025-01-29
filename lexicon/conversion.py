@@ -506,9 +506,7 @@ class SpellingConversionJob(Job):
             elif source_lemma:
                 # Remove target orth if already present at a later position
                 # and insert it at the first position again
-                for orth in source_lemma.orth.copy():
-                    if orth == target_orth:
-                        source_lemma.orth.remove(orth)
+                source_lemma.orth = [orth for orth in source_lemma.orth if orth != target_orth]
                 source_lemma.orth.insert(0, target_orth)
                 if not source_lemma.synt:
                     source_lemma.synt = source_orth.split()
