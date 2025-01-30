@@ -165,6 +165,15 @@ class Corpus(NamedEntity, CorpusSection):
         for sc in self.subcorpora:
             yield from sc.segments()
 
+    def get_recording_by_name(self, name: str) -> Recording:
+        """
+        :return: the recording specified by its name
+        """
+        for rec in self.all_recordings():
+            if rec.fullname() == name:
+                return rec
+        assert False, f"Recording '{name}' was not found in corpus"
+
     def get_segment_by_name(self, name: str) -> Segment:
         """
         :return: the segment specified by its name
