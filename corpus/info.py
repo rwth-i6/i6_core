@@ -54,4 +54,4 @@ class DumpRecordingAudiosJob(Job):
         if self.dump_durations:
             with uopen(self.out_audio_durations.get_path(), "wt") as f:
                 for audio, duration in audio_to_duration.items():
-                    f.write(f"{audio}\t{duration}")
+                    f.write(f"{audio}\t{duration}\n")
