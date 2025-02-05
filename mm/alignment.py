@@ -858,14 +858,43 @@ class DumpSegmentTextAlignmentJob(Job):
         self.rqmt = {"cpu": 1, "mem": 2.0, "time": 1.0}
 
     def tasks(self):
-        yield Task("run", resume="run", rqmt=self.rqmt, args=range(1, len(self.alignment_caches) + 1))
-        yield Task("merge", resume="merge")
+        if self.seq_tags_to_dump:
+            # Do not parallelize.
+            yield Task("run", resume="run", rqmt=self.rqmt)
+        else:
+            # Parallelize.
+            yield Task("run", resume="run", rqmt=self.rqmt, args=range(1, len(self.alignment_caches) + 1))
+            yield Task("merge", resume="merge")
 
-    def run(self, task_id):
+    def run(self, task_id: Optional[int] = None):
         # Get the alignment information: seq_tag -> alignment.
-        align_cache = rasr_cache.FileArchive(self.alignment_caches[task_id - 1].get_path())
-        align_cache.setAllophones(self.allophone_file.get_path())
-        seq_tag_to_alignments = get_seq_tag_to_alignment_mapping(align_cache)
+        if self.seq_tags_to_dump is not None:
+            # Load the seq tags to plot.
+            seq_tags_to_dump = set()
+            with util.uopen(self.seq_tags_to_dump.get_path(), "rt") as f:
+                for seq_tag in f:
+                    seq_tags_to_dump.add(seq_tag.strip())
+            # Load the seq tags to plot from the alignment caches.
+            seq_tag_to_alignments = {}
+            for alignment_cache in self.alignment_caches:
+                align_cache = rasr_cache.FileArchive(alignment_cache.get_path())
+                align_cache.setAllophones(self.allophone_file.get_path())
+                for seq_tag, alignments in get_seq_tag_to_alignment_mapping(align_cache).items():
+                    # Only load the specific seq tags that we've already found
+                    if seq_tag in seq_tags_to_dump:
+                        seq_tag_to_alignments[seq_tag] = alignments
+            # Check that all sequences provided by the user are in the alignments.
+            for seq_tag in seq_tags_to_dump:
+                assert seq_tag in seq_tag_to_alignments, (
+                    f"The sequence tag {seq_tag} provided in seq_tags_to_dump is not in the provided alignment files."
+                )
+        else:
+            # Load specific task_id alignment cache.
+            align_cache = rasr_cache.FileArchive(self.alignment_caches[task_id - 1].get_path())
+            align_cache.setAllophones(self.allophone_file.get_path())
+            seq_tag_to_alignments = get_seq_tag_to_alignment_mapping(align_cache)
+            # Plot everything from the local alignment cache.
+            seq_tags_to_dump = seq_tag_to_alignments.keys()
 
         # Get the corpus information: seq_tag -> text.
         c = corpus.Corpus()
@@ -873,19 +902,10 @@ class DumpSegmentTextAlignmentJob(Job):
         seq_tag_to_text = {seq_tag: segment.full_orth() for seq_tag, segment in c.get_segment_mapping().items()}
 
         if self.seq_tags_to_dump is not None:
-            with util.uopen(self.seq_tags_to_dump.get_path(), "rt") as f:
-                seq_tags_to_dump = []
-                for seq_tag in f:
-                    seq_tag = seq_tag.strip()
-                    assert seq_tag in seq_tag_to_alignments, (
-                        f"The sequence tag {seq_tag} provided in seq_tags_to_plot "
-                        "is not in the provided alignment files."
-                    )
-                    seq_tags_to_dump.append(seq_tag)
+            output_file = self.out_text_alignment_pairs.get_path()
         else:
-            seq_tags_to_dump = seq_tag_to_alignments.keys()
-
-        with util.uopen(f"intermediate_segment_txt_alignment.{task_id}.txt.gz", "wt") as f:
+            output_file = f"intermediate_segment_txt_alignment.{task_id}.txt.gz"
+        with util.uopen(output_file, "wt") as f:
             for seq_tag in set(seq_tags_to_dump).intersection(set(seq_tag_to_text.keys())):
                 res = f"{seq_tag}\n"
                 res += f"{seq_tag_to_text[seq_tag]}\n"
@@ -906,7 +926,7 @@ class DumpSegmentTextAlignmentJob(Job):
                 with util.uopen(f"intermediate_segment_txt_alignment.{i}.txt.gz", "rt") as f_in:
                     for line in f_in:
                         f_out.write(line)
-                f_out.write("\n")
+
 
 
 class PlotViterbiAlignmentJob(Job):
@@ -936,12 +956,16 @@ class PlotViterbiAlignmentJob(Job):
         self.corpus_file = corpus_file
 
         self.out_plot_dir = self.output_path("plots", directory=True)
-        self.out_empty_alignment_seq_tags = self.output_path("empty_alignment_seq_tags.txt")
 
         self.rqmt = {"cpu": 1, "mem": 2.0, "time": 1.0}
 
     def tasks(self):
-        yield Task("run", resume="run", rqmt=self.rqmt, args=range(1, len(self.alignment_caches) + 1))
+        if self.seq_tags_to_plot:
+            # Do not parallelize.
+            yield Task("run", resume="run", rqmt=self.rqmt)
+        else:
+            # Parallelize.
+            yield Task("run", resume="run", rqmt=self.rqmt, args=range(1, len(self.alignment_caches) + 1))
 
     def extract_phoneme_sequence(self, alignment: np.array) -> Tuple[np.array, np.array]:
         """
@@ -1005,12 +1029,34 @@ class PlotViterbiAlignmentJob(Job):
         fig.savefig(os.path.join(self.out_plot_dir.get_path(), f"{file_name}.png"))
         matplotlib.pyplot.close(fig)
 
-    def run(self, task_id):
-        import matplotlib
-
-        align_cache = rasr_cache.FileArchive(self.alignment_caches[task_id - 1].get_path())
-        align_cache.setAllophones(self.allophone_file.get_path())
-        seq_tag_to_alignments = get_seq_tag_to_alignment_mapping(align_cache)
+    def run(self, task_id: Optional[int] = None):
+        if self.seq_tags_to_plot is not None:
+            # Load the seq tags to plot.
+            seq_tags_to_plot = set()
+            with util.uopen(self.seq_tags_to_plot.get_path(), "rt") as f:
+                for seq_tag in f:
+                    seq_tags_to_plot.add(seq_tag.strip())
+            # Load the seq tags to plot from the alignment caches.
+            seq_tag_to_alignments = {}
+            for alignment_cache in self.alignment_caches:
+                align_cache = rasr_cache.FileArchive(alignment_cache.get_path())
+                align_cache.setAllophones(self.allophone_file.get_path())
+                for seq_tag, alignments in get_seq_tag_to_alignment_mapping(align_cache).items():
+                    # Only load the specific seq tags that we've already found
+                    if seq_tag in seq_tags_to_plot:
+                        seq_tag_to_alignments[seq_tag] = alignments
+            # Check that all sequences provided by the user are in the alignments.
+            for seq_tag in seq_tags_to_plot:
+                assert seq_tag in seq_tag_to_alignments, (
+                    f"The sequence tag {seq_tag} provided in seq_tags_to_plot is not in the provided alignment files."
+                )
+        else:
+            # Load specific task_id alignment cache.
+            align_cache = rasr_cache.FileArchive(self.alignment_caches[task_id - 1].get_path())
+            align_cache.setAllophones(self.allophone_file.get_path())
+            seq_tag_to_alignments = get_seq_tag_to_alignment_mapping(align_cache)
+            # Plot everything from the local alignment cache.
+            seq_tags_to_plot = seq_tag_to_alignments.keys()
 
         seq_tag_to_text = {}
         if self.corpus_file is not None:
@@ -1018,18 +1064,6 @@ class PlotViterbiAlignmentJob(Job):
             c.load(self.corpus_file.get_path())
             seq_tag_to_text = {seq_tag: segment.full_orth() for seq_tag, segment in c.get_segment_mapping().items()}
 
-        if self.seq_tags_to_plot is not None:
-            with util.uopen(self.seq_tags_to_plot.get_path(), "rt") as f:
-                seq_tags_to_plot = []
-                for seq_tag in f:
-                    seq_tag = seq_tag.strip()
-                    assert seq_tag in seq_tag_to_alignments, (
-                        f"The sequence tag {seq_tag} provided in seq_tags_to_plot "
-                        "is not in the provided alignment files."
-                    )
-                    seq_tags_to_plot.append(seq_tag)
-        else:
-            seq_tags_to_plot = seq_tag_to_alignments.keys()
         empty_alignment_seq_tags = []
         for seq_tag in seq_tags_to_plot:
             alignments = seq_tag_to_alignments[seq_tag]
@@ -1049,6 +1083,8 @@ class PlotViterbiAlignmentJob(Job):
             viterbi_matrix = self.make_viterbi_matrix(alignment_indices)
             self.plot(viterbi_matrix, phonemes, file_name=seq_tag, title=seq_tag_to_text.get(seq_tag, ""))
 
-        with open(self.out_empty_alignment_seq_tags.get_path(), "wt") as f:
-            for seq_tag in empty_alignment_seq_tags:
-                f.write(f"{seq_tag}\n")
+        if empty_alignment_seq_tags:
+            logging.warning(
+                "The following alignments weren't plotted because their alignments were empty:\n"
+                f"{empty_alignment_seq_tags}"
+            )
