@@ -22,12 +22,12 @@ def compute_rec_duration(rec_audio: str) -> float:
     if rec_audio.endswith("mp3"):
         try:
             audio_length = MP3(rec_audio).info.length
-        except ImportError as ie:
-            ie.msg = (
+        except NameError as exception:
+            exception.msg = (
                 "The 'mutagen' module is required to calculate the duration of the mp3 file "
                 f"{rec_audio}, but it's not installed in your system."
             )
-            raise ie
+            raise exception
         return audio_length
     elif rec_audio.endswith("aac"):
         # The aac format has unreliable timestamps. Convert to wav on the fly for an accurate measurement.
