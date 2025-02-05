@@ -20,8 +20,7 @@ class DumpRecordingAudiosJob(Job):
         r"""
         :param corpus_file: Corpus file from which to obtain the audio list.
         :param dump_durations: Whether to dump the durations of the audios along with the audio list.
-            The `out_audio_durations` output file will contain an audio/duration pair,
-            separated by :param:`duration_file_delimiter`.
+            The `out_audio_durations` output file will contain an audio/duration pair, separated by `\t`.
         :param zip_output: Whether the output should be zipped.
         """
         self.corpus_files = [corpus_files] if isinstance(corpus_files, tk.Path) else corpus_files
