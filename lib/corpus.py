@@ -4,8 +4,6 @@ Helper functions and classes for Bliss xml corpus loading and writing
 
 from __future__ import annotations
 
-__all__ = ["NamedEntity", "CorpusSection", "Corpus", "Recording", "Segment", "Speaker"]
-
 import collections
 import gzip
 import os
@@ -14,7 +12,7 @@ from typing import Callable, Dict, Iterable, List, Optional, TextIO
 import xml
 import xml.sax as sax
 import xml.sax.saxutils as saxutils
-import xml.etree.ElementTree as ET
+__all__ = ["NamedEntity", "CorpusSection", "Corpus", "Recording", "Segment", "Speaker", "get_audio_to_duration_mapping"]
 
 
 FilterFunction = Callable[["Corpus", "Recording", "Segment"], bool]
@@ -500,3 +498,18 @@ class SegmentMapItem(object):
         out: TextIO,
     ):
         out.write('<map-item key="%s" value="%s" />\n' % (self.key, self.value))
+
+
+def get_audio_to_duration_mapping(corpus_files: List[tk.Path]) -> tk.Path:
+    """
+    :param corpus_files: Corpus files to analyze for audio/duration pairs.
+    :return: Audio to duration mapping file needed for the metaclasses to work more efficiently.
+    """
+    audio_to_duration_mappings = []
+    for corpus_file in corpus_files:
+        audio_to_duration_mapping_job = DumpRecordingAudiosJob(corpus_file, dump_durations=True)
+        audio_to_duration_mappings.append(audio_to_duration_mapping_job.out_audio_durations)
+
+    concat_job = ConcatenateJob(audio_to_duration_mappings)
+
+    return concat_job.out
