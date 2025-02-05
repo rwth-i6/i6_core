@@ -14,8 +14,6 @@ import xml.etree.ElementTree as ET
 import xml.sax as sax
 import xml.sax.saxutils as saxutils
 
-from sisyphus import tk
-
 
 __all__ = ["NamedEntity", "CorpusSection", "Corpus", "Recording", "Segment", "Speaker"]
 
