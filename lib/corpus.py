@@ -10,8 +10,16 @@ import os
 import re
 from typing import Callable, Dict, Iterable, List, Optional, TextIO
 import xml
+import xml.etree.ElementTree as ET
 import xml.sax as sax
 import xml.sax.saxutils as saxutils
+
+from sisyphus import tk
+
+from i6_core.corpus.info import DumpRecordingAudiosJob
+from i6_core.text import ConcatenateJob
+
+
 __all__ = ["NamedEntity", "CorpusSection", "Corpus", "Recording", "Segment", "Speaker", "get_audio_to_duration_mapping"]
 
 
