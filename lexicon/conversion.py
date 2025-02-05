@@ -8,7 +8,7 @@ from typing import List, Optional, Tuple, Union
 import xml.dom.minidom
 import xml.etree.ElementTree as ET
 
-from sisyphus import *
+from sisyphus import tk, Task, Job, setup_path
 
 Path = setup_path(__package__)
 
@@ -504,9 +504,15 @@ class SpellingConversionJob(Job):
                     lex.lemmata.insert(target_position - 1, copy_target_lemma)
                 logging.info(self._lemma_to_str(target_lemma, "final lemma"))
             elif source_lemma:
+                # Remove target orth if already present at a later position
+                # and insert it at the first position again
+                source_lemma.orth = [orth for orth in source_lemma.orth if orth != target_orth]
                 source_lemma.orth.insert(0, target_orth)
                 if not source_lemma.synt:
                     source_lemma.synt = source_orth.split()
+                # Remove syntactic token mapping if equal to the target_orth
+                if source_lemma.synt == target_orth.split():
+                    source_lemma.synt = None
                 logging.info(self._lemma_to_str(source_lemma, "final lemma"))
             logging.info("-" * 60)
 

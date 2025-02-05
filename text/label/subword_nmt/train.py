@@ -25,20 +25,20 @@ class TrainBPEModelJob(Job):
 
     def __init__(
         self,
-        text_corpus,
-        symbols=1000,
-        min_frequency=2,
-        dict_input=False,
-        total_symbols=False,
-        subword_nmt_repo=None,
+        text_corpus: tk.Path,
+        symbols: int = 1000,
+        min_frequency: int = 2,
+        dict_input: bool = False,
+        total_symbols: bool = False,
+        subword_nmt_repo: Optional[tk.Path] = None,
     ):
         """
-        :param Path text_corpus:
-        :param int symbols:
-        :param int min_frequency:
-        :param bool dict_input:
-        :param bool total_symbols:
-        :param Optional[Path] subword_nmt_repo:
+        :param text_corpus: text corpus path.
+        :param symbols: number of symbols.
+        :param min_frequency: minimum frequency of a symbol.
+        :param dict_input: input file will be interpreted as a dict.
+        :param total_symbols: this param is not set in the `learn_bpe.py`.
+        :param subword_nmt_repo: path to subword_nmt repo.
         """
         self.text_corpus = text_corpus
         self.symbols = symbols
@@ -88,6 +88,8 @@ class TrainBPEModelJob(Job):
 
 
 class ReturnnTrainBpeJob(Job):
+    __sis_hash_exclude__ = {"allow_special_labels": False}
+
     """
     Create Bpe codes and vocab files compatible with RETURNN BytePairEncoding
     Repository:
@@ -111,17 +113,20 @@ class ReturnnTrainBpeJob(Job):
         bpe_size: int,
         unk_label: str = "UNK",
         subword_nmt_repo: Optional[tk.Path] = None,
+        allow_special_labels: bool = False,
     ):
         """
         :param text_file: corpus text file, .gz compressed or uncompressed
-        :param int bpe_size: number of BPE merge operations
-        :param str unk_label: unknown label
-        :param Path|None subword_nmt_repo: subword nmt repository path. see also `CloneGitRepositoryJob`
+        :param bpe_size: number of BPE merge operations
+        :param unk_label: unknown label
+        :param subword_nmt_repo: subword nmt repository path. see also `CloneGitRepositoryJob`
+        :param allow_special_labels: whether to allow special labels during vocab creation, like `<s>`, `</s>`, and unknown symbol.
         """
         self.text_file = text_file
         self.bpe_size = bpe_size
         self.subword_nmt_repo = util.get_subword_nmt_repo(subword_nmt_repo)
         self.unk_label = unk_label
+        self.allow_special_labels = allow_special_labels
 
         self.out_bpe_codes = self.output_path("bpe.codes")
         self.out_bpe_vocab = self.output_path("bpe.vocab")
@@ -163,6 +168,8 @@ class ReturnnTrainBpeJob(Job):
             "--out",
             self.out_bpe_vocab.get_path(),
         ]
+        if self.allow_special_labels:
+            bpe_vocab_cmd += ["--allow_special_labels"]
 
         util.create_executable("create_bpe_vocab.sh", bpe_vocab_cmd)
         sp.run(bpe_vocab_cmd, check=True)

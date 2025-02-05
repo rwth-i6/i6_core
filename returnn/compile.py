@@ -308,6 +308,6 @@ class TorchOnnxExportJob(Job):
             tensor = Tensor(name=name, **opts)
             for i, dim in enumerate(tensor.dims):
                 # We need seq lengths if there is a dyn size which is not a scalar.
-                if dim.dyn_size_ext and dim.dyn_size_ext.dims:
+                if dim.dyn_size_ext is not None and dim.dyn_size_ext.dims:
                     names.append(f"{name}:size{i}")
         return names
