@@ -1,6 +1,6 @@
 __all__ = ["DumpRecordingPathsJob"]
 
-from sisyphus import tk, Job, Task
+from sisyphus import Job, Task, tk
 
 from i6_core.lib import corpus
 from i6_core.lib.audio import compute_rec_duration
