@@ -4,18 +4,17 @@ Helper functions and classes for Bliss xml corpus loading and writing
 
 from __future__ import annotations
 
+__all__ = ["NamedEntity", "CorpusSection", "Corpus", "Recording", "Segment", "Speaker"]
+
 import collections
 import gzip
 import os
 import re
 from typing import Callable, Dict, Iterable, List, Optional, TextIO
 import xml
-import xml.etree.ElementTree as ET
 import xml.sax as sax
 import xml.sax.saxutils as saxutils
-
-
-__all__ = ["NamedEntity", "CorpusSection", "Corpus", "Recording", "Segment", "Speaker"]
+import xml.etree.ElementTree as ET
 
 
 FilterFunction = Callable[["Corpus", "Recording", "Segment"], bool]
