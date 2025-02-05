@@ -16,13 +16,11 @@ import math
 import os
 import shutil
 import statistics
-import xml.etree.ElementTree as ET
 from typing import Callable, Counter, Dict, Iterable, List, Optional, Tuple, Union
+import xml.etree.ElementTree as ET
 
 import numpy as np
-from sisyphus import *
-
-Path = setup_path(__package__)
+from sisyphus import Job, Task, setup_path, tk
 
 import i6_core.lib.corpus as corpus
 import i6_core.lib.rasr_cache as rasr_cache
@@ -32,7 +30,9 @@ import i6_core.util as util
 from .flow import alignment_flow, dump_alignment_flow
 
 
-_AlignmentType = List[Tuple[int, int, int, float]]
+Path = setup_path(__package__)
+
+
 _SeqTagToAlignmentType = Dict[str, List[Tuple[int, int, int, float]]]
 
 
