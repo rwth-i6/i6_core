@@ -915,9 +915,9 @@ class DumpSegmentTextAlignmentJob(Job):
                         seq_tag_to_alignments[seq_tag] = alignments
             # Check that all sequences provided by the user are in the alignments.
             for seq_tag in seq_tags_to_dump:
-                assert seq_tag in seq_tag_to_alignments, (
-                    f"The sequence tag {seq_tag} provided in seq_tags_to_dump is not in the provided alignment files."
-                )
+                assert (
+                    seq_tag in seq_tag_to_alignments
+                ), f"The sequence tag {seq_tag} provided in seq_tags_to_dump is not in the provided alignment files."
         else:
             # Load specific task_id alignment cache.
             align_cache = rasr_cache.FileArchive(self.alignment_caches[task_id - 1].get_path())
@@ -1076,9 +1076,9 @@ class PlotViterbiAlignmentJob(Job):
                         seq_tag_to_alignments[seq_tag] = alignments
             # Check that all sequences provided by the user are in the alignments.
             for seq_tag in seq_tags_to_plot:
-                assert seq_tag in seq_tag_to_alignments, (
-                    f"The sequence tag {seq_tag} provided in seq_tags_to_plot is not in the provided alignment files."
-                )
+                assert (
+                    seq_tag in seq_tag_to_alignments
+                ), f"The sequence tag {seq_tag} provided in seq_tags_to_plot is not in the provided alignment files."
         else:
             # Load specific task_id alignment cache.
             align_cache = rasr_cache.FileArchive(self.alignment_caches[task_id - 1].get_path())
