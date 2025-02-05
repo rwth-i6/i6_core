@@ -1,4 +1,4 @@
-__all__ = ["DumpRecordingPathsJob"]
+__all__ = ["DumpRecordingAudiosJob"]
 
 from sisyphus import Job, Task, tk
 
@@ -6,7 +6,7 @@ from i6_core.lib import corpus
 from i6_core.lib.audio import compute_rec_duration
 
 
-class DumpRecordingPathsJob(Job):
+class DumpRecordingAudiosJob(Job):
     """
     Dump all recordings of a given corpus file, one audio per line.
     """
