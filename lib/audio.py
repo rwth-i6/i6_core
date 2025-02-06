@@ -41,6 +41,7 @@ def compute_rec_duration(rec_audio: str) -> float:
     if rec_audio.endswith("mp3"):
         try:
             from mutagen.mp3 import MP3
+
             audio_length = MP3(rec_audio).info.length
         except ImportError:
             logging.warning(
