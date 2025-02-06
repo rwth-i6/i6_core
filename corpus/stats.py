@@ -132,20 +132,18 @@ class DumpRecordingAudiosJob(Job):
         yield Task("run", resume="run", rqmt=self.rqmt)
 
     def run(self):
-        audio_to_duration: Dict[str, Optional[float]] = {}
-        for corpus_file in self.corpus_files:
-            c = libcorpus.Corpus()
-            c.load(corpus_file.get_path())
-
-            for r in c.all_recordings():
-                duration = compute_rec_duration(r.audio) if self.dump_durations else None
-                audio_to_duration[r.audio] = duration
+        if self.dump_durations:
+            f_dur = uopen(self.out_audio_durations.get_path(), "wt")
 
         with uopen(self.out_audio_list.get_path(), "wt") as f:
-            for audio in audio_to_duration.keys():
-                f.write(f"{audio}\n")
+            for corpus_file in self.corpus_files:
+                c = libcorpus.Corpus()
+                c.load(corpus_file.get_path())
+
+                for r in c.all_recordings():
+                    f.write(f"{r.audio}\n")
+                    if self.dump_durations:
+                        f_dur.write(f"{r.audio}\t{compute_rec_duration(r.audio)}\n")
 
         if self.dump_durations:
-            with uopen(self.out_audio_durations.get_path(), "wt") as f:
-                for audio, duration in audio_to_duration.items():
-                    f.write(f"{audio}\t{duration}\n")
+            f_dur.close()
