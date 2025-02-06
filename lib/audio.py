@@ -4,11 +4,6 @@ __all__ = ["compute_rec_duration"]
 import subprocess as sp
 import tempfile
 
-try:
-    from mutagen.mp3 import MP3
-except ImportError:
-    # No mutagen module. mp3 conversion will not be supported.
-    pass
 import soundfile as sf
 
 
@@ -21,6 +16,7 @@ def compute_rec_duration(rec_audio: str) -> float:
     """
     if rec_audio.endswith("mp3"):
         try:
+            from mutagen.mp3 import MP3
             audio_length = MP3(rec_audio).info.length
         except NameError as exception:
             exception.msg = (
