@@ -133,10 +133,9 @@ class DumpRecordingAudiosJob(Job):
         yield Task("run", resume="run", rqmt=self.rqmt)
 
     def run(self):
-        with (
-            uopen(self.out_audio_list.get_path(), "wt") as f,
-            uopen(self.out_audio_durations.get_path(), "wt") if self.dump_durations else nullcontext() as f_dur,
-        ):
+        with uopen(self.out_audio_list.get_path(), "wt") as f, uopen(
+            self.out_audio_durations.get_path(), "wt"
+        ) if self.dump_durations else nullcontext() as f_dur:  # fmt: off
             for corpus_file in self.corpus_files:
                 c = libcorpus.Corpus()
                 c.load(corpus_file.get_path())
