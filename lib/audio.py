@@ -62,7 +62,7 @@ def compute_rec_duration(rec_audio: str) -> float:
     elif rec_audio.endswith("aac"):
         # The aac format has unreliable timestamps. Convert to wav through ffmpeg for an accurate measurement.
         try:
-            _compute_rec_duration_convert_to_wav(rec_audio)
+            return _compute_rec_duration_convert_to_wav(rec_audio)
         except FileNotFoundError as exception:
             # ffmpeg doesn't exist.
             exception.msg = (
