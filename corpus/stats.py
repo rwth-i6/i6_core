@@ -3,7 +3,7 @@ __all__ = ["ExtractOovWordsFromCorpusJob", "CountCorpusWordFrequenciesJob", "Dum
 from collections import Counter
 from contextlib import nullcontext
 import logging
-from typing import Dict, List, Optional, Union
+from typing import List, Union
 import xml.etree.cElementTree as ET
 
 from sisyphus import Job, Task, setup_path, tk
