@@ -50,26 +50,24 @@ def compute_rec_duration(rec_audio: str) -> float:
             )
             try:
                 return _compute_rec_duration_convert_to_wav(rec_audio)
-            except FileNotFoundError as exception:
+            except FileNotFoundError:
                 # ffmpeg doesn't exist either.
-                exception.msg = (
+                raise FileNotFoundError(
                     f"mutagen python module not found, required to calculate duration of mp3 file.\n"
                     "ffmpeg binary not found either, so mp3 -> wav conversion can't succeed.\n"
                     "Please either install the mutagen python module or the ffmpeg binary.\n"
                     f"Can't read duration of mp3 file: {rec_audio}."
                 )
-                raise exception
     elif rec_audio.endswith("aac"):
         # The aac format has unreliable timestamps. Convert to wav through ffmpeg for an accurate measurement.
         try:
             return _compute_rec_duration_convert_to_wav(rec_audio)
-        except FileNotFoundError as exception:
+        except FileNotFoundError:
             # ffmpeg doesn't exist.
-            exception.msg = (
+            raise FileNotFoundError(
                 "ffmpeg binary not found, so aac -> wav conversion can't succeed.\n"
                 f"Refusing to give unreliable timestamp of aac file {rec_audio}."
             )
-            raise exception
     else:
         # Wav or any format parseable by soundfile.
         with sf.SoundFile(rec_audio) as f:
