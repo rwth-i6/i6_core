@@ -1,6 +1,7 @@
 __all__ = ["ExtractOovWordsFromCorpusJob", "CountCorpusWordFrequenciesJob", "DumpRecordingAudiosJob"]
 
 from collections import Counter
+from contextlib import nullcontext
 import logging
 from typing import Dict, List, Optional, Union
 import xml.etree.cElementTree as ET
@@ -132,10 +133,10 @@ class DumpRecordingAudiosJob(Job):
         yield Task("run", resume="run", rqmt=self.rqmt)
 
     def run(self):
-        if self.dump_durations:
-            f_dur = uopen(self.out_audio_durations.get_path(), "wt")
-
-        with uopen(self.out_audio_list.get_path(), "wt") as f:
+        with (
+            uopen(self.out_audio_list.get_path(), "wt") as f,
+            uopen(self.out_audio_durations.get_path(), "wt") if self.dump_durations else nullcontext() as f_dur,
+        ):
             for corpus_file in self.corpus_files:
                 c = libcorpus.Corpus()
                 c.load(corpus_file.get_path())
@@ -144,6 +145,3 @@ class DumpRecordingAudiosJob(Job):
                     f.write(f"{r.audio}\n")
                     if self.dump_durations:
                         f_dur.write(f"{r.audio}\t{compute_rec_duration(r.audio)}\n")
-
-        if self.dump_durations:
-            f_dur.close()
