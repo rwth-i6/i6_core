@@ -1,0 +1,23 @@
+name: Code Review with ollama
+on:
+  pull_request:
+    types:
+      - opened
+      - synchronize
+permissions: write-all
+jobs:
+  code_review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+      - name: Setup Ollama
+        uses: pydantic/ollama-action@v3
+        with:
+          model: deepseek-r1:1.5b
+      - name: Code Review
+        uses: tomisacat/ai_code_review@main
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OLLAMA_ADDRESS: http://localhost:11434
+          exclude: ""
