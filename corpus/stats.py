@@ -110,22 +110,18 @@ class DumpRecordingAudiosJob(Job):
     Dump all recordings of a given corpus file, one audio per line.
     """
 
-    def __init__(
-        self, corpus_files: Union[tk.Path, List[tk.Path]], dump_durations: bool = False, zip_output: bool = False
-    ):
+    def __init__(self, corpus_files: Union[tk.Path, List[tk.Path]], dump_durations: bool = False):
         r"""
         :param corpus_file: Corpus file from which to obtain the audio list.
         :param dump_durations: Whether to dump the durations of the audios along with the audio list.
             The `out_audio_durations` output file will contain an audio/duration pair, separated by `\t`.
-        :param zip_output: Whether the output should be zipped.
         """
         self.corpus_files = [corpus_files] if isinstance(corpus_files, tk.Path) else corpus_files
         self.dump_durations = dump_durations
 
-        suffix = ".gz" if zip_output else ""
-        self.out_audio_list = self.output_path(f"out.txt{suffix}")
+        self.out_audio_list = self.output_path("out.txt.gz")
         if dump_durations:
-            self.out_audio_durations = self.output_path(f"out_durations.txt{suffix}")
+            self.out_audio_durations = self.output_path("out_durations.txt.gz")
 
         self.rqmt = {"cpu": 1, "mem": 1.0, "time": 1.0}
 
