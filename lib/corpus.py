@@ -42,13 +42,24 @@ class CorpusParser(sax.handler.ContentHandler):
     is currently beeing read.
     """
 
-    def __init__(self, corpus: Corpus, path: str):
+    def __init__(self, corpus: Corpus, path: str, pretty_format_orth: bool = True):
+        """
+        :param corpus: Corpus to be parsed.
+        :param path: Path of the parent corpus (needed for include statements).
+        :param pretty_format_orth: Whether to do some processing of the text
+            that goes into the orth tag to get a nicer formating.
+            If `True`, removes multiline content in the orth tag, leading/trailing spaces,
+            and multiple spaces inside the text.
+
+            Defaults to `True`.
+        """
         super().__init__()
 
         self.elements: List[NamedEntity] = [
             corpus
-        ]  # stack of objects to store the element of the corpus that is beeing read
-        self.path = path  # path of the parent corpus (needed for include statements)
+        ]  # stack of objects to store the element of the corpus that is being read
+        self.path = path
+        self.pretty_format_orth = pretty_format_orth
         self.chars = ""  # buffer for character events, it is reset whenever a new element starts
 
     def startElement(self, name: str, attrs: Dict[str, str]):
@@ -118,12 +129,14 @@ class CorpusParser(sax.handler.ContentHandler):
 
         if name in {"orth", "left-context-orth", "right-context-orth"}:
             assert isinstance(e, Segment)
-            # we do some processing of the text that goes into the orth tag to get a nicer formating, some corpora may have
-            # multiline content in the orth tag, but to keep it that way might not be consistent with the indentation during
-            # writing, thus we remove multiple spaces and newlines
-            text = self.chars.strip()
-            text = re.sub(" +", " ", text)
-            text = re.sub("\n", "", text)
+            if self.pretty_format_orth:
+                # we do some processing of the text that goes into the orth tag to get a nicer formating,
+                # some corpora may have multiline content in the orth tag,
+                # but to keep it that way might not be consistent with the indentation during writing,
+                # thus we remove multiple spaces and newlines
+                text = self.chars.strip()
+                text = re.sub(" +", " ", text)
+                text = re.sub("\n", "", text)
             setattr(e, name.replace("-", "_"), text)
         elif isinstance(e, Speaker) and name != "speaker-description":
             # we allow all sorts of elements within a speaker description
@@ -266,14 +279,20 @@ class Corpus(NamedEntity, CorpusSection):
         for sc in self.subcorpora:
             sc.filter_segments(filter_function)
 
-    def load(self, path: str):
+    def load(self, path: str, pretty_format_orth: bool = False):
         """
         :param path: corpus .xml or .xml.gz
+        :param pretty_format_orth: Whether to do some processing of the text
+            that goes into the orth tag to get a nicer formating.
+            If `True`, removes multiline content in the orth tag, leading/trailing spaces,
+            and multiple spaces inside the text.
+
+            Defaults to `True`.
         """
         open_fun = gzip.open if path.endswith(".gz") else open
 
         with open_fun(path, "rt") as f:
-            handler = CorpusParser(self, path)
+            handler = CorpusParser(self, path, pretty_format_orth=pretty_format_orth)
             sax.parse(f, handler)
 
     def dump(self, path: str):
