@@ -279,7 +279,7 @@ class Corpus(NamedEntity, CorpusSection):
         for sc in self.subcorpora:
             sc.filter_segments(filter_function)
 
-    def load(self, path: str, pretty_format_orth: bool = False):
+    def load(self, path: str, pretty_format_orth: bool = True):
         """
         :param path: corpus .xml or .xml.gz
         :param pretty_format_orth: Whether to do some processing of the text
