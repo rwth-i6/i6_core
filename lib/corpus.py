@@ -42,16 +42,16 @@ class CorpusParser(sax.handler.ContentHandler):
     is currently beeing read.
     """
 
-    def __init__(self, corpus: Corpus, path: str, pretty_format_orth: bool = True):
+    def __init__(self, corpus: Corpus, path: str, *, reformat_orth: bool = True):
         """
         :param corpus: Corpus to be parsed.
         :param path: Path of the parent corpus (needed for include statements).
-        :param pretty_format_orth: Whether to do some processing of the text
-            that goes into the orth tag to get a nicer formating.
+        :param reformat_orth: Whether to do some processing of the text
+            that goes into the orth tag to get a nicer-looking formating.
             If `True`, removes multiline content in the orth tag, leading/trailing spaces,
             and multiple spaces inside the text.
 
-            Defaults to `True`.
+            Defaults to `True` (initial behavior of :class:`Corpus`).
         """
         super().__init__()
 
@@ -59,7 +59,7 @@ class CorpusParser(sax.handler.ContentHandler):
             corpus
         ]  # stack of objects to store the element of the corpus that is being read
         self.path = path
-        self.pretty_format_orth = pretty_format_orth
+        self.reformat_orth = reformat_orth
         self.chars = ""  # buffer for character events, it is reset whenever a new element starts
 
     def startElement(self, name: str, attrs: Dict[str, str]):
@@ -130,8 +130,8 @@ class CorpusParser(sax.handler.ContentHandler):
         if name in {"orth", "left-context-orth", "right-context-orth"}:
             assert isinstance(e, Segment)
             text = self.chars
-            if self.pretty_format_orth:
-                # we do some processing of the text that goes into the orth tag to get a nicer formating,
+            if self.reformat_orth:
+                # we do some processing of the text that goes into the orth tag to get a nicer-looking formating,
                 # some corpora may have multiline content in the orth tag,
                 # but to keep it that way might not be consistent with the indentation during writing,
                 # thus we remove multiple spaces and newlines
@@ -280,20 +280,20 @@ class Corpus(NamedEntity, CorpusSection):
         for sc in self.subcorpora:
             sc.filter_segments(filter_function)
 
-    def load(self, path: str, pretty_format_orth: bool = True):
+    def load(self, path: str, *, reformat_orth: bool = True):
         """
         :param path: corpus .xml or .xml.gz
-        :param pretty_format_orth: Whether to do some processing of the text
-            that goes into the orth tag to get a nicer formating.
+        :param reformat_orth: Whether to do some processing of the text
+            that goes into the orth tag to get a nicer-looking formating.
             If `True`, removes multiline content in the orth tag, leading/trailing spaces,
             and multiple spaces inside the text.
 
-            Defaults to `True`.
+            Defaults to `True` (initial behavior of :class:`Corpus`).
         """
         open_fun = gzip.open if path.endswith(".gz") else open
 
         with open_fun(path, "rt") as f:
-            handler = CorpusParser(self, path, pretty_format_orth=pretty_format_orth)
+            handler = CorpusParser(self, path, reformat_orth=reformat_orth)
             sax.parse(f, handler)
 
     def dump(self, path: str):
