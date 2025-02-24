@@ -12,6 +12,7 @@ import os
 import shutil
 import subprocess
 
+from collections import deque
 from enum import Enum
 from typing import Dict, List, Optional
 
@@ -408,7 +409,7 @@ class ComputeNgramLmPerplexityJob(Job):
     def get_ppl(self):
         """extracts various outputs from the ppl.log file"""
         with open(self.out_ppl_log.get_path(), "rt") as f:
-            lines = f.readlines()[-2:]
+            lines = deque(f, maxlen=2)
             for line in lines:
                 line = line.split(" ")
                 for idx, ln in enumerate(line):

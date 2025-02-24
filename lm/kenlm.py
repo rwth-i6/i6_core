@@ -2,7 +2,7 @@ import shutil
 
 from sisyphus import Job, Task, tk, gs
 
-from typing import Union, List, Optional
+from typing import Union, List, Optional, Sequence
 import os
 import tempfile
 import subprocess as sp
@@ -46,6 +46,8 @@ class KenLMplzJob(Job):
     Run the lmplz command of the KenLM toolkit to create a gzip compressed ARPA-LM file
     """
 
+    __sis_hash_exclude__ = {"discount_fallback": None}
+
     def __init__(
         self,
         *,
@@ -54,6 +56,7 @@ class KenLMplzJob(Job):
         interpolate_unigrams: bool,
         pruning: Optional[List[int]],
         vocabulary: Optional[tk.Path],
+        discount_fallback: Optional[Sequence[Union[float, int]]] = None,
         kenlm_binary_folder: tk.Path,
         mem: float = 4.0,
         time: float = 1.0,
@@ -68,6 +71,8 @@ class KenLMplzJob(Job):
             e.g. to remove 3-gram and 4-gram singletons in a 4th order model use [0, 0, 1, 1]
         :param vocabulary: a "single word per line" file to determine valid words,
             everything else will be treated as unknown
+        :param discount_fallback: This option falls back to user-specified discounts
+            when the closed-form estimate fails.
         :param kenlm_binary_folder: output of the CompileKenLMJob, or a direct link to the build
             dir of the KenLM repo
         :param mem: memory rqmt, needs adjustment for large training corpora
@@ -78,6 +83,7 @@ class KenLMplzJob(Job):
         self.interpolate_unigrams = interpolate_unigrams
         self.pruning = pruning
         self.vocabulary = vocabulary
+        self.discount_fallback = discount_fallback
         self.kenlm_binary_folder = kenlm_binary_folder
 
         self.out_lm = self.output_path("lm.gz")
@@ -104,6 +110,8 @@ class KenLMplzJob(Job):
                 lmplz_command += ["--prune"] + [str(p) for p in self.pruning]
             if self.vocabulary is not None:
                 lmplz_command += ["--limit_vocab_file", self.vocabulary.get_path()]
+            if self.discount_fallback is not None:
+                lmplz_command += ["--discount_fallback"] + [str(d) for d in self.discount_fallback]
 
             zcat_command = ["zcat", "-f"] + [text.get_path() for text in self.text]
             with uopen(self.out_lm, "wb") as lm_file:
