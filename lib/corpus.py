@@ -129,13 +129,14 @@ class CorpusParser(sax.handler.ContentHandler):
 
         if name in {"orth", "left-context-orth", "right-context-orth"}:
             assert isinstance(e, Segment)
-            text = self.chars
+            # Minimum formatting (strip) to prevent spaces from accumulating to the left/right of the orth
+            # due to print("<orth> {orth} </orth>").
+            text = self.chars.strip()
             if self.reformat_orth:
                 # we do some processing of the text that goes into the orth tag to get a nicer-looking formating,
                 # some corpora may have multiline content in the orth tag,
                 # but to keep it that way might not be consistent with the indentation during writing,
                 # thus we remove multiple spaces and newlines
-                text = text.strip()
                 text = re.sub(" +", " ", text)
                 text = re.sub("\n", "", text)
             setattr(e, name.replace("-", "_"), text)
