@@ -2,6 +2,7 @@ from enum import Enum
 import logging
 import shutil
 import subprocess
+from typing import Any, Dict, Optional
 
 from sisyphus import *
 
@@ -30,21 +31,26 @@ class TrainSentencePieceJob(Job):
     See also `https://returnn.readthedocs.io/en/latest/api/datasets.util.vocabulary.html#returnn.datasets.util.vocabulary.SentencePieces`_
     """
 
+    __sis_hash_exclude__ = {"normalization_rule_name": "nmt_nfkc"}
+
     def __init__(
         self,
-        training_text,
-        vocab_size,
-        model_type,
-        character_coverage=1.0,
-        additional_options=None,
+        training_text: Path,
+        vocab_size: int,
+        model_type: SentencePieceType,
+        character_coverage: float = 1.0,
+        additional_options: Optional[Dict[str, Any]] = None,
+        normalization_rule_name: str = "nmt_nfkc",
     ):
         """
 
-        :param tk.Path training_text: raw text or gzipped text
-        :param int vocab_size: target vocabulary size for the created model
-        :param SentencePieceType model_type: which sentence model to use, use "UNIGRAM" for "typical" SPM
-        :param float character_coverage: official default is 0.9995, but this caused the least used character to be dropped entirely
-        :param dict|None additional_options: additional trainer options, see `https://github.com/google/sentencepiece/blob/master/doc/options.md`_
+        :param training_text: raw text or gzipped text
+        :param vocab_size: target vocabulary size for the created model
+        :param model_type: which sentence model to use, use "UNIGRAM" for "typical" SPM
+        :param character_coverage: official default is 0.9995, but this caused the least used character to be dropped entirely
+        :param additional_options: additional trainer options, see `https://github.com/google/sentencepiece/blob/master/doc/options.md`_
+        :param normalization_rule_name: normalization rule name, see `https://github.com/google/sentencepiece/blob/master/doc/normalization.md`_
+            "nmt_nfkc" is the sentencepiece default. Set to "nmt_nfkc_cf" to additionally perform case-folding.
         """
 
         self.training_text = training_text
@@ -52,6 +58,7 @@ class TrainSentencePieceJob(Job):
         self.model_type = model_type
         self.character_coverage = character_coverage
         self.additional_options = additional_options or {}
+        self.normalization_rule_name = normalization_rule_name
 
         self.out_model = self.output_path("spm_out.model")
 
@@ -76,6 +83,7 @@ class TrainSentencePieceJob(Job):
             model_type=self.model_type.value,
             vocab_size=self.vocab_size,
             character_coverage=self.character_coverage,
+            normalization_rule_name=self.normalization_rule_name,
             **self.additional_options,
         )
 
