@@ -319,6 +319,7 @@ class SplitTextFileJob(Job):
         num_lines_per_split: int,
         num_text_file_lines: Optional[int] = None,
         zip_output: bool = True,
+        max_output_files: Optional[int] = None,
     ):
         """
         Job splits a text file into several smaller files.
@@ -339,6 +340,8 @@ class SplitTextFileJob(Job):
             self.num_output_files = self.num_text_file_lines // self.num_lines_per_split + int(
                 bool(self.num_text_file_lines % self.num_lines_per_split)
             )
+            if max_output_files is not None and self.num_output_files > max_output_files:
+                self.num_output_files = max_output_files
         else:
             raise NotImplementedError
 
@@ -366,8 +369,8 @@ class SplitTextFileJob(Job):
             logging.info("Split lines")
             split_cmd = [
                 "split",
-                "-l",
-                str(self.num_lines_per_split),
+                "-n",
+                str(self.num_output_files),
                 "--suffix-length=4",
                 "--numeric-suffixes=1",
                 "--additional-suffix=.txt",
