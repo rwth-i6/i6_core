@@ -25,6 +25,9 @@ class NamedEntity:
         super().__init__()
         self.name: Optional[str] = None
 
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.fullname()})"
+
 
 class CorpusSection:
     def __init__(self):
@@ -458,6 +461,9 @@ class Segment(NamedEntity):
             out.write("%s</segment>\n" % indentation)
         else:
             out.write("</segment>\n")
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}({self.fullname()}:{self.start:.02f}-{self.end:.02f})"
 
 
 class Speaker(NamedEntity):
