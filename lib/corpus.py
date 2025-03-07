@@ -463,7 +463,7 @@ class Segment(NamedEntity):
             out.write("</segment>\n")
 
     def __repr__(self):
-        return f"{self.__class__.__name__}({self.fullname()}:{self.start:.02f}-{self.end:.02f})"
+        return f"<{self.__class__.__name__} {self.fullname()} {self.start:.02f}-{self.end:.02f})>"
 
 
 class Speaker(NamedEntity):
