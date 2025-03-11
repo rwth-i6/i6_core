@@ -26,7 +26,10 @@ class NamedEntity:
         self.name: Optional[str] = None
 
     def __repr__(self):
-        return f"{self.__class__.__name__}({self.fullname()})"
+        if self.name is None:
+            return f"<{self.__class__.__name__}>"
+        else:
+            return f"<{self.__class__.__name__} {self.name}>"
 
 
 class CorpusSection:
@@ -344,6 +347,9 @@ class Corpus(NamedEntity, CorpusSection):
         """
         return {rec.fullname(): rec for rec in self.all_recordings()}
 
+    def __repr__(self):
+        return f"<{self.__class__.__name__} {self.fullname()}>"
+
 
 class Recording(NamedEntity, CorpusSection):
     def __init__(self):
@@ -386,6 +392,9 @@ class Recording(NamedEntity, CorpusSection):
         :return: Mapping from segment fullnames to actual segments.
         """
         return {seg.fullname(): seg for seg in self.segments}
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} {self.fullname()}>"
 
 
 class Segment(NamedEntity):
