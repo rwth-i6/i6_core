@@ -646,6 +646,7 @@ class MapRecordingsJob(Job):
         self,
         bliss_corpus: tk.Path,
         recording_callable: Callable[[corpus.Recording], corpus.Recording],
+        *,
         corpus_load_reformat_orth: bool = True,
     ):
         """
