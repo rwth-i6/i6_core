@@ -640,13 +640,27 @@ class MapRecordingsJob(Job):
     Applies a function to all recordings of a given corpus.
     """
 
-    def __init__(self, bliss_corpus: tk.Path, recording_callable: Callable[[corpus.Recording], corpus.Recording]):
+    __sis_hash_exclude__ = {"reformat_orth": True}
+
+    def __init__(
+        self,
+        bliss_corpus: tk.Path,
+        recording_callable: Callable[[corpus.Recording], corpus.Recording],
+        reformat_orth: bool = True,
+    ):
         """
         :param bliss_corpus: Corpus for which to sort the segments.
         :param recording_callable: Callable to modify a given recording. Returns the modified recording.
+        :param reformat_orth: Whether to do some processing of the text
+            that goes into the orth tag to get a nicer-looking formating.
+            If `True`, removes multiline content in the orth tag, leading/trailing spaces,
+            and multiple spaces inside the text.
+
+            Defaults to `True` (initial behavior of :class:`Corpus`).
         """
         self.bliss_corpus = bliss_corpus
         self.recording_callable = recording_callable
+        self.reformat_orth = reformat_orth
 
         self.out_bliss_corpus = self.output_path("out.xml.gz")
 
@@ -664,7 +678,7 @@ class MapRecordingsJob(Job):
 
     def run(self):
         c = corpus.Corpus()
-        c.load(self.bliss_corpus.get_path())
+        c.load(self.bliss_corpus.get_path(), reformat_orth=self.reformat_orth)
 
         self.map_recordings(c, self.recording_callable)
         for sc in c.subcorpora:
