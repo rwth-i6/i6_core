@@ -54,8 +54,7 @@ class CorpusParser(sax.handler.ContentHandler):
         :param path: Path of the parent corpus (needed for include statements).
         :param reformat_orth: Whether to do some processing of the text
             that goes into the orth tag to get a nicer-looking formating.
-            If `True`, removes multiline content in the orth tag, leading/trailing spaces,
-            and multiple spaces inside the text.
+            If `True`, removes newline characters and multiple spaces inside the text.
 
             Defaults to `True` (initial behavior of :class:`Corpus`).
         """
@@ -292,8 +291,7 @@ class Corpus(NamedEntity, CorpusSection):
         :param path: corpus .xml or .xml.gz
         :param reformat_orth: Whether to do some processing of the text
             that goes into the orth tag to get a nicer-looking formating.
-            If `True`, removes multiline content in the orth tag, leading/trailing spaces,
-            and multiple spaces inside the text.
+            If `True`, removes newline characters and multiple spaces inside the text.
 
             Defaults to `True` (initial behavior of :class:`Corpus`).
         """
