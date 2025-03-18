@@ -900,6 +900,26 @@ class RescoreLatticeCacheJob(rasr.RasrCommand, Job):
         extra_config=None,
         extra_post_config=None,
     ):
+        """
+        Rescore the given lattice cache (or bundle of caches) with a new LM with push-forward rescoring.
+
+        :param crp: Common RASR parameters. Required: corpus, lexicon and language_model
+        :param lattice_cache: Path to the lattice cache (or bundle) to be rescored.
+        :param rescorer_type: Type of rescorer, valid options: single-best, replacement-approximation and
+                              traceback-approximation.
+        :param max_hypotheses: Maximum number of hypotheses per lattice node during rescoring. This is a sort of
+                               beam-pruning limit.
+        :param pruning_threshold: Score threshold for pruning hypotheses within a lattice node.
+        :param history_limit: Number of history words used for recombination of hypotheses within a lattice node.
+                              Set to 0 for infinite context.
+        :param rescoring_lookahead_scale: Scale for the lookahead value used during pruning.
+        :param rtf: Real-time factor of the job (based on corpus duration).
+        :param cpu: Number of CPU cores to use.
+        :param mem: Amount of memory (in GB) required.
+        :param use_gpu: Whether to request a GPU for the job.
+        :param extra_config: Additional config that is applied at the end to the final rescoring config (hashed).
+        :param extra_post_config: Additional config that is applied at the end to the final rescoring config (not hashed).
+        """
         self.set_vis_name("Rescore Lattice")
 
         kwargs = locals()
