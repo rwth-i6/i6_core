@@ -670,6 +670,14 @@ class KaldiScorerJob(Job):
 
 class IntersectStmCtm(Job):
     def __init__(self, stm_path: tk.Path, ctm_path: tk.Path):
+        """
+        This job calculate the intersection of a ctm and stm file and outputs new ctm and stm files, s.t. the recordings
+        present in the ctm and stm file match. This can for example be used if a recognition corpus has been filtered
+        and we want to compute the WER on the filtered corpus.
+
+        :param stm_path: Path of the stm file
+        :param ctm_path: Path of the ctm file
+        """
         self.stm_path = stm_path
         self.ctm_path = ctm_path
 
@@ -708,10 +716,10 @@ class IntersectStmCtm(Job):
                     ctm_lines[recording].append(line)
 
         common_recordings = set(stm_lines.keys()).intersection(set(ctm_lines.keys()))
+        del common_recordings[None]
 
         for path, lines in [(self.out_stm, stm_lines), (self.out_ctm, ctm_lines)]:
             with uopen(path, "wt") as out:
                 out.write("".join(lines[None]))
-                del lines[None]
                 for r in common_recordings:
                     out.write("".join(lines[r]))
