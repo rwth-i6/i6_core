@@ -159,13 +159,13 @@ class ConcatenateJob(Job):
         yield Task("run", rqmt={"mem": 3, "time": 3})
 
     def run(self):
-        self.f_list = [
+        f_list = [
             gs.file_caching(text_file) if isinstance(text_file, str) else text_file.get_cached_path()
             for text_file in self.text_files
         ]
 
         with util.uopen(self.out, "wb") as out_file:
-            for f in self.f_list:
+            for f in f_list:
                 logging.info(f)
                 with util.uopen(f, "rb") as in_file:
                     shutil.copyfileobj(in_file, out_file)
@@ -368,8 +368,8 @@ class SplitTextFileJob(Job):
             logging.info("Split lines")
             split_cmd = [
                 "split",
-                "-l",
-                str(self.num_lines_per_split),
+                "-c",
+                f"l/{str(self.num_lines_per_split)}",
                 "--suffix-length=4",
                 "--numeric-suffixes=1",
                 "--additional-suffix=.txt",
