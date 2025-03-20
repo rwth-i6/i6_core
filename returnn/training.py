@@ -17,6 +17,7 @@ import sys
 import os
 import shutil
 import subprocess as sp
+import numpy as np
 from typing import Dict, Sequence, Iterable, List, Optional, Union
 
 from sisyphus import *
@@ -296,7 +297,10 @@ class ReturnnTrainingJob(Job):
 
             try:
                 with open(file_path, "rt") as file:
-                    return eval(file.read().strip())
+                    return eval(
+                        file.read().strip(),
+                        {"EpochData": EpochData, "nan": float("nan"), "inf": float("inf"), "np": np},
+                    )
             except FileExistsError:
                 return None
             except FileNotFoundError:
@@ -392,7 +396,7 @@ class ReturnnTrainingJob(Job):
         with open(self.out_learning_rates.get_path(), "rt") as f:
             text = f.read()
 
-        data = eval(text)
+        data = eval(text, {"EpochData": EpochData, "nan": float("nan"), "inf": float("inf"), "np": np})
 
         epochs = list(sorted(data.keys()))
         train_score_keys = [k for k in data[epochs[0]]["error"] if k.startswith("train_score")]
@@ -702,7 +706,7 @@ class GetBestEpochJob(Job):
         with open(self.learning_rates.get_path(), "rt") as f:
             text = f.read()
 
-        data = eval(text, {"nan": float("nan"), "inf": float("inf"), "EpochData": EpochData})
+        data = eval(text, {"EpochData": EpochData, "nan": float("nan"), "inf": float("inf"), "np": np})
 
         epochs = list(sorted(data.keys()))
 

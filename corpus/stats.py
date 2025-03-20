@@ -1,13 +1,17 @@
-__all__ = ["ExtractOovWordsFromCorpusJob", "CountCorpusWordFrequenciesJob"]
+__all__ = ["ExtractOovWordsFromCorpusJob", "CountCorpusWordFrequenciesJob", "DumpRecordingAudiosJob"]
 
-import logging
 from collections import Counter
+from contextlib import nullcontext
+import logging
+from typing import List, Union
 import xml.etree.cElementTree as ET
 
+from sisyphus import Job, Task, setup_path, tk
+
+from i6_core.lib.audio import compute_rec_duration
 import i6_core.lib.corpus as libcorpus
 from i6_core.util import uopen
 
-from sisyphus import *
 
 Path = setup_path(__package__)
 
@@ -99,3 +103,40 @@ class CountCorpusWordFrequenciesJob(Job):
         counts = [(v, k) for k, v in words.items()]
         with uopen(self.out_word_counts, "wt") as f:
             f.write("\n".join("%d\t%s" % t for t in sorted(counts, key=lambda t: (-t[0], t[1]))))
+
+
+class DumpRecordingAudiosJob(Job):
+    """
+    Dump all recordings of a given corpus file, one audio per line.
+    """
+
+    def __init__(self, corpus_files: Union[tk.Path, List[tk.Path]], dump_durations: bool = False):
+        r"""
+        :param corpus_file: Corpus file from which to obtain the audio list.
+        :param dump_durations: Whether to dump the durations of the audios along with the audio list.
+            The `out_audio_durations` output file will contain an audio/duration pair, separated by `\t`.
+        """
+        self.corpus_files = [corpus_files] if isinstance(corpus_files, tk.Path) else corpus_files
+        self.dump_durations = dump_durations
+
+        self.out_audio_list = self.output_path("out.txt.gz")
+        if dump_durations:
+            self.out_audio_durations = self.output_path("out_durations.txt.gz")
+
+        self.rqmt = {"cpu": 1, "mem": 1.0, "time": 1.0}
+
+    def tasks(self):
+        yield Task("run", resume="run", rqmt=self.rqmt)
+
+    def run(self):
+        with uopen(self.out_audio_list.get_path(), "wt") as f, uopen(
+            self.out_audio_durations.get_path(), "wt"
+        ) if self.dump_durations else nullcontext() as f_dur:  # fmt: off
+            for corpus_file in self.corpus_files:
+                c = libcorpus.Corpus()
+                c.load(corpus_file.get_path())
+
+                for r in c.all_recordings():
+                    f.write(f"{r.audio}\n")
+                    if self.dump_durations:
+                        f_dur.write(f"{r.audio}\t{compute_rec_duration(r.audio)}\n")
