@@ -368,8 +368,8 @@ class SplitTextFileJob(Job):
             logging.info("Split lines")
             split_cmd = [
                 "split",
-                "-c",
-                f"l/{str(self.num_lines_per_split)}",
+                "-l",
+                str(self.num_lines_per_split),
                 "--suffix-length=4",
                 "--numeric-suffixes=1",
                 "--additional-suffix=.txt",
