@@ -141,9 +141,7 @@ class ConcatenateJob(Job):
         assert isinstance(text_files, list)
 
         for input_file in text_files:
-            assert isinstance(input_file, Path) or isinstance(
-                input_file, str
-            ), "input to Concatenate is not a valid path"
+            assert isinstance(input_file, (Path, str)), "input to Concatenate is not a valid path"
 
         self.text_files = text_files
         self.zip_out = zip_out
@@ -168,7 +166,7 @@ class ConcatenateJob(Job):
 
         with util.uopen(self.out, "wb") as out_file:
             for f in self.f_list:
-                print(f)
+                logging.info(f)
                 with util.uopen(f, "rb") as in_file:
                     shutil.copyfileobj(in_file, out_file)
 
