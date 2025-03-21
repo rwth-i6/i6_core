@@ -36,6 +36,7 @@ class TrainSentencePieceJob(Job):
     def __init__(
         self,
         training_text: Path,
+        *,
         vocab_size: int,
         model_type: SentencePieceType,
         character_coverage: float = 1.0,
