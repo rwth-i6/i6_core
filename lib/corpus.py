@@ -25,6 +25,12 @@ class NamedEntity:
         super().__init__()
         self.name: Optional[str] = None
 
+    def __repr__(self):
+        if self.name is None:
+            return f"<{self.__class__.__name__}>"
+        else:
+            return f"<{self.__class__.__name__} {self.name}>"
+
 
 class CorpusSection:
     def __init__(self):
@@ -48,8 +54,7 @@ class CorpusParser(sax.handler.ContentHandler):
         :param path: Path of the parent corpus (needed for include statements).
         :param reformat_orth: Whether to do some processing of the text
             that goes into the orth tag to get a nicer-looking formating.
-            If `True`, removes multiline content in the orth tag, leading/trailing spaces,
-            and multiple spaces inside the text.
+            If `True`, removes newline characters and multiple spaces inside the text.
 
             Defaults to `True` (initial behavior of :class:`Corpus`).
         """
@@ -286,8 +291,7 @@ class Corpus(NamedEntity, CorpusSection):
         :param path: corpus .xml or .xml.gz
         :param reformat_orth: Whether to do some processing of the text
             that goes into the orth tag to get a nicer-looking formating.
-            If `True`, removes multiline content in the orth tag, leading/trailing spaces,
-            and multiple spaces inside the text.
+            If `True`, removes newline characters and multiple spaces inside the text.
 
             Defaults to `True` (initial behavior of :class:`Corpus`).
         """
@@ -341,6 +345,9 @@ class Corpus(NamedEntity, CorpusSection):
         """
         return {rec.fullname(): rec for rec in self.all_recordings()}
 
+    def __repr__(self):
+        return f"<{self.__class__.__name__} {self.fullname()}>"
+
 
 class Recording(NamedEntity, CorpusSection):
     def __init__(self):
@@ -383,6 +390,9 @@ class Recording(NamedEntity, CorpusSection):
         :return: Mapping from segment fullnames to actual segments.
         """
         return {seg.fullname(): seg for seg in self.segments}
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} {self.fullname()}>"
 
 
 class Segment(NamedEntity):
@@ -458,6 +468,9 @@ class Segment(NamedEntity):
             out.write("%s</segment>\n" % indentation)
         else:
             out.write("</segment>\n")
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} {self.fullname()} {self.start:.02f}-{self.end:.02f})>"
 
 
 class Speaker(NamedEntity):

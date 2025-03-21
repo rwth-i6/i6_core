@@ -377,7 +377,7 @@ class SplitTextFileJob(Job):
             subprocess.run(split_cmd, check=True)
 
             for file_id in range(1, self.num_output_files + 1):
-                file_path = f"split.{file_id:04}.txt"
+                file_path = f"{tmp_dir}/split.{file_id:04}.txt"
                 assert os.path.isfile(file_path) and os.path.getsize(file_path) > 0
 
             if self.zip_output:
