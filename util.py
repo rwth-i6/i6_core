@@ -383,3 +383,18 @@ def update_nested_dict(dict1: Dict[str, Any], dict2: Dict[str, Any]):
         else:
             dict1[k] = v
     return dict1
+
+
+def parse_text_dict(path: Union[str, tk.Path]) -> Dict[str, str]:
+    """
+    Loads the text dict at :param:`path`.
+
+    Works around https://github.com/rwth-i6/i6_core/issues/539 (``OverflowError: line number table is too long``)
+    by stripping the newlines from the text dict before the ``eval``.
+    """
+
+    with uopen(path, "rt") as text_dict_file:
+        txt = "".join(line.strip() for line in text_dict_file)
+    d = eval(txt, {"nan": float("nan"), "inf": float("inf")})
+    assert isinstance(d, dict), f"expected a text dict, but found {type(d)}"
+    return d
