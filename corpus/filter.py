@@ -379,8 +379,8 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
     def hash(cls, kwargs):
         kwargs_copy = dict(**kwargs)
 
-        if kwargs_copy["all_unknown"] is True:
-            kwargs_copy["all_unknown"] = None
+        if "all_unknown" in kwargs_copy and kwargs_copy["all_unknown"] is True:
+            del kwargs_copy["all_unknown"]
 
         return super().hash(kwargs_copy)
 
