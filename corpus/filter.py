@@ -272,8 +272,8 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
     __sis_hash_exclude__ = {
         "all_unknown": True,
         "delete_empty_recordings": False,
-        "segment_oov_tolerance": 0.0,
-        "recording_oov_tolerance": 1.0,
+        "segment_oov_tolerance": None,
+        "recording_oov_tolerance": None,
     }
 
     def __init__(
@@ -281,10 +281,10 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
         bliss_corpus: tk.Path,
         bliss_lexicon: tk.Path,
         case_sensitive: bool = False,
-        all_unknown: bool = True,
+        all_unknown: Optional[bool] = True,
         delete_empty_recordings: bool = False,
-        segment_oov_tolerance: float = 0.0,
-        recording_oov_tolerance: float = 1.0,
+        segment_oov_tolerance: Optional[float] = None,
+        recording_oov_tolerance: Optional[float] = None,
     ):
         """
         :param bliss_corpus:
@@ -292,12 +292,17 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
         :param case_sensitive: consider casing for check against lexicon
         :param all_unknown: all words have to be unknown in order for the segment to be discarded
         :param delete_empty_recordings: if true, empty recordings will be removed.
-        :param segment_oov_tolerance: maximal word OOV rate for a segment to be kept, defaults to 0.0 to not allow a single OOV word
-        :param maximal percentage of high word OOV rate segments for a recording to be kept, defaults to 1.0 to not delete such recordings
+        :param segment_oov_tolerance: maximal word OOV rate for a segment to be kept.
+            A value of 0.0 means no single OOV word is allowed, 1.0 means everything is allowed.
+        :param maximal percentage of high word OOV rate segments for a recording to be kept.
+            A value of 0.0 means a single hight word OOV rate segment will cause the recording to be deleted, 1.0 means no recording will be deleted.
         """
         self.corpus = bliss_corpus
         self.lexicon = bliss_lexicon
         self.case_sensitive = case_sensitive
+        assert (all_unknown is None or segment_oov_tolerance is None) and (
+            all_unknown is not None or segment_oov_tolerance is not None
+        ), "`all_unknown` and `segment_oov_tolerance` can't be set in the same time or both be None."
         self.all_unknown = all_unknown
         self.delete_empty_recordings = delete_empty_recordings
         self.segment_oov_tolerance = segment_oov_tolerance
@@ -344,8 +349,11 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
             words = [maybe_to_lower(o) for o in orth.strip().split(" ")]
             num_oov_words = len([w for w in words if w not in vocabulary])
 
-            if self.all_unknown:
-                return num_oov_words < len(words)
+            if self.all_unknown is not None:
+                if self.all_unknown:
+                    return num_oov_words < len(words)
+                else:
+                    return num_oov_words == 0
             else:
                 return num_oov_words <= len(words) * self.segment_oov_tolerance
 
@@ -355,7 +363,7 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
             # Remove the recordings without segments due to the filtering.
             _delete_empty_recordings(c, self.out_removed_recordings.get_path())
 
-        if self.recording_oov_threshold < 1.0:
+        if self.recording_oov_threshold is not None and self.recording_oov_threshold < 1.0:
             recordings_to_be_removed = []
             for r in c.all_recordings():
                 num_seg = num_segments_per_recording[r.fullname()]
