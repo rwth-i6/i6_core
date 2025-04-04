@@ -300,7 +300,9 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
         self.corpus = bliss_corpus
         self.lexicon = bliss_lexicon
         self.case_sensitive = case_sensitive
-        assert all_unknown is None or segment_oov_tolerance is None, "`all_unknown` and `segment_oov_tolerance` can't be set in the same time."
+        assert (
+            all_unknown is None or segment_oov_tolerance is None
+        ), "`all_unknown` and `segment_oov_tolerance` can't be set in the same time."
         self.all_unknown = all_unknown if all_unknown is not None else True
         self.delete_empty_recordings = delete_empty_recordings
         self.segment_oov_tolerance = segment_oov_tolerance
@@ -372,6 +374,15 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
             c.remove_recordings(recordings_to_be_removed)
 
         c.dump(self.out_corpus.get_path())
+
+    @classmethod
+    def hash(cls, kwargs):
+        kwargs_copy = dict(**kwargs)
+
+        if kwargs_copy["all_unknown"] is True:
+            kwargs_copy["all_unknown"] = None
+
+        return super().hash(kwargs_copy)
 
 
 class FilterCorpusBySegmentDurationJob(Job):
