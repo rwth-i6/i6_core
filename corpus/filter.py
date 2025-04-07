@@ -273,7 +273,7 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
         "all_unknown": None,
         "delete_empty_recordings": False,
         "segment_oov_tolerance": None,
-        "recording_oov_tolerance": None,
+        "recording_oov_tolerance": 1.0,
     }
 
     def __init__(
