@@ -295,7 +295,7 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
         :param segment_oov_tolerance: maximal word OOV rate for a segment to be kept.
             A value of 0.0 means no single OOV word is allowed, 1.0 means everything is allowed.
         :param maximal percentage of high word OOV rate segments for a recording to be kept.
-            A value of 0.0 means a single hight word OOV rate segment will cause the recording to be deleted, 1.0 means no recording will be deleted.
+            A value of 0.0 means a single high segment with an OOV rate above the segment_oov_tolerance will cause the recording to be deleted, 1.0 means no recording will be deleted.
         """
         self.corpus = bliss_corpus
         self.lexicon = bliss_lexicon
