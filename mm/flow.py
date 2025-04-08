@@ -14,7 +14,7 @@ def linear_segmentation_flow(feature_energy_net, alignment_cache=None):
 
     net = FlowNetwork()
     net.add_output("alignments")
-    net.add_param(["id", "orthography", "TASK"])
+    net.add_param(["id", "orthography", "left-context-orthography", "right-context-orthography", "TASK"])
 
     mapping = net.add_net(feature_energy_net)
     net.interconnect_inputs(feature_energy_net, mapping)
@@ -23,7 +23,12 @@ def linear_segmentation_flow(feature_energy_net, alignment_cache=None):
     alignment = net.add_node(
         "speech-linear-segmentation",
         "alignment",
-        {"id": "$(id)", "orthography": "$(orthography)"},
+        {
+            "id": "$(id)",
+            "orthography": "$(orthography)",
+            "left-context-orthography": "$(left-context-orthography)",
+            "right-context-orthography": "$(right-context-orthography)",
+        },
     )
     net.link(mapping[feature_energy_net.get_output_links("energy").pop()], alignment)
 
@@ -41,7 +46,7 @@ def alignment_flow(feature_net, alignment_cache_path=None):
     assert "features" in feature_net.get_output_ports()
     net = FlowNetwork()
     net.add_output("alignments")
-    net.add_param(["id", "orthography", "TASK"])
+    net.add_param(["id", "orthography", "left-context-orthography", "right-context-orthography", "TASK"])
 
     mapping = net.add_net(feature_net)
     net.interconnect_inputs(feature_net, mapping)
@@ -53,7 +58,12 @@ def alignment_flow(feature_net, alignment_cache_path=None):
     alignment = net.add_node(
         "speech-alignment",
         "alignment",
-        {"id": "$(id)", "orthography": "$(orthography)"},
+        {
+            "id": "$(id)",
+            "orthography": "$(orthography)",
+            "left-context-orthography": "$(left-context-orthography)",
+            "right-context-orthography": "$(right-context-orthography)",
+        },
     )
     net.link(aggregate, alignment)
 
@@ -95,7 +105,7 @@ def dump_alignment_flow(feature_net, original_alignment, new_alignment):
     assert "features" in feature_net.get_output_ports()
     net = FlowNetwork()
     net.add_output("alignments")
-    net.add_param(["id", "orthography", "TASK"])
+    net.add_param(["id", "orthography", "left-context-orthography", "right-context-orthography", "TASK"])
 
     mapping = net.add_net(feature_net)
     net.interconnect_inputs(feature_net, mapping)
