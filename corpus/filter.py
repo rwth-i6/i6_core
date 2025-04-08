@@ -347,7 +347,7 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
             if not orth:
                 return True
             words = [maybe_to_lower(o) for o in orth.strip().split(" ")]
-            num_oov_words = len([w for w in words if w not in vocabulary])
+            num_oov_words = sum(1 if w not in vocabulary else 0 for w in words)
 
             if self.segment_oov_tolerance is None:
                 if self.all_unknown:
@@ -359,19 +359,19 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
 
         c.filter_segments(unknown_filter)
 
-        if self.delete_empty_recordings:
-            # Remove the recordings without segments due to the filtering.
-            _delete_empty_recordings(c, self.out_removed_recordings.get_path())
-
         if self.recording_oov_threshold < 1.0:
             recordings_to_be_removed = []
             for r in c.all_recordings():
                 num_seg = num_segments_per_recording[r.fullname()]
                 new_num_seg = len(r.segments)
-                if (num_seg - new_num_seg) / num_seg > self.recording_oov_tolerance:
+                if num_seg and (num_seg - new_num_seg) / num_seg > self.recording_oov_tolerance:
                     recordings_to_be_removed.append(r)
 
             c.remove_recordings(recordings_to_be_removed)
+
+        if self.delete_empty_recordings:
+            # Remove the recordings without segments due to the filtering.
+            _delete_empty_recordings(c, self.out_removed_recordings.get_path())
 
         c.dump(self.out_corpus.get_path())
 
