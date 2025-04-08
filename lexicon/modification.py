@@ -130,16 +130,22 @@ class MergeLexiconJob(Job):
     will create a new lexicon that might be incompatible to previously generated alignments.
     """
 
-    def __init__(self, bliss_lexica, sort_phonemes=False, sort_lemmata=False, compressed=True):
+    __sis_hash_exclude__ = {"deduplicate_lemmata": False}
+
+    def __init__(
+        self, bliss_lexica, sort_phonemes=False, sort_lemmata=False, compressed=True, deduplicate_lemmata=False
+    ):
         """
         :param list[Path] bliss_lexica: list of bliss lexicon files (plain or gz)
         :param bool sort_phonemes: sort phoneme inventory alphabetically
         :param bool sort_lemmata: sort lemmata alphabetically based on first orth entry
         :param bool compressed: compress final lexicon
+        :param bool deduplicate_lemmata: whether to deduplicate lemmatas, only applied when sort_lemmata=True
         """
         self.lexica = bliss_lexica
         self.sort_phonemes = sort_phonemes
         self.sort_lemmata = sort_lemmata
+        self.deduplicate_lemmata = deduplicate_lemmata
 
         self.out_bliss_lexicon = self.output_path("lexicon.xml.gz" if compressed else "lexicon.xml")
 
@@ -178,6 +184,10 @@ class MergeLexiconJob(Job):
                 for lemma in lex.lemmata:
                     # sort by first orth entry
                     orth_key = lemma.orth[0] if lemma.orth else ""
+                    if self.deduplicate_lemmata:
+                        # don't add the lemma when there's already an equal lemma
+                        if len(lemma_dict[orth_key]) > 0 and lemma == lemma_dict[orth_key][0]:
+                            continue
                     lemma_dict[orth_key].append(lemma)
             merged_lex.lemmata = list(itertools.chain(*[lemma_dict[key] for key in sorted(lemma_dict.keys())]))
         else:
