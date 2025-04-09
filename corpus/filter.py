@@ -359,7 +359,7 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
 
         c.filter_segments(unknown_filter)
 
-        if self.recording_oov_threshold < 1.0:
+        if self.recording_oov_tolerance < 1.0:
             recordings_to_be_removed = []
             for r in c.all_recordings():
                 num_seg = num_segments_per_recording[r.fullname()]
