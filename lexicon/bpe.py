@@ -47,11 +47,11 @@ class CreateBPELexiconJob(Job):
             usually yes for RASR search and no for Flashlight search.
             The phonemes of the special lemmas will also be kept, therefore
             make sure there is no overlap with the BPE vocab.
-        :param skip_unk_lemmas: whether simply skip lemmas out of the BPE vocab
-            useful if you set vocab_blacklist
-        :param add_all_bpe_phonemes: If set to True, all BPE vocab will be added to lexicon phonemes,
-            otherwise, only phonemes appear in lexicon lemma will be added to the lexicon.
-        :param additional_words: Aside from vocab specified in base_lexicon, we might want to convert some other words,
+        :param skip_unk_lemmas: Whether to simply skip lemmas that are not part of the BPE vocabulary.
+            Useful if you set vocab_blacklist.
+        :param add_all_bpe_phonemes: If set to True, all BPE tokens will be added to lexicon as phonemes,
+            otherwise, only tokens that appear in the base lexicon will be added to the output lexicon.
+        :param additional_words: Aside from the vocabulary specified in base_lexicon, we might want to convert some other words,
             e.g. untranslatable words by a g2p model in case of g2p-augmented lexicon
         """
         self.base_lexicon_path = base_lexicon_path
@@ -106,13 +106,12 @@ class CreateBPELexiconJob(Job):
         return vocab, lexicon
 
     def _fill_additional_words(self):
-        additional_words_list = set()
         if self.additional_words is not None:
             with util.uopen(self.additional_words.get_path(), "rt") as f:
-                for line in f:
-                    line = line.strip()
-                    additional_words_list.add(line)
-        return sorted(additional_words_list)
+                res = {line.strip() for line in f}
+        else:
+            res = set()
+        return sorted(res)
 
     def run(self):
         base_lexicon = Lexicon()
@@ -164,7 +163,7 @@ class CreateBPELexiconJob(Job):
             for orth in lemma.orth:
                 bpe_pron = " ".join([token if token in vocab else self.unk_label for token in w2b[orth].split()])
                 if self.skip_unk_lemmas and self.unk_label in bpe_pron.split():
-                    logging.info(f"Lemma {orth} is skipped due to unknown BPE vocab.")
+                    logging.info(f"Lemma {orth} is skipped due to use of the BPE token for <unknown>.")
                     continue
                 used_vocab.update(set(bpe_pron.split()))
                 lexicon.add_lemma(Lemma([orth], [bpe_pron.replace(".", "_")], lemma.synt, lemma.eval))
