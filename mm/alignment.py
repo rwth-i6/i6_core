@@ -32,7 +32,7 @@ class AlignmentJob(rasr.RasrCommand, Job):
     Align a dataset with the given feature scorer.
     """
 
-    __sis_hash_exclude__ = {"plot_alignment_scores": False}
+    __sis_hash_exclude__ = {"plot_alignment_scores": False, "add_left_right_context_orth": False}
 
     def __init__(
         self,
@@ -46,6 +46,7 @@ class AlignmentJob(rasr.RasrCommand, Job):
         extra_config=None,
         extra_post_config=None,
         plot_alignment_scores=False,
+        add_left_right_context_orth=False,
     ):
         """
         :param rasr.crp.CommonRasrParameters crp:
@@ -58,6 +59,8 @@ class AlignmentJob(rasr.RasrCommand, Job):
         :param extra_config:
         :param extra_post_config:
         :param plot_alignment_scores: Whether to plot the alignment scores (normalized over time) or not.
+            The recommended value is `True`. The default value is `False` for retrocompatibility purposes.
+        "param add_left_right_context_orth: Whether to add left and right context orth in the feature flow file or not.
             The recommended value is `True`. The default value is `False` for retrocompatibility purposes.
         """
         assert isinstance(feature_scorer, rasr.FeatureScorer)
@@ -271,7 +274,9 @@ class AlignmentJob(rasr.RasrCommand, Job):
 
     @classmethod
     def create_flow(cls, feature_flow, **kwargs):
-        return alignment_flow(feature_flow, "alignment.cache.$(TASK)")
+        return alignment_flow(
+            feature_flow, "alignment.cache.$(TASK)", add_left_right_context_orth=kwargs["add_left_right_context_orth"]
+        )
 
     @classmethod
     def hash(cls, kwargs):
