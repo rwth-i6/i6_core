@@ -213,7 +213,7 @@ class AlignmentJob(rasr.RasrCommand, Job):
         :return: config, post_config
         :rtype: (rasr.RasrConfig, rasr.RasrConfig)
         """
-        alignment_flow = cls.create_flow(feature_flow)
+        alignment_flow = cls.create_flow(feature_flow, kwargs.get("add_left_right_context_orth", False))
 
         # TODO: think about mode
         alignopt = {
