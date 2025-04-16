@@ -60,7 +60,7 @@ class AlignmentJob(rasr.RasrCommand, Job):
         :param extra_post_config:
         :param plot_alignment_scores: Whether to plot the alignment scores (normalized over time) or not.
             The recommended value is `True`. The default value is `False` for retrocompatibility purposes.
-        "param add_left_right_context_orth: Whether to add left and right context orth in the feature flow file or not.
+        :param add_left_right_context_orth: Whether to add left and right context orth in the feature flow file or not.
             The recommended value is `True`. The default value is `False` for retrocompatibility purposes.
         """
         assert isinstance(feature_scorer, rasr.FeatureScorer)
