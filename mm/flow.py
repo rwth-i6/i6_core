@@ -14,7 +14,7 @@ def linear_segmentation_flow(feature_energy_net, alignment_cache=None):
 
     net = FlowNetwork()
     net.add_output("alignments")
-    net.add_param(["id", "orthography", "left-context-orthography", "right-context-orthography", "TASK"])
+    net.add_param(["id", "orthography", "TASK"])
 
     mapping = net.add_net(feature_energy_net)
     net.interconnect_inputs(feature_energy_net, mapping)
@@ -23,12 +23,7 @@ def linear_segmentation_flow(feature_energy_net, alignment_cache=None):
     alignment = net.add_node(
         "speech-linear-segmentation",
         "alignment",
-        {
-            "id": "$(id)",
-            "orthography": "$(orthography)",
-            "left-context-orthography": "$(left-context-orthography)",
-            "right-context-orthography": "$(right-context-orthography)",
-        },
+        {"id": "$(id)", "orthography": "$(orthography)"},
     )
     net.link(mapping[feature_energy_net.get_output_links("energy").pop()], alignment)
 
