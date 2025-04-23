@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from enum import Enum, auto
 import glob
 import math
+import io
 import librosa
 import numpy as np
 import os
@@ -209,7 +210,9 @@ class ReturnnRasrDumpHDFJob(ReturnnDumpHDFJob):
 class BlissToPcmHDFJob(Job):
     """
     Gets audio files from a Bliss corpus and stores them as HDF file
-    compatible with the RETURNN HDFDataset
+    compatible with the RETURNN HDFDataset.
+
+    Contrary to the job name, can also write compressed audio to the HDF to save space.
     """
 
     class BaseStrategy:
@@ -232,6 +235,7 @@ class BlissToPcmHDFJob(Job):
         "rounding": RoundingScheme.start_and_duration,
         "round_factor": 1,
         "target_sampling_rate": None,
+        "compress_format": None,
     }
 
     def __init__(
@@ -244,6 +248,7 @@ class BlissToPcmHDFJob(Job):
         rounding: RoundingScheme = RoundingScheme.start_and_duration,
         round_factor: int = 1,
         target_sampling_rate: Optional[int] = None,
+        compress_format: Optional[str] = None,
     ):
         """
 
@@ -260,9 +265,12 @@ class BlissToPcmHDFJob(Job):
             rasr_compatible will round up the start time and round down the end time
         :param round_factor: do the rounding based on a sampling rate that is scaled down by this factor
         :param target_sampling_rate: desired sampling rate for the HDF, data will be resampled to this rate if needed
+        :param compress_format: If set, do not write PCM data but compressed audio instead.
+            This is a string that is passed to soundfile as the format argument.
+            The audio can be decompressed downstream via e.g. soundfile
         """
         self.set_vis_name("Dump audio to HDF")
-        assert output_dtype in ["float64", "float32", "int32", "int16"]
+        assert output_dtype in ("float64", "float32", "int32", "int16")
 
         self.bliss_corpus = bliss_corpus
         self.segment_file = segment_file
@@ -272,6 +280,7 @@ class BlissToPcmHDFJob(Job):
         self.rounding = rounding
         self.round_factor = round_factor
         self.target_sampling_rate = target_sampling_rate
+        self.compress_format = compress_format
 
         self.out_hdf = self.output_path("audio.hdf")
 
@@ -333,6 +342,13 @@ class BlissToPcmHDFJob(Job):
                         target_sr=sr,
                         axis=0,
                     ).astype(self.output_dtype)
+
+                # compress if necessary
+                if self.compress_format is not None:
+                    out_sr = self.target_sampling_rate if self.target_sampling_rate else audio.samplerate
+                    buf = io.BytesIO()
+                    sf.write(buf, data, out_sr, format=self.compress_format)
+                    data = np.array([v for v in buf.getvalue()], dtype=np.uint8)
 
                 # add audio to hdf
                 out_hdf.insert_batch(
