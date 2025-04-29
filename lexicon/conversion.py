@@ -101,9 +101,9 @@ class FilterLexiconByWordListJob(Job):
 class LexiconUniqueOrthJob(Job):
     """Merge lemmata with the same orthography."""
 
-    __sis_hash_exclude__ = {"merge_multi_orths_lemmata": False}
+    __sis_hash_exclude__ = {"merge_multi_orths_lemmata": False, "deduplicate_special_lemmata": False}
 
-    def __init__(self, bliss_lexicon, merge_multi_orths_lemmata=False):
+    def __init__(self, bliss_lexicon, merge_multi_orths_lemmata=False, deduplicate_special_lemmata=False):
         """
         :param tk.Path bliss_lexicon: lexicon file to be handeled
         :param bool merge_multi_orths_lemmata: if True, also lemmata containing
@@ -121,11 +121,14 @@ class LexiconUniqueOrthJob(Job):
                     ** having a synt <=> synt is not None
                 this could lead to INFORMATION LOSS if there are several
                 different synt token sequences in the to-be-merged lemmata
+        :param bool deduplicate_special_lemmata: if True, special lemmata will also be considered
+            in the unique process.
         """
         self.set_vis_name("Make Lexicon Orths Unique")
 
         self.bliss_lexicon = bliss_lexicon
         self.merge_multi_orths_lemmata = merge_multi_orths_lemmata
+        self.deduplicate_special_lemmata = deduplicate_special_lemmata
 
         self.out_bliss_lexicon = self.output_path(os.path.basename(tk.uncached_path(bliss_lexicon)), cached=True)
 
@@ -139,7 +142,7 @@ class LexiconUniqueOrthJob(Job):
         orth2lemmata = collections.defaultdict(list)
 
         for lemma in lex.lemmata:
-            if lemma.special:
+            if lemma.special and not self.deduplicate_special_lemmata:
                 continue
             num_orths = len(lemma.orth)
             if num_orths < 1:
