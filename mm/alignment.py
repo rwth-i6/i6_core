@@ -201,7 +201,7 @@ class AlignmentJob(rasr.RasrCommand, Job):
         word_boundaries,
         extra_config,
         extra_post_config,
-        add_left_right_context_orth,
+        add_left_right_context_orth=False,
         **kwargs,
     ):
         """
@@ -276,7 +276,7 @@ class AlignmentJob(rasr.RasrCommand, Job):
         return config, post_config
 
     @classmethod
-    def create_flow(cls, feature_flow, add_left_right_context_orth=add_left_right_context_orth, **kwargs):
+    def create_flow(cls, feature_flow, add_left_right_context_orth=False, **kwargs):
         return alignment_flow(feature_flow, "alignment.cache.$(TASK)", add_left_right_context_orth)
 
     @classmethod
