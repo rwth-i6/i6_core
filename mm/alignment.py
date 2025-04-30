@@ -212,10 +212,11 @@ class AlignmentJob(rasr.RasrCommand, Job):
         :param bool word_boundaries:
         :param extra_config:
         :param extra_post_config:
+        :param bool add_left_right_context_orth:
         :return: config, post_config
         :rtype: (rasr.RasrConfig, rasr.RasrConfig)
         """
-        alignment_flow = cls.create_flow(feature_flow, add_left_right_context_orth, False)
+        alignment_flow = cls.create_flow(feature_flow, add_left_right_context_orth)
 
         # TODO: think about mode
         alignopt = {
