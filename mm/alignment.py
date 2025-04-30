@@ -78,6 +78,7 @@ class AlignmentJob(rasr.RasrCommand, Job):
         self.use_gpu = use_gpu
         self.word_boundaries = word_boundaries
         self.plot_alignment_scores = plot_alignment_scores
+        self.add_left_right_context_orth = add_left_right_context_orth
 
         self.out_log_file = self.log_file_output_path("alignment", crp, True)
         self.out_single_alignment_caches = dict(
@@ -200,6 +201,7 @@ class AlignmentJob(rasr.RasrCommand, Job):
         word_boundaries,
         extra_config,
         extra_post_config,
+        add_left_right_context_orth=add_left_right_context_orth,
         **kwargs,
     ):
         """
@@ -213,9 +215,7 @@ class AlignmentJob(rasr.RasrCommand, Job):
         :return: config, post_config
         :rtype: (rasr.RasrConfig, rasr.RasrConfig)
         """
-        alignment_flow = cls.create_flow(
-            feature_flow, add_left_right_context_orth=kwargs.get("add_left_right_context_orth", False)
-        )
+        alignment_flow = cls.create_flow(feature_flow, add_left_right_context_orth, False)
 
         # TODO: think about mode
         alignopt = {
@@ -275,10 +275,8 @@ class AlignmentJob(rasr.RasrCommand, Job):
         return config, post_config
 
     @classmethod
-    def create_flow(cls, feature_flow, **kwargs):
-        return alignment_flow(
-            feature_flow, "alignment.cache.$(TASK)", add_left_right_context_orth=kwargs["add_left_right_context_orth"]
-        )
+    def create_flow(cls, feature_flow, add_left_right_context_orth=add_left_right_context_orth, **kwargs):
+        return alignment_flow(feature_flow, "alignment.cache.$(TASK)", add_left_right_context_orth)
 
     @classmethod
     def hash(cls, kwargs):

@@ -41,10 +41,9 @@ def alignment_flow(feature_net, alignment_cache_path=None, add_left_right_contex
     assert "features" in feature_net.get_output_ports()
     net = FlowNetwork()
     net.add_output("alignments")
+    net.add_param(["id", "orthography", "TASK"])
     if add_left_right_context_orth:
-        net.add_param(["id", "orthography", "left-context-orthography", "right-context-orthography", "TASK"])
-    else:
-        net.add_param(["id", "orthography", "TASK"])
+        net.add_param(["left-context-orthography", "right-context-orthography"])
 
     mapping = net.add_net(feature_net)
     net.interconnect_inputs(feature_net, mapping)
@@ -53,25 +52,22 @@ def alignment_flow(feature_net, alignment_cache_path=None, add_left_right_contex
     aggregate = net.add_node("generic-aggregation-vector-f32", "aggregate")
     net.link(mapping[feature_net.get_output_links("features").pop()], aggregate)
 
+    alignment = net.add_node(
+        "speech-alignment",
+        "alignment",
+        {
+            "id": "$(id)",
+            "orthography": "$(orthography)",
+        },
+    )
     if add_left_right_context_orth:
-        alignment = net.add_node(
-            "speech-alignment",
-            "alignment",
+        net.nodes["alignment"].update(
             {
                 "id": "$(id)",
                 "orthography": "$(orthography)",
                 "left-context-orthography": "$(left-context-orthography)",
                 "right-context-orthography": "$(right-context-orthography)",
-            },
-        )
-    else:
-        alignment = net.add_node(
-            "speech-alignment",
-            "alignment",
-            {
-                "id": "$(id)",
-                "orthography": "$(orthography)",
-            },
+            }
         )
     net.link(aggregate, alignment)
 
