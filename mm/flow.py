@@ -61,7 +61,7 @@ def alignment_flow(feature_net, alignment_cache_path=None, add_left_right_contex
         },
     )
     if add_left_right_context_orth:
-        net.nodes["alignment"].update(
+        net.nodes[alignment].update(
             {
                 "left-context-orthography": "$(left-context-orthography)",
                 "right-context-orthography": "$(right-context-orthography)",
