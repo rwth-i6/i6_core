@@ -144,7 +144,7 @@ def reduce_tree(func, tree):
     return func([(reduce_tree(func, e) if type(e) == list else e) for e in tree])
 
 
-def uopen(path: Union[str, tk.Path], *args, **kwargs) -> io.TextIOWrapper:
+def uopen(path: Union[str, tk.Path], *args, **kwargs) -> io.IOBase:
     path = tk.uncached_path(path)
     if path.endswith(".gz"):
         return gzip.open(path, *args, **kwargs)
