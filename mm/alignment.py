@@ -201,7 +201,7 @@ class AlignmentJob(rasr.RasrCommand, Job):
         word_boundaries,
         extra_config,
         extra_post_config,
-        add_left_right_context_orth=add_left_right_context_orth,
+        add_left_right_context_orth,
         **kwargs,
     ):
         """
