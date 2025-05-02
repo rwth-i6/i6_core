@@ -32,7 +32,7 @@ class AlignmentJob(rasr.RasrCommand, Job):
     Align a dataset with the given feature scorer.
     """
 
-    __sis_hash_exclude__ = {"plot_alignment_scores": False}
+    __sis_hash_exclude__ = {"plot_alignment_scores": False, "add_left_right_context_orth": False}
 
     def __init__(
         self,
@@ -46,6 +46,7 @@ class AlignmentJob(rasr.RasrCommand, Job):
         extra_config=None,
         extra_post_config=None,
         plot_alignment_scores=False,
+        add_left_right_context_orth=False,
     ):
         """
         :param rasr.crp.CommonRasrParameters crp:
@@ -58,6 +59,8 @@ class AlignmentJob(rasr.RasrCommand, Job):
         :param extra_config:
         :param extra_post_config:
         :param plot_alignment_scores: Whether to plot the alignment scores (normalized over time) or not.
+            The recommended value is `True`. The default value is `False` for retrocompatibility purposes.
+        :param add_left_right_context_orth: Whether to add left and right context orth in the feature flow file or not.
             The recommended value is `True`. The default value is `False` for retrocompatibility purposes.
         """
         assert isinstance(feature_scorer, rasr.FeatureScorer)
@@ -75,6 +78,7 @@ class AlignmentJob(rasr.RasrCommand, Job):
         self.use_gpu = use_gpu
         self.word_boundaries = word_boundaries
         self.plot_alignment_scores = plot_alignment_scores
+        self.add_left_right_context_orth = add_left_right_context_orth
 
         self.out_log_file = self.log_file_output_path("alignment", crp, True)
         self.out_single_alignment_caches = dict(
@@ -197,6 +201,7 @@ class AlignmentJob(rasr.RasrCommand, Job):
         word_boundaries,
         extra_config,
         extra_post_config,
+        add_left_right_context_orth=False,
         **kwargs,
     ):
         """
@@ -207,10 +212,11 @@ class AlignmentJob(rasr.RasrCommand, Job):
         :param bool word_boundaries:
         :param extra_config:
         :param extra_post_config:
+        :param bool add_left_right_context_orth:
         :return: config, post_config
         :rtype: (rasr.RasrConfig, rasr.RasrConfig)
         """
-        alignment_flow = cls.create_flow(feature_flow)
+        alignment_flow = cls.create_flow(feature_flow, add_left_right_context_orth)
 
         # TODO: think about mode
         alignopt = {
@@ -270,8 +276,8 @@ class AlignmentJob(rasr.RasrCommand, Job):
         return config, post_config
 
     @classmethod
-    def create_flow(cls, feature_flow, **kwargs):
-        return alignment_flow(feature_flow, "alignment.cache.$(TASK)")
+    def create_flow(cls, feature_flow, add_left_right_context_orth=False, **kwargs):
+        return alignment_flow(feature_flow, "alignment.cache.$(TASK)", add_left_right_context_orth)
 
     @classmethod
     def hash(cls, kwargs):
