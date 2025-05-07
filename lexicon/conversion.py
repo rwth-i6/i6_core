@@ -207,7 +207,7 @@ class LexiconFromTextFileJob(Job):
 
         phonemes = set()
         seen_lemma = {}
-        with uopen(self.text_file.get_path(), "rt") as f:
+        with uopen(self.text_file.get_path()) as f:
             for line in f:
                 # splitting is taken from RASR
                 # src/Tools/Bliss/blissLexiconLib.py#L185
