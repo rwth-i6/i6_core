@@ -18,6 +18,7 @@ except ImportError:
             "'WARNING_NO_SENTENCEPIECE=False' in the settings.py"
         )
 
+
 class ApplySentencepieceToTextJob(Job):
     """
     Apply sentencepiece model on a text file, basically a wrapper for spm.encode
@@ -37,7 +38,7 @@ class ApplySentencepieceToTextJob(Job):
         """
         :param text_file: words text file to convert to sentencepiece
         :param sentencepiece_model: path to the trained sentencepiece model
-        :param map_unk: when encoding string to string, spm won't map oov symbol to <unk> but keep it as is. 
+        :param map_unk: when encoding string to string, spm won't map oov symbol to <unk> but keep it as is.
             This option forces the oov labels to be <unk> by cecking encoded indices.
         :param gzip_output: use gzip on the output text
         :param mini_task: if the Job should run locally, e.g. only a small (<1M lines) text should be processed
@@ -48,7 +49,9 @@ class ApplySentencepieceToTextJob(Job):
         self.gzip_output = gzip_output
         self.buffer_size = buffer_size
 
-        self.out_sentencepiece_text = self.output_path("words_to_sentencepiece.txt.gz" if gzip_output else "words_to_sentencepiece.txt")
+        self.out_sentencepiece_text = self.output_path(
+            "words_to_sentencepiece.txt.gz" if gzip_output else "words_to_sentencepiece.txt"
+        )
 
         self.mini_task = mini_task
         self.rqmt = {"cpu": 1, "mem": 2, "time": 2}
@@ -61,6 +64,7 @@ class ApplySentencepieceToTextJob(Job):
 
     def run(self):
         import sentencepiece
+
         spm = sentencepiece.SentencePieceProcessor(model_file=self.sentencepiece_model.get_path())
         unk_id = spm.unk_id()
         with tempfile.TemporaryDirectory(prefix=gs.TMP_PREFIX) as tmp:
@@ -71,8 +75,7 @@ class ApplySentencepieceToTextJob(Job):
             with util.uopen(tmp_infile, "wt") as out:
                 sp.call(["zcat", "-f", input_file], stdout=out)
 
-            with util.uopen(tmp_infile, "rt") as fin, \
-                 util.uopen(tmp_outfile, "wt") as fout:
+            with util.uopen(tmp_infile, "rt") as fin, util.uopen(tmp_outfile, "wt") as fout:
                 buf = []
                 for lineno, line in enumerate(fin, 1):
                     pieces = spm.encode(line.rstrip("\n"), out_type=str)
@@ -99,4 +102,3 @@ class ApplySentencepieceToTextJob(Job):
     def hash(cls, parsed_args):
         del parsed_args["mini_task"]
         return super().hash(parsed_args)
-
