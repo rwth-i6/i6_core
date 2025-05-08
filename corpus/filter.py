@@ -242,7 +242,7 @@ class FilterCorpusBySegmentsJob(Job):
     def run(self):
         segments = []
         for seg in self.segment_file_list:
-            with uopen(tk.uncached_path(seg), "rt") as f:
+            with uopen(seg, "rt") as f:
                 lines = f.readlines()
                 segments += [l.strip() for l in lines]
 
