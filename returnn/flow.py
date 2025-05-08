@@ -93,7 +93,7 @@ def make_precomputed_hybrid_tf_feature_flow(
     rasr_config.input_map.info_0.param_name = "input"
     rasr_config.input_map.info_0.tensor_name = f"extern_data/placeholders/{extern_data_name}/{extern_data_name}"
     rasr_config.input_map.info_0.seq_length_tensor_name = (
-        f"extern_data/placeholders/" f"{extern_data_name}/{extern_data_name}_dim0_size"
+        f"extern_data/placeholders/{extern_data_name}/{extern_data_name}_dim0_size"
     )
 
     rasr_config.output_map.info_0.param_name = "log-posteriors"

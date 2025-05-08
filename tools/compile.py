@@ -49,9 +49,9 @@ class MakeJob(Job):
 
         self.rqmt = {"cpu": num_processes, "mem": 4}
 
-        assert (
-            output_folder_name or link_outputs
-        ), "please provide either output_folder_name or link_outputs, otherwise the output will be empty"
+        assert output_folder_name or link_outputs, (
+            "please provide either output_folder_name or link_outputs, otherwise the output will be empty"
+        )
 
         if output_folder_name:
             self.out_repository = self.output_path(output_folder_name)

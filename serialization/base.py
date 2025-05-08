@@ -1,6 +1,7 @@
 """
 Helper code for serializing any data, e.g. for ReturnnConfig.
 """
+
 from __future__ import annotations
 
 __all__ = [

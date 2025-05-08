@@ -1,6 +1,7 @@
 """
 Helpers that are specific for i6_models/PyTorch setups
 """
+
 from __future__ import annotations
 
 __all__ = ["build_i6_models_config_constructor_serializers"]
