@@ -82,9 +82,9 @@ class ReturnnSearchJob(Job):
         util.create_executable("rnn.sh", cmd)
 
         # check here if model actually exists
-        assert os.path.exists(
-            tk.uncached_path(self.model_checkpoint.index_path)
-        ), "Provided model does not exists: %s" % str(self.model_checkpoint)
+        assert os.path.exists(tk.uncached_path(self.model_checkpoint.index_path)), (
+            "Provided model does not exists: %s" % str(self.model_checkpoint)
+        )
 
     def run(self):
         call = [

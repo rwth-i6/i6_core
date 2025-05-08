@@ -72,13 +72,13 @@ class FairseqHydraConfig:
             if isinstance(self.config_dict[group], dict):
                 for key in self.config_dict[group]:
                     if group in self.post_config_dict:
-                        assert (
-                            key not in self.post_config_dict[group].keys()
-                        ), f"{key} of {group} in post_config would overwrite existing entry in config"
+                        assert key not in self.post_config_dict[group].keys(), (
+                            f"{key} of {group} in post_config would overwrite existing entry in config"
+                        )
             else:
-                assert (
-                    group not in self.post_config_dict
-                ), f"{group} in post_config would overwrite existing entry in config"
+                assert group not in self.post_config_dict, (
+                    f"{group} in post_config would overwrite existing entry in config"
+                )
 
         # list of parameters that should never be hashed
         disallowed_in_config = ["save_interval", "max_epoch", "max_update"]
@@ -86,13 +86,13 @@ class FairseqHydraConfig:
         for group in self.config_dict:
             if isinstance(self.config_dict[group], dict):
                 for key in disallowed_in_config:
-                    assert (
-                        self.config_dict[group].get(key) is None
-                    ), f"please define {key} of {group} only as parameter in the post_config_dict"
+                    assert self.config_dict[group].get(key) is None, (
+                        f"please define {key} of {group} only as parameter in the post_config_dict"
+                    )
             else:
-                assert (
-                    self.config_dict[group].get(group) is None
-                ), f"please define {group} only as parameter in the post_config_dict"
+                assert self.config_dict[group].get(group) is None, (
+                    f"please define {group} only as parameter in the post_config_dict"
+                )
 
     def _sis_hash(self):
         h = {"fairseq_hydra_config": self.config_dict}

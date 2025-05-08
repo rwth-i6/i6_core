@@ -553,9 +553,9 @@ class SearchWordsDummyTimesToCTMJob(Job):
             # See https://github.com/rwth-i6/i6_core/pull/542.
             out.write(";; <name> <track> <start> <duration> <word> <confidence>\n")
             for seg_fullname in seq_order:
-                assert isinstance(
-                    seg_fullname, str
-                ), f"invalid seq_order entry {seg_fullname!r} (type {type(seg_fullname).__name__})"
+                assert isinstance(seg_fullname, str), (
+                    f"invalid seq_order entry {seg_fullname!r} (type {type(seg_fullname).__name__})"
+                )
                 assert seg_fullname in d, f"seq_order entry {seg_fullname!r} not found in recog_words_file"
                 text = d[seg_fullname]
                 seg_start = 0.0

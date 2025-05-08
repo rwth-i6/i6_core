@@ -9,7 +9,6 @@ Path = setup_path(__package__)
 
 
 def test_corpus_replace_orth_from_reference_corpus():
-
     with tempfile.TemporaryDirectory() as tmpdir:
         reference_corpus = Path("files/test_replace.corpus.xml")
         bliss_corpus_corrupt = Path("files/test_replace.corrupt.corpus.xml")

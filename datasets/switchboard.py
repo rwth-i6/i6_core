@@ -8,7 +8,6 @@ number of segments: 249624
 number of speakers: 2260
 """
 
-
 from sisyphus import Job, Task, tk, setup_path
 
 from collections import defaultdict

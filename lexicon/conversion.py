@@ -394,9 +394,9 @@ class SpellingConversionJob(Job):
                     orths = line.split(self.mapping_file_delimiter)
                     if len(orths) != 2:
                         raise ValueError(
-                            "The selected mapping delimiter is not valid, it "
-                            "generates {} orths for line "
-                            "'{}'!".format(len(orths), line)
+                            "The selected mapping delimiter is not valid, it generates {} orths for line '{}'!".format(
+                                len(orths), line
+                            )
                         )
                     source_orth, target_orth = orths
                     if self.invert_mapping:
@@ -448,13 +448,11 @@ class SpellingConversionJob(Job):
                 if pattern.search(primary_orth):
                     target_orth = pattern.sub(replacement, primary_orth)
                     mapping[primary_orth] = target_orth
-                    logging.info(
-                        "added mapping pair through mapping rule: {} ==> " "{}".format(primary_orth, target_orth)
-                    )
+                    logging.info("added mapping pair through mapping rule: {} ==> {}".format(primary_orth, target_orth))
                     break
         if len(mapping) > num_mappings:
             logging.info(
-                "A total of {} mapping pairs added through extra mapping " "rules".format(len(mapping) - num_mappings)
+                "A total of {} mapping pairs added through extra mapping rules".format(len(mapping) - num_mappings)
             )
 
         # spelling conversion

@@ -10,7 +10,6 @@ Path = setup_path(__package__)
 
 
 def test_returnn_vocab_from_phoneme_inventory():
-
     with tempfile.TemporaryDirectory() as tmpdir:
         lexicon = Path("files/test_lexicon.xml.gz")
 
@@ -29,7 +28,6 @@ def test_returnn_vocab_from_phoneme_inventory():
 
 
 def test_returnn_vocab_from_phoneme_inventory_blacklist():
-
     with tempfile.TemporaryDirectory() as tmpdir:
         lexicon = Path("files/test_lexicon.xml.gz")
 
@@ -48,7 +46,6 @@ def test_returnn_vocab_from_phoneme_inventory_blacklist():
 
 
 def test_returnn_vocab_from_phoneme_inventory_blacklist_file():
-
     with tempfile.TemporaryDirectory() as tmpdir:
         lexicon = Path("files/test_lexicon.xml.gz")
         blacklist = Path("files/blacklist")

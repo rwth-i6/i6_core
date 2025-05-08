@@ -389,9 +389,9 @@ class System:
         :param kwargs:
         :return:
         """
-        assert (
-            port_name in feature_flow.outputs
-        ), f"port name '{port_name}' not available in feature flow (available are: {feature_flow.outputs})"
+        assert port_name in feature_flow.outputs, (
+            f"port name '{port_name}' not available in feature flow (available are: {feature_flow.outputs})"
+        )
         port_name_mapping = {port_name: name}
         self.jobs[corpus][f"{name}_features"] = f = features.FeatureExtractionJob(
             self.crp[corpus], feature_flow, port_name_mapping, job_name=name, **kwargs

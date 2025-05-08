@@ -47,9 +47,9 @@ class DenseLabelInfo:
         """
         :return: num labels factor introduced by word-end/word-boundary augmentation
         """
-        assert not (
-            self.use_word_end_classes and self.use_boundary_classes
-        ), "can only set either word-end or boundary classes"
+        assert not (self.use_word_end_classes and self.use_boundary_classes), (
+            "can only set either word-end or boundary classes"
+        )
 
         if self.use_word_end_classes:
             return 2
@@ -85,9 +85,9 @@ class GetPhonemeLabelsFromNoTyingDense(Job):
         self.alignment_cache_path = alignment_cache_path
         self.allophone_path = allophone_path
         self.dense_tying_path = dense_tying_path
-        assert not (
-            dense_label_info.use_boundary_classes and dense_label_info.use_word_end_classes
-        ), "we do not use both class distinctions"
+        assert not (dense_label_info.use_boundary_classes and dense_label_info.use_word_end_classes), (
+            "we do not use both class distinctions"
+        )
         self.dense_label_info = dense_label_info
         self.sparse = sparse
         self.returnn_root = returnn_root

@@ -345,7 +345,7 @@ class SplitTextFileJob(Job):
             raise NotImplementedError
 
         self.out_split_text_files = {
-            k: self.output_path(f'split.{k:04}.{"txt.gz" if zip_output else "txt"}')
+            k: self.output_path(f"split.{k:04}.{'txt.gz' if zip_output else 'txt'}")
             for k in range(1, self.num_output_files + 1)
         }
 
