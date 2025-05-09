@@ -151,6 +151,8 @@ class Import(SerializerObject):
 class PartialImport(Import):
     """
     Like Import, but for partial callables where certain parameters are given fixed and are hashed.
+
+    If you are trying to import (and initialize) callable classes, `CallImport` may simplify your setup.
     """
 
     TEMPLATE = textwrap.dedent(
