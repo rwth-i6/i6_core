@@ -9,6 +9,7 @@ __all__ = [
     "Collection",
     "Import",
     "PartialImport",
+    "CallImport",
     "ExternalImport",
     "CodeFromFunction",
     "NonhashedCode",
@@ -150,6 +151,8 @@ class Import(SerializerObject):
 class PartialImport(Import):
     """
     Like Import, but for partial callables where certain parameters are given fixed and are hashed.
+
+    If you are trying to import (and initialize) callable classes, `CallImport` may simplify your setup.
     """
 
     TEMPLATE = textwrap.dedent(
@@ -213,6 +216,22 @@ class PartialImport(Import):
     def _sis_hash(self) -> bytes:
         super_hash = super()._sis_hash()
         return sis_hash_helper({"import": super_hash, "hashed_arguments": self.hashed_arguments})
+
+
+class CallImport(PartialImport):
+    """
+    Imports some function/class and calls it with given args.
+
+    See also :class:`PartialImport` to get a partial function/class.
+    """
+
+    TEMPLATE = textwrap.dedent(
+        """\
+            ${OBJECT_NAME} = __import__("${IMPORT_PATH}", fromlist=["${IMPORT_NAME}"]).${IMPORT_NAME}(
+                **${KWARGS}
+            )
+        """
+    )
 
 
 class ExternalImport(SerializerObject):
