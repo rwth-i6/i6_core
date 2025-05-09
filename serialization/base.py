@@ -220,7 +220,9 @@ class PartialImport(Import):
 
 class CallImport(PartialImport):
     """
-    Like PartialImport, but issues a full, not just a partial call to the imported callable.
+    Imports some function/class and calls it with given args.
+
+    See also :class:`PartialImport` to get a partial function/class.
     """
 
     TEMPLATE = textwrap.dedent(
