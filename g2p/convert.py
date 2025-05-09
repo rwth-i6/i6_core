@@ -44,6 +44,8 @@ class BlissLexiconToG2PLexiconJob(Job):
     def run(self):
         with uopen(self.bliss_lexicon, "rt") as f:
             tree = ET.parse(f)
+
+        orths_with_space = []
         with uopen(self.out_g2p_lexicon, "wt") as out:
             all_lemmas = tree.findall(".//lemma")
             assert len(all_lemmas) > 0, "No lemma tag found in the lexicon file! Wrong format file?"
@@ -58,6 +60,8 @@ class BlissLexiconToG2PLexiconJob(Job):
                     orths = [lemma.find("orth").text.strip()]
 
                 for orth in orths:
+                    if " " in orth:
+                        orths_with_space.append(orth)
                     if self.include_pronunciation_variants:
                         phons = lemma.findall("phon")
                         phon_single = []
@@ -69,6 +73,15 @@ class BlissLexiconToG2PLexiconJob(Job):
                     else:
                         phon = lemma.find("phon").text.strip()
                         out.write("%s %s\n" % (orth, phon))
+
+        assert not orths_with_space, (
+            "The G2P training requires a file with the syntax `<orth><space><phonemes>` per line, "
+            "but some lemmas have a space in their orths. "
+            "As a consequence, some of the parts in the orth might be picked up as phonemes, which is not desirable.\n"
+            "The offending lemmas are:"
+            + "\n".join(orths_with_space)
+            + "\nAs a suggestion, substitute the spaces by an alternative token that the G2P can disregard, like '_'.\n"
+        )
 
 
 class G2POutputToBlissLexiconJob(Job):
