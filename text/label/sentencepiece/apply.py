@@ -23,30 +23,28 @@ class ApplySentencepieceToTextJob(Job):
     """
     Apply sentencepiece model on a text file, basically a wrapper for spm.encode
     """
-
-    __sis_hash_exclude__ = {"gzip_output": False}
-
     def __init__(
         self,
+        *,
         text_file: tk.Path,
         sentencepiece_model: tk.Path,
         map_unk: bool = False,
         buffer_size: int = 32768,
         gzip_output: bool = False,
-        mini_task=True,
+        mini_task: bool =True,
     ):
         """
         :param text_file: words text file to convert to sentencepiece
         :param sentencepiece_model: path to the trained sentencepiece model
         :param map_unk: when encoding string to string, spm won't map oov symbol to <unk> but keep it as is.
             This option forces the oov labels to be <unk> by cecking encoded indices.
+        :param buffer_size: buffer for write operation to restrict memory usage
         :param gzip_output: use gzip on the output text
         :param mini_task: if the Job should run locally, e.g. only a small (<1M lines) text should be processed
         """
         self.text_file = text_file
         self.sentencepiece_model = sentencepiece_model
         self.map_unk = map_unk
-        self.gzip_output = gzip_output
         self.buffer_size = buffer_size
 
         self.out_sentencepiece_text = self.output_path(
@@ -92,13 +90,11 @@ class ApplySentencepieceToTextJob(Job):
                 if buf:  # write any remainder
                     fout.writelines(buf)
 
-            if self.gzip_output:
-                with util.uopen(tmp_outfile, "rt") as fin, util.uopen(self.out_sentencepiece_text, "wb") as fout:
-                    sp.call(["gzip"], stdin=fin, stdout=fout)
-            else:
-                shutil.copy(tmp_outfile, self.out_sentencepiece_text.get_path())
+            with util.uopen(tmp_outfile, "rt") as fin, util.uopen(self.out_sentencepiece_text, "wt") as fout:
+                shutil.copyfileobj(fin, fout)
 
     @classmethod
     def hash(cls, parsed_args):
         del parsed_args["mini_task"]
+        del parsed_args["buffer_size"]
         return super().hash(parsed_args)
