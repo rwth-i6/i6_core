@@ -23,6 +23,7 @@ class ApplySentencepieceToTextJob(Job):
     """
     Apply sentencepiece model on a text file, basically a wrapper for spm.encode
     """
+
     def __init__(
         self,
         *,
@@ -31,7 +32,7 @@ class ApplySentencepieceToTextJob(Job):
         map_unk: bool = False,
         buffer_size: int = 32768,
         gzip_output: bool = False,
-        mini_task: bool =True,
+        mini_task: bool = True,
     ):
         """
         :param text_file: words text file to convert to sentencepiece
