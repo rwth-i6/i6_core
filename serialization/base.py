@@ -218,7 +218,7 @@ class PartialImport(Import):
 
 class CallImport(PartialImport):
     """
-    Like PartialImport, but for callables where all parameters are given fixed and are optionally hashed.
+    Like PartialImport, but issues a full, not just a partial call to the imported callable.
     """
 
     TEMPLATE = textwrap.dedent(
