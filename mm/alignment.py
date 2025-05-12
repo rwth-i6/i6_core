@@ -465,7 +465,6 @@ class PlotAlignmentJob(Job):
         yield Task("plot", resume="plot", rqmt=self.rqmt)
 
     def plot(self):
-        import numpy as np
         import matplotlib
         import matplotlib.pyplot as plt
 
@@ -835,7 +834,7 @@ class PlotViterbiAlignmentJob(Job):
 
     def __init__(
         self,
-        alignment_caches: Iterable[tk.Path],
+        alignment_caches: List[tk.Path],
         allophone_file: tk.Path,
         segment_names_to_plot: Optional[tk.Path] = None,
         corpus_file: Optional[tk.Path] = None,
@@ -887,16 +886,17 @@ class PlotViterbiAlignmentJob(Job):
         monotonic_idx_alignment = np.repeat(np.arange(len(phonemes)), lengths)
         return phonemes, monotonic_idx_alignment
 
-    def make_viterbi_matrix(self, label_idx_seq: np.array) -> np.array:
+    def make_viterbi_matrix(self, label_indices: np.array) -> np.array:
         """
-        :param label_idx_seq: Sequence of label (allophone) indices.
+        :param label_indices: Sequence of label (allophone) indices.
         :return: Matrix corresponding to the Viterbi alignment.
         """
-        num_timestamps = len(label_idx_seq)
-        max_allophone_value = max(label_idx_seq) + 1
-        viterbi_matrix = np.zeros((max_allophone_value, num_timestamps), dtype=np.float32)
-        for t, idx in enumerate(label_idx_seq):
-            viterbi_matrix[idx, t] = 1.0
+        num_timestamps = len(label_indices)
+        max_allophone_value = max(label_indices) + 1
+        # The matrix is transposed because we want an upward trend.
+        viterbi_matrix = np.zeros((num_timestamps, max_allophone_value), dtype=np.bool)
+        for i, t_i in enumerate(label_indices):
+            viterbi_matrix[i, t_i] = True
         return viterbi_matrix
 
     def plot(self, viterbi_matrix: np.array, allophone_sequence: List[str], file_name: str, title: str = ""):
