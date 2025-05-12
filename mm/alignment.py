@@ -5,6 +5,7 @@ __all__ = [
     "AMScoresFromAlignmentLogJob",
     "ComputeTimeStampErrorJob",
     "GetLongestAllophoneFileJob",
+    "PlotViterbiAlignmentJob",
 ]
 
 import itertools
