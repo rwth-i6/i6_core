@@ -904,9 +904,9 @@ class PlotViterbiAlignmentJob(Job):
         :param label_idx_seq: Sequence of label (allophone) indices.
         :return: Matrix corresponding to the Viterbi alignment.
         """
-        num_alignments = len(label_idx_seq)
-        max_timestamp = max(label_idx_seq) + 1
-        viterbi_matrix = np.zeros((max_timestamp, num_alignments), dtype=np.float32)
+        num_timestamps = len(label_idx_seq)
+        max_allophone_value = max(label_idx_seq) + 1
+        viterbi_matrix = np.zeros((max_allophone_value, num_timestamps), dtype=np.float32)
         for t, idx in enumerate(label_idx_seq):
             viterbi_matrix[idx, t] = 1.0
         return viterbi_matrix
@@ -924,15 +924,15 @@ class PlotViterbiAlignmentJob(Job):
 
         matplotlib.use("Agg")
 
-        max_timestamp, num_alignments = np.shape(viterbi_matrix)
+        max_allophone_value, num_timestamps = np.shape(viterbi_matrix)
 
         fig, ax = plt.subplots(figsize=(10, 10))
         ax.set_xlabel("Frame")
         ax.xaxis.set_label_coords(0.98, -0.03)
-        ax.set_xbound(0, num_alignments - 1)
-        ax.set_ybound(-0.5, max_timestamp - 0.5)
+        ax.set_xbound(0, num_timestamps - 1)
+        ax.set_ybound(-0.5, max_allophone_value - 0.5)
 
-        ax.set_yticks(np.arange(max_timestamp))
+        ax.set_yticks(np.arange(max_allophone_value))
         ax.set_yticklabels(allophone_sequence)
 
         ax.set_title(title)
