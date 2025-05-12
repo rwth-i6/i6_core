@@ -3,6 +3,7 @@ Library for the RASR Lexicon files
 
 For format details visit: `https://www-i6.informatik.rwth-aachen.de/rwth-asr/manual/index.php/Lexicon`_
 """
+
 __all__ = ["Lemma", "Lexicon"]
 
 from collections import OrderedDict

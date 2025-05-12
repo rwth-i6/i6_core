@@ -36,7 +36,6 @@ class ReverseARPALmJob(Job):
         lm = Lm(self.lm_path.get())
 
         with util.uopen(self.out_reverse_lm.get_path(), "wt", encoding="utf-8") as outfile:
-
             # compute new reversed ARPA model
             all_ngrams = []
             for n in range(1, len(lm.ngram_counts) + 1):  # unigrams, bigrams, trigrams

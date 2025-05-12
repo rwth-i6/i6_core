@@ -53,9 +53,9 @@ class _CorpusCreatorHelper:
             Doesn't return False whenever the corpus structure doesn't match, but fails with an assertion.
         """
         # Check that the corpus name matches.
-        assert (
-            corpus.name == corpus_dict["name"]
-        ), f"Corpus name ({corpus.name}) doesn't coincide with provided ({corpus_dict['name']})."
+        assert corpus.name == corpus_dict["name"], (
+            f"Corpus name ({corpus.name}) doesn't coincide with provided ({corpus_dict['name']})."
+        )
 
         # Check that the recordings (and their internal segments) match.
         recordings_dicts = corpus_dict.get("recordings", [])
@@ -75,20 +75,20 @@ class _CorpusCreatorHelper:
                 if sorted([segment.name for segment in r.segments]) == sorted(segments_from_dict):
                     found_recording = r
                     break
-            assert (
-                found_recording
-            ), f"No recording in {corpus.fullname()} found with the features provided by the user: {recording_dict}. "
+            assert found_recording, (
+                f"No recording in {corpus.fullname()} found with the features provided by the user: {recording_dict}. "
+            )
 
         # Recursively check that the subcorpora match.
         subcorpus_dicts = corpus_dict.get("subcorpora", [])
         for subcorpus_dict in subcorpus_dicts:
             matching_subcorpus = [sc for sc in corpus.top_level_subcorpora() if sc.name == subcorpus_dict["name"]]
-            assert (
-                len(matching_subcorpus) <= 1
-            ), f"There's more than one subcorpus matching for the subcorpus name {subcorpus_dict['name']}"
-            assert (
-                len(matching_subcorpus) != 0
-            ), f"There's no subcorpus matching for the subcorpus name {subcorpus_dict['name']}"
+            assert len(matching_subcorpus) <= 1, (
+                f"There's more than one subcorpus matching for the subcorpus name {subcorpus_dict['name']}"
+            )
+            assert len(matching_subcorpus) != 0, (
+                f"There's no subcorpus matching for the subcorpus name {subcorpus_dict['name']}"
+            )
             _CorpusCreatorHelper._check_corpus_with_structure(matching_subcorpus[0], subcorpus_dict)
 
         return True

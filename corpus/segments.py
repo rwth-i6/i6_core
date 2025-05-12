@@ -238,7 +238,6 @@ class SplitSegmentFileJob(Job):
 
 
 class DynamicSplitSegmentFileJob(Job):
-
     """
     Split the segments to concurrent many shares. It is a variant to the existing SplitSegmentFileJob.
     This requires a tk.Delayed variable (instead of int) for the argument concurrent.
@@ -330,7 +329,6 @@ class UpdateSegmentsWithSegmentMapJob(Job):
     """
 
     def __init__(self, segment_file, segment_map):
-
         self.segment_file = segment_file
         self.segment_map = segment_map
         self.out_segments = self.output_path("updated.segments")
@@ -339,7 +337,6 @@ class UpdateSegmentsWithSegmentMapJob(Job):
         yield Task("run", mini_task=True)
 
     def run(self):
-
         sm = corpus.SegmentMap()
         sm.load(self.segment_map.get_path())
 

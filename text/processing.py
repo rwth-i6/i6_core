@@ -140,8 +140,8 @@ class ConcatenateJob(Job):
 
         assert isinstance(text_files, list)
 
-        for input in text_files:
-            assert isinstance(input, Path) or isinstance(input, str), "input to Concatenate is not a valid path"
+        for input_file in text_files:
+            assert isinstance(input_file, (Path, str)), "input to Concatenate is not a valid path"
 
         self.text_files = text_files
         self.zip_out = zip_out
@@ -159,14 +159,16 @@ class ConcatenateJob(Job):
         yield Task("run", rqmt={"mem": 3, "time": 3})
 
     def run(self):
-        self.f_list = " ".join(
+        f_list = [
             gs.file_caching(text_file) if isinstance(text_file, str) else text_file.get_cached_path()
             for text_file in self.text_files
-        )
-        if self.zip_out:
-            self.sh("zcat -f {f_list} | gzip > {out}")
-        else:
-            self.sh("zcat -f {f_list} > {out}")
+        ]
+
+        with util.uopen(self.out, "wb") as out_file:
+            for f in f_list:
+                logging.info(f)
+                with util.uopen(f, "rb") as in_file:
+                    shutil.copyfileobj(in_file, out_file)
 
 
 class HeadJob(Job):
@@ -343,7 +345,7 @@ class SplitTextFileJob(Job):
             raise NotImplementedError
 
         self.out_split_text_files = {
-            k: self.output_path(f'split.{k:04}.{"txt.gz" if zip_output else "txt"}')
+            k: self.output_path(f"split.{k:04}.{'txt.gz' if zip_output else 'txt'}")
             for k in range(1, self.num_output_files + 1)
         }
 

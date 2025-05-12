@@ -490,14 +490,14 @@ class ReturnnTrainingJob(Job):
 
         if keep_epochs is not None:
             if not "cleanup_old_models" in post_config or isinstance(post_config["cleanup_old_models"], bool):
-                assert (
-                    post_config.get("cleanup_old_models", True) == True
-                ), "'cleanup_old_models' can not be False if 'keep_epochs' is specified"
+                assert post_config.get("cleanup_old_models", True) == True, (
+                    "'cleanup_old_models' can not be False if 'keep_epochs' is specified"
+                )
                 post_config["cleanup_old_models"] = {"keep": keep_epochs}
             elif isinstance(post_config["cleanup_old_models"], dict):
-                assert (
-                    "keep" not in post_config["cleanup_old_models"]
-                ), "you can only provide either 'keep_epochs' or 'cleanup_old_models/keep', but not both"
+                assert "keep" not in post_config["cleanup_old_models"], (
+                    "you can only provide either 'keep_epochs' or 'cleanup_old_models/keep', but not both"
+                )
                 post_config["cleanup_old_models"]["keep"] = keep_epochs
             else:
                 assert False, "invalid type of cleanup_old_models: %s" % type(post_config["cleanup_old_models"])
@@ -665,7 +665,6 @@ class ReturnnTrainingFromFileJob(Job):
 
     @classmethod
     def hash(cls, kwargs):
-
         d = {
             "returnn_config_file": kwargs["returnn_config_file"],
             "parameter_dict": kwargs["parameter_dict"],

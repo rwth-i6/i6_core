@@ -76,16 +76,17 @@ class Lm:
                 text = read_increase_line()
             assert text, "invalid ARPA file"
 
-        assert (
-            len(self.ngram_counts) == len(self.ngrams_start) == len(self.ngrams_end)
-        ), f"{len(self.ngram_counts)} == {len(self.ngrams_start)} == {len(self.ngrams_end)} is False"
+        assert len(self.ngram_counts) == len(self.ngrams_start) == len(self.ngrams_end), (
+            f"{len(self.ngram_counts)} == {len(self.ngrams_start)} == {len(self.ngrams_end)} is False"
+        )
         for i in range(len(self.ngram_counts)):
-            assert self.ngram_counts[i] == (
-                self.ngrams_end[i] - self.ngrams_start[i][0] + 1
-            ), "Stated %d-gram count is wrong %d != %d" % (
-                i + 1,
-                self.ngram_counts[i],
-                (self.ngrams_end[i] - self.ngrams_start[i][0] + 1),
+            assert self.ngram_counts[i] == (self.ngrams_end[i] - self.ngrams_start[i][0] + 1), (
+                "Stated %d-gram count is wrong %d != %d"
+                % (
+                    i + 1,
+                    self.ngram_counts[i],
+                    (self.ngrams_end[i] - self.ngrams_start[i][0] + 1),
+                )
             )
 
     def get_ngrams(self, n):

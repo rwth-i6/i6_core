@@ -37,9 +37,9 @@ class SelfNoiseCorpusJob(Job):
         self.n_noise_tracks = n_noise_tracks
         self.seed = seed
 
-        assert (
-            isinstance(self.n_noise_tracks, int) and self.n_noise_tracks >= 1
-        ), "number of noise tracks must be a positive integer"
+        assert isinstance(self.n_noise_tracks, int) and self.n_noise_tracks >= 1, (
+            "number of noise tracks must be a positive integer"
+        )
         assert self.snr >= 0, "please provide a positive SNR"
 
         self.out_audio_folder = self.output_path("audio/", directory=True)

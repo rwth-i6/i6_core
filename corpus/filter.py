@@ -242,7 +242,7 @@ class FilterCorpusBySegmentsJob(Job):
     def run(self):
         segments = []
         for seg in self.segment_file_list:
-            with open(tk.uncached_path(seg)) as f:
+            with uopen(seg, "rt") as f:
                 lines = f.readlines()
                 segments += [l.strip() for l in lines]
 
@@ -269,15 +269,22 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
     Filter segments of a bliss corpus if there are unknowns with respect to a given lexicon
     """
 
-    __sis_hash_exclude__ = {"all_unknown": True, "delete_empty_recordings": False}
+    __sis_hash_exclude__ = {
+        "all_unknown": None,
+        "delete_empty_recordings": False,
+        "segment_oov_tolerance": None,
+        "recording_oov_tolerance": 1.0,
+    }
 
     def __init__(
         self,
         bliss_corpus: tk.Path,
         bliss_lexicon: tk.Path,
         case_sensitive: bool = False,
-        all_unknown: bool = True,
+        all_unknown: Optional[bool] = None,
         delete_empty_recordings: bool = False,
+        segment_oov_tolerance: Optional[float] = None,
+        recording_oov_tolerance: float = 1.0,
     ):
         """
         :param bliss_corpus:
@@ -285,12 +292,21 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
         :param case_sensitive: consider casing for check against lexicon
         :param all_unknown: all words have to be unknown in order for the segment to be discarded
         :param delete_empty_recordings: if true, empty recordings will be removed.
+        :param segment_oov_tolerance: maximal word OOV rate for a segment to be kept.
+            A value of 0.0 means no single OOV word is allowed, 1.0 means everything is allowed.
+        :param maximal percentage of high word OOV rate segments for a recording to be kept.
+            A value of 0.0 means a single high segment with an OOV rate above the segment_oov_tolerance will cause the recording to be deleted, 1.0 means no recording will be deleted.
         """
         self.corpus = bliss_corpus
         self.lexicon = bliss_lexicon
         self.case_sensitive = case_sensitive
-        self.all_unknown = all_unknown
+        assert all_unknown is None or segment_oov_tolerance is None, (
+            "`all_unknown` and `segment_oov_tolerance` can't be set in the same time."
+        )
+        self.all_unknown = all_unknown if all_unknown is not None else True
         self.delete_empty_recordings = delete_empty_recordings
+        self.segment_oov_tolerance = segment_oov_tolerance
+        self.recording_oov_tolerance = recording_oov_tolerance
 
         self.out_corpus = self.output_path("corpus.xml.gz", cached=True)
         if self.delete_empty_recordings:
@@ -317,6 +333,7 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
 
         c = corpus.Corpus()
         c.load(self.corpus.get_path())
+        num_segments_per_recording = {r.fullname(): len(r.segments) for r in c.all_recordings()}
 
         def unknown_filter(corpus: corpus.Corpus, recording: corpus.Recording, segment: corpus.Segment) -> bool:
             """
@@ -330,18 +347,42 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
             if not orth:
                 return True
             words = [maybe_to_lower(o) for o in orth.strip().split(" ")]
-            if self.all_unknown:
-                return not all(w not in vocabulary for w in words)
+            num_oov_words = sum(1 if w not in vocabulary else 0 for w in words)
+
+            if self.segment_oov_tolerance is None:
+                if self.all_unknown:
+                    return num_oov_words < len(words)
+                else:
+                    return num_oov_words == 0
             else:
-                return all(w in vocabulary for w in words)
+                return num_oov_words <= len(words) * self.segment_oov_tolerance
 
         c.filter_segments(unknown_filter)
+
+        if self.recording_oov_tolerance < 1.0:
+            recordings_to_be_removed = []
+            for r in c.all_recordings():
+                num_seg = num_segments_per_recording[r.fullname()]
+                new_num_seg = len(r.segments)
+                if num_seg and (num_seg - new_num_seg) / num_seg > self.recording_oov_tolerance:
+                    recordings_to_be_removed.append(r)
+
+            c.remove_recordings(recordings_to_be_removed)
 
         if self.delete_empty_recordings:
             # Remove the recordings without segments due to the filtering.
             _delete_empty_recordings(c, self.out_removed_recordings.get_path())
 
         c.dump(self.out_corpus.get_path())
+
+    @classmethod
+    def hash(cls, kwargs):
+        kwargs_copy = dict(**kwargs)
+
+        if "all_unknown" in kwargs_copy and kwargs_copy["all_unknown"] is True:
+            del kwargs_copy["all_unknown"]
+
+        return super().hash(kwargs_copy)
 
 
 class FilterCorpusBySegmentDurationJob(Job):

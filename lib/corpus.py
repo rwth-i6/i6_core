@@ -112,9 +112,9 @@ class CorpusParser(sax.handler.ContentHandler):
             e.add_segment(seg)
             self.elements.append(seg)
         elif name == "speaker-description":
-            assert isinstance(
-                e, CorpusSection
-            ), "<speaker-description> may only occur within a <corpus>, <subcorpus> or <recording>"
+            assert isinstance(e, CorpusSection), (
+                "<speaker-description> may only occur within a <corpus>, <subcorpus> or <recording>"
+            )
             speaker = Speaker()
             speaker.name = attrs.get("name", None)
             if speaker.name is not None:
@@ -123,9 +123,9 @@ class CorpusParser(sax.handler.ContentHandler):
                 e.default_speaker = speaker
             self.elements.append(speaker)
         elif name == "speaker":
-            assert isinstance(
-                e, (CorpusSection, Segment)
-            ), "<speaker> may only occur within a <corpus>, <subcorpus>, <recording> or <segment>"
+            assert isinstance(e, (CorpusSection, Segment)), (
+                "<speaker> may only occur within a <corpus>, <subcorpus>, <recording> or <segment>"
+            )
             e.speaker_name = attrs["name"]
         self.chars = ""
 

@@ -37,11 +37,13 @@ def linear_segmentation_flow(feature_energy_net, alignment_cache=None):
     return net
 
 
-def alignment_flow(feature_net, alignment_cache_path=None):
+def alignment_flow(feature_net, alignment_cache_path=None, add_left_right_context_orth=False):
     assert "features" in feature_net.get_output_ports()
     net = FlowNetwork()
     net.add_output("alignments")
     net.add_param(["id", "orthography", "TASK"])
+    if add_left_right_context_orth:
+        net.add_param(["left-context-orthography", "right-context-orthography"])
 
     mapping = net.add_net(feature_net)
     net.interconnect_inputs(feature_net, mapping)
@@ -53,8 +55,18 @@ def alignment_flow(feature_net, alignment_cache_path=None):
     alignment = net.add_node(
         "speech-alignment",
         "alignment",
-        {"id": "$(id)", "orthography": "$(orthography)"},
+        {
+            "id": "$(id)",
+            "orthography": "$(orthography)",
+        },
     )
+    if add_left_right_context_orth:
+        net.nodes[alignment].update(
+            {
+                "left-context-orthography": "$(left-context-orthography)",
+                "right-context-orthography": "$(right-context-orthography)",
+            }
+        )
     net.link(aggregate, alignment)
 
     if alignment_cache_path is not None:
