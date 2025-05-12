@@ -6,7 +6,6 @@ __all__ = [
     "AMScoresFromAlignmentLogJob",
     "ComputeTimeStampErrorJob",
     "GetLongestAllophoneFileJob",
-    "DumpSegmentTextAlignmentJob",
     "PlotViterbiAlignmentJob",
 ]
 
@@ -842,120 +841,6 @@ class GetLongestAllophoneFileJob(Job):
                 line_set = {*lines} - {None}
                 assert len(line_set) == 1, f"Line {i}: expected only one allophone, but found two or more: {line_set}."
                 f.write(list(line_set)[0])
-
-
-class DumpSegmentTextAlignmentJob(Job):
-    """
-    Dumps all text and alignments for the given corpus and alignment files
-    in a human-readable format defined as follows:
-    ```
-    <seq-tag>
-    <text>
-    <alignment-index-0> <start-0> <end-0> <triphone-0> <weight-0>
-    <alignment-index-1> <start-1> <end-1> <triphone-1> <weight-1>
-    ...
-    ```
-    """
-
-    def __init__(
-        self,
-        corpus_file: tk.Path,
-        alignment_caches: Iterable[tk.Path],
-        allophone_file: tk.Path,
-        seq_tags_to_dump: Optional[tk.Path] = None,
-        frame_size: float = 0.25,
-        frame_step: float = 0.1,
-    ):
-        """
-        :param corpus_file: Corpus file to get the text from.
-        :param alignment_caches: Alignment files to get the alignments from.
-            Must correspond to the corpus given in :param:`corpus_file` for the job to work properly.
-        :param allophone_file: Allophone file with which the alignments given in :param:`alignment_caches` were dumped.
-        :param seq_tags_to_dump: Specific sequence tags to dump.
-            By default, dump all sequences given in :param:`alignment_caches`.
-        :param frame_size: Frame size. Only used to calculate the timestamps of the alignments.
-        :param frame_step: Frame step. Only used to calculate the timestamps of the alignments.
-        """
-        self.corpus_file = corpus_file
-        self.alignment_caches = alignment_caches
-        self.allophone_file = allophone_file
-        self.seq_tags_to_dump = seq_tags_to_dump
-        self.frame_size = frame_size
-        self.frame_step = frame_step
-
-        self.out_text_alignment_pairs = self.output_path("segment_txt_alignment.txt.gz")
-
-        self.rqmt = {"cpu": 1, "mem": 2.0, "time": 1.0}
-
-    def tasks(self):
-        if self.seq_tags_to_dump:
-            # Do not parallelize.
-            yield Task("run", resume="run", rqmt=self.rqmt)
-        else:
-            # Parallelize.
-            yield Task("run", resume="run", rqmt=self.rqmt, args=range(1, len(self.alignment_caches) + 1))
-            yield Task("merge", resume="merge")
-
-    def run(self, task_id: Optional[int] = None):
-        # Get the alignment information: seq_tag -> alignment.
-        if self.seq_tags_to_dump is not None:
-            # Load the seq tags to plot.
-            seq_tags_to_dump = set()
-            with util.uopen(self.seq_tags_to_dump.get_path(), "rt") as f:
-                for seq_tag in f:
-                    seq_tags_to_dump.add(seq_tag.strip())
-            # Load the seq tags to plot from the alignment caches.
-            seq_tag_to_alignments = {}
-            for alignment_cache in self.alignment_caches:
-                align_cache = rasr_cache.FileArchive(alignment_cache.get_path())
-                align_cache.setAllophones(self.allophone_file.get_path())
-                for seq_tag, alignments in get_seq_tag_to_alignment_mapping(align_cache).items():
-                    # Only load the specific seq tags that we've already found
-                    if seq_tag in seq_tags_to_dump:
-                        seq_tag_to_alignments[seq_tag] = alignments
-            # Check that all sequences provided by the user are in the alignments.
-            for seq_tag in seq_tags_to_dump:
-                assert (
-                    seq_tag in seq_tag_to_alignments
-                ), f"The sequence tag {seq_tag} provided in seq_tags_to_dump is not in the provided alignment files."
-        else:
-            # Load specific task_id alignment cache.
-            align_cache = rasr_cache.FileArchive(self.alignment_caches[task_id - 1].get_path())
-            align_cache.setAllophones(self.allophone_file.get_path())
-            seq_tag_to_alignments = get_seq_tag_to_alignment_mapping(align_cache)
-            # Plot everything from the local alignment cache.
-            seq_tags_to_dump = seq_tag_to_alignments.keys()
-
-        # Get the corpus information: seq_tag -> text.
-        c = corpus.Corpus()
-        c.load(self.corpus_file.get_path())
-        seq_tag_to_text = {seq_tag: segment.full_orth() for seq_tag, segment in c.get_segment_mapping().items()}
-
-        if self.seq_tags_to_dump is not None:
-            output_file = self.out_text_alignment_pairs.get_path()
-        else:
-            output_file = f"intermediate_segment_txt_alignment.{task_id}.txt.gz"
-        with util.uopen(output_file, "wt") as f:
-            for seq_tag in set(seq_tags_to_dump).intersection(set(seq_tag_to_text.keys())):
-                res = f"{seq_tag}\n"
-                res += f"{seq_tag_to_text[seq_tag]}\n"
-                for align_idx, allo_id, hmm_state, weight in seq_tag_to_alignments[seq_tag]:
-                    res += (
-                        f"{align_idx} "
-                        f"{(self.frame_step * align_idx):.3f} "
-                        f"{(self.frame_step * align_idx + self.frame_size):.3f} "
-                        f"{align_cache.allophones[allo_id]}.{hmm_state} "
-                        f"{weight:.3f}\n"
-                    )
-                res += "\n"
-                f.write(res)
-
-    def merge(self):
-        with util.uopen(self.out_text_alignment_pairs.get_path(), "wt") as f_out:
-            for i in range(1, len(self.alignment_caches) + 1):
-                with util.uopen(f"intermediate_segment_txt_alignment.{i}.txt.gz", "rt") as f_in:
-                    for line in f_in:
-                        f_out.write(line)
 
 
 class PlotViterbiAlignmentJob(Job):
