@@ -901,6 +901,7 @@ class PlotViterbiAlignmentJob(Job):
 
     def make_viterbi_matrix(self, label_idx_seq: np.array) -> np.array:
         """
+        :param label_idx_seq: Sequence of label (allophone) indices.
         :return: Matrix corresponding to the Viterbi alignment.
         """
         num_alignments = len(label_idx_seq)
