@@ -1,12 +1,10 @@
 __all__ = [
-    "get_segment_name_to_alignment_mapping",
     "AlignmentJob",
     "DumpAlignmentJob",
     "PlotAlignmentJob",
     "AMScoresFromAlignmentLogJob",
     "ComputeTimeStampErrorJob",
     "GetLongestAllophoneFileJob",
-    "PlotViterbiAlignmentJob",
 ]
 
 import itertools
@@ -15,13 +13,12 @@ import math
 import os
 import shutil
 import statistics
-from typing import Callable, Counter, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Callable, Counter, List, Optional, Tuple, Union
 import xml.etree.ElementTree as ET
 
 import numpy as np
-from sisyphus import Job, Task, setup_path, tk
+from sisyphus import *
 
-import i6_core.lib.corpus as corpus
 import i6_core.lib.rasr_cache as rasr_cache
 import i6_core.rasr as rasr
 import i6_core.util as util
@@ -30,23 +27,6 @@ from .flow import alignment_flow, dump_alignment_flow
 
 
 Path = setup_path(__package__)
-
-
-_SegmentNameToAlignmentType = Dict[str, List[Tuple[int, int, int, float]]]
-"""Mapping from segment names to `(timestamp, allophone_id, hmm_state, alignment_weight)`."""
-
-
-def get_segment_name_to_alignment_mapping(alignment_cache: rasr_cache.FileArchive) -> _SegmentNameToAlignmentType:
-    """
-    :param alignment_cache: Opened alignment cache from which to extract the alignments.
-    :return: Mapping from segment names to alignments (by frame).
-        The alignments are a list of tuples (timestamp, allophone_id, hmm_state, alignment_weight).
-    """
-    return {
-        segment_name: alignment_cache.read(segment_name, "align")
-        for segment_name in alignment_cache.ft.keys()
-        if not segment_name.endswith(".attribs")
-    }
 
 
 class AlignmentJob(rasr.RasrCommand, Job):
