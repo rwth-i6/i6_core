@@ -987,7 +987,7 @@ class PlotViterbiAlignmentJob(Job):
                 empty_alignment_seg_names.append(seg_name)
                 continue
 
-            for i, (timestamp, allo_id, hmm_state, weight) in enumerate(alignments):
+            for i, (_, allo_id, _, _) in enumerate(alignments):
                 allophone = align_cache.allophones[allo_id]
                 # Get the central part of the allophone.
                 seg_name_to_alignments[seg_name][i] = allophone.split("{")[0]
