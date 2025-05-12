@@ -1,5 +1,5 @@
 __all__ = [
-    "get_seq_tag_to_alignment_mapping",
+    "get_segment_name_to_alignment_mapping",
     "AlignmentJob",
     "DumpAlignmentJob",
     "PlotAlignmentJob",
@@ -32,21 +32,20 @@ from .flow import alignment_flow, dump_alignment_flow
 Path = setup_path(__package__)
 
 
-_SeqTagToAlignmentType = Dict[str, List[Tuple[int, int, int, float]]]
+_SegmentNameToAlignmentType = Dict[str, List[Tuple[int, int, int, float]]]
+"""Mapping from segment names to `(timestamp, allophone_id, hmm_state, alignment_weight)`."""
 
 
-def get_seq_tag_to_alignment_mapping(
-    alignment_cache: rasr_cache.FileArchive,
-) -> _SeqTagToAlignmentType:
+def get_segment_name_to_alignment_mapping(alignment_cache: rasr_cache.FileArchive) -> _SegmentNameToAlignmentType:
     """
     :param alignment_cache: Opened alignment cache from which to extract the alignments.
-    :return: Mapping from sequence tags to alignments (by frame).
+    :return: Mapping from segment names to alignments (by frame).
         The alignments are a list of tuples (timestamp, allophone_id, hmm_state, alignment_weight).
     """
     return {
-        seq_tag: alignment_cache.read(seq_tag, "align")
-        for seq_tag in alignment_cache.ft.keys()
-        if not seq_tag.endswith(".attribs")
+        segment_name: alignment_cache.read(segment_name, "align")
+        for segment_name in alignment_cache.ft.keys()
+        if not segment_name.endswith(".attribs")
     }
 
 
@@ -852,21 +851,21 @@ class PlotViterbiAlignmentJob(Job):
         self,
         alignment_caches: Iterable[tk.Path],
         allophone_file: tk.Path,
-        seq_tags_to_plot: Optional[tk.Path] = None,
+        segment_names_to_plot: Optional[tk.Path] = None,
         corpus_file: Optional[tk.Path] = None,
     ):
         """
         :param alignment_caches: Alignment files to be plotted.
         :param allophone_file: Allophone file used in the alignment process.
-        :param seq_tags_to_plot: Specific sequence tags to plot.
-            By default, plot all sequences given in :param:`alignment_caches`.
+        :param segment_names_to_plot: Specific segment names to plot.
+            By default, plot all segments given in :param:`alignment_caches`.
         :param corpus_file: Corpus used to generate the alignments. By default, the plots have no title.
             If provided, the plots will have the text from the respective segment as title,
             whenever the segment is available in the corpus. This should only be given for convenience.
         """
         self.alignment_caches = alignment_caches
         self.allophone_file = allophone_file
-        self.seq_tags_to_plot = seq_tags_to_plot
+        self.segment_names_to_plot = segment_names_to_plot
         self.corpus_file = corpus_file
 
         self.out_plot_dir = self.output_path("plots", directory=True)
@@ -874,7 +873,7 @@ class PlotViterbiAlignmentJob(Job):
         self.rqmt = {"cpu": 1, "mem": 2.0, "time": 1.0}
 
     def tasks(self):
-        if self.seq_tags_to_plot:
+        if self.segment_names_to_plot:
             # Do not parallelize.
             yield Task("run", resume="run", rqmt=self.rqmt)
         else:
@@ -945,61 +944,61 @@ class PlotViterbiAlignmentJob(Job):
         matplotlib.pyplot.close(fig)
 
     def run(self, task_id: Optional[int] = None):
-        if self.seq_tags_to_plot is not None:
-            # Load the seq tags to plot.
-            seq_tags_to_plot = set()
-            with util.uopen(self.seq_tags_to_plot.get_path(), "rt") as f:
-                for seq_tag in f:
-                    seq_tags_to_plot.add(seq_tag.strip())
-            # Load the seq tags to plot from the alignment caches.
-            seq_tag_to_alignments = {}
+        if self.segment_names_to_plot is not None:
+            # Load the segment names to plot.
+            segment_names_to_plot = set()
+            with util.uopen(self.segment_names_to_plot.get_path(), "rt") as f:
+                for seg_name in f:
+                    segment_names_to_plot.add(seg_name.strip())
+            # Load the segment names to plot from the alignment caches.
+            seg_name_to_alignments = {}
             for alignment_cache in self.alignment_caches:
                 align_cache = rasr_cache.FileArchive(alignment_cache.get_path())
                 align_cache.setAllophones(self.allophone_file.get_path())
-                for seq_tag, alignments in get_seq_tag_to_alignment_mapping(align_cache).items():
-                    # Only load the specific seq tags that we've already found
-                    if seq_tag in seq_tags_to_plot:
-                        seq_tag_to_alignments[seq_tag] = alignments
-            # Check that all sequences provided by the user are in the alignments.
-            for seq_tag in seq_tags_to_plot:
-                assert (
-                    seq_tag in seq_tag_to_alignments
-                ), f"The sequence tag {seq_tag} provided in seq_tags_to_plot is not in the provided alignment files."
+                for seg_name, alignments in get_segment_name_to_alignment_mapping(align_cache).items():
+                    # Only load the specific segment names that we've already found
+                    if seg_name in segment_names_to_plot:
+                        seg_name_to_alignments[seg_name] = alignments
+            # Check that the alignment files contain all segments provided by the user.
+            for seg_name in segment_names_to_plot:
+                assert seg_name in seg_name_to_alignments, (
+                    f"The sequence tag {seg_name} provided in segment_names_to_plot is not in the provided alignment files."
+                )
         else:
-            # Load specific task_id alignment cache.
+            # The job is parallelizable. Load specific task_id alignment cache.
             align_cache = rasr_cache.FileArchive(self.alignment_caches[task_id - 1].get_path())
             align_cache.setAllophones(self.allophone_file.get_path())
-            seq_tag_to_alignments = get_seq_tag_to_alignment_mapping(align_cache)
+            seg_name_to_alignments = get_segment_name_to_alignment_mapping(align_cache)
             # Plot everything from the local alignment cache.
-            seq_tags_to_plot = seq_tag_to_alignments.keys()
+            segment_names_to_plot = seg_name_to_alignments.keys()
 
-        seq_tag_to_text = {}
+        seg_name_to_text = {}
         if self.corpus_file is not None:
             c = corpus.Corpus()
             c.load(self.corpus_file.get_path())
-            seq_tag_to_text = {seq_tag: segment.full_orth() for seq_tag, segment in c.get_segment_mapping().items()}
+            seg_name_to_text = {seg_name: segment.full_orth() for seg_name, segment in c.get_segment_mapping().items()}
 
-        empty_alignment_seq_tags = []
-        for seq_tag in seq_tags_to_plot:
-            alignments = seq_tag_to_alignments[seq_tag]
+        empty_alignment_seg_names = []
+        for seg_name in segment_names_to_plot:
+            alignments = seg_name_to_alignments[seg_name]
             # In some rare cases, the alignment doesn't have to reach a satisfactory end.
             # In these cases, the final alignment is empty. Skip those cases.
             if len(alignments) == 0:
-                empty_alignment_seq_tags.append(seq_tag)
+                empty_alignment_seg_names.append(seg_name)
                 continue
 
             for i, (timestamp, allo_id, hmm_state, weight) in enumerate(alignments):
                 allophone = align_cache.allophones[allo_id]
                 # Get the central part of the allophone.
-                seq_tag_to_alignments[seq_tag][i] = allophone.split("{")[0]
+                seg_name_to_alignments[seg_name][i] = allophone.split("{")[0]
 
-            center_allophones = np.array(seq_tag_to_alignments[seq_tag])
+            center_allophones = np.array(seg_name_to_alignments[seg_name])
             phonemes, alignment_indices = self.extract_phoneme_sequence(center_allophones)
             viterbi_matrix = self.make_viterbi_matrix(alignment_indices)
-            self.plot(viterbi_matrix, phonemes, file_name=seq_tag, title=seq_tag_to_text.get(seq_tag, ""))
+            self.plot(viterbi_matrix, phonemes, file_name=seg_name, title=seg_name_to_text.get(seg_name, ""))
 
-        if empty_alignment_seq_tags:
+        if empty_alignment_seg_names:
             logging.warning(
                 "The following alignments weren't plotted because their alignments were empty:\n"
-                f"{empty_alignment_seq_tags}"
+                f"{empty_alignment_seg_names}"
             )
