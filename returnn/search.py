@@ -348,8 +348,7 @@ class SearchBPEtoWordsJob(Job):
         yield Task("run", mini_task=True)
 
     def run(self):
-        d = eval(util.uopen(self.search_py_output, "rt").read(), {"nan": float("nan"), "inf": float("inf")})
-        assert isinstance(d, dict)  # seq_tag -> bpe string
+        d = util.parse_text_dict(self.search_py_output)
         assert not os.path.exists(self.out_word_search_results.get_path())
         with util.uopen(self.out_word_search_results, "wt") as out:
             out.write("{\n")
@@ -400,8 +399,7 @@ class SearchOutputRawReplaceJob(Job):
         yield Task("run", mini_task=True)
 
     def run(self):
-        d = eval(util.uopen(self.search_py_output, "rt").read(), {"nan": float("nan"), "inf": float("inf")})
-        assert isinstance(d, dict)  # seq_tag -> bpe string
+        d = util.parse_text_dict(self.search_py_output)
         assert not os.path.exists(self.out_search_results.get_path())
 
         def _transform_text(s: str):
@@ -446,8 +444,7 @@ class SearchWordsToCTMJob(Job):
     def run(self):
         corpus = Corpus()
         corpus.load(self.bliss_corpus.get_path())
-        d = eval(util.uopen(self.recog_words_file.get_path(), "rt").read())
-        assert isinstance(d, dict), "only search output file with dict format is supported"
+        d = util.parse_text_dict(self.recog_words_file)
         with util.uopen(self.out_ctm_file.get_path(), "wt") as out:
             # Do not print optional [n-best] header, some downstream evaluation pipelines
             # use the number of headers for validation. Since we do not print n-best-list
@@ -536,10 +533,7 @@ class SearchWordsDummyTimesToCTMJob(Job):
         yield Task("run", mini_task=True)
 
     def run(self):
-        # nan/inf should not be needed, but avoids errors at this point and will print an error below,
-        # that we don't expect an N-best list here.
-        d = eval(util.uopen(self.recog_words_file, "rt").read(), {"nan": float("nan"), "inf": float("inf")})
-        assert isinstance(d, dict), "only search output file with dict format is supported"
+        d = util.parse_text_dict(self.recog_words_file)
         if self.seq_order_file is not None:
             seq_order = eval(util.uopen(self.seq_order_file, "rt").read(), {"nan": float("nan"), "inf": float("inf")})
             assert isinstance(seq_order, (dict, list, tuple))
@@ -657,8 +651,7 @@ class SearchTakeBestJob(Job):
 
     def run(self):
         """run"""
-        d = eval(util.uopen(self.search_py_output, "rt").read(), {"nan": float("nan"), "inf": float("inf")})
-        assert isinstance(d, dict)  # seq_tag -> bpe string
+        d = util.parse_text_dict(self.search_py_output)
         assert not os.path.exists(self.out_best_search_results.get_path())
         with util.uopen(self.out_best_search_results, "wt") as out:
             out.write("{\n")
@@ -696,8 +689,7 @@ class SearchRemoveLabelJob(Job):
 
     def run(self):
         """run"""
-        d = eval(util.uopen(self.search_py_output, "rt").read(), {"nan": float("nan"), "inf": float("inf")})
-        assert isinstance(d, dict)  # seq_tag -> bpe string
+        d = util.parse_text_dict(self.search_py_output)
         assert not os.path.exists(self.out_search_results.get_path())
         with util.uopen(self.out_search_results, "wt") as out:
             out.write("{\n")
@@ -737,8 +729,7 @@ class SearchCollapseRepeatedLabelsJob(Job):
 
     def run(self):
         """run"""
-        d = eval(util.uopen(self.search_py_output, "rt").read(), {"nan": float("nan"), "inf": float("inf")})
-        assert isinstance(d, dict)  # seq_tag -> bpe string
+        d = util.parse_text_dict(self.search_py_output)
         assert not os.path.exists(self.out_search_results.get_path())
         with util.uopen(self.out_search_results, "wt") as out:
             out.write("{\n")
@@ -796,8 +787,7 @@ class SearchBeamJoinScoresJob(Job):
             lsp = numpy.log(sum(numpy.exp(a - a_max) for a in args))
             return a_max + lsp
 
-        d = eval(util.uopen(self.search_py_output, "rt").read(), {"nan": float("nan"), "inf": float("inf")})
-        assert isinstance(d, dict)  # seq_tag -> bpe string
+        d = util.parse_text_dict(self.search_py_output)
         assert not os.path.exists(self.out_search_results.get_path())
         with util.uopen(self.out_search_results, "wt") as out:
             out.write("{\n")
