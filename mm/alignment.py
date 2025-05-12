@@ -882,9 +882,12 @@ class PlotViterbiAlignmentJob(Job):
 
     def extract_phoneme_sequence(self, alignment: np.array) -> Tuple[np.array, np.array]:
         """
-        :param alignment: Monophone alignment, for instance: `np.array(["a", "a", "b", ...])`.
-        :return: Monophone sequence (ordered as given),
-            as well as the indices corresponding to the monophone sequence from the Viterbi alignment.
+        :param alignment: Monophone alignment, for instance: `np.array(["a", "a", "b", "b", "b", "c", ...])`.
+        :return:
+            - Monophone sequence (ordered as provided in :param:`alignment`).
+
+            - **Indices** corresponding to the monophone sequence from the Viterbi alignment.
+            In the example above, these would be `[0, 0, 1, 1, 1, 2, ...]`.
         """
         boundaries = np.concatenate(
             [
