@@ -83,7 +83,7 @@ class ApplySentencepieceToTextJob(Job):
                     fout.write(" ".join(pieces) + "\n")
 
             with util.uopen(tmp_outfile, "rt") as fin, util.uopen(self.out_sentencepiece_text, "wt") as fout:
-                shutil.copyfileobj(fin, fout) 
+                shutil.copyfileobj(fin, fout)
 
     @classmethod
     def hash(cls, parsed_args):
