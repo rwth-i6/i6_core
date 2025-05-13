@@ -984,7 +984,9 @@ class PlotViterbiAlignmentJob(Job):
 
         empty_alignment_seg_names = []
         for seg_name in segment_names_to_plot:
-            alignments = seg_name_to_alignments[seg_name]
+            alignments = seg_name_to_alignments.get(seg_name, None)
+            if alignments is None:
+                continue
             # In some rare cases, the alignment doesn't have to reach a satisfactory end.
             # In these cases, the final alignment is empty. Skip those cases.
             if len(alignments) == 0:
