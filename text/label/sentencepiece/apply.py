@@ -31,7 +31,7 @@ class ApplySentencepieceToTextJob(Job):
         sentencepiece_model: tk.Path,
         map_unk: bool = False,
         buffer_size: int = 32768,
-        gzip_output: bool = False,
+        gzip_output: bool = True,
         mini_task: bool = True,
     ):
         """
