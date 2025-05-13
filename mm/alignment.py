@@ -950,31 +950,24 @@ class PlotViterbiAlignmentJob(Job):
     def run(self, task_id: int):
         if self.segment_names_to_plot is not None:
             # Load the segment names to plot.
-            segment_names_to_plot = set()
             with util.uopen(self.segment_names_to_plot.get_path(), "rt") as f:
-                for seg_name in f:
-                    segment_names_to_plot.add(seg_name.strip())
-            # Load the segment names to plot from the alignment caches.
-            seg_name_to_alignments = {}
-            for alignment_cache in self.alignment_caches:
-                align_cache = rasr_cache.FileArchive(alignment_cache.get_path())
-                align_cache.setAllophones(self.allophone_file.get_path())
-                for seg_name, alignments in get_segment_name_to_alignment_mapping(align_cache).items():
-                    # Only load the specific segment names that we've already found
-                    if seg_name in segment_names_to_plot:
-                        seg_name_to_alignments[seg_name] = alignments
-            # Check that the alignment files contain all segments provided by the user.
-            for seg_name in segment_names_to_plot:
-                assert seg_name in seg_name_to_alignments, (
-                    f"The sequence tag {seg_name} provided in segment_names_to_plot is not in the provided alignment files."
-                )
-
-        # The job is parallelizable. Load specific task_id alignment cache.
-        align_cache = rasr_cache.FileArchive(self.alignment_caches[task_id - 1].get_path())
-        align_cache.setAllophones(self.allophone_file.get_path())
-        seg_name_to_alignments = get_segment_name_to_alignment_mapping(align_cache)
-        # Plot everything from the local alignment cache.
-        segment_names_to_plot = seg_name_to_alignments.keys()
+                segment_names_to_plot = {seg_name.strip() for seg_name in f}
+            # Load the segment names from the alignment caches.
+            align_cache = rasr_cache.FileArchive(self.alignment_caches[task_id - 1].get_path())
+            align_cache.setAllophones(self.allophone_file.get_path())
+            seg_name_to_alignments = {
+                seg_name: alignments
+                for seg_name, alignments in get_segment_name_to_alignment_mapping(align_cache).items()
+                # Only load the specific segment names that the user has provided.
+                if seg_name in segment_names_to_plot
+            }
+        else:
+            # Load the segment names from the alignment caches.
+            align_cache = rasr_cache.FileArchive(self.alignment_caches[task_id - 1].get_path())
+            align_cache.setAllophones(self.allophone_file.get_path())
+            seg_name_to_alignments = get_segment_name_to_alignment_mapping(align_cache)
+            # Plot everything from the local alignment cache.
+            segment_names_to_plot = seg_name_to_alignments.keys()
 
         seg_name_to_text = {}
         if self.corpus_file is not None:
