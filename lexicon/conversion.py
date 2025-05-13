@@ -186,12 +186,16 @@ class LexiconFromTextFileJob(Job):
     without checking the output manually on new lexica.
     """
 
-    def __init__(self, text_file, compressed=True):
+    __sis_hash_exclude__ = {"variation": "context"}
+
+    def __init__(self, text_file, compressed=True, variation="context"):
         """
         :param Path text_file:
         :param compressed: save as .xml.gz
+        :param variation: variation to be added to phonemes
         """
         self.text_file = text_file
+        self.variation = variation
 
         self.out_bliss_lexicon = self.output_path("lexicon.xml.gz" if compressed else "lexicon.xml")
 
@@ -224,7 +228,7 @@ class LexiconFromTextFileJob(Job):
                     lex.add_lemma(lemma)
 
         for phoneme in sorted(phonemes):
-            lex.add_phoneme(phoneme)
+            lex.add_phoneme(phoneme, variation=self.variation)
 
         write_xml(self.out_bliss_lexicon.get_path(), lex.to_xml())
 
