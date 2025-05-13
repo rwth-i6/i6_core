@@ -64,10 +64,13 @@ class ApplySentencepieceToTextJob(Job):
         spm = sentencepiece.SentencePieceProcessor(model_file=self.sentencepiece_model.get_path())
         unk_id = spm.unk_id()
         with tempfile.TemporaryDirectory(prefix=gs.TMP_PREFIX) as tmp:
+            input_file = self.text_file.get_path()
             tmp_infile = os.path.join(tmp, "in_text.txt")
             tmp_outfile = os.path.join(tmp, "out_text.txt")
-            # normalize text format
-            shutil.copy(self.text_file.get_path(), tmp_infile)
+            # normalize text format(gz or txt)
+            with util.uopen(input_file, "rt") as in_file, open(tmp_infile, "wt") as out:
+                for line in in_file:
+                    out.write(line)
 
             with util.uopen(tmp_infile, "rt") as fin, util.uopen(tmp_outfile, "wt") as fout:
                 for line in fin:
@@ -79,7 +82,8 @@ class ApplySentencepieceToTextJob(Job):
                             pieces = ["<unk>" if x == unk_id else y for x, y in zip(pieces_id, pieces)]
                     fout.write(" ".join(pieces) + "\n")
 
-            shutil.copy(tmp_outfile, self.out_sentencepiece_text.get_path())
+            with util.uopen(tmp_outfile, "rt") as fin, util.uopen(self.out_sentencepiece_text, "wt") as fout:
+                shutil.copyfileobj(fin, fout) 
 
     @classmethod
     def hash(cls, parsed_args):
