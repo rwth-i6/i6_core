@@ -911,9 +911,9 @@ class PlotViterbiAlignmentJob(Job):
         :return: Matrix corresponding to the Viterbi alignment.
         """
         num_timestamps = len(label_indices)
-        max_allophone_value = max(label_indices) + 1
+        num_allophones = max(label_indices) + 1
         # Place the timestamps on the Y axis because we'll map the timestamps to the different phonemes there.
-        viterbi_matrix = np.zeros((max_allophone_value, num_timestamps), dtype=bool)
+        viterbi_matrix = np.zeros((num_allophones, num_timestamps), dtype=bool)
         for i, t_i in enumerate(label_indices):
             viterbi_matrix[t_i, i] = True
         return viterbi_matrix
@@ -931,15 +931,15 @@ class PlotViterbiAlignmentJob(Job):
 
         matplotlib.use("Agg")
 
-        max_allophone_value, num_timestamps = np.shape(viterbi_matrix)
+        num_allophones, num_timestamps = np.shape(viterbi_matrix)
 
         fig, ax = plt.subplots(figsize=(10, 10))
         ax.set_xlabel("Frame")
         ax.xaxis.set_label_coords(0.98, -0.03)
         ax.set_xbound(0, num_timestamps - 1)
-        ax.set_ybound(-0.5, max_allophone_value - 0.5)
+        ax.set_ybound(-0.5, num_allophones - 0.5)
 
-        ax.set_yticks(np.arange(max_allophone_value))
+        ax.set_yticks(np.arange(num_allophones))
         ax.set_yticklabels(allophone_sequence)
 
         ax.set_title(title)
