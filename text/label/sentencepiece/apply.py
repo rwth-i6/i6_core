@@ -77,7 +77,7 @@ class ApplySentencepieceToTextJob(Job):
                         pieces_id = spm.encode(line.rstrip("\n"))
                         assert len(pieces_id) == len(pieces)
                         if unk_id in pieces_id:
-                            pieces[:] = ["<unk>" if x == unk_id else y for x, y in zip(pieces_id, pieces)]
+                            pieces = ["<unk>" if x == unk_id else y for x, y in zip(pieces_id, pieces)]
                     fout.write(" ".join(pieces) + "\n")
 
             shutil.copy(tmp_outfile, self.out_sentencepiece_text.get_path())
