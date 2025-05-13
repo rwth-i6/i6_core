@@ -912,7 +912,7 @@ class PlotViterbiAlignmentJob(Job):
         """
         num_timestamps = len(label_indices)
         num_allophones = max(label_indices) + 1
-        # Place the timestamps on the Y axis because we'll map the timestamps to the different phonemes there.
+        # Place the timestamps on the Y axis because we'll map the label indices to the different phonemes there.
         viterbi_matrix = np.zeros((num_allophones, num_timestamps), dtype=bool)
         for i, t_i in enumerate(label_indices):
             viterbi_matrix[t_i, i] = True
