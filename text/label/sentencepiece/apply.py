@@ -4,7 +4,7 @@ import subprocess as sp
 import tempfile
 import os
 
-from sisyphus import *
+from sisyphus import Job, Task, tk
 
 import i6_core.util as util
 
