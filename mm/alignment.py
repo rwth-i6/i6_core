@@ -878,12 +878,7 @@ class PlotViterbiAlignmentJob(Job):
         self.rqmt = {"cpu": 1, "mem": 2.0, "time": 1.0}
 
     def tasks(self):
-        if self.segment_names_to_plot:
-            # Do not parallelize.
-            yield Task("run", resume="run", rqmt=self.rqmt)
-        else:
-            # Parallelize.
-            yield Task("run", resume="run", rqmt=self.rqmt, args=range(1, len(self.alignment_caches) + 1))
+        yield Task("run", resume="run", rqmt=self.rqmt, args=range(1, len(self.alignment_caches) + 1))
 
     def extract_phoneme_sequence(self, alignment: np.array) -> Tuple[np.array, np.array]:
         """
@@ -952,7 +947,7 @@ class PlotViterbiAlignmentJob(Job):
         fig.savefig(os.path.join(self.out_plot_dir.get_path(), f"{file_name}.png"))
         matplotlib.pyplot.close(fig)
 
-    def run(self, task_id: Optional[int] = None):
+    def run(self, task_id: int):
         if self.segment_names_to_plot is not None:
             # Load the segment names to plot.
             segment_names_to_plot = set()
@@ -973,13 +968,13 @@ class PlotViterbiAlignmentJob(Job):
                 assert seg_name in seg_name_to_alignments, (
                     f"The sequence tag {seg_name} provided in segment_names_to_plot is not in the provided alignment files."
                 )
-        else:
-            # The job is parallelizable. Load specific task_id alignment cache.
-            align_cache = rasr_cache.FileArchive(self.alignment_caches[task_id - 1].get_path())
-            align_cache.setAllophones(self.allophone_file.get_path())
-            seg_name_to_alignments = get_segment_name_to_alignment_mapping(align_cache)
-            # Plot everything from the local alignment cache.
-            segment_names_to_plot = seg_name_to_alignments.keys()
+
+        # The job is parallelizable. Load specific task_id alignment cache.
+        align_cache = rasr_cache.FileArchive(self.alignment_caches[task_id - 1].get_path())
+        align_cache.setAllophones(self.allophone_file.get_path())
+        seg_name_to_alignments = get_segment_name_to_alignment_mapping(align_cache)
+        # Plot everything from the local alignment cache.
+        segment_names_to_plot = seg_name_to_alignments.keys()
 
         seg_name_to_text = {}
         if self.corpus_file is not None:
