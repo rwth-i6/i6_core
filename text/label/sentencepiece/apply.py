@@ -82,8 +82,7 @@ class ApplySentencepieceToTextJob(Job):
                             pieces[:] = ["<unk>" if x == unk_id else y for x, y in zip(pieces_id, pieces)]
                     fout.write(" ".join(pieces) + "\n")
 
-            with util.uopen(tmp_outfile, "rt") as fin, util.uopen(self.out_sentencepiece_text, "wt") as fout:
-                shutil.copyfileobj(fin, fout)
+            shutil.copy(tmp_outfile, self.out_sentencepiece_text.get_path())
 
     @classmethod
     def hash(cls, parsed_args):
