@@ -908,10 +908,10 @@ class PlotViterbiAlignmentJob(Job):
         """
         num_timestamps = len(label_indices)
         max_allophone_value = max(label_indices) + 1
-        # The matrix is transposed because we want an upward trend.
-        viterbi_matrix = np.zeros((num_timestamps, max_allophone_value), dtype=np.bool)
+        # Place the timestamps on the Y axis because we'll map the timestamps to the different phonemes there.
+        viterbi_matrix = np.zeros((max_allophone_value, num_timestamps), dtype=bool)
         for i, t_i in enumerate(label_indices):
-            viterbi_matrix[i, t_i] = True
+            viterbi_matrix[t_i, i] = True
         return viterbi_matrix
 
     def plot(self, viterbi_matrix: np.array, allophone_sequence: List[str], file_name: str, title: str = ""):
