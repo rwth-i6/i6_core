@@ -903,7 +903,11 @@ class PlotViterbiAlignmentJob(Job):
 
     def make_viterbi_matrix(self, label_indices: np.array) -> np.array:
         """
-        :param label_indices: Sequence of label (allophone) indices.
+        :param label_indices: Sequence of label (allophone) indices,
+            corresponding to the monophone sequence from the Viterbi alignment.
+
+            For example, for an alignment of `np.array(["a", "a", "b", "b", "b", "c", ...])`,
+            :param:`label_indices` would be `[0, 0, 1, 1, 1, 2, ...]`.
         :return: Matrix corresponding to the Viterbi alignment.
         """
         num_timestamps = len(label_indices)
