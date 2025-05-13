@@ -68,9 +68,7 @@ class ApplySentencepieceToTextJob(Job):
             tmp_infile = os.path.join(tmp, "in_text.txt")
             tmp_outfile = os.path.join(tmp, "out_text.txt")
             # normalize text format
-            with util.uopen(input_file, "rt") as in_file, open(tmp_infile, "wt") as out:
-                for line in in_file:
-                    out.write(line)
+            shutil.copy(self.text_file.get_path(), tmp_infile)
 
             with util.uopen(tmp_infile, "rt") as fin, util.uopen(tmp_outfile, "wt") as fout:
                 for line in fin:
