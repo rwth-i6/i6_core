@@ -30,7 +30,6 @@ class ApplySentencepieceToTextJob(Job):
         text_file: tk.Path,
         sentencepiece_model: tk.Path,
         map_unk: bool = False,
-        buffer_size: int = 32768,
         gzip_output: bool = True,
         mini_task: bool = True,
     ):
@@ -39,14 +38,12 @@ class ApplySentencepieceToTextJob(Job):
         :param sentencepiece_model: path to the trained sentencepiece model
         :param map_unk: when encoding string to string, spm won't map oov symbol to <unk> but keep it as is.
             This option forces the oov labels to be <unk> by cecking encoded indices.
-        :param buffer_size: buffer for write operation to restrict memory usage
         :param gzip_output: use gzip on the output text
         :param mini_task: if the Job should run locally, e.g. only a small (<1M lines) text should be processed
         """
         self.text_file = text_file
         self.sentencepiece_model = sentencepiece_model
         self.map_unk = map_unk
-        self.buffer_size = buffer_size
 
         self.out_sentencepiece_text = self.output_path(
             "words_to_sentencepiece.txt.gz" if gzip_output else "words_to_sentencepiece.txt"
@@ -75,21 +72,14 @@ class ApplySentencepieceToTextJob(Job):
                 sp.call(["zcat", "-f", input_file], stdout=out)
 
             with util.uopen(tmp_infile, "rt") as fin, util.uopen(tmp_outfile, "wt") as fout:
-                buf = []
-                for lineno, line in enumerate(fin, 1):
+                for line in fin:
                     pieces = spm.encode(line.rstrip("\n"), out_type=str)
                     if self.map_unk:
                         pieces_id = spm.encode(line.rstrip("\n"))
                         assert len(pieces_id) == len(pieces)
                         if unk_id in pieces_id:
                             pieces[:] = ["<unk>" if x == unk_id else y for x, y in zip(pieces_id, pieces)]
-                    buf.append(" ".join(pieces) + "\n")
-                    # Flush periodically to avoid large memory spikes
-                    if lineno % self.buffer_size == 0:
-                        fout.writelines(buf)
-                        buf.clear()
-                if buf:  # write any remainder
-                    fout.writelines(buf)
+                    fout.write(" ".join(pieces) + "\n")
 
             with util.uopen(tmp_outfile, "rt") as fin, util.uopen(self.out_sentencepiece_text, "wt") as fout:
                 shutil.copyfileobj(fin, fout)
@@ -97,5 +87,4 @@ class ApplySentencepieceToTextJob(Job):
     @classmethod
     def hash(cls, parsed_args):
         del parsed_args["mini_task"]
-        del parsed_args["buffer_size"]
         return super().hash(parsed_args)
