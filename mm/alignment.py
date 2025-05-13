@@ -21,6 +21,7 @@ import xml.etree.ElementTree as ET
 import numpy as np
 from sisyphus import *
 
+import i6_core.lib.corpus as corpus
 import i6_core.lib.rasr_cache as rasr_cache
 import i6_core.rasr as rasr
 import i6_core.util as util
