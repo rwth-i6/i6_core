@@ -64,7 +64,6 @@ class ApplySentencepieceToTextJob(Job):
         spm = sentencepiece.SentencePieceProcessor(model_file=self.sentencepiece_model.get_path())
         unk_id = spm.unk_id()
         with tempfile.TemporaryDirectory(prefix=gs.TMP_PREFIX) as tmp:
-            input_file = self.text_file.get_path()
             tmp_infile = os.path.join(tmp, "in_text.txt")
             tmp_outfile = os.path.join(tmp, "out_text.txt")
             # normalize text format
