@@ -225,11 +225,13 @@ class FilterSegmentsByRecordingAlignmentConfidenceJob(Job):
         absolute_threshold: Optional[float] = None,
     ):
         """
-        :param alignment_logs: alignment_job.out_log_file; task_id -> log_file
-        :param percentile: percent of alignment segments to keep. should be in (0,100]. for :func:`np.percentile`
-        :param crp: used to set the number of output segments. if none, number of alignment log files is used instead.
-        :param plot: plot the distribution of alignment scores
-        :param absolute_threshold: alignments with score above this number are discarded
+        :param alignment_logs: Mapping of task ID to log file (`alignment_job.out_log_file`).
+        :param percentile: Percent of alignment segments to keep, used in :func:`np.percentile`.
+            The higher percentile of alignment scores will be discarded.
+        :param crp: Used to set the number of output segments. If `None`, number of alignment log files is used instead.
+        :param plot: Plot the distribution of recording alignment scores with respect to the recordings.
+        :param absolute_threshold: If the recording has an average alignment score above this number,
+            all recordings are discarded.
         """
         self.alignment_logs = alignment_logs  # alignment_job.log_file
         self.percentile = percentile
