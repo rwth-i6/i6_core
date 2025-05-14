@@ -247,8 +247,10 @@ class FilterSegmentsByRecordingAlignmentConfidenceJob(Job):
         if plot:
             self.out_plot_avg = self.output_path("score.png")
 
+        self.rqmt = {"cpu": 1, "mem": 2.0, "time": 1.0}
+
     def tasks(self):
-        yield Task("run", resume="run", mini_task=True)
+        yield Task("run", resume="run", rqmt=self.rqmt)
 
     def run(self):
         # Mapping from recording name to list of (segments + average segment alignment confidence).
