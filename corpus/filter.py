@@ -254,7 +254,7 @@ class FilterSegmentsByRecordingAlignmentConfidenceJob(Job):
 
     def run(self):
         # Mapping from recording name to list of (segments + average segment alignment confidence).
-        recording_dict: Dict[str, List[Tuple[str, float]]] = {}
+        recording_dict: Dict[str, List[Tuple[str, float]]] = defaultdict(list)
         for task_id, log_file in self.alignment_logs.items():
             logging.info("Reading: {}".format(log_file))
             file_path = tk.uncached_path(log_file)
@@ -262,18 +262,18 @@ class FilterSegmentsByRecordingAlignmentConfidenceJob(Job):
             _seg_list = document.findall(".//segment")
             for seg in _seg_list:
                 avg = seg.find(".//score/avg")
-                seg_full_name = seg.attrib["full-name"]
-                rec_full_name = "/".join(seg_full_name.split("/")[:-1])
-                recording_dict[rec_full_name].append((seg_full_name, float(avg.text)))
+                full_seg_name = seg.attrib["full-name"]
+                full_rec_name = "/".join(full_seg_name.split("/")[:-1])
+                recording_dict[full_rec_name].append((full_seg_name, float(avg.text)))
             del document
 
         recording_to_average_conf = {
-            rec_full_name: np.average(seg_and_conf[1] for seg_and_conf in seg_and_confs)
-            for rec_full_name, seg_and_confs in recording_dict.items()
+            full_rec_name: np.average([conf for (_, conf) in seg_and_confs])
+            for full_rec_name, seg_and_confs in recording_dict.items()
         }
 
-        logging.info(f"Scores have {len(recording_dict)} entries.")
-        score_np = np.asarray(recording_to_average_conf.values())
+        logging.info(f"Scores have {len(recording_to_average_conf)} entries.")
+        score_np = np.asarray(list(recording_to_average_conf.values()))
         logging.info(f"Max {score_np.max()}; Min {score_np.min()}; Median {np.median(score_np)}")
         avg_score_threshold = np.percentile(score_np, self.percentile)
         if np.isnan(avg_score_threshold):
@@ -290,7 +290,7 @@ class FilterSegmentsByRecordingAlignmentConfidenceJob(Job):
             for (seg, _) in seg_and_confs
             if recording_to_average_conf[full_rec_name] <= avg_score_threshold
         ]
-        logging.info(f"Have {len(filtered_segments)} entries after filtering.")
+        logging.info(f"{len(filtered_segments)} segments were kept after filtering.")
 
         for idx, segments in enumerate(chunks(filtered_segments, self.num_segments)):
             with open(self.out_single_segment_files[idx + 1].get_path(), "wt") as segment_file:
@@ -303,11 +303,12 @@ class FilterSegmentsByRecordingAlignmentConfidenceJob(Job):
 
         if self.plot:
             import matplotlib
-
-            matplotlib.use("Agg")
             import matplotlib.pyplot as plt
 
-            plt.hist(score_np, bins=100)
+            matplotlib.use("Agg")
+
+            np.clip(score_np, a_min=-float("inf"), a_max=avg_score_threshold, out=score_np)
+            plt.hist(score_np)
             plt.xlabel("Average Maximum-Likelihood Score")
             plt.ylabel("Number of Recordings")
             plt.title("Histogram of Alignment Scores")
