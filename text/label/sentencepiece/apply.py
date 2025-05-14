@@ -31,7 +31,7 @@ class ApplySentencepieceToTextJob(Job):
         sentencepiece_model: tk.Path,
         map_unk: bool = False,
         gzip_output: bool = True,
-        mini_task: bool = True,
+        mini_task: bool = False,
     ):
         """
         :param text_file: words text file to convert to sentencepiece
