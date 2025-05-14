@@ -63,24 +63,18 @@ class ApplySentencepieceToTextJob(Job):
 
         spm = sentencepiece.SentencePieceProcessor(model_file=self.sentencepiece_model.get_path())
         unk_id = spm.unk_id()
-        with tempfile.TemporaryDirectory(prefix=gs.TMP_PREFIX) as tmp:
-            # Note: Important to overtake potential file extensions from the input/output filenames, e.g. ".gz".
-            tmp_infile = os.path.join(tmp, "in_text." + os.path.basename(self.text_file.get_path()))
-            tmp_outfile = os.path.join(tmp, "out_text." + os.path.basename(self.out_sentencepiece_text.get_path()))
 
-            shutil.copy(self.text_file.get_path(), tmp_infile)
-
-            with util.uopen(tmp_infile, "rt") as fin, util.uopen(tmp_outfile, "wt") as fout:
-                for line in fin:
-                    pieces = spm.encode(line.rstrip("\n"), out_type=str)
-                    if self.map_unk:
-                        pieces_id = spm.encode(line.rstrip("\n"))
-                        assert len(pieces_id) == len(pieces)
-                        if unk_id in pieces_id:
-                            pieces = ["<unk>" if x == unk_id else y for x, y in zip(pieces_id, pieces)]
-                    fout.write(" ".join(pieces) + "\n")
-
-            shutil.copy(tmp_outfile, self.out_sentencepiece_text.get_path())
+        with util.uopen(self.text_file.get_path(), "rt") as fin, util.uopen(
+            self.out_sentencepiece_text.get_path(), "wt"
+        ) as fout:
+            for line in fin:
+                pieces = spm.encode(line.rstrip("\n"), out_type=str)
+                if self.map_unk:
+                    pieces_id = spm.encode(line.rstrip("\n"))
+                    assert len(pieces_id) == len(pieces)
+                    if unk_id in pieces_id:
+                        pieces = ["<unk>" if x == unk_id else y for x, y in zip(pieces_id, pieces)]
+                fout.write(" ".join(pieces) + "\n")
 
     @classmethod
     def hash(cls, parsed_args):
