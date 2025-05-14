@@ -48,6 +48,7 @@ from dataclasses import dataclass
 import enum
 import functools
 import inspect
+from keyword import iskeyword
 import math
 import os
 import pickle
@@ -181,18 +182,7 @@ def _is_valid_python_identifier_name(name: str) -> bool:
     """
     :return: whether the name is a valid Python identifier name (including attrib name)
     """
-
-    # Very hacky. I'm sure there is some clever regexp, but I don't find it and too lazy...
-    class _Obj:
-        pass
-
-    obj = _Obj()
-    try:
-        exec(f"obj.{name} = 'ok'", {"obj": obj})
-    except SyntaxError:
-        return False
-    assert getattr(obj, name) == "ok"
-    return True
+    return name.isidentifier() and not iskeyword(name)
 
 
 class ReturnnConfigWithNewSerialization(ReturnnConfig):
