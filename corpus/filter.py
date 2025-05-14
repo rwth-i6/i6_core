@@ -8,12 +8,13 @@ __all__ = [
     "FilterCorpusBySegmentDurationJob",
 ]
 
+from collections import defaultdict
 import gzip
 import logging
 import numpy as np
 import re
 import xml.etree.cElementTree as ET
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 from i6_core import rasr
 from i6_core.lib import corpus
