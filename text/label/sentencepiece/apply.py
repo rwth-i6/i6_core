@@ -67,7 +67,7 @@ class ApplySentencepieceToTextJob(Job):
             # Note: Important to overtake potential file extensions from the input/output filenames, e.g. ".gz".
             tmp_infile = os.path.join(tmp, "in_text." + os.path.basename(self.text_file.get_path()))
             tmp_outfile = os.path.join(tmp, "out_text." + os.path.basename(self.out_sentencepiece_text.get_path()))
-            
+
             shutil.copy(self.text_file.get_path(), tmp_infile)
 
             with util.uopen(tmp_infile, "rt") as fin, util.uopen(tmp_outfile, "wt") as fout:
