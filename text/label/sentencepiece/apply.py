@@ -64,9 +64,7 @@ class ApplySentencepieceToTextJob(Job):
         spm = sentencepiece.SentencePieceProcessor(model_file=self.sentencepiece_model.get_path())
         unk_id = spm.unk_id()
 
-        with util.uopen(self.text_file.get_path(), "rt") as fin, util.uopen(
-            self.out_sentencepiece_text.get_path(), "wt"
-        ) as fout:
+        with util.uopen(self.text_file, "rt") as fin, util.uopen(self.out_sentencepiece_text, "wt") as fout:
             for line in fin:
                 pieces = spm.encode(line.rstrip("\n"), out_type=str)
                 if self.map_unk:
