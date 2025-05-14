@@ -320,8 +320,25 @@ class _Serializer:
         """
         Runs the serialization queue.
 
-        Conceptually this runs a depth-first search over the config dict, writing values
-        into the config as it finds them.
+        Conceptually this runs a depth-first search over the config dict, writing
+        values into the config as it finds them.
+
+        Whenever it encounters a value that needs to be serialized before the
+        current/original value, an exception is raised with the dependency value to be
+        serialized next. This value is then added to the front of the queue, and the
+        current item is left in place.
+
+        The dependency is then serialized and a reference to it is kept in
+        `assignments_dict_by_value_ref`. When we re-try serializing the original
+        value, we again attempt the recursive serialization of the dependency, but
+        this time we find it in `assignments_dict_by_value_ref` and so we can use it
+        directly and proceed serializing the (original) value.
+
+        Eventually the queue runs empty and we are done with the serialization.
+        At this point, `work_inlining` can be run to inline the values that are
+        only used once and are not direct config entries.
+
+        The resulting code can then be fetched from `assignments_dict_by_idx`.
         """
 
         self._inlining_stage = False
