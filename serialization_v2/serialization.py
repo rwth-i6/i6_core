@@ -24,7 +24,7 @@ Note: Sisyphus Path objects are serialized directly using :func:`sisyphus.Path.g
 We handle those objects specially:
 - primitive types (int, float, bool, str)
 - Sisyphus Path objects
-- ~~RETURNN Dim objects~~ (removed for now to avoid importing RETURNN in the sisyphus manager)
+- RETURNN Dim objects
 - dict, list, tuple, set
 - functions, classes, modules
 - functools.partial (just some nicer repr)
@@ -51,16 +51,16 @@ import inspect
 import math
 import os
 import pickle
+import re
 import subprocess
 import sys
 import types
 from types import BuiltinFunctionType, FunctionType, MethodType, ModuleType
-from typing import Any, Collection, Dict, List, Optional, Sequence, Tuple, Union
+from typing import Any, Collection, Dict, List, Optional, Sequence, Tuple, Union, TYPE_CHECKING
 
 from sisyphus import Path
 from sisyphus.delayed_ops import DelayedBase
 from sisyphus.hash import sis_hash_helper
-import tree
 
 from i6_core.returnn.config import CodeWrapper, ReturnnConfig
 from i6_core.serialization import (
@@ -76,6 +76,9 @@ from i6_core.serialization import (
     SerializerObject,
 )
 from i6_core.serialization import Collection as SerializerCollection
+
+if TYPE_CHECKING:
+    from returnn.tensor import Dim
 
 
 def serialize_config(
@@ -211,6 +214,8 @@ class ReturnnConfigWithNewSerialization(ReturnnConfig):
         )
 
     def _serialize(self) -> str:
+        import tree
+
         # This is usually run within the worker, but it shouldn't really matter.
         assert not self.staged_network_dict  # not supported
 
@@ -284,12 +289,14 @@ class _Serializer:
         known_modules: Collection[str] = (),
         sis_path_handling: SisPathHandling = None,
     ):
+        from returnn.tensor import Dim, batch_dim, single_step_dim
+
         self.config = config.copy()
         self.post_config = post_config.copy() if post_config else {}
         self.assignments_dict_by_value_ref: Dict[_Ref, PyCode] = {}  # value ref -> code
         self.assignments_dict_by_name: Dict[str, PyCode] = {}  # var name -> code
         self.assignments_dict_by_idx: Dict[int, PyCode] = {}  # idx -> code
-        self.assignments_dict_by_value_by_type: Dict[type, Dict[Any, PyCode]] = {}  # type -> dict value -> code
+        self.assignments_dict_by_value_by_type: Dict[type, Dict[Any, PyCode]] = {Dim: {}}  # type -> dict value -> code
         self.reduce_cache_by_value_ref: Dict[_Ref, Tuple[Any, ...]] = {}  # value ref -> (func, args, ...)
         self.added_sys_paths = set()
         self.known_modules = set(known_modules)
@@ -307,7 +314,26 @@ class _Serializer:
         # and which are only used once.
         self._inlining_stage = False
 
+        # Avoid to use them, but if necessary (when inside the config), they can be used.
+        # The config keys always have precedence.
+        self._internal_reserved_names = {
+            "sys": sys,
+            "batch_dim": batch_dim,
+            "single_step_dim": single_step_dim,
+            "Dim": Dim,
+        }
+        self._internal_reserved_names_by_value_ref = {
+            _Ref(value): name for name, value in self._internal_reserved_names.items()
+        }
+
     def work_queue(self):
+        """
+        Runs the serialization queue.
+
+        Conceptually this runs a depth-first search over the config dict, writing values
+        into the config as it finds them.
+        """
+
         self._inlining_stage = False
         queue: List[Union[_AssignQueueItem, _DeferredStateQueueItem]] = [
             _AssignQueueItem(required_var_name=key, value=value)
@@ -349,6 +375,8 @@ class _Serializer:
         self._next_assignment_idx += 1
 
     def _handle_next_queue_item(self, queue_item: _AssignQueueItem) -> Optional[_DeferredStateQueueItem]:
+        from returnn.tensor import Dim
+
         value_ref = _Ref(queue_item.value)
         if queue_item.required_var_name:
             assert queue_item.required_var_name not in self.assignments_dict_by_name
@@ -356,14 +384,14 @@ class _Serializer:
             # No need to assign it again.
             return None
         name = queue_item.required_var_name
-        if not name and value_ref in _InternalReservedNamesByValueRef:
+        if not name and value_ref in self._internal_reserved_names_by_value_ref:
             name = self._get_unique_suggested_name(
-                _InternalReservedNamesByValueRef[value_ref], allow_internal_reserved_name=True
+                self._internal_reserved_names_by_value_ref[value_ref], allow_internal_reserved_name=True
             )
         if not name and (
             isinstance(queue_item.value, (type, FunctionType, BuiltinFunctionType, ModuleType, Import, Call))
             or (getattr(queue_item.value, "__module__", None) and getattr(queue_item.value, "__qualname__", None))
-            # or (isinstance(queue_item.value, Dim) and queue_item.value.name)
+            or (isinstance(queue_item.value, Dim) and queue_item.value.name)
         ):
             # For those types, prefer a name based on the value, even over any other suggested name.
             name = self._get_unique_suggested_name(self._suggest_name_from_value(queue_item.value))
@@ -459,6 +487,10 @@ class _Serializer:
 
     @staticmethod
     def _suggest_name_from_value(value: Any) -> str:
+        from returnn.tensor import Dim
+
+        if isinstance(value, Dim):
+            return _Serializer._suggested_name_for_dim(value)
         if isinstance(value, (Import, PartialImport, CallImport)):
             return value.import_as or value.object_name
         if isinstance(value, Call) and value.return_assign_variables is not None:
@@ -480,6 +512,20 @@ class _Serializer:
             return value.__name__
         return type(value).__name__.lower()
 
+    @staticmethod
+    def _suggested_name_for_dim(dim: Dim) -> str:
+        if not dim.name:
+            return "dim"  # fallback
+        name_ = dim.name
+        name_ = re.sub(r"[^a-zA-Z0-9_]", "_", name_)
+        if not name_:
+            return "dim"  # fallback
+        if name_[:1].isdigit():
+            return "dim_" + name_
+        if not name_.endswith("_dim"):
+            name_ += "_dim"
+        return name_
+
     def _get_unique_suggested_name(self, suggested_name: str, *, allow_internal_reserved_name: bool = False) -> str:
         # If we ever get here and the suggested name is not a valid Python identifier,
         # then we can sanitize it here.
@@ -496,7 +542,7 @@ class _Serializer:
             i += 1
 
     def _check_can_use_suggested_name(self, name: str, *, allow_internal_reserved_name: bool = False) -> bool:
-        if not allow_internal_reserved_name and name in _InternalReservedNames:
+        if not allow_internal_reserved_name and name in self._internal_reserved_names:
             return False
         if name in builtins.__dict__:  # e.g. `len`, `sum`, etc.
             return False
@@ -523,6 +569,8 @@ class _Serializer:
     def _serialize_value(
         self, value: Any, prefix: str, *, recursive: bool = True, name: Optional[str] = None
     ) -> Union[PyEvalCode, PyCode, _PyCodeWithDeferredStateQueueItem]:
+        from returnn.tensor import Dim
+
         # The code here is somewhat similar as pickle._Pickler.save,
         # but we have some special treatment for a few types.
         value_ref = _Ref(value)
@@ -598,6 +646,8 @@ class _Serializer:
             return self._serialize_tuple(value, prefix)
         if isinstance(value, set):
             return self._serialize_set(value, prefix)
+        if isinstance(value, Dim):
+            return self._serialize_dim(value, prefix)
         if isinstance(value, functools.partial):
             return self._serialize_functools_partial(value, name)
         if isinstance(value, Call):
@@ -756,6 +806,57 @@ class _Serializer:
             assert isinstance(serialized_value, PyEvalCode)
             serialized_items.append(serialized_value.py_inline())
         return PyEvalCode("{" + ", ".join(serialized_items) + "}")
+
+    def _serialize_dim(self, dim: Dim, prefix: str) -> Union[PyEvalCode, PyCode]:
+        from returnn.tensor import Dim, batch_dim, single_step_dim
+
+        assert isinstance(dim, Dim)
+
+        # See also returnn_common.nn.naming.ReturnnDimTagsProxy.dim_ref_repr
+        # and returnn_common.nn.naming.ReturnnDimTagsProxy.DimRefProxy.dim_repr.
+        if dim == batch_dim:
+            return self._serialize_global(dim, prefix, mod_name="returnn.tensor", qualname="batch_dim")
+        if dim == single_step_dim:
+            return self._serialize_global(dim, prefix, mod_name="returnn.tensor", qualname="single_step_dim")
+
+        if dim.match_priority:
+            base_dim_str = self._serialize_value(dim.copy(match_priority=0), prefix=f"{prefix}_p0", recursive=True)
+            assert isinstance(base_dim_str, PyEvalCode)
+            return PyEvalCode(f"{base_dim_str.py_inline()}.copy(match_priority={dim.match_priority})")
+        if not dim.derived_from_op and dim.get_same_base().derived_from_op:
+            dim = dim.get_same_base()
+
+        if dim.derived_from_op:
+            if dim.derived_from_op.kind == "constant":
+                v = dim.derived_from_op.attribs["value"]
+                return PyEvalCode(str(v), need_brackets_when_inlined=v < 0)
+            func_map = {"truediv_left": "div_left", "ceildiv_left": "ceildiv_left", "ceildiv_right": "ceildiv_right"}
+            inputs_s: List[PyEvalCode] = [
+                self._serialize_value(x, prefix=f"{prefix}_in{i}", recursive=True)
+                for i, x in enumerate(dim.derived_from_op.inputs)
+            ]
+            assert all(isinstance(x, PyEvalCode) for x in inputs_s)
+            if dim.derived_from_op.kind in func_map:
+                assert len(dim.derived_from_op.inputs) == 2
+                a, b = inputs_s
+                a: PyEvalCode
+                b: PyEvalCode
+                return PyEvalCode(f"{a.py_inline()}.{func_map[dim.derived_from_op.kind]}({b.py_inline()})")
+            op_str = {"add": "+", "mul": "*", "truediv_right": "//", "floordiv_right": "//"}[dim.derived_from_op.kind]
+            s = f" {op_str} ".join(x.py_inline() for x in inputs_s)
+            return PyEvalCode(s, need_brackets_when_inlined=True)
+
+        # generic fallback
+        dim_type_str = self._serialize_value(type(dim), prefix="Dim", recursive=True)
+        assert isinstance(dim_type_str, PyEvalCode)
+        kwargs = {"name": repr(dim.name)}
+        if dim.kind is not None:
+            kind_s = {Dim.Types.Batch: "Batch", Dim.Types.Spatial: "Spatial", Dim.Types.Feature: "Feature"}[dim.kind]
+            kwargs["kind"] = f"{dim_type_str.py_inline()}.Types.{kind_s}"
+        return PyEvalCode(
+            f"{dim_type_str.py_inline()}"
+            f"({dim.dimension}, {', '.join(f'{key}={value}' for key, value in kwargs.items())})"
+        )
 
     def _serialize_global(
         self, value: Any, name: str, *, mod_name: Optional[str] = None, qualname: Optional[str] = None
@@ -1129,14 +1230,6 @@ class _Ref:
 
     def __ne__(self, other: _Ref):
         return not (self == other)
-
-
-# Avoid to use them, but if necessary (when inside the config), they can be used.
-# The config keys always have precedence.
-_InternalReservedNames = {
-    "sys": sys,
-}
-_InternalReservedNamesByValueRef = {_Ref(value): name for name, value in _InternalReservedNames.items()}
 
 
 _base_sys_path_list: Optional[str] = None
