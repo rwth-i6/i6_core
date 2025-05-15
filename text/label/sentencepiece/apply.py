@@ -64,9 +64,7 @@ class ApplySentencepieceToTextJob(Job):
         if self.enable_unk:
             spm.SetEncodeExtraOptions("unk")
 
-        with util.uopen(self.text_file.get_path(), "rt") as fin, util.uopen(
-            self.out_sentencepiece_text.get_path(), "wt"
-        ) as fout:
+        with util.uopen(self.text_file, "rt") as fin, util.uopen(self.out_sentencepiece_text, "wt") as fout:
             for line in fin:
                 pieces = spm.encode(line.rstrip("\n"), out_type=str)
                 fout.write(" ".join(pieces) + "\n")
