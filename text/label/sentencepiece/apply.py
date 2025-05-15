@@ -67,5 +67,5 @@ class ApplySentencepieceToTextJob(Job):
 
     @classmethod
     def hash(cls, parsed_args):
-        del parsed_args["mini_task"]
+        del parsed_args["rqmt"]
         return super().hash(parsed_args)
