@@ -5,6 +5,7 @@ import tempfile
 import os
 
 from sisyphus import Job, Task, tk, gs
+from typing import Any, Dict, Optional
 
 import i6_core.util as util
 
@@ -31,24 +32,23 @@ class ApplySentencepieceToTextJob(Job):
         sentencepiece_model: tk.Path,
         enable_unk: bool = True,
         gzip_output: bool = True,
-        mini_task: bool = False,
+        rqmt: Optional[Dict[str, Any]] = None,
     ):
         """
         :param text_file: words text file to convert to sentencepiece
         :param sentencepiece_model: path to the trained sentencepiece model
         :param enable_unk: whether enable unk to map OOV symbol to the unknown symbol set in training or keep it as is
         :param gzip_output: use gzip on the output text
-        :param mini_task: if the Job should run locally, e.g. only a small (<1M lines) text should be processed
+        :param rqmt: requirement for the job, pass None to run locally
         """
         self.text_file = text_file
         self.sentencepiece_model = sentencepiece_model
         self.enable_unk = enable_unk
+        self.rqmt = rqmt
 
         self.out_sentencepiece_text = self.output_path(
             "words_to_sentencepiece.txt.gz" if gzip_output else "words_to_sentencepiece.txt"
         )
-
-        self.rqmt = {"cpu": 1, "mem": 2, "time": 2}
 
     def tasks(self):
         yield Task("run", rqmt=self.rqmt, mini_task=self.rqmt is None)
