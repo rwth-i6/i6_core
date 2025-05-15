@@ -3,7 +3,7 @@ https://huggingface.co/docs/datasets/
 """
 
 from typing import Optional, Any, Union
-from sisyphus import *
+from sisyphus import Job, Task, gs
 from sisyphus.delayed_ops import DelayedBase
 
 from i6_core.util import instanciate_delayed
@@ -24,7 +24,7 @@ class DownloadAndPrepareHuggingFaceDatasetJob(Job):
     https://github.com/huggingface/datasets/issues/4179
     """
 
-    __sis_hash_exclude__ = {"split": None, "token": None}
+    __sis_hash_exclude__ = {"split": None, "token": None, "trust_remote_code": None}
 
     def __init__(
         self,
@@ -35,22 +35,30 @@ class DownloadAndPrepareHuggingFaceDatasetJob(Job):
         revision: Optional[str] = None,
         split: Optional[str] = None,
         token: Optional[Union[str, bool]] = None,
+        trust_remote_code: Optional[bool] = None,
         time_rqmt: float = 1,
         mem_rqmt: float = 2,
         cpu_rqmt: int = 2,
         mini_task: bool = True,
     ):
         """
-        :param path: Path or name of the dataset, parameter passed to `Dataset.load_dataset`
-        :param name: Name of the dataset configuration, parameter passed to `Dataset.load_dataset`
-        :param data_files: Path(s) to the source data file(s), parameter passed to `Dataset.load_dataset`
-        :param revision: Version of the dataset script, parameter passed to `Dataset.load_dataset`
-        :param split: Specifies the split to download e.g "test", parameter passed to `Dataset.load_dataset`
-        :param token: To use as Bearer token for remote files on the Datasets Hub, parameter passed to `Dataset.load_dataset`
-        :param float time_rqmt:
-        :param float mem_rqmt:
-        :param int cpu_rqmt:
-        :param bool mini_task: the job should be run as mini_task
+        :param path: Path or name of the dataset, parameter passed to :func:`load_dataset`
+        :param name: Name of the dataset configuration, parameter passed to :func:`load_dataset`
+        :param data_files: Path(s) to the source data file(s), parameter passed to :func:`load_dataset`
+        :param revision: Version of the dataset script, parameter passed to :func:`load_dataset`
+        :param split: Specifies the split to download e.g "test", parameter passed to :func:`load_dataset`
+        :param token: To use as Bearer token for remote files on the Datasets Hub, parameter passed to :func:`load_dataset`
+            If set to True, or if unset, it will use the standard HF methods to determine the token.
+            E.g. it will look for the HF_TOKEN env var,
+            or it will look into the HF home dir (set via HF_HOME env, or as default ~/.cache/huggingface).
+            Do ``python -m huggingface_hub.commands.huggingface_cli login``.
+            See HF :func:`get_token`.
+            You should *not* set some token in public recipes.
+        :param trust_remote_code: whether to trust remote code, parameter passed to :func:`load_dataset`
+        :param time_rqmt:
+        :param mem_rqmt:
+        :param cpu_rqmt:
+        :param mini_task: the job should be run as mini_task
         """
         super().__init__()
         self.path = path
@@ -59,6 +67,7 @@ class DownloadAndPrepareHuggingFaceDatasetJob(Job):
         self.revision = revision
         self.split = split
         self.token = token
+        self.trust_remote_code = trust_remote_code
 
         self.rqmt = {"cpu": cpu_rqmt, "mem": mem_rqmt, "time": time_rqmt}
         self.mini_task = mini_task
@@ -81,6 +90,7 @@ class DownloadAndPrepareHuggingFaceDatasetJob(Job):
                 cache_dir=tmp_dir,
                 split=self.split,
                 token=self.token,
+                **({"trust_remote_code": self.trust_remote_code} if self.trust_remote_code is not None else {}),
             )
             print("Dataset:")
             print(ds)
