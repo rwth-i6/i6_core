@@ -29,21 +29,20 @@ class ApplySentencepieceToTextJob(Job):
         *,
         text_file: tk.Path,
         sentencepiece_model: tk.Path,
-        map_unk: bool = False,
+        enable_unk: bool = True,
         gzip_output: bool = True,
         mini_task: bool = False,
     ):
         """
         :param text_file: words text file to convert to sentencepiece
         :param sentencepiece_model: path to the trained sentencepiece model
-        :param map_unk: when encoding string to string, spm won't map oov symbol to <unk> but keep it as is.
-            This option forces the oov labels to be <unk> by cecking encoded indices.
+        :param enable_unk: whether enable unk to map OOV symbol to the unknown symbol set in training or keep it as is
         :param gzip_output: use gzip on the output text
         :param mini_task: if the Job should run locally, e.g. only a small (<1M lines) text should be processed
         """
         self.text_file = text_file
         self.sentencepiece_model = sentencepiece_model
-        self.map_unk = map_unk
+        self.enable_unk = enable_unk
 
         self.out_sentencepiece_text = self.output_path(
             "words_to_sentencepiece.txt.gz" if gzip_output else "words_to_sentencepiece.txt"
@@ -62,18 +61,14 @@ class ApplySentencepieceToTextJob(Job):
         import sentencepiece
 
         spm = sentencepiece.SentencePieceProcessor(model_file=self.sentencepiece_model.get_path())
-        unk_id = spm.unk_id()
+        if self.enable_unk:
+            spm.SetEncodeExtraOptions("unk")
 
         with util.uopen(self.text_file.get_path(), "rt") as fin, util.uopen(
             self.out_sentencepiece_text.get_path(), "wt"
         ) as fout:
             for line in fin:
                 pieces = spm.encode(line.rstrip("\n"), out_type=str)
-                if self.map_unk:
-                    pieces_id = spm.encode(line.rstrip("\n"))
-                    assert len(pieces_id) == len(pieces)
-                    if unk_id in pieces_id:
-                        pieces = ["<unk>" if x == unk_id else y for x, y in zip(pieces_id, pieces)]
                 fout.write(" ".join(pieces) + "\n")
 
     @classmethod
