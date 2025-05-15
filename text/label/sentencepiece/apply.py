@@ -58,7 +58,7 @@ class ApplySentencepieceToTextJob(Job):
 
         spm = sentencepiece.SentencePieceProcessor(model_file=self.sentencepiece_model.get_path())
         if self.enable_unk:
-            spm.SetEncodeExtraOptions("unk")
+            spm.set_encode_extra_options("unk")
 
         with util.uopen(self.text_file, "rt") as fin, util.uopen(self.out_sentencepiece_text, "wt") as fout:
             for line in fin:
