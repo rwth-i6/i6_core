@@ -48,14 +48,10 @@ class ApplySentencepieceToTextJob(Job):
             "words_to_sentencepiece.txt.gz" if gzip_output else "words_to_sentencepiece.txt"
         )
 
-        self.mini_task = mini_task
         self.rqmt = {"cpu": 1, "mem": 2, "time": 2}
 
     def tasks(self):
-        if self.mini_task:
-            yield Task("run", mini_task=True)
-        else:
-            yield Task("run", rqmt=self.rqmt)
+        yield Task("run", rqmt=self.rqmt, mini_task=self.rqmt is None)
 
     def run(self):
         import sentencepiece
