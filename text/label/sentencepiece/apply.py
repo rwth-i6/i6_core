@@ -32,19 +32,17 @@ class ApplySentencepieceToTextJob(Job):
         sentencepiece_model: tk.Path,
         enable_unk: bool = True,
         gzip_output: bool = True,
-        rqmt: Optional[Dict[str, Any]] = None,
     ):
         """
         :param text_file: words text file to convert to sentencepiece
         :param sentencepiece_model: path to the trained sentencepiece model
         :param enable_unk: whether enable unk to map OOV symbol to the unknown symbol set in training or keep it as is
         :param gzip_output: use gzip on the output text
-        :param rqmt: requirement for the job, pass None to run locally
         """
         self.text_file = text_file
         self.sentencepiece_model = sentencepiece_model
         self.enable_unk = enable_unk
-        self.rqmt = rqmt
+        self.rqmt: Optional[Dict[str, Any]] = {"cpu": 1, "mem": 2, "time": 2}
 
         self.out_sentencepiece_text = self.output_path(
             "words_to_sentencepiece.txt.gz" if gzip_output else "words_to_sentencepiece.txt"
@@ -65,7 +63,3 @@ class ApplySentencepieceToTextJob(Job):
                 pieces = spm.encode(line.rstrip("\n"), out_type=str)
                 fout.write(" ".join(pieces) + "\n")
 
-    @classmethod
-    def hash(cls, parsed_args):
-        del parsed_args["mini_task"]
-        return super().hash(parsed_args)
