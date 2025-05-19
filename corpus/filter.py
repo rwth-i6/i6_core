@@ -170,7 +170,10 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
         yield Task("run", resume="run", mini_task=True)
 
     def run(self):
-        segment_dict = {}
+        if self.recording_level_filtering:
+            recording_dict: Dict[str, List[Tuple[str, float]]] = defaultdict(list)
+        else:
+            segment_dict: Dict[str, float] = {}
         for task_id, log_file in self.alignment_logs.items():
             logging.info("Reading: {}".format(log_file))
             file_path = tk.uncached_path(log_file)
@@ -178,11 +181,23 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
             _seg_list = document.findall(".//segment")
             for seg in _seg_list:
                 avg = seg.find(".//score/avg")
-                segment_dict[seg.attrib["full-name"]] = float(avg.text)
+                if self.recording_level_filtering:
+                    full_seg_name = seg.attrib["full-name"]
+                    full_rec_name = "/".join(full_seg_name.split("/")[:-1])
+                    recording_dict[full_rec_name].append((full_seg_name, float(avg.text)))
+                else:
+                    segment_dict[seg.attrib["full-name"]] = float(avg.text)
             del document
 
         logging.info("Scores has {} entries.".format(len(segment_dict)))
-        score_np = np.asarray(list(segment_dict.values()))
+        if self.recording_level_filtering:
+            recording_to_average_conf = {
+                full_rec_name: np.average([conf for (_, conf) in seg_and_confs])
+                for full_rec_name, seg_and_confs in recording_dict.items()
+            }
+            score_np = np.asarray(list(recording_to_average_conf.values()))
+        else:
+            score_np = np.asarray(list(segment_dict.values()))
         logging.info("Max {}; Min {}; Median {}".format(score_np.max(), score_np.min(), np.median(score_np)))
         avg_score_threshold = np.percentile(score_np, self.percentile)
         if np.isnan(avg_score_threshold):
@@ -207,7 +222,15 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
             plt.savefig(fname=self.out_plot_avg.get_path())
 
         # Only keep segments that are below the threshold
-        filtered_segments = [seg for seg, avg in segment_dict.items() if avg <= avg_score_threshold]
+        if self.recording_level_filtering:
+            filtered_segments = [
+                seg
+                for full_rec_name, seg_and_confs in recording_dict.items()
+                for (seg, _) in seg_and_confs
+                if recording_to_average_conf[full_rec_name] <= avg_score_threshold
+            ]
+        else:
+            filtered_segments = [seg for seg, avg in segment_dict.items() if avg <= avg_score_threshold]
         logging.info("Have {} entries after filtering.".format(len(filtered_segments)))
 
         for idx, segments in enumerate(chunks(filtered_segments, self.num_segments)):
