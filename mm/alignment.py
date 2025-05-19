@@ -13,8 +13,8 @@ import math
 import os
 import shutil
 import statistics
+from typing import Callable, Counter, Dict, List, Optional, Tuple, Union
 import xml.etree.ElementTree as ET
-from typing import Callable, Counter, List, Optional, Tuple, Union
 
 from sisyphus import *
 
