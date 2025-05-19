@@ -2,6 +2,7 @@ __all__ = [
     "FilterSegmentsByListJob",
     "FilterSegmentsByRegexJob",
     "FilterSegmentsByAlignmentConfidenceJob",
+    "FilterSegmentsByRecordingAlignmentConfidenceJob",
     "FilterCorpusBySegmentsJob",
     "FilterCorpusRemoveUnknownWordSegmentsJob",
     "FilterCorpusBySegmentDurationJob",
@@ -127,8 +128,6 @@ class FilterSegmentsByRegexJob(Job):
 
 
 class FilterSegmentsByAlignmentConfidenceJob(Job):
-    __sis_hash_exclude__ = {"recording_level_filtering": False}
-
     def __init__(
         self,
         alignment_logs: Dict[int, Path],
@@ -136,7 +135,6 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
         crp: Optional[rasr.CommonRasrParameters] = None,
         plot: bool = True,
         absolute_threshold: Optional[float] = None,
-        recording_level_filtering: bool = False,
     ):
         """
         :param alignment_logs: alignment_job.out_log_file; task_id -> log_file
@@ -144,18 +142,12 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
         :param crp: used to set the number of output segments. if none, number of alignment log files is used instead.
         :param plot: plot the distribution of alignment scores
         :param absolute_threshold: alignments with score above this number are discarded
-        :param recording_level_filtering: Instead of taking into account the alignment confidence of a single segment,
-            take into account the average alignment confidence of the segment.
-
-            :param:`percentile` and :param:`absolute_threshold` would now work at recording level
-            instead of at alignment level.
         """
         self.alignment_logs = alignment_logs  # alignment_job.log_file
         self.percentile = percentile
         self.absolute_threshold = absolute_threshold
         self.num_segments = len(alignment_logs) if crp is None else crp.concurrent
         self.plot = plot
-        self.recording_level_filtering = recording_level_filtering
 
         self.out_single_segment_files = dict(
             (i, self.output_path("segments.%d" % i)) for i in range(1, self.num_segments + 1)
@@ -166,89 +158,140 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
             self.out_plot_avg = self.output_path("score.png")
             self.out_plot_avg_after_filtering = self.output_path("score_after_filtering.png")
 
-    def tasks(self):
-        yield Task("run", resume="run", mini_task=True)
-
-    def run(self):
-        if self.recording_level_filtering:
-            recording_dict: Dict[str, List[Tuple[str, float]]] = defaultdict(list)
-        else:
-            segment_dict: Dict[str, float] = {}
-        for task_id, log_file in self.alignment_logs.items():
+    def _parse_alignment_logs(self):
+        self.segment_dict: Dict[str, float] = {}
+        for _, log_file in self.alignment_logs.items():
             logging.info("Reading: {}".format(log_file))
             file_path = tk.uncached_path(log_file)
             document = ET.parse(uopen(file_path))
             _seg_list = document.findall(".//segment")
             for seg in _seg_list:
                 avg = seg.find(".//score/avg")
-                if self.recording_level_filtering:
-                    full_seg_name = seg.attrib["full-name"]
-                    full_rec_name = "/".join(full_seg_name.split("/")[:-1])
-                    recording_dict[full_rec_name].append((full_seg_name, float(avg.text)))
-                else:
-                    segment_dict[seg.attrib["full-name"]] = float(avg.text)
+                self.segment_dict[seg.attrib["full-name"]] = float(avg.text)
             del document
+        logging.info("Scores has {} entries.".format(len(self.segment_dict)))
 
-        logging.info("Scores has {} entries.".format(len(segment_dict)))
-        if self.recording_level_filtering:
-            recording_to_average_conf = {
-                full_rec_name: np.average([conf for (_, conf) in seg_and_confs])
-                for full_rec_name, seg_and_confs in recording_dict.items()
-            }
-            score_np = np.asarray(list(recording_to_average_conf.values()))
-        else:
-            score_np = np.asarray(list(segment_dict.values()))
-        logging.info("Max {}; Min {}; Median {}".format(score_np.max(), score_np.min(), np.median(score_np)))
-        avg_score_threshold = np.percentile(score_np, self.percentile)
-        if np.isnan(avg_score_threshold):
-            avg_score_threshold = np.inf
-        logging.info("Avg Threshold is {} with percentile {}".format(avg_score_threshold, self.percentile))
+        self.score_np = np.asarray(list(self.segment_dict.values()))
+        logging.info(
+            "Max {}; Min {}; Median {}".format(self.score_np.max(), self.score_np.min(), np.median(self.score_np))
+        )
+
+    def _get_avg_score_threshold(self):
+        self.avg_score_threshold = np.percentile(self.score_np, self.percentile)
+        if np.isnan(self.avg_score_threshold):
+            self.avg_score_threshold = np.inf
+        logging.info("Avg Threshold is {} with percentile {}".format(self.avg_score_threshold, self.percentile))
         if self.absolute_threshold is not None:
-            avg_score_threshold = min(avg_score_threshold, self.absolute_threshold)
-        logging.info("Threshold is {}".format(avg_score_threshold))
+            self.avg_score_threshold = min(self.avg_score_threshold, self.absolute_threshold)
+        logging.info("Threshold is {}".format(self.avg_score_threshold))
 
+    def _filter_segments(self):
         # Only keep segments that are below the threshold
-        if self.recording_level_filtering:
-            filtered_segments = [
-                seg
-                for full_rec_name, seg_and_confs in recording_dict.items()
-                for (seg, _) in seg_and_confs
-                if recording_to_average_conf[full_rec_name] <= avg_score_threshold
-            ]
-        else:
-            filtered_segments = [seg for seg, avg in segment_dict.items() if avg <= avg_score_threshold]
-        logging.info("Have {} entries after filtering.".format(len(filtered_segments)))
+        self.filtered_segments = [seg for seg, avg in self.segment_dict.items() if avg <= self.avg_score_threshold]
+        logging.info("Have {} entries after filtering.".format(len(self.filtered_segments)))
 
-        for idx, segments in enumerate(chunks(filtered_segments, self.num_segments)):
+    def _write_output(self):
+        for idx, segments in enumerate(chunks(self.filtered_segments, self.num_segments)):
             with open(self.out_single_segment_files[idx + 1].get_path(), "wt") as segment_file:
                 for segment in segments:
                     segment_file.write(segment + "\n")
 
         with open(self.out_single_file.get_path(), "wt") as segment_file:
-            for segment in filtered_segments:
+            for segment in self.filtered_segments:
                 segment_file.write(segment + "\n")
 
-        if self.plot:
-            import matplotlib
-            import matplotlib.pyplot as plt
+    def _plot(self):
+        import matplotlib
+        import matplotlib.pyplot as plt
 
-            matplotlib.use("Agg")
+        matplotlib.use("Agg")
 
-            # Before filtering.
-            np.clip(score_np, 0, 200, out=score_np)
-            plt.hist(score_np, bins=100, range=(0, 200))
-            plt.xlabel("Average Maximum-Likelihood Score")
-            plt.ylabel("Number of Segments")
-            plt.title("Histogram of Alignment Scores")
-            plt.savefig(fname=self.out_plot_avg.get_path())
+        # Before filtering.
+        np.clip(self.score_np, 0, 200, out=self.score_np)
+        plt.hist(self.score_np, bins=100, range=(0, 200))
+        plt.xlabel("Average Maximum-Likelihood Score")
+        plt.ylabel("Number of Segments")
+        plt.title("Histogram of Alignment Scores")
+        plt.savefig(fname=self.out_plot_avg.get_path())
 
-            # After filtering.
-            np.clip(score_np, a_min=-float("inf"), a_max=avg_score_threshold, out=score_np)
-            plt.hist(score_np)
-            plt.xlabel("Average Maximum-Likelihood Score")
-            plt.ylabel("Number of Recordings")
-            plt.title("Histogram of Alignment Scores")
-            plt.savefig(fname=self.out_plot_avg.get_path())
+        # After filtering.
+        np.clip(self.score_np, a_min=-float("inf"), a_max=self.avg_score_threshold, out=self.score_np)
+        plt.hist(self.score_np)
+        plt.xlabel("Average Maximum-Likelihood Score")
+        plt.ylabel("Number of Recordings")
+        plt.title("Histogram of Alignment Scores")
+        plt.savefig(fname=self.out_plot_avg.get_path())
+
+    def tasks(self):
+        yield Task("run", resume="run", mini_task=True)
+
+    def run(self):
+        self._parse_alignment_logs()
+        self._get_avg_score_threshold()
+        self._filter_segments()
+        self._write_output()
+        self._plot()
+
+
+class FilterSegmentsByRecordingAlignmentConfidenceJob(FilterSegmentsByAlignmentConfidenceJob):
+    """
+    Filter segments like :class:`FilterSegmentsByAlignmentConfidenceJob` does.
+    However, instead of taking into account the alignment confidence of a single segment,
+    take into account the average alignment confidence of the segment.
+    """
+
+    def __init__(
+        self,
+        alignment_logs: Dict[int, Path],
+        percentile: float,
+        crp: Optional[rasr.CommonRasrParameters] = None,
+        plot: bool = True,
+        absolute_threshold: Optional[float] = None,
+    ):
+        """
+        :param alignment_logs: Mapping of `task_id` into log file.
+            Can be directly used as the output `out_log_file` of the job :class:`i6_core.mm.AlignmentJob`.
+        :param percentile: Percent of recordings whose segments should be keep, in the range `(0,100]`.
+            Used directly in :func:`np.percentile`.
+        :param crp: Used to set the number of output segments.
+            If `None` (default value), all segments in all alignment log files are considered.
+        :param plot: Whether to plot the distribution of alignment scores.
+        :param absolute_threshold: All segments from a recording are discarded
+            if the recording's average alignment score is above this number.
+        """
+        super().__init__(alignment_logs=alignment_logs, percentile=percentile, crp=crp, plot=plot, absolute_threshold=absolute_threshold)
+
+    def _parse_alignment_logs(self):
+        self.recording_dict: Dict[str, List[Tuple[str, float]]] = defaultdict(list)
+        for _, log_file in self.alignment_logs.items():
+            logging.info("Reading: {}".format(log_file))
+            file_path = tk.uncached_path(log_file)
+            document = ET.parse(uopen(file_path))
+            _seg_list = document.findall(".//segment")
+            for seg in _seg_list:
+                avg = seg.find(".//score/avg")
+                full_seg_name = seg.attrib["full-name"]
+                full_rec_name = "/".join(full_seg_name.split("/")[:-1])
+                self.recording_dict[full_rec_name].append((full_seg_name, float(avg.text)))
+            del document
+        logging.info("Scores has {} entries.".format(len(self.recording_dict)))
+
+        self.recording_to_average_conf = {
+            full_rec_name: np.average([conf for (_, conf) in seg_and_confs])
+            for full_rec_name, seg_and_confs in self.recording_dict.items()
+        }
+        self.score_np = np.asarray(list(self.recording_to_average_conf.values()))
+        logging.info(
+            "Max {}; Min {}; Median {}".format(self.score_np.max(), self.score_np.min(), np.median(self.score_np))
+        )
+
+    def _filter_segments(self):
+        self.filtered_segments = [
+            seg
+            for full_rec_name, seg_and_confs in self.recording_dict.items()
+            for (seg, _) in seg_and_confs
+            if self.recording_to_average_conf[full_rec_name] <= self.avg_score_threshold
+        ]
 
 
 class FilterCorpusBySegmentsJob(Job):
