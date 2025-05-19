@@ -128,6 +128,8 @@ class FilterSegmentsByRegexJob(Job):
 
 
 class FilterSegmentsByAlignmentConfidenceJob(Job):
+    __sis_hash_exclude__ = {"recording_level_filtering": False}
+
     def __init__(
         self,
         alignment_logs: Dict[int, Path],
@@ -135,6 +137,7 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
         crp: Optional[rasr.CommonRasrParameters] = None,
         plot: bool = True,
         absolute_threshold: Optional[float] = None,
+        recording_level_filtering: bool = False,
     ):
         """
         :param alignment_logs: alignment_job.out_log_file; task_id -> log_file
@@ -142,12 +145,18 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
         :param crp: used to set the number of output segments. if none, number of alignment log files is used instead.
         :param plot: plot the distribution of alignment scores
         :param absolute_threshold: alignments with score above this number are discarded
+        :param recording_level_filtering: Instead of taking into account the alignment confidence of a single segment,
+            take into account the average alignment confidence of the segment.
+
+            :param:`percentile` and :param:`absolute_threshold` would now work at recording level
+            instead of at alignment level.
         """
         self.alignment_logs = alignment_logs  # alignment_job.log_file
         self.percentile = percentile
         self.absolute_threshold = absolute_threshold
         self.num_segments = len(alignment_logs) if crp is None else crp.concurrent
         self.plot = plot
+        self.recording_level_filtering = recording_level_filtering
 
         self.out_single_segment_files = dict(
             (i, self.output_path("segments.%d" % i)) for i in range(1, self.num_segments + 1)
