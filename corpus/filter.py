@@ -259,7 +259,13 @@ class FilterSegmentsByRecordingAlignmentConfidenceJob(FilterSegmentsByAlignmentC
         :param absolute_threshold: All segments from a recording are discarded
             if the recording's average alignment score is above this number.
         """
-        super().__init__(alignment_logs=alignment_logs, percentile=percentile, crp=crp, plot=plot, absolute_threshold=absolute_threshold)
+        super().__init__(
+            alignment_logs=alignment_logs,
+            percentile=percentile,
+            crp=crp,
+            plot=plot,
+            absolute_threshold=absolute_threshold,
+        )
 
     def _parse_alignment_logs(self):
         self.recording_dict: Dict[str, List[Tuple[str, float]]] = defaultdict(list)
