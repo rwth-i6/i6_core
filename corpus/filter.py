@@ -165,6 +165,7 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
         self.out_single_file = self.output_path("filtered.segments")
         if plot:
             self.out_plot_avg = self.output_path("score.png")
+            self.out_plot_avg_after_filtering = self.output_path("score_after_filtering.png")
 
     def tasks(self):
         yield Task("run", resume="run", mini_task=True)
@@ -207,20 +208,6 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
             avg_score_threshold = min(avg_score_threshold, self.absolute_threshold)
         logging.info("Threshold is {}".format(avg_score_threshold))
 
-        if self.plot:
-            import matplotlib
-
-            matplotlib.use("Agg")
-            import matplotlib.pyplot as plt
-
-            plot_percentile = np.percentile(score_np, 90)  # there can be huge outliers
-            np.clip(score_np, 0, 200, out=score_np)
-            plt.hist(score_np, bins=100, range=(0, 200))
-            plt.xlabel("Average Maximum-Likelihood Score")
-            plt.ylabel("Number of Segments")
-            plt.title("Histogram of Alignment Scores")
-            plt.savefig(fname=self.out_plot_avg.get_path())
-
         # Only keep segments that are below the threshold
         if self.recording_level_filtering:
             filtered_segments = [
@@ -241,6 +228,28 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
         with open(self.out_single_file.get_path(), "wt") as segment_file:
             for segment in filtered_segments:
                 segment_file.write(segment + "\n")
+
+        if self.plot:
+            import matplotlib
+            import matplotlib.pyplot as plt
+
+            matplotlib.use("Agg")
+
+            # Before filtering.
+            np.clip(score_np, 0, 200, out=score_np)
+            plt.hist(score_np, bins=100, range=(0, 200))
+            plt.xlabel("Average Maximum-Likelihood Score")
+            plt.ylabel("Number of Segments")
+            plt.title("Histogram of Alignment Scores")
+            plt.savefig(fname=self.out_plot_avg.get_path())
+
+            # After filtering.
+            np.clip(score_np, a_min=-float("inf"), a_max=avg_score_threshold, out=score_np)
+            plt.hist(score_np)
+            plt.xlabel("Average Maximum-Likelihood Score")
+            plt.ylabel("Number of Recordings")
+            plt.title("Histogram of Alignment Scores")
+            plt.savefig(fname=self.out_plot_avg.get_path())
 
 
 class FilterSegmentsByRecordingAlignmentConfidenceJob(Job):
