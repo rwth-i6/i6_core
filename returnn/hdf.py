@@ -399,6 +399,7 @@ class BlissToAudioHDFJob(Job):
         rounding: BlissToPcmHDFJob.RoundingScheme = BlissToPcmHDFJob.RoundingScheme.rasr_compatible,
         round_factor: int = 1,
         target_sampling_rate: int = 16000,
+        skip_on_error: bool = False,
     ):
         """
         :param bliss_corpus: Bliss corpus to read segments and audio files from
@@ -421,6 +422,7 @@ class BlissToAudioHDFJob(Job):
             rasr_compatible will round up the start time and round down the end time
         :param round_factor: do the rounding based on a sampling rate that is scaled down by this factor
         :param target_sampling_rate: desired sampling rate for the HDF, data will be resampled to this rate if needed
+        :param skip_on_error: if True, skip segments that cannot be read instead of failing the job
         """
         self.bliss_corpus = bliss_corpus
         self.splits = splits
@@ -443,6 +445,7 @@ class BlissToAudioHDFJob(Job):
         self.round_factor = round_factor
         self.returnn_root = returnn_root
         self.target_sampling_rate = target_sampling_rate
+        self.skip_on_error = skip_on_error
 
         self.out_hdfs = [self.output_path(f"{i + 1:0d}.hdf") for i in range(len(splits))]
 
@@ -475,13 +478,14 @@ class BlissToAudioHDFJob(Job):
 
         pool = multiprocessing.Pool(max(self.rqmt["cpu"] - 1, 1))
         apply_func = partial(
-            self._process_seq,
+            self._process_seq_handle_errors,
             compress_format=self.compress_format,
             compress_factor=self.compress_factor,
             multi_channel_strategy=self.multi_channel_strategy,
             output_dtype=self.output_dtype,
             rounding_strategy=self.rounding,
             round_factor=self.round_factor,
+            skip_on_error=self.skip_on_error,
             target_sampling_rate=self.target_sampling_rate,
         )
         recs = (
@@ -518,6 +522,20 @@ class BlissToAudioHDFJob(Job):
                 )
         for hdf_writer in hdf_writers:
             hdf_writer.close()
+
+    @staticmethod
+    def _process_seq_handle_errors(
+        recording: Tuple[str, Sequence[Tuple[str, float, float]]], *args, skip_on_error: bool, **kwargs
+    ) -> List[Tuple[str, np.ndarray]]:
+        try:
+            return BlissToAudioHDFJob._process_seq(recording, *args, **kwargs)
+        except Exception as e:
+            if skip_on_error:
+                audio_file, _ = recording
+                _logging.warning(f"Skipping {audio_file} due to error: {e}")
+                return []
+            else:
+                raise
 
     @staticmethod
     def _process_seq(
