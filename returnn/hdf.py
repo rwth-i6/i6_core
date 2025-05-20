@@ -394,7 +394,7 @@ class BlissToAudioHDFJob(Job):
         compress_factor: Optional[float] = 0.7,
         concurrent: int = 1,
         multi_channel_strategy: Optional[BlissToPcmHDFJob.BaseStrategy] = None,
-        output_dtype: Optional[str] = "int16",
+        output_dtype: str = "int16",
         returnn_root: Optional[tk.Path] = None,
         rounding: BlissToPcmHDFJob.RoundingScheme = BlissToPcmHDFJob.RoundingScheme.rasr_compatible,
         round_factor: int = 1,
@@ -414,7 +414,7 @@ class BlissToAudioHDFJob(Job):
             Mixdown(): Mix down all channels to one channel, default.
             PickNth(n): Takes audio from n-th channel.
         :param output_dtype: dtype that should be written in the hdf (supports float64, float32, int32, int16).
-            Must be None if writing compressed data, as that is always written as uint8 (raw bytes).
+            If writing compressed data, must be set to None as the compressed audio is always written as uint8 (raw bytes).
         :param returnn_root: RETURNN repository
         :param rounding: defines how timestamps should be rounded if they do not exactly fall onto a sample:
             start_and_duration will round down the start time and the duration of the segment
@@ -430,14 +430,14 @@ class BlissToAudioHDFJob(Job):
             assert compress_factor is not None
             assert 0 <= compress_factor
             assert output_dtype is None
+            self.output_dtype = "int32"
         else:
-            assert output_dtype is not None
             assert output_dtype in ["float64", "float32", "int32", "int16"]
+            self.output_dtype = output_dtype
         self.compress_format = compress_format
         self.compress_factor = compress_factor
         self.multi_channel_strategy = multi_channel_strategy or BlissToPcmHDFJob.Mixdown()
         assert isinstance(self.multi_channel_strategy, (BlissToPcmHDFJob.Mixdown, BlissToPcmHDFJob.PickNth))
-        self.output_dtype = output_dtype
         self.rounding = rounding
         assert round_factor > 0
         self.round_factor = round_factor
