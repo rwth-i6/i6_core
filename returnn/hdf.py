@@ -422,7 +422,8 @@ class BlissToAudioHDFJob(Job):
             rasr_compatible will round up the start time and round down the end time
         :param round_factor: do the rounding based on a sampling rate that is scaled down by this factor
         :param target_sampling_rate: desired sampling rate for the HDF, data will be resampled to this rate if needed
-        :param skip_on_error: if True, skip segments that cannot be read instead of failing the job
+        :param skip_on_error: If True, skip segments that fail to be processed (for known reasons only) instead
+            of failing the job.
         """
         self.bliss_corpus = bliss_corpus
         self.splits = splits
@@ -530,12 +531,15 @@ class BlissToAudioHDFJob(Job):
         try:
             return BlissToAudioHDFJob._process_seq(recording, *args, **kwargs)
         except Exception as e:
-            if skip_on_error:
-                audio_file, _ = recording
-                _logging.warning(f"Skipping {audio_file} due to error: {e}")
-                return []
-            else:
+            if not skip_on_error or not isinstance(
+                e,
+                sf.SoundFileError,  # extend by other known exceptions if needed
+            ):
                 raise
+
+            audio_file, _ = recording
+            _logging.warning(f"Skipping {audio_file} due to error: {e}")
+            return []
 
     @staticmethod
     def _process_seq(
