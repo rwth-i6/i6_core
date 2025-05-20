@@ -282,7 +282,17 @@ class SetDifferenceJob(Job):
 
 class WriteToTextFileJob(Job):
     """
-    Write a given content into a text file, one entry per line
+    Write a given content into a text file, one entry per line.
+
+    This job supports multiple input types:
+    1. String.
+    2. Dictionary.
+    3. Iterable.
+
+    The corresponding output for each of the inputs above is:
+    1. The string is directly written into the file.
+    2. Each key/value pair is written as `<key>: <value>`.
+    3. Each element in the iterable is written in a separate line as a string.
     """
 
     __sis_hash_exclude__ = {"out_name": "file.txt"}
@@ -295,6 +305,19 @@ class WriteToTextFileJob(Job):
         self.content = content
 
         self.out_file = self.output_path(out_name)
+
+    def write_content_to_file(self, file_handler: IOBase):
+        content = util.instanciate_delayed(self.content)
+        if isinstance(content, str):
+            file_handler.write(content)
+        elif isinstance(content, dict):
+            for key, val in content.items():
+                file_handler.write(f"{key}: {val}\n")
+        elif isinstance(content, Iterable):
+            for line in content:
+                file_handler.write(f"{line}\n")
+        else:
+            raise NotImplementedError("Content of unknown type different from (str, dict, Iterable).")
 
     def tasks(self):
         yield Task("run", mini_task=True)
