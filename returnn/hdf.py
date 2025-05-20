@@ -531,41 +531,7 @@ class BlissToAudioHDFJob(Job):
         round_factor: int,
         target_sampling_rate: int,
     ) -> List[Tuple[str, np.ndarray]]:
-        max_tries = 3
         audio_file, segments = recording
-        for i in range(max_tries):
-            try:
-                return BlissToAudioHDFJob.__process_seq(
-                    audio_file,
-                    segments,
-                    compress_format=compress_format,
-                    compress_factor=compress_factor,
-                    multi_channel_strategy=multi_channel_strategy,
-                    output_dtype=output_dtype,
-                    rounding_strategy=rounding_strategy,
-                    round_factor=round_factor,
-                    target_sampling_rate=target_sampling_rate,
-                )
-            except Exception as exc:
-                if i < max_tries - 1:
-                    _logging.warning(f"Failed to process audio {audio_file}: {exc}")
-                else:
-                    _logging.warning(f"Failed to process audio {audio_file} after {max_tries} attempts. Skipping.")
-        return []
-
-    @staticmethod
-    def __process_seq(
-        audio_file: str,
-        segments: Sequence[Tuple[str, float, float]],
-        *,
-        compress_format: Optional[str],
-        compress_factor: Optional[float],
-        multi_channel_strategy: BlissToPcmHDFJob.BaseStrategy,
-        output_dtype: str,
-        rounding_strategy: BlissToPcmHDFJob.RoundingScheme,
-        round_factor: int,
-        target_sampling_rate: int,
-    ) -> List[Tuple[str, np.ndarray]]:
         _logging.info(f"Processing {audio_file} with {len(segments)} segments.")
 
         assert isinstance(multi_channel_strategy, (BlissToPcmHDFJob.Mixdown, BlissToPcmHDFJob.PickNth)), (
