@@ -336,6 +336,8 @@ class WriteToCsvFileJob(WriteToTextFileJob):
     This job only supports dictionaries as input type. Each key/value pair is written as `<key><delimiter><value>`.
     """
 
+    __sis_hash_exclude__ = {}  # It was filled in the base class, but it's not needed anymore since this is a new job.
+
     def __init__(
         self, content: Union[str, dict, Iterable, DelayedBase], out_name: str = "file.txt", delimiter: str = "\t"
     ):
