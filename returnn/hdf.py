@@ -556,6 +556,9 @@ class BlissToAudioHDFJob(Job):
             sp.check_call(
                 [
                     "ffmpeg",
+                    "-hide_banner",
+                    "-loglevel",
+                    "error",
                     "-y",
                     "-i",
                     audio_file,
@@ -569,7 +572,6 @@ class BlissToAudioHDFJob(Job):
                     audio_file_out,
                 ],
                 stdout=sp.DEVNULL,
-                stderr=sp.DEVNULL,
             )
             with sf.SoundFile(audio_file_out) as audio:
                 for segment_name, start, end in segments:
