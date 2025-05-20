@@ -533,7 +533,7 @@ class BlissToAudioHDFJob(Job):
         except Exception as e:
             if not skip_on_error or not isinstance(
                 e,
-                sf.SoundFileError,  # extend by other known exceptions if needed
+                sf.LibsndfileError,  # extend by other known exceptions if needed
             ):
                 raise
 
