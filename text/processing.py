@@ -17,7 +17,7 @@ import shutil
 import subprocess
 from collections.abc import Iterable
 import tempfile
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 
 from sisyphus import Job, Task, Path, global_settings as gs, toolkit as tk
 from sisyphus.delayed_ops import DelayedBase
@@ -340,7 +340,10 @@ class WriteToCsvFileJob(WriteToTextFileJob):
     __sis_hash_exclude__ = {}  # It was filled in the base class, but it's not needed anymore since this is a new job.
 
     def __init__(
-        self, content: Union[str, dict, Iterable, DelayedBase], out_name: str = "file.txt", delimiter: str = "\t"
+        self,
+        content: Dict[str, Union[str, List[str]]],
+        out_name: str = "file.txt",
+        delimiter: str = "\t",
     ):
         """
         :param content: input which will be written into a text file
@@ -361,8 +364,10 @@ class WriteToCsvFileJob(WriteToTextFileJob):
         content = util.instanciate_delayed(self.content)
         if isinstance(content, dict):
             for key, val in content.items():
-                csv_writer.writerow((key, val))
-
+                if isinstance(val, list):
+                    csv_writer.writerow((key, *val))
+                else:
+                    csv_writer.writerow((key, val))
         else:
             raise NotImplementedError("Content of unknown type different from (str, dict, Iterable).")
 
