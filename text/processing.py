@@ -5,6 +5,7 @@ __all__ = [
     "TailJob",
     "SetDifferenceJob",
     "WriteToTextFileJob",
+    "WriteToCsvFileJob",
     "SplitTextFileJob",
 ]
 
