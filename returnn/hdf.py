@@ -1,4 +1,10 @@
-__all__ = ["ReturnnDumpHDFJob", "ReturnnRasrDumpHDFJob", "BlissToPcmHDFJob", "RasrAlignmentDumpHDFJob"]
+__all__ = [
+    "ReturnnDumpHDFJob",
+    "ReturnnRasrDumpHDFJob",
+    "BlissToPcmHDFJob",
+    "BlissToAudioHDFJob",
+    "RasrAlignmentDumpHDFJob",
+]
 
 from dataclasses import dataclass
 from enum import Enum, auto
