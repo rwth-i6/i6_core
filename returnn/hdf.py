@@ -373,15 +373,16 @@ class BlissToAudioHDFJob(Job):
     Gets audio files from a Bliss corpus and stores them as HDF file compatible with
     the RETURNN HDFDataset.
 
-    More robust version of `BlissToPcmHDFJob`, suitable for processing large scale
-    corpora. This job is also faster in the case of a corpus split into many
-    sub-corpora because it will parallelize the computation. To reduce disk pressure
-    it will still load every segment just once.
+    More robust and faster version of `BlissToPcmHDFJob`, suitable for processing
+    large scale corpora. The increased speed is mainly due to a better I/O
+    efficiency. In some situations, `BlissToPcmHDFJob` will end up loading the same
+    audio file multiple times from the disk, while this job takes care to only load
+    each audio file once (per unit of `concurrent`).
 
-    It, however, will place the segments in the HDF not in the order they occur in the
-    split files, but in the order they occur in the corpus.
-    If you depend on the order of the segments, you should use the split files as seq
-    ordering files in training.
+    It, however, will place the segments in the HDF not in the order they occur in
+    the split files, but in the order they occur in the corpus. If you depend on the
+    order of the segments, you should use the split files as seq ordering files in
+    training.
 
     Can optionally write compressed audio data to the HDF.
 
@@ -389,8 +390,8 @@ class BlissToAudioHDFJob(Job):
 
     See:
         - https://github.com/rwth-i6/i6_core/pull/593 for discussion,
-        - https://github.com/rwth-i6/i6_core/pull/593#issuecomment-2883024538 for
-          why this job is faster than `BlissToPcmHDFJob`.
+        - https://github.com/rwth-i6/i6_core/pull/593#issuecomment-2883024538 for why
+          this job is faster than `BlissToPcmHDFJob`.
     """
 
     def __init__(
