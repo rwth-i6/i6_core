@@ -759,11 +759,7 @@ class ComputeTimeStampErrorJob(Job):
             for ref_seq_tag, (hyp_seq_tag, avg_tse) in sorted(
                 tse_dict.items(), key=lambda k_v: k_v[1][1], reverse=True
             ):
-                if ref_seq_tag == hyp_seq_tag:
-                    # No need to be redundant in the output format.
-                    f.write(f"{ref_seq_tag}\t{avg_tse}\n")
-                else:
-                    f.write(f"{ref_seq_tag}\t{hyp_seq_tag}\t{avg_tse}\n")
+                f.write(f"{ref_seq_tag}\t{hyp_seq_tag}\t{avg_tse}\n")
 
     def plot(self):
         for descr, dict_file, plot_file in [
