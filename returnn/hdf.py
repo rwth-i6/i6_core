@@ -401,6 +401,7 @@ class BlissToAudioHDFJob(Job):
         compress: Optional[Tuple[str, str, float]] = None,
         concurrent: int = 1,
         multi_channel_strategy: Optional[BlissToPcmHDFJob.BaseStrategy] = None,
+        num_ffmpeg_workers: int = 16,
         output_dtype: str = "int16",
         returnn_root: Optional[tk.Path] = None,
         rounding: BlissToPcmHDFJob.RoundingScheme = BlissToPcmHDFJob.RoundingScheme.rasr_compatible,
@@ -416,7 +417,10 @@ class BlissToAudioHDFJob(Job):
             This value affects how I/O efficient the job is. With increasing concurrency
             the I/O efficiency decreases as recordings may end up having to be read multiple
             times from disk.
-            Within job concurrency is handled by the multiprocessing library.
+            Within job concurrency is handled by the multiprocessing library, using `num_ffmpeg_workers`
+            as parallelism factor.
+            Note that within-job concurrency is more I/O efficient than between-job concurrency,
+            so prefer increasing `num_ffmpeg_workers` over increasing `concurrent`, when possible.
         :param compress: Optional compression for the audio data.
             Tuple of (container, codec, level) where `container` and `codec` select the compression format
             (e.g. "ogg" and "libvorbis") and `level` is the compression level.
@@ -427,6 +431,10 @@ class BlissToAudioHDFJob(Job):
             Currently implemented are:
             Mixdown(): Mix down all channels to one channel, default.
             PickNth(n): Takes audio from n-th channel.
+        :param num_ffmpeg_workers: Number of ffmpeg workers to use for reading the audio files.
+            This number specifies how many recordings are processed in parallel.
+            It can be increased to e.g. match the number of CPU cores on a big cluster machine,
+            and the job will stay I/O efficient.
         :param output_dtype: dtype that should be written in the hdf (supports float64, float32, int16).
             If writing compressed data, must be set to None as the compressed audio is always written as uint8 (raw bytes).
         :param returnn_root: RETURNN repository
@@ -459,9 +467,8 @@ class BlissToAudioHDFJob(Job):
 
         self.out_hdfs = [self.output_path(f"{i + 1:0d}.hdf") for i in range(len(splits))]
 
-        num_cores = 16
         mem_per_core = 1
-        self.rqmt = {"cpu": num_cores, "mem": num_cores * mem_per_core + 2, "time": 48}
+        self.rqmt = {"cpu": num_ffmpeg_workers, "mem": num_ffmpeg_workers * mem_per_core + 2, "time": 48}
 
     def tasks(self):
         yield Task("run", rqmt=self.rqmt, args=range(self.concurrent))
@@ -635,6 +642,7 @@ class BlissToAudioHDFJob(Job):
     def hash(cls, kwargs):
         kwargs = kwargs.copy()
         kwargs.pop("concurrent", None)
+        kwargs.pop("num_ffmpeg_workers", None)
         return super().hash(kwargs)
 
 
