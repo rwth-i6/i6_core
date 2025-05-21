@@ -342,6 +342,7 @@ class WriteToCsvFileJob(WriteToTextFileJob):
     def __init__(
         self,
         content: Dict[str, Union[str, List[str]]],
+        *,
         out_name: str = "file.txt",
         delimiter: str = "\t",
     ):
