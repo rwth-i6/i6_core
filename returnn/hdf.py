@@ -467,8 +467,11 @@ class BlissToAudioHDFJob(Job):
 
         self.out_hdfs = [self.output_path(f"{i + 1:0d}.hdf") for i in range(len(splits))]
 
-        mem_per_core = 1
-        self.rqmt = {"cpu": num_workers, "mem": num_workers * mem_per_core + 2, "time": 48}
+        self.rqmt = {
+            "cpu": 1 + (num_workers // 2),
+            "mem": 2 + (0.5 * num_workers),
+            "time": 48,
+        }
 
     def tasks(self):
         yield Task("run", rqmt=self.rqmt, args=range(self.concurrent))
