@@ -6,9 +6,9 @@ __all__ = [
     "RasrAlignmentDumpHDFJob",
 ]
 
+import array
 from dataclasses import dataclass
 from enum import Enum, auto
-from functools import partial
 import glob
 import io
 import itertools
@@ -21,8 +21,10 @@ import os
 import shutil
 import soundfile as sf
 import subprocess as sp
+import sys
 import tempfile
 from typing import List, Optional, Sequence, Tuple
+import wave
 
 from .rasr_training import ReturnnRasrTrainingJob
 from i6_core.lib import corpus
@@ -396,8 +398,7 @@ class BlissToAudioHDFJob(Job):
         bliss_corpus: tk.Path,
         splits: Sequence[tk.Path],
         *,
-        compress_format: Optional[str] = None,
-        compress_factor: Optional[float] = 0.7,
+        compress: Optional[Tuple[str, str, float]] = None,
         concurrent: int = 1,
         multi_channel_strategy: Optional[BlissToPcmHDFJob.BaseStrategy] = None,
         output_dtype: str = "int16",
@@ -405,22 +406,28 @@ class BlissToAudioHDFJob(Job):
         rounding: BlissToPcmHDFJob.RoundingScheme = BlissToPcmHDFJob.RoundingScheme.rasr_compatible,
         round_factor: int = 1,
         target_sampling_rate: int = 16000,
-        skip_on_error: bool = False,
     ):
         """
         :param bliss_corpus: Bliss corpus to read segments and audio files from
         :param splits: List of segment files that list the segments per HDF.
             The job creates one HDF per split.
-        :param concurrent: split up the list of splits into this many concurrent jobs.
+        :param concurrent: Split up the list of splits into this many concurrent jobs.
             Recommended is about one unit of concurrency per 1000h of audio.
+            This value affects how I/O efficient the job is. With increasing concurrency
+            the I/O efficiency decreases as recordings may end up having to be read multiple
+            times from disk.
             Within job concurrency is handled by the multiprocessing library.
-        :param compress_format: optional compression format for the audio data.
-        :param compress_factor: compression factor for the audio data.
+        :param compress: Optional compression for the audio data.
+            Tuple of (container, codec, level) where `container` and `codec` select the compression format
+            (e.g. "ogg" and "libvorbis") and `level` is the compression level.
+            The compression level ranges from 0 to 1 (inclusive) where 1 is the highest compression.
+            See https://python-soundfile.readthedocs.io/en/0.13.1/#controlling-bitrate-mode-and-compression-level.
+            Ignored when `compress_format` is None.
         :param multi_channel_strategy: defines what should happen to multi-channel audio files.
             Currently implemented are:
             Mixdown(): Mix down all channels to one channel, default.
             PickNth(n): Takes audio from n-th channel.
-        :param output_dtype: dtype that should be written in the hdf (supports float64, float32, int32, int16).
+        :param output_dtype: dtype that should be written in the hdf (supports float64, float32, int16).
             If writing compressed data, must be set to None as the compressed audio is always written as uint8 (raw bytes).
         :param returnn_root: RETURNN repository
         :param rounding: defines how timestamps should be rounded if they do not exactly fall onto a sample:
@@ -435,16 +442,13 @@ class BlissToAudioHDFJob(Job):
         self.splits = splits
         assert concurrent > 0
         self.concurrent = concurrent
-        if compress_format is not None:
-            assert compress_factor is not None
-            assert 0 <= compress_factor
+        if compress is not None:
             assert output_dtype is None
-            self.output_dtype = "int32"
+            self.output_dtype = "int16"
         else:
-            assert output_dtype in ["float64", "float32", "int32", "int16"]
+            assert output_dtype in ["float64", "float32", "int16"]
             self.output_dtype = output_dtype
-        self.compress_format = compress_format
-        self.compress_factor = compress_factor
+        self.compress = compress
         self.multi_channel_strategy = multi_channel_strategy or BlissToPcmHDFJob.Mixdown()
         assert isinstance(self.multi_channel_strategy, (BlissToPcmHDFJob.Mixdown, BlissToPcmHDFJob.PickNth))
         self.rounding = rounding
@@ -452,11 +456,10 @@ class BlissToAudioHDFJob(Job):
         self.round_factor = round_factor
         self.returnn_root = returnn_root
         self.target_sampling_rate = target_sampling_rate
-        self.skip_on_error = skip_on_error
 
         self.out_hdfs = [self.output_path(f"{i + 1:0d}.hdf") for i in range(len(splits))]
 
-        num_cores = min(len(splits) + 1, 16)
+        num_cores = 16
         mem_per_core = 1
         self.rqmt = {"cpu": num_cores, "mem": num_cores * mem_per_core + 2, "time": 48}
 
@@ -484,17 +487,6 @@ class BlissToAudioHDFJob(Job):
         c.load(self.bliss_corpus.get_path())
 
         pool = multiprocessing.Pool(max(self.rqmt["cpu"] - 1, 1))
-        apply_func = partial(
-            self._process_seq_handle_errors,
-            compress_format=self.compress_format,
-            compress_factor=self.compress_factor,
-            multi_channel_strategy=self.multi_channel_strategy,
-            output_dtype=self.output_dtype,
-            rounding_strategy=self.rounding,
-            round_factor=self.round_factor,
-            skip_on_error=self.skip_on_error,
-            target_sampling_rate=self.target_sampling_rate,
-        )
         recs = (
             # We send every segment of the recording grouped together with the audio to
             # avoid having to read the audio file more than once.
@@ -515,7 +507,7 @@ class BlissToAudioHDFJob(Job):
         )
         # use imap instead of imap_unordered to have reproducible results, even though this
         # causes a slight speed penalty
-        for results in pool.imap(apply_func, recs, chunksize=8):
+        for results in pool.imap(self._process_seq, recs, chunksize=8):
             for (segment_name, data), (hdf_writer, segments_whitelist) in itertools.product(
                 results, zip(hdf_writers, segment_whitelists)
             ):
@@ -530,106 +522,112 @@ class BlissToAudioHDFJob(Job):
         for hdf_writer in hdf_writers:
             hdf_writer.close()
 
-    @staticmethod
-    def _process_seq_handle_errors(
-        recording: Tuple[str, Sequence[Tuple[str, float, float]]], *args, skip_on_error: bool, **kwargs
-    ) -> List[Tuple[str, np.ndarray]]:
-        try:
-            return BlissToAudioHDFJob._process_seq(recording, *args, **kwargs)
-        except Exception as e:
-            if not skip_on_error or not isinstance(
-                e,
-                sf.LibsndfileError,  # extend by other known exceptions if needed
-            ):
-                raise
-
-            audio_file, _ = recording
-            _logging.warning(f"Skipping {audio_file} due to error: {e}")
-            return []
-
-    @staticmethod
-    def _process_seq(
-        recording: Tuple[str, Sequence[Tuple[str, float, float]]],
-        *,
-        compress_format: Optional[str],
-        compress_factor: Optional[float],
-        multi_channel_strategy: BlissToPcmHDFJob.BaseStrategy,
-        output_dtype: str,
-        rounding_strategy: BlissToPcmHDFJob.RoundingScheme,
-        round_factor: int,
-        target_sampling_rate: int,
-    ) -> List[Tuple[str, np.ndarray]]:
+    def _process_seq(self, recording: Tuple[str, Sequence[Tuple[str, float, float]]]) -> List[Tuple[str, np.ndarray]]:
         audio_file, segments = recording
-        _logging.info(f"Processing {audio_file} with {len(segments)} segments.")
 
-        assert isinstance(multi_channel_strategy, (BlissToPcmHDFJob.Mixdown, BlissToPcmHDFJob.PickNth)), (
+        assert isinstance(self.multi_channel_strategy, (BlissToPcmHDFJob.Mixdown, BlissToPcmHDFJob.PickNth)), (
             "unknown multi_channel_strategy"
         )
         channel_mix_args = (
             ["-ac", "1"]
-            if isinstance(multi_channel_strategy, BlissToPcmHDFJob.Mixdown)
-            else ["-map_channel", f"0.{multi_channel_strategy.channel}"]
+            if isinstance(self.multi_channel_strategy, BlissToPcmHDFJob.Mixdown)
+            else ["-map_channel", f"0.{self.multi_channel_strategy.channel}"]
         )
-        results = []
 
-        with tempfile.TemporaryDirectory() as tmp_dir:
-            # We preprocess all data with ffmpeg because it is more robust to different
-            # audio formats like gsm-ms (which soundfile cannot read) or mp3 (standard format,
-            # but soundfile cannot seek). We also resample it at the same time and merge channels.
-            #
-            # We still use soundfile to extract the segments because we want to slice the audio
-            # data on a frame-by-frame basis (to match with RASR), while ffmpeg supports only
-            # temporal slices.
-            audio_file_out = os.path.join(tmp_dir, os.path.basename(audio_file) + ".wav")
-            sp.check_call(
-                [
-                    "ffmpeg",
-                    "-hide_banner",
-                    "-loglevel",
-                    "error",
-                    "-y",
-                    "-i",
-                    audio_file,
-                ]
-                + channel_mix_args
-                + [
-                    "-af",
-                    "aresample=resampler=soxr",
-                    "-ar",
-                    str(target_sampling_rate),
-                    audio_file_out,
-                ],
-                stdout=sp.DEVNULL,
-            )
-            with sf.SoundFile(audio_file_out) as audio:
-                for segment_name, start, end in segments:
-                    if rounding_strategy == BlissToPcmHDFJob.RoundingScheme.start_and_duration:
-                        start = int(start * audio.samplerate / round_factor) * round_factor
-                        duration = int((end - start) * audio.samplerate / round_factor) * round_factor
-                    elif rounding_strategy == BlissToPcmHDFJob.RoundingScheme.rasr_compatible:
-                        start = math.ceil(start * audio.samplerate / round_factor) * round_factor
-                        duration = math.floor(end * audio.samplerate / round_factor) * round_factor - start
-                    else:
-                        raise NotImplementedError(f"RoundingScheme {rounding_strategy} not implemented.")
+        # We preprocess all data with ffmpeg because it is more robust to different
+        # audio formats like gsm-ms (which soundfile cannot read) or mp3 (standard format,
+        # but soundfile cannot seek). We also resample it at the same time and merge channels.
+        #
+        # We then use the wave library to extract the segments because we want to slice the audio
+        # data on a frame-by-frame basis (to match with RASR), while ffmpeg supports only
+        # temporal slices.
+        ffmpeg_out = sp.check_output(
+            [
+                "ffmpeg",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-y",
+                "-i",
+                audio_file,
+                "-c:a",
+                "pcm_s16le",
+            ]
+            + channel_mix_args
+            + [
+                "-af",
+                "aresample=resampler=soxr",
+                "-ar",
+                str(self.target_sampling_rate),
+                "-f",
+                "wav",
+                "-",
+            ],
+        )
+        # we don't read with soundfile as the wave module is more robust
+        with wave.open(io.BytesIO(ffmpeg_out), "rb") as audio:
+            assert audio.getnchannels() == 1
+            assert audio.getsampwidth() == 2
+            assert audio.getframerate() == self.target_sampling_rate
 
-                    audio.seek(start)
-                    data = audio.read(duration, always_2d=False, dtype=output_dtype)
-                    assert data.ndim == 1
+            audio_data: bytes = audio.readframes(audio.getnframes())
 
-                    if compress_format is not None:
-                        assert compress_factor is not None
-                        buf = io.BytesIO()
-                        sf.write(
-                            buf,
-                            data,
-                            target_sampling_rate,
-                            format=compress_format,
-                            compression_level=compress_factor,
-                        )
-                        data = np.array(list(buf.getvalue()), dtype=np.uint8)
+        audio_data_int16 = array.array("h")
+        audio_data_int16.frombytes(audio_data)
+        if sys.byteorder == "big":
+            audio_data_int16.byteswap()
+        audio_data = np.array(audio_data_int16, dtype=np.int16)
+        if self.output_dtype.startswith("float"):
+            # scale to output range
+            audio_data = audio_data.astype(self.output_dtype) / np.iinfo(audio_data.dtype).max
 
-                    results.append((segment_name, data))
-        return results
+        def _process_segment(segment: Tuple[str, float, float]):
+            segment_name, start, end = segment
+            if self.rounding == BlissToPcmHDFJob.RoundingScheme.start_and_duration:
+                start = int(start * self.target_sampling_rate / self.round_factor) * self.round_factor
+                duration = int((end - start) * self.target_sampling_rate / self.round_factor) * self.round_factor
+            elif self.rounding == BlissToPcmHDFJob.RoundingScheme.rasr_compatible:
+                start = math.ceil(start * self.target_sampling_rate / self.round_factor) * self.round_factor
+                duration = math.floor(end * self.target_sampling_rate / self.round_factor) * self.round_factor - start
+            else:
+                raise NotImplementedError(f"RoundingScheme {self.rounding} not implemented.")
+            data = audio_data[start : start + duration]
+
+            if self.compress is not None:
+                c_format, c_codec, c_level = self.compress
+                data_arr = array.array("h")
+                data_arr.frombytes(data.tobytes())
+                if sys.byteorder == "big":
+                    data_arr.byteswap()
+                data_bytes = data_arr.tobytes()
+                ffmpeg_out = sp.check_output(
+                    [
+                        "ffmpeg",
+                        "-hide_banner",
+                        "-loglevel",
+                        "error",
+                        "-y",
+                        "-f",
+                        "s16le",
+                        "-i",
+                        "-",
+                        "-c:a",
+                        c_codec,
+                        "-qscale:a",
+                        str(c_level),
+                        "-f",
+                        c_format,
+                        "-",
+                    ],
+                    bufsize=2**20,
+                    input=data_bytes,
+                    timeout=60,
+                )
+                data = np.frombuffer(ffmpeg_out, dtype=np.uint8)
+
+            return (segment_name, data)
+
+        return [_process_segment(segment) for segment in segments]
 
     @classmethod
     def hash(cls, kwargs):
