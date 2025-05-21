@@ -607,6 +607,8 @@ class BlissToAudioHDFJob(Job):
                         "-loglevel",
                         "error",
                         "-y",
+                        "-ar",
+                        str(self.target_sampling_rate),
                         "-f",
                         "s16le",
                         "-i",
