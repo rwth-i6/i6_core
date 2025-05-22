@@ -267,6 +267,9 @@ class FilterRecordingsByAlignmentConfidenceJob(FilterSegmentsByAlignmentConfiden
             absolute_threshold=absolute_threshold,
         )
 
+        self.out_kept_recordings = self.output_path("kept_recordings.txt")
+        self.out_removed_recordings = self.output_path("removed_recordings.txt")
+
     def _parse_alignment_logs(self):
         self.recording_dict: Dict[str, List[Tuple[str, float]]] = defaultdict(list)
         for _, log_file in self.alignment_logs.items():
@@ -298,6 +301,25 @@ class FilterRecordingsByAlignmentConfidenceJob(FilterSegmentsByAlignmentConfiden
             for (seg, _) in seg_and_confs
             if self.recording_to_average_conf[full_rec_name] <= self.avg_score_threshold
         ]
+
+        self.kept_recordings = {}
+        self.removed_recordings = {}
+        for full_rec_name, avg_alignment_score in self.recording_to_average_conf.items():
+            if avg_alignment_score <= self.avg_score_threshold:
+                self.kept_recordings[full_rec_name] = avg_alignment_score
+            else:
+                self.removed_recordings[full_rec_name] = avg_alignment_score
+
+    def _write_output(self):
+        super()._write_output()
+
+        with uopen(self.out_kept_recordings.get_path(), "wt") as f:
+            for full_rec_name, avg_alignment_score in self.kept_recordings.items():
+                f.write(f"{full_rec_name} {avg_alignment_score}\n")
+
+        with uopen(self.out_removed_recordings.get_path(), "wt") as f:
+            for full_rec_name, avg_alignment_score in self.removed_recordings.items():
+                f.write(f"{full_rec_name} {avg_alignment_score}\n")
 
 
 class FilterCorpusBySegmentsJob(Job):
