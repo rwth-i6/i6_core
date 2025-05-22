@@ -2,7 +2,7 @@ __all__ = [
     "FilterSegmentsByListJob",
     "FilterSegmentsByRegexJob",
     "FilterSegmentsByAlignmentConfidenceJob",
-    "FilterSegmentsByRecordingAlignmentConfidenceJob",
+    "FilterRecordingsByAlignmentConfidenceJob",
     "FilterCorpusBySegmentsJob",
     "FilterCorpusRemoveUnknownWordSegmentsJob",
     "FilterCorpusBySegmentDurationJob",
@@ -233,7 +233,7 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
         self._plot()
 
 
-class FilterSegmentsByRecordingAlignmentConfidenceJob(FilterSegmentsByAlignmentConfidenceJob):
+class FilterRecordingsByAlignmentConfidenceJob(FilterSegmentsByAlignmentConfidenceJob):
     """
     Filter segments like :class:`FilterSegmentsByAlignmentConfidenceJob` does.
     However, instead of taking into account the alignment confidence of a single segment,
