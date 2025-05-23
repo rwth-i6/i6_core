@@ -268,7 +268,7 @@ class FilterRecordingsByAlignmentConfidenceJob(FilterSegmentsByAlignmentConfiden
         )
 
         self.out_kept_recordings = self.output_path("kept_recordings.txt")
-        self.out_removed_recordings = self.output_path("removed_recordings.txt")
+        self.out_discarded_recordings = self.output_path("discarded_recordings.txt")
 
     def _parse_alignment_logs(self):
         self.recording_dict: Dict[str, List[Tuple[str, float]]] = defaultdict(list)
@@ -317,7 +317,7 @@ class FilterRecordingsByAlignmentConfidenceJob(FilterSegmentsByAlignmentConfiden
             for full_rec_name, avg_alignment_score in self.kept_recordings.items():
                 f.write(f"{full_rec_name} {avg_alignment_score}\n")
 
-        with uopen(self.out_removed_recordings.get_path(), "wt") as f:
+        with uopen(self.out_discarded_recordings.get_path(), "wt") as f:
             for full_rec_name, avg_alignment_score in self.removed_recordings.items():
                 f.write(f"{full_rec_name} {avg_alignment_score}\n")
 
