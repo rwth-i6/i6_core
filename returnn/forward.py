@@ -18,6 +18,8 @@ from i6_core.returnn.config import ReturnnConfig
 from i6_core.returnn.training import Checkpoint as TfCheckpoint, PtCheckpoint
 import i6_core.util as util
 
+from i6_experiments.users.mann.nn.util import DelayedCodeWrapper
+
 
 Path = setup_path(__package__)
 
@@ -304,9 +306,13 @@ class ReturnnForwardJobV2(Job):
 
         # check here if model actually exists
         if self.model_checkpoint is not None:
-            assert os.path.exists(_get_model_path(self.model_checkpoint).get_path()), (
-                f"Provided model checkpoint does not exists: {self.model_checkpoint}"
-            )
+            if isinstance(self.model_checkpoint, DelayedCodeWrapper):
+                model_ckpt = self.model_checkpoint.args[0]
+            else:
+                model_ckpt = self.model_checkpoint
+            assert os.path.exists(
+                _get_model_path(model_ckpt).get_path()
+            ), f"Provided model checkpoint does not exists: {model_ckpt}"
 
     def run(self):
         """run"""
@@ -381,8 +387,11 @@ class ReturnnForwardJobV2(Job):
 
     @classmethod
     def hash(cls, kwargs):
+        kw = copy.deepcopy(kwargs)
+        if isinstance(kw["model_checkpoint"], DelayedCodeWrapper):
+            kw["model_checkpoint"] = kw["model_checkpoint"].args[0]
         d = {
-            "returnn_config": cls.create_returnn_config(**kwargs),
+            "returnn_config": cls.create_returnn_config(**kw),
             "returnn_python_exe": kwargs["returnn_python_exe"],
             "returnn_root": kwargs["returnn_root"],
         }

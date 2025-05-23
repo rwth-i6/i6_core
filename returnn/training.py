@@ -391,6 +391,7 @@ class ReturnnTrainingJob(Job):
 
     def plot(self):
         def EpochData(learningRate, error):
+            learningRate = error[':meta:effective_learning_rate']
             return {"learning_rate": learningRate, "error": error}
 
         with open(self.out_learning_rates.get_path(), "rt") as f:
@@ -399,9 +400,9 @@ class ReturnnTrainingJob(Job):
         data = eval(text, {"EpochData": EpochData, "nan": float("nan"), "inf": float("inf"), "np": np})
 
         epochs = list(sorted(data.keys()))
-        train_score_keys = [k for k in data[epochs[0]]["error"] if k.startswith("train_score")]
-        dev_score_keys = [k for k in data[epochs[0]]["error"] if k.startswith("dev_score")]
-        dev_error_keys = [k for k in data[epochs[0]]["error"] if k.startswith("dev_error")]
+        train_score_keys = [k for k in data[epochs[0]]["error"] if k.startswith("train_loss") and not (k.endswith(":exp") or k.endswith("fer")) and not k.endswith("_4") and not k.endswith("_8") and not k.endswith("_error")]
+        dev_score_keys = [k for k in data[epochs[0]]["error"] if k.startswith("dev_loss") and not (k.endswith(":exp") or k.endswith("fer")) and not k.endswith("_4") and not k.endswith("_8") and not k.endswith("_error")]
+        dev_error_keys = [k for k in data[epochs[0]]["error"] if k.startswith("dev_error") and not (k.endswith(":exp") or k.endswith("fer")) and not k.endswith("_4") and not k.endswith("_8") and not k.endswith("_error")]
 
         train_scores = [
             [(epoch, data[epoch]["error"][tsk]) for epoch in epochs if tsk in data[epoch]["error"]]
@@ -426,11 +427,11 @@ class ReturnnTrainingJob(Job):
 
         fig, ax1 = plt.subplots()
         for ts in train_scores:
-            ax1.plot([d[0] for d in ts], [d[1] for d in ts], "o-", color=colors[0])
+            ax1.plot([d[0] for d in ts], [d[1] for d in ts], "o-", color=colors[0], markersize=3)
         for ds in dev_scores:
-            ax1.plot([d[0] for d in ds], [d[1] for d in ds], "o-", color=colors[1])
+            ax1.plot([d[0] for d in ds], [d[1] for d in ds], "o-", color=colors[1], markersize=3)
         ax1.set_xlabel("epoch")
-        ax1.set_ylabel("scores", color=colors[0])
+        ax1.set_ylabel("losses", color=colors[0])
         for tl in ax1.get_yticklabels():
             tl.set_color(colors[0])
 
@@ -445,7 +446,7 @@ class ReturnnTrainingJob(Job):
         fig.savefig(fname=self.out_plot_se.get_path())
 
         fig, ax1 = plt.subplots()
-        ax1.semilogy(epochs, learing_rates, "ro-")
+        ax1.semilogy(epochs, learing_rates, "ro-", markersize=4)
         ax1.set_xlabel("epoch")
         ax1.set_ylabel("learning_rate")
 
