@@ -565,14 +565,14 @@ class ComputeTimeStampErrorJob(Job):
         :param hyp_seq_tag_transform: Function that transforms seq tag in alignment cache such that it matches the seq tags in the reference
         :param remove_outlier_limit: If set, boundary differences greater than this frame limit are discarded from computation
         """
-        self.hyp_alignment_cache = (
+        self.hyp_alignment_caches = (
             hyp_alignment_cache if isinstance(hyp_alignment_cache, List) else [hyp_alignment_cache]
         )
         self.hyp_allophone_file = hyp_allophone_file
         self.hyp_silence_phone = hyp_silence_phone
         self.hyp_upsample_factor = hyp_upsample_factor
 
-        self.ref_alignment_cache = (
+        self.ref_alignment_caches = (
             ref_alignment_cache if isinstance(ref_alignment_cache, List) else [ref_alignment_cache]
         )
         self.ref_allophone_file = ref_allophone_file
@@ -647,7 +647,7 @@ class ComputeTimeStampErrorJob(Job):
         differences = Counter()
         tse_dict: Dict[str, Tuple[str, float]] = {}  # ref_seg_name: (hyp_seg_name, avg_tse)
 
-        for hyp_alignment_cache, ref_alignment_cache in zip(self.hyp_alignment_cache, self.ref_alignment_cache):
+        for hyp_alignment_cache, ref_alignment_cache in zip(self.hyp_alignment_caches, self.ref_alignment_caches):
             hyp_alignments = rasr_cache.open_file_archive(hyp_alignment_cache.get())
             hyp_alignments.setAllophones(self.hyp_allophone_file.get())
             if isinstance(hyp_alignments, rasr_cache.FileArchiveBundle):
