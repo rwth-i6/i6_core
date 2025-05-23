@@ -214,14 +214,6 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
         plt.title("Histogram of Alignment Scores")
         plt.savefig(fname=self.out_plot_avg.get_path())
 
-        # After filtering.
-        np.clip(self.score_np, a_min=-float("inf"), a_max=self.avg_score_threshold, out=self.score_np)
-        plt.hist(self.score_np)
-        plt.xlabel("Average Maximum-Likelihood Score")
-        plt.ylabel("Number of Recordings")
-        plt.title("Histogram of Alignment Scores")
-        plt.savefig(fname=self.out_plot_avg.get_path())
-
     def tasks(self):
         yield Task("run", resume="run", mini_task=True)
 
