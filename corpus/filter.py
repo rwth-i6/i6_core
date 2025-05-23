@@ -302,24 +302,15 @@ class FilterRecordingsByAlignmentConfidenceJob(FilterSegmentsByAlignmentConfiden
             if self.recording_to_average_conf[full_rec_name] <= self.avg_score_threshold
         ]
 
-        self.kept_recordings = {}
-        self.removed_recordings = {}
-        for full_rec_name, avg_alignment_score in self.recording_to_average_conf.items():
-            if avg_alignment_score <= self.avg_score_threshold:
-                self.kept_recordings[full_rec_name] = avg_alignment_score
-            else:
-                self.removed_recordings[full_rec_name] = avg_alignment_score
-
-    def _write_output(self):
-        super()._write_output()
-
-        with uopen(self.out_kept_recordings.get_path(), "wt") as f:
-            for full_rec_name, avg_alignment_score in self.kept_recordings.items():
-                f.write(f"{full_rec_name} {avg_alignment_score}\n")
-
-        with uopen(self.out_discarded_recordings.get_path(), "wt") as f:
-            for full_rec_name, avg_alignment_score in self.removed_recordings.items():
-                f.write(f"{full_rec_name} {avg_alignment_score}\n")
+        # Write outputs local to this job here to avoid passing variables around.
+        with uopen(self.out_kept_recordings.get_path(), "wt") as f_kept, uopen(
+            self.out_discarded_recordings.get_path(), "wt"
+        ) as f_discarded:
+            for full_rec_name, avg_alignment_score in self.recording_to_average_conf.items():
+                if avg_alignment_score <= self.avg_score_threshold:
+                    f_kept.write(f"{full_rec_name} {avg_alignment_score}\n")
+                else:
+                    f_discarded.write(f"{full_rec_name} {avg_alignment_score}\n")
 
 
 class FilterCorpusBySegmentsJob(Job):
