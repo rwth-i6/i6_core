@@ -551,29 +551,39 @@ class BlissToAudioHDFJob(Job):
         # We then use the wave library to extract the segments because we want to slice the audio
         # data on a frame-by-frame basis (to match with RASR), while ffmpeg supports only
         # temporal slices.
-        ffmpeg_out = sp.check_output(
-            [
-                "ffmpeg",
-                "-hide_banner",
-                "-loglevel",
-                "error",
-                "-y",
-                "-i",
-                audio_file,
-                "-c:a",
-                "pcm_s16le",
-            ]
-            + channel_mix_args
-            + [
-                "-af",
-                "aresample=resampler=soxr",
-                "-ar",
-                str(self.target_sampling_rate),
-                "-f",
-                "wav",
-                "-",
-            ],
-        )
+        try:
+            ffmpeg_proc = sp.run(
+                [
+                    "ffmpeg",
+                    "-hide_banner",
+                    "-loglevel",
+                    "error",
+                    "-y",
+                    "-i",
+                    audio_file,
+                    "-c:a",
+                    "pcm_s16le",
+                ]
+                + channel_mix_args
+                + [
+                    "-af",
+                    "aresample=resampler=soxr",
+                    "-ar",
+                    str(self.target_sampling_rate),
+                    "-f",
+                    "wav",
+                    "-",
+                ],
+                check=True,
+                capture_output=True,
+            )
+            ffmpeg_out = ffmpeg_proc.stdout
+        except sp.CalledProcessError as e:
+            if e.stderr:
+                sys.stderr.buffer.write(e.stderr)
+            _logging.error(f"FFmpeg error while converting {audio_file} to .wav: {e}")
+            raise
+
         # we don't read with soundfile as the wave module is more robust
         with wave.open(io.BytesIO(ffmpeg_out), "rb") as audio:
             assert audio.getnchannels() == 1
@@ -610,31 +620,42 @@ class BlissToAudioHDFJob(Job):
                 if sys.byteorder == "big":
                     data_arr.byteswap()
                 data_bytes = data_arr.tobytes()
-                ffmpeg_out = sp.check_output(
-                    [
-                        "ffmpeg",
-                        "-hide_banner",
-                        "-loglevel",
-                        "error",
-                        "-y",
-                        "-ar",
-                        str(self.target_sampling_rate),
-                        "-f",
-                        "s16le",
-                        "-i",
-                        "-",
-                        "-c:a",
-                        c_codec,
-                        "-qscale:a",
-                        str(c_level),
-                        "-f",
-                        c_format,
-                        "-",
-                    ],
-                    bufsize=2**20,
-                    input=data_bytes,
-                    timeout=60,
-                )
+
+                try:
+                    ffmpeg_proc = sp.run(
+                        [
+                            "ffmpeg",
+                            "-hide_banner",
+                            "-loglevel",
+                            "error",
+                            "-y",
+                            "-ar",
+                            str(self.target_sampling_rate),
+                            "-f",
+                            "s16le",
+                            "-i",
+                            "-",
+                            "-c:a",
+                            c_codec,
+                            "-qscale:a",
+                            str(c_level),
+                            "-f",
+                            c_format,
+                            "-",
+                        ],
+                        bufsize=2**20,
+                        check=True,
+                        capture_output=True,
+                        input=data_bytes,
+                        timeout=60,
+                    )
+                    ffmpeg_out = ffmpeg_proc.stdout
+                except sp.ChildProcessError as e:
+                    if e.stderr:
+                        sys.stderr.buffer.write(e.stderr)
+                    _logging.error(f"FFmpeg error while compressing {segment_name}: {e}")
+                    raise
+
                 data = np.frombuffer(ffmpeg_out, dtype=np.uint8)
 
             return (segment_name, data)
