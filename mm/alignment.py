@@ -589,7 +589,7 @@ class ComputeTimeStampErrorJob(Job):
         self.out_plot_word_end_frame_differences = self.output_path("end_frame_differences.png")
         self.out_boundary_frame_differences = self.output_var("boundary_frame_differences")
         self.out_plot_boundary_frame_differences = self.output_path("boundary_frame_differences.png")
-        self.out_highest_tse_differences_file = self.output_path("highest_tse_differences.txt")
+        self.out_tse_differences_file = self.output_path("tse_differences.txt")
 
         self.rqmt = None
 
@@ -755,7 +755,7 @@ class ComputeTimeStampErrorJob(Job):
         self.out_word_end_frame_differences.set({key: end_differences[key] for key in sorted(end_differences.keys())})
         self.out_boundary_frame_differences.set({key: differences[key] for key in sorted(differences.keys())})
         self.out_tse_frames.set(statistics.mean(abs(diff) for diff in differences.elements()))
-        with util.uopen(self.out_highest_tse_differences_file.get_path(), "wt") as f:
+        with util.uopen(self.out_tse_differences_file.get_path(), "wt") as f:
             for ref_seq_tag, (hyp_seq_tag, avg_tse) in sorted(
                 tse_dict.items(), key=lambda k_v: k_v[1][1], reverse=True
             ):
