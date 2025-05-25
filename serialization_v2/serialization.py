@@ -64,6 +64,7 @@ from sisyphus.delayed_ops import DelayedBase
 from sisyphus.hash import sis_hash_helper
 
 from i6_core.returnn.config import CodeWrapper, ReturnnConfig
+from i6_core.returnn.training import Checkpoint, PtCheckpoint
 from i6_core.serialization import (
     Call,
     CallImport,
@@ -665,6 +666,8 @@ class _Serializer:
             return self._serialize_partial_import(value, name)
         if isinstance(value, Import):
             return self._serialize_import(value, name)
+        if isinstance(value, (Checkpoint, PtCheckpoint)):
+            return self._serialize_checkpoint(value)
         if isinstance(value, CodeFromFunction):
             return self._serialize_code_from_function(value, name)
         if isinstance(value, (CodeFromFile, ExplicitHash, ExternalImport, NonhashedCode)):
@@ -1114,6 +1117,10 @@ class _Serializer:
             return PyEvalCode(repr(value.get_path()))
         else:
             raise ValueError(f"invalid sis_path_handling {self.sis_path_handling}")
+
+    def _serialize_checkpoint(self, value: Union[PtCheckpoint, Checkpoint]) -> PyEvalCode:
+        assert isinstance(value, (Checkpoint, PtCheckpoint))
+        return PyEvalCode(repr(value), need_brackets_when_inlined=False)
 
 
 class _SerializationDependsOnNotYetSerializedOtherVarException(Exception):
