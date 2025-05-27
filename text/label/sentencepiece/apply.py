@@ -42,11 +42,12 @@ class ApplySentencepieceToTextJob(Job):
         self.text_file = text_file
         self.sentencepiece_model = sentencepiece_model
         self.enable_unk = enable_unk
-        self.rqmt: Optional[Dict[str, Any]] = {"cpu": 1, "mem": 2, "time": 2}
 
         self.out_sentencepiece_text = self.output_path(
             "words_to_sentencepiece.txt.gz" if gzip_output else "words_to_sentencepiece.txt"
         )
+
+        self.rqmt: Optional[Dict[str, Any]] = {"cpu": 1, "mem": 2.0, "time": 2.0}
 
     def tasks(self):
         yield Task("run", rqmt=self.rqmt, mini_task=self.rqmt is None)
