@@ -472,7 +472,7 @@ class BlissToAudioHDFJob(Job):
         }
 
     def tasks(self):
-        yield Task("run", rqmt=self.rqmt, args=range(self.concurrent))
+        yield Task("run", rqmt=self.rqmt, args=range(self.concurrent), resume="run")
 
     def run(self, index: int):
         out_hdfs = list(util.chunks(self.out_hdfs, self.concurrent))[index]
