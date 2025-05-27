@@ -443,8 +443,6 @@ class BlissToAudioHDFJob(Job):
             rasr_compatible will round up the start time and round down the end time
         :param round_factor: do the rounding based on a sampling rate that is scaled down by this factor
         :param target_sampling_rate: desired sampling rate for the HDF, data will be resampled to this rate if needed
-        :param skip_on_error: If True, skip segments that fail to be processed (for known reasons only) instead
-            of failing the job.
         """
         self.bliss_corpus = bliss_corpus
         self.splits = splits
@@ -604,6 +602,7 @@ class BlissToAudioHDFJob(Job):
                 duration = math.floor(end * self.target_sampling_rate / self.round_factor) * self.round_factor - start
             else:
                 raise NotImplementedError(f"RoundingScheme {self.rounding} not implemented.")
+            assert start + duration <= len(audio_data)
             data = audio_data[start : start + duration]
 
             if self.compress is not None:
@@ -639,7 +638,7 @@ class BlissToAudioHDFJob(Job):
                     check=True,
                     input=data_bytes,
                     stdout=sp.PIPE,
-                    timeout=5 * (len(data_bytes) / self.target_sampling_rate),
+                    timeout=max(30, 5 * (len(data_bytes) / self.target_sampling_rate)),
                 )
 
                 data = np.frombuffer(ffmpeg_proc.stdout, dtype=np.uint8)
