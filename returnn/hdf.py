@@ -233,10 +233,6 @@ class BlissToPcmHDFJob(Job):
             return type(other) == type(self)
 
     @dataclass(frozen=True)
-    class Mixdown(BaseStrategy):
-        pass
-
-    @dataclass(frozen=True)
     class PickNth(BaseStrategy):
         channel: int
 
@@ -272,7 +268,6 @@ class BlissToPcmHDFJob(Job):
         :param multi_channel_strategy: defines what should happen to multi-channel audio files.
             Currently implemented are:
             BaseStrategy(): no handling, assume only one channel
-            Mixdown(): Mix down all channels to one channel
             PickNth(n): Takes audio from n-th channel
         :param returnn_root: RETURNN repository
         :param rounding: defines how timestamps should be rounded if they do not exactly fall onto a sample:
@@ -342,10 +337,11 @@ class BlissToPcmHDFJob(Job):
                 data = audio.read(duration, always_2d=True, dtype=self.output_dtype)
                 if isinstance(self.multi_channel_strategy, self.PickNth):
                     data = data[:, self.multi_channel_strategy.channel]
-                elif isinstance(self.multi_channel_strategy, self.Mixdown):
-                    data = np.sum(data, axis=-1)
                 else:
-                    assert data.shape[-1] == 1, "Audio has more than one channel, choose a multi_channel_strategy"
+                    assert data.shape[-1] == 1, (
+                        "Audio has more than one channel, choose a supported multi_channel_strategy. "
+                        f"Currently using {self.multi_channel_strategy}."
+                    )
 
                 # resample if necessary
                 if (sr := self.target_sampling_rate) is not None and sr != audio.samplerate:
@@ -393,6 +389,10 @@ class BlissToAudioHDFJob(Job):
         - https://github.com/rwth-i6/i6_core/pull/593#issuecomment-2883024538 for why
           this job is faster than `BlissToPcmHDFJob`.
     """
+
+    @dataclass(frozen=True)
+    class Mixdown(BlissToPcmHDFJob.BaseStrategy):
+        """Multi channel strategy that instructs FFmpeg to mix down all channels to one channel."""
 
     def __init__(
         self,
@@ -455,8 +455,8 @@ class BlissToAudioHDFJob(Job):
             assert output_dtype in ["float64", "float32", "int16"]
             self.output_dtype = output_dtype
         self.compress = compress
-        self.multi_channel_strategy = multi_channel_strategy or BlissToPcmHDFJob.Mixdown()
-        assert isinstance(self.multi_channel_strategy, (BlissToPcmHDFJob.Mixdown, BlissToPcmHDFJob.PickNth))
+        self.multi_channel_strategy = multi_channel_strategy or BlissToAudioHDFJob.Mixdown()
+        assert isinstance(self.multi_channel_strategy, (BlissToAudioHDFJob.Mixdown, BlissToPcmHDFJob.PickNth))
         self.rounding = rounding
         assert round_factor > 0
         self.round_factor = round_factor
