@@ -403,7 +403,7 @@ class BlissToAudioHDFJob(Job):
         concurrent: int = 1,
         multi_channel_strategy: Optional[BlissToPcmHDFJob.BaseStrategy] = None,
         num_workers: int = 16,
-        output_dtype: str = "int16",
+        output_dtype: Optional[str] = "int16",
         returnn_root: Optional[tk.Path] = None,
         rounding: BlissToPcmHDFJob.RoundingScheme = BlissToPcmHDFJob.RoundingScheme.rasr_compatible,
         round_factor: int = 1,
