@@ -53,8 +53,6 @@ class ApplySentencepieceToTextJob(Job):
         yield Task("run", rqmt=self.rqmt, mini_task=self.rqmt is None)
 
     def run(self):
-        import sentencepiece
-
         spm = sentencepiece.SentencePieceProcessor(model_file=self.sentencepiece_model.get_path())
         if self.enable_unk:
             spm.set_encode_extra_options("unk")
