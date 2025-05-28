@@ -468,6 +468,9 @@ class BlissToAudioHDFJob(Job):
         self.returnn_root = returnn_root
         self.target_sampling_rate = target_sampling_rate
 
+        assert num_workers > 0
+        self.num_workers = num_workers
+
         self.out_hdfs = [self.output_path(f"{i + 1:0d}.hdf") for i in range(len(splits))]
 
         self.rqmt = {
@@ -499,7 +502,7 @@ class BlissToAudioHDFJob(Job):
         c = corpus.Corpus()
         c.load(self.bliss_corpus.get_path())
 
-        pool = multiprocessing.Pool(max(self.rqmt["cpu"] - 1, 1))
+        pool = multiprocessing.Pool(self.num_workers)
         recs = (
             # We send every segment of the recording grouped together with the audio to
             # avoid having to read the audio file more than once.
