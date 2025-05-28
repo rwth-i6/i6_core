@@ -432,7 +432,7 @@ class BlissToAudioHDFJob(Job):
             Currently implemented are:
             Mixdown(): Mix down all channels to one channel, default.
             PickNth(n): Takes audio from n-th channel.
-        :param num_workers: Number of workers used for parallel recording processing.
+        :param num_workers: Num subprocs (multiprocessing.Pool size) used for parallel recording processing.
             It can be increased to e.g. match the number of CPU cores on a big cluster machine,
             and the job will stay I/O efficient.
         :param output_dtype: dtype that should be written in the hdf (supports float64, float32, int16).
