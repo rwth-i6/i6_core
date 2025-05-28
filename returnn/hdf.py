@@ -639,7 +639,6 @@ class BlissToAudioHDFJob(Job):
                         c_format,
                         "-",
                     ],
-                    bufsize=2**20,
                     check=True,
                     input=data_bytes,
                     stdout=sp.PIPE,
