@@ -382,8 +382,6 @@ class BlissToAudioHDFJob(Job):
 
     Can optionally write compressed audio data to the HDF.
 
-    In previous scenaria, this job manages an xRTF of about 5000 using 16 cores.
-
     See:
         - https://github.com/rwth-i6/i6_core/pull/593 for discussion,
         - https://github.com/rwth-i6/i6_core/pull/593#issuecomment-2883024538 for why
