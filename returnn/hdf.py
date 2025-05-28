@@ -638,7 +638,6 @@ class BlissToAudioHDFJob(Job):
                     check=True,
                     input=data_bytes,
                     stdout=sp.PIPE,
-                    timeout=max(30, 5 * (len(data_bytes) / self.target_sampling_rate)),
                 )
 
                 data = np.frombuffer(ffmpeg_proc.stdout, dtype=np.uint8)
