@@ -399,7 +399,7 @@ class BlissToAudioHDFJob(Job):
         bliss_corpus: tk.Path,
         splits: Sequence[tk.Path],
         *,
-        compress: Optional[Tuple[str, str, float]] = None,
+        ffmpeg_output_args: Optional[Sequence[str]] = None,
         multi_channel_strategy: Optional[BlissToPcmHDFJob.BaseStrategy] = None,
         output_dtype: Optional[str] = "int16",
         returnn_root: Optional[tk.Path] = None,
@@ -407,7 +407,7 @@ class BlissToAudioHDFJob(Job):
         round_factor: int = 1,
         target_sampling_rate: int = 16000,
         concurrent: int = 1,
-        cpu_rqmt: int = 1 + 6,  # default: 3 workers per core, as the job is I/O bound, + 1 for the main process
+        cpu_rqmt: int = 1 + 6,  # default: 3 workers per core, as the job is I/O bound, +1 for the main process
         mem_rqmt: int = 2 + (0.5 * 18),  # default: 2GB + 0.5GB per worker
         num_workers: int = 18,
     ):
@@ -415,12 +415,14 @@ class BlissToAudioHDFJob(Job):
         :param bliss_corpus: Bliss corpus to read segments and audio files from
         :param splits: List of segment files that list the segments per HDF.
             The job creates one HDF per split.
-        :param compress: Optional compression for the audio data.
-            Tuple of (container, codec, level) where `container` and `codec` select the compression format
-            (e.g. "ogg" and "libvorbis") and `level` is the compression level.
-            The value of `level` depends on the codec and container used.
-            For e.g. libvorbis, compression level ranges from -1 to 10 (inclusive) where -1 is the
-            highest compression and 10 the lowest.
+        :param ffmpeg_output_args: Optional additional arguments to pass to FFmpeg.
+            These arguments are passed to a second FFmpeg call that can be used to
+            optionally compress the audio data and store it in an encoded form.
+            E.g. to compress the audio data to OGG Vorbis, you can use:
+            `ffmpeg_output_args=("-c:a", "libvorbis", "-qscale:a", "0", "-f", "ogg")`.
+            When these arguments are set, the audio data is always written as raw bytes
+            into the HDF (i.e. `dtype=numpy.uint8`).
+            For this reason, `output_dtype` must be set to `None` when using this argument.
         :param multi_channel_strategy: defines what should happen to multi-channel audio files.
             Currently implemented are:
             Mixdown(): Mix down all channels to one channel, default.
@@ -451,15 +453,16 @@ class BlissToAudioHDFJob(Job):
         """
         self.bliss_corpus = bliss_corpus
         self.splits = splits
-        assert concurrent > 0
-        self.concurrent = concurrent
-        if compress is not None:
-            assert output_dtype is None
+        if ffmpeg_output_args is not None:
+            assert ffmpeg_output_args, "ffmpeg_output_args must not be empty"
+            assert output_dtype is None, (
+                "when using ffmpeg_output_args, output_dtype must be None as the data is always written as raw bytes."
+            )
             self.output_dtype = "int16"
         else:
             assert output_dtype in ["float64", "float32", "int16"]
             self.output_dtype = output_dtype
-        self.compress = compress
+        self.ffmpeg_output_args = ffmpeg_output_args
         self.multi_channel_strategy = multi_channel_strategy or BlissToAudioHDFJob.Mixdown()
         assert isinstance(self.multi_channel_strategy, (BlissToAudioHDFJob.Mixdown, BlissToPcmHDFJob.PickNth))
         self.rounding = rounding
@@ -468,16 +471,14 @@ class BlissToAudioHDFJob(Job):
         self.returnn_root = returnn_root
         self.target_sampling_rate = target_sampling_rate
 
+        assert concurrent > 0
+        self.concurrent = concurrent
         assert num_workers > 0
         self.num_workers = num_workers
 
         self.out_hdfs = [self.output_path(f"{i + 1:0d}.hdf") for i in range(len(splits))]
 
-        self.rqmt = {
-            "cpu": cpu_rqmt,
-            "mem": mem_rqmt,
-            "time": 48
-        }
+        self.rqmt = {"cpu": cpu_rqmt, "mem": mem_rqmt, "time": 48}
 
     def tasks(self):
         yield Task("run", rqmt=self.rqmt, args=range(self.concurrent), resume="run")
@@ -613,15 +614,13 @@ class BlissToAudioHDFJob(Job):
             assert start + duration <= len(audio_data)
             data = audio_data[start : start + duration]
 
-            if self.compress is not None:
-                c_format, c_codec, c_level = self.compress
+            if self.ffmpeg_output_args is not None:
                 data_arr = array.array("h")
                 data_arr.frombytes(data.tobytes())
                 if sys.byteorder == "big":
                     data_arr.byteswap()
                 data_bytes = data_arr.tobytes()
-
-                ffmpeg_proc = sp.run(
+                ffmpeg_proc = sp.run(  # we do not use check_output to forward stderr to the job log
                     [
                         "ffmpeg",
                         "-hide_banner",
@@ -634,19 +633,13 @@ class BlissToAudioHDFJob(Job):
                         "s16le",
                         "-i",
                         "-",
-                        "-c:a",
-                        c_codec,
-                        "-qscale:a",
-                        str(c_level),
-                        "-f",
-                        c_format,
+                        *self.ffmpeg_output_args,
                         "-",
                     ],
                     check=True,
                     input=data_bytes,
                     stdout=sp.PIPE,
                 )
-
                 data = np.frombuffer(ffmpeg_proc.stdout, dtype=np.uint8)
 
             return (segment_name, data)
