@@ -400,28 +400,21 @@ class BlissToAudioHDFJob(Job):
         splits: Sequence[tk.Path],
         *,
         compress: Optional[Tuple[str, str, float]] = None,
-        concurrent: int = 1,
         multi_channel_strategy: Optional[BlissToPcmHDFJob.BaseStrategy] = None,
-        num_workers: int = 16,
         output_dtype: Optional[str] = "int16",
         returnn_root: Optional[tk.Path] = None,
         rounding: BlissToPcmHDFJob.RoundingScheme = BlissToPcmHDFJob.RoundingScheme.rasr_compatible,
         round_factor: int = 1,
         target_sampling_rate: int = 16000,
+        concurrent: int = 1,
+        cpu_rqmt: int = 1 + 6,  # default: 3 workers per core, as the job is I/O bound, + 1 for the main process
+        mem_rqmt: int = 2 + (0.5 * 18),  # default: 2GB + 0.5GB per worker
+        num_workers: int = 18,
     ):
         """
         :param bliss_corpus: Bliss corpus to read segments and audio files from
         :param splits: List of segment files that list the segments per HDF.
             The job creates one HDF per split.
-        :param concurrent: Split up the list of splits into this many concurrent jobs.
-            Recommended is about one unit of concurrency per 1000h of audio.
-            This value affects how I/O efficient the job is. With increasing concurrency
-            the I/O efficiency decreases as recordings may end up having to be read multiple
-            times from disk.
-            Within job concurrency is handled by the multiprocessing library, using `num_workers`
-            as parallelism factor.
-            Note that within-job concurrency is more I/O efficient than between-job concurrency,
-            so prefer increasing `num_workers` over increasing `concurrent`, when possible.
         :param compress: Optional compression for the audio data.
             Tuple of (container, codec, level) where `container` and `codec` select the compression format
             (e.g. "ogg" and "libvorbis") and `level` is the compression level.
@@ -432,9 +425,6 @@ class BlissToAudioHDFJob(Job):
             Currently implemented are:
             Mixdown(): Mix down all channels to one channel, default.
             PickNth(n): Takes audio from n-th channel.
-        :param num_workers: Num subprocs (multiprocessing.Pool size) used for parallel recording processing.
-            It can be increased to e.g. match the number of CPU cores on a big cluster machine,
-            and the job will stay I/O efficient.
         :param output_dtype: dtype that should be written in the hdf (supports float64, float32, int16).
             If writing compressed data, must be set to None as the compressed audio is always written as uint8 (raw bytes).
         :param returnn_root: RETURNN repository
@@ -443,6 +433,21 @@ class BlissToAudioHDFJob(Job):
             rasr_compatible will round up the start time and round down the end time
         :param round_factor: do the rounding based on a sampling rate that is scaled down by this factor
         :param target_sampling_rate: desired sampling rate for the HDF, data will be resampled to this rate if needed
+        :param concurrent: Split up the list of splits into this many concurrent jobs.
+            Recommended is about one unit of concurrency per 1000h of audio.
+            This value affects how I/O efficient the job is. With increasing concurrency
+            the I/O efficiency decreases as recordings may end up having to be read multiple
+            times from disk.
+            Within job concurrency is handled by the multiprocessing library, using `num_workers`
+            as parallelism factor.
+            Note that within-job concurrency is more I/O efficient than between-job concurrency,
+            so prefer increasing `num_workers` over increasing `concurrent`, when possible.
+        :param cpu_rqmt: How many CPUs to assign to the job.
+            The job is mainly I/O limited, so it's okay to assign fewer CPUs than the number of worker processes.
+        :param mem_rqmt: How much memory to assign to the job.
+        :param num_workers: Num subprocs (multiprocessing.Pool size) used for parallel recording processing.
+            It can be increased to e.g. match the number of CPU cores on a big cluster machine,
+            and the job will stay I/O efficient.
         """
         self.bliss_corpus = bliss_corpus
         self.splits = splits
@@ -466,9 +471,9 @@ class BlissToAudioHDFJob(Job):
         self.out_hdfs = [self.output_path(f"{i + 1:0d}.hdf") for i in range(len(splits))]
 
         self.rqmt = {
-            "cpu": 1 + (num_workers // 2),
-            "mem": 2 + (0.5 * num_workers),
-            "time": 48,
+            "cpu": cpu_rqmt,
+            "mem": mem_rqmt,
+            "time": 48
         }
 
     def tasks(self):
@@ -650,6 +655,8 @@ class BlissToAudioHDFJob(Job):
     def hash(cls, kwargs):
         kwargs = kwargs.copy()
         kwargs.pop("concurrent", None)
+        kwargs.pop("cpu_rqmt", None)
+        kwargs.pop("mem_rqmt", None)
         kwargs.pop("num_workers", None)
         return super().hash(kwargs)
 
