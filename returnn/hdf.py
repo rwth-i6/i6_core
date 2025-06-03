@@ -462,7 +462,9 @@ class BlissToAudioHDFJob(Job):
             self.output_dtype = output_dtype
         self.ffmpeg_output_args = ffmpeg_output_args
         self.multi_channel_strategy = multi_channel_strategy or BlissToAudioHDFJob.Mixdown()
-        assert isinstance(self.multi_channel_strategy, (BlissToAudioHDFJob.Mixdown, BlissToPcmHDFJob.PickNth))
+        assert isinstance(self.multi_channel_strategy, (BlissToAudioHDFJob.Mixdown, BlissToPcmHDFJob.PickNth)), (
+            f"{multi_channel_strategy} is not a supported multi-channel strategy."
+        )
         self.rounding = rounding
         assert round_factor > 0
         self.round_factor = round_factor
@@ -540,12 +542,11 @@ class BlissToAudioHDFJob(Job):
     def _process_seq(self, recording: Tuple[str, Sequence[Tuple[str, float, float]]]) -> List[Tuple[str, np.ndarray]]:
         audio_file, segments = recording
 
-        assert isinstance(self.multi_channel_strategy, (BlissToPcmHDFJob.Mixdown, BlissToPcmHDFJob.PickNth)), (
-            "unknown multi_channel_strategy"
-        )
+        # just a double check
+        assert isinstance(self.multi_channel_strategy, (BlissToAudioHDFJob.Mixdown, BlissToPcmHDFJob.PickNth))
         channel_mix_args = (
             ["-ac", "1"]
-            if isinstance(self.multi_channel_strategy, BlissToPcmHDFJob.Mixdown)
+            if isinstance(self.multi_channel_strategy, BlissToAudioHDFJob.Mixdown)
             else ["-map_channel", f"0.{self.multi_channel_strategy.channel}"]
         )
 
@@ -557,27 +558,9 @@ class BlissToAudioHDFJob(Job):
         # data on a frame-by-frame basis (to match with RASR), while ffmpeg supports only
         # temporal slices.
         ffmpeg_proc = sp.run(
-            [
-                "ffmpeg",
-                "-hide_banner",
-                "-loglevel",
-                "error",
-                "-y",
-                "-i",
-                audio_file,
-                "-c:a",
-                "pcm_s16le",
-            ]
+            ["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", audio_file, "-c:a", "pcm_s16le"]
             + channel_mix_args
-            + [
-                "-af",
-                "aresample=resampler=soxr",
-                "-ar",
-                str(self.target_sampling_rate),
-                "-f",
-                "wav",
-                "-",
-            ],
+            + ["-af", "aresample=resampler=soxr", "-ar", str(self.target_sampling_rate), "-f", "wav", "-"],
             check=True,
             stdout=sp.PIPE,
         )
