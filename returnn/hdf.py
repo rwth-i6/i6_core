@@ -405,9 +405,7 @@ class BlissToAudioHDFJob(Job):
         round_factor: int = 1,
         target_sampling_rate: int = 16000,
         concurrent: int = 1,
-        cpu_rqmt: int = 1 + 6,  # default: 3 workers per core, as the job is I/O bound, +1 for the main process
-        mem_rqmt: int = 2 + (0.5 * 18),  # default: 2GB + 0.5GB per worker
-        num_workers: int = 18,
+        num_workers: int = 21,
     ):
         """
         :param bliss_corpus: Bliss corpus to read segments and audio files from
@@ -442,9 +440,6 @@ class BlissToAudioHDFJob(Job):
             as parallelism factor.
             Note that within-job concurrency is more I/O efficient than between-job concurrency,
             so prefer increasing `num_workers` over increasing `concurrent`, when possible.
-        :param cpu_rqmt: How many CPUs to assign to the job.
-            The job is mainly I/O limited, so it's okay to assign fewer CPUs than the number of worker processes.
-        :param mem_rqmt: How much memory to assign to the job.
         :param num_workers: Num subprocs (multiprocessing.Pool size) used for parallel recording processing.
             It can be increased to e.g. match the number of CPU cores on a big cluster machine,
             and the job will stay I/O efficient.
@@ -478,7 +473,11 @@ class BlissToAudioHDFJob(Job):
 
         self.out_hdfs = [self.output_path(f"{i + 1:0d}.hdf") for i in range(len(splits))]
 
-        self.rqmt = {"cpu": cpu_rqmt, "mem": mem_rqmt, "time": 48}
+        self.rqmt = {
+            "cpu": 1 + (num_workers // 3),  # 3 workers per CPU core + 1 for the main process
+            "mem": 2 + (0.5 * num_workers),  # 0.5 GB per worker + 2 GB for the main process
+            "time": 48,
+        }
 
     def tasks(self):
         yield Task("run", rqmt=self.rqmt, args=range(self.concurrent), resume="run")
@@ -631,8 +630,6 @@ class BlissToAudioHDFJob(Job):
     def hash(cls, kwargs):
         kwargs = kwargs.copy()
         kwargs.pop("concurrent", None)
-        kwargs.pop("cpu_rqmt", None)
-        kwargs.pop("mem_rqmt", None)
         kwargs.pop("num_workers", None)
         return super().hash(kwargs)
 
