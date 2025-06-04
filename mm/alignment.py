@@ -562,8 +562,8 @@ class ComputeTimeStampErrorJob(Job):
 
     def __init__(
         self,
-        hyp_alignment_cache: tk.Path,
-        ref_alignment_cache: tk.Path,
+        hyp_alignment_cache: Union[tk.Path, List[tk.Path]],
+        ref_alignment_cache: Union[tk.Path, List[tk.Path]],
         hyp_allophone_file: tk.Path,
         ref_allophone_file: tk.Path,
         hyp_silence_phone: str = "[SILENCE]",
@@ -585,12 +585,16 @@ class ComputeTimeStampErrorJob(Job):
         :param hyp_seq_tag_transform: Function that transforms seq tag in alignment cache such that it matches the seq tags in the reference
         :param remove_outlier_limit: If set, boundary differences greater than this frame limit are discarded from computation
         """
-        self.hyp_alignment_cache = hyp_alignment_cache
+        self.hyp_alignment_caches = (
+            hyp_alignment_cache if isinstance(hyp_alignment_cache, List) else [hyp_alignment_cache]
+        )
         self.hyp_allophone_file = hyp_allophone_file
         self.hyp_silence_phone = hyp_silence_phone
         self.hyp_upsample_factor = hyp_upsample_factor
 
-        self.ref_alignment_cache = ref_alignment_cache
+        self.ref_alignment_caches = (
+            ref_alignment_cache if isinstance(ref_alignment_cache, List) else [ref_alignment_cache]
+        )
         self.ref_allophone_file = ref_allophone_file
         self.ref_silence_phone = ref_silence_phone
         self.ref_upsample_factor = ref_upsample_factor
@@ -605,6 +609,7 @@ class ComputeTimeStampErrorJob(Job):
         self.out_plot_word_end_frame_differences = self.output_path("end_frame_differences.png")
         self.out_boundary_frame_differences = self.output_var("boundary_frame_differences")
         self.out_plot_boundary_frame_differences = self.output_path("boundary_frame_differences.png")
+        self.out_tse_differences_file = self.output_path("tse_differences.txt")
 
         self.rqmt = None
 
@@ -660,102 +665,105 @@ class ComputeTimeStampErrorJob(Job):
         start_differences = Counter()
         end_differences = Counter()
         differences = Counter()
+        tse_dict: Dict[str, Tuple[str, float]] = {}  # ref_seg_name: (hyp_seg_name, avg_tse)
 
-        hyp_alignments = rasr_cache.open_file_archive(self.hyp_alignment_cache.get())
-        hyp_alignments.setAllophones(self.hyp_allophone_file.get())
-        if isinstance(hyp_alignments, rasr_cache.FileArchiveBundle):
-            hyp_allophone_map = next(iter(hyp_alignments.archives.values())).allophones
-        else:
-            hyp_allophone_map = hyp_alignments.allophones
-
-        ref_alignments = rasr_cache.open_file_archive(self.ref_alignment_cache.get())
-        ref_alignments.setAllophones(self.ref_allophone_file.get())
-        if isinstance(ref_alignments, rasr_cache.FileArchiveBundle):
-            ref_allophone_map = next(iter(ref_alignments.archives.values())).allophones
-        else:
-            ref_allophone_map = ref_alignments.allophones
-
-        file_list = [tag for tag in hyp_alignments.file_list() if not tag.endswith(".attribs")]
-
-        for idx, hyp_seq_tag in enumerate(file_list, start=1):
-            hyp_word_starts, hyp_word_ends, hyp_seq_length = self._compute_word_boundaries(
-                hyp_alignments,
-                hyp_allophone_map,
-                hyp_seq_tag,
-                self.hyp_silence_phone,
-                self.hyp_upsample_factor,
-            )
-            assert len(hyp_word_starts) == len(hyp_word_ends), (
-                f"Found different number of word starts ({len(hyp_word_starts)}) "
-                f"than word ends ({len(hyp_word_ends)}). Something seems to be broken."
-            )
-
-            if self.hyp_seq_tag_transform is not None:
-                ref_seq_tag = self.hyp_seq_tag_transform(hyp_seq_tag)
+        for hyp_alignment_cache, ref_alignment_cache in zip(self.hyp_alignment_caches, self.ref_alignment_caches):
+            hyp_alignments = rasr_cache.open_file_archive(hyp_alignment_cache.get())
+            hyp_alignments.setAllophones(self.hyp_allophone_file.get())
+            if isinstance(hyp_alignments, rasr_cache.FileArchiveBundle):
+                hyp_allophone_map = next(iter(hyp_alignments.archives.values())).allophones
             else:
-                ref_seq_tag = hyp_seq_tag
+                hyp_allophone_map = hyp_alignments.allophones
 
-            ref_word_starts, ref_word_ends, ref_seq_length = self._compute_word_boundaries(
-                ref_alignments,
-                ref_allophone_map,
-                ref_seq_tag,
-                self.ref_silence_phone,
-                self.ref_upsample_factor,
-            )
-            assert len(ref_word_starts) == len(ref_word_ends), (
-                f"Found different number of word starts ({len(hyp_word_starts)}) "
-                f"than word ends ({len(hyp_word_ends)}) in reference. Something seems to be broken."
-            )
-
-            if len(hyp_word_starts) != len(ref_word_starts):
-                logging.warning(
-                    f"Sequence {hyp_seq_tag} ({idx} / {len(file_list)}:\n    Discarded because the number of words in alignment ({len(hyp_word_starts)}) does not equal the number of words in reference ({len(ref_word_starts)})."
-                )
-                discarded_seqs += 1
-                continue
-
-            # Sometimes different feature extraction or subsampling may produce mismatched lengths that are different by a few frames, so cut off at the shorter length
-            shorter_seq_length = min(hyp_seq_length, ref_seq_length)
-
-            for i in range(len(hyp_word_ends) - 1, 0, -1):
-                if hyp_word_ends[i] > shorter_seq_length:
-                    hyp_word_ends[i] = shorter_seq_length
-                    hyp_word_starts[i] = min(hyp_word_starts[i], hyp_word_ends[i] - 1)
-                else:
-                    break
-            for i in range(len(ref_word_ends) - 1, 0, -1):
-                if ref_word_ends[i] > shorter_seq_length:
-                    ref_word_ends[i] = shorter_seq_length
-                    ref_word_starts[i] = min(ref_word_starts[i], ref_word_ends[i] - 1)
-                else:
-                    break
-
-            seq_word_start_diffs = [start - ref_start for start, ref_start in zip(hyp_word_starts, ref_word_starts)]
-            seq_word_end_diffs = [end - ref_end for end, ref_end in zip(hyp_word_ends, ref_word_ends)]
-
-            # Optionally remove outliers
-            seq_word_start_diffs = [diff for diff in seq_word_start_diffs if abs(diff) <= self.remove_outlier_limit]
-            seq_word_end_diffs = [diff for diff in seq_word_end_diffs if abs(diff) <= self.remove_outlier_limit]
-
-            seq_differences = seq_word_start_diffs + seq_word_end_diffs
-
-            start_differences.update(seq_word_start_diffs)
-            end_differences.update(seq_word_end_diffs)
-            differences.update(seq_differences)
-
-            if seq_differences:
-                seq_tse = statistics.mean(abs(diff) for diff in seq_differences)
-
-                logging.info(
-                    f"Sequence {hyp_seq_tag} ({idx} / {len(file_list)}):\n    Word start distances are {seq_word_start_diffs}\n    Word end distances are {seq_word_end_diffs}\n    Sequence TSE is {seq_tse} frames"
-                )
-                counted_seqs += 1
+            ref_alignments = rasr_cache.open_file_archive(ref_alignment_cache.get())
+            ref_alignments.setAllophones(self.ref_allophone_file.get())
+            if isinstance(ref_alignments, rasr_cache.FileArchiveBundle):
+                ref_allophone_map = next(iter(ref_alignments.archives.values())).allophones
             else:
-                logging.warning(
-                    f"Sequence {hyp_seq_tag} ({idx} / {len(file_list)}):\n    Discarded since all distances are over the upper limit"
+                ref_allophone_map = ref_alignments.allophones
+
+            file_list = [tag for tag in hyp_alignments.file_list() if not tag.endswith(".attribs")]
+
+            for idx, hyp_seq_tag in enumerate(file_list, start=1):
+                hyp_word_starts, hyp_word_ends, hyp_seq_length = self._compute_word_boundaries(
+                    hyp_alignments,
+                    hyp_allophone_map,
+                    hyp_seq_tag,
+                    self.hyp_silence_phone,
+                    self.hyp_upsample_factor,
                 )
-                discarded_seqs += 1
-                continue
+                assert len(hyp_word_starts) == len(hyp_word_ends), (
+                    f"Found different number of word starts ({len(hyp_word_starts)}) "
+                    f"than word ends ({len(hyp_word_ends)}). Something seems to be broken."
+                )
+
+                if self.hyp_seq_tag_transform is not None:
+                    ref_seq_tag = self.hyp_seq_tag_transform(hyp_seq_tag)
+                else:
+                    ref_seq_tag = hyp_seq_tag
+
+                ref_word_starts, ref_word_ends, ref_seq_length = self._compute_word_boundaries(
+                    ref_alignments,
+                    ref_allophone_map,
+                    ref_seq_tag,
+                    self.ref_silence_phone,
+                    self.ref_upsample_factor,
+                )
+                assert len(ref_word_starts) == len(ref_word_ends), (
+                    f"Found different number of word starts ({len(hyp_word_starts)}) "
+                    f"than word ends ({len(hyp_word_ends)}) in reference. Something seems to be broken."
+                )
+
+                if len(hyp_word_starts) != len(ref_word_starts):
+                    logging.warning(
+                        f"Sequence {hyp_seq_tag} ({idx} / {len(file_list)}:\n    Discarded because the number of words in alignment ({len(hyp_word_starts)}) does not equal the number of words in reference ({len(ref_word_starts)})."
+                    )
+                    discarded_seqs += 1
+                    continue
+
+                # Sometimes different feature extraction or subsampling may produce mismatched lengths that are different by a few frames, so cut off at the shorter length
+                shorter_seq_length = min(hyp_seq_length, ref_seq_length)
+
+                for i in range(len(hyp_word_ends) - 1, 0, -1):
+                    if hyp_word_ends[i] > shorter_seq_length:
+                        hyp_word_ends[i] = shorter_seq_length
+                        hyp_word_starts[i] = min(hyp_word_starts[i], hyp_word_ends[i] - 1)
+                    else:
+                        break
+                for i in range(len(ref_word_ends) - 1, 0, -1):
+                    if ref_word_ends[i] > shorter_seq_length:
+                        ref_word_ends[i] = shorter_seq_length
+                        ref_word_starts[i] = min(ref_word_starts[i], ref_word_ends[i] - 1)
+                    else:
+                        break
+
+                seq_word_start_diffs = [start - ref_start for start, ref_start in zip(hyp_word_starts, ref_word_starts)]
+                seq_word_end_diffs = [end - ref_end for end, ref_end in zip(hyp_word_ends, ref_word_ends)]
+
+                # Optionally remove outliers
+                seq_word_start_diffs = [diff for diff in seq_word_start_diffs if abs(diff) <= self.remove_outlier_limit]
+                seq_word_end_diffs = [diff for diff in seq_word_end_diffs if abs(diff) <= self.remove_outlier_limit]
+
+                seq_differences = seq_word_start_diffs + seq_word_end_diffs
+
+                start_differences.update(seq_word_start_diffs)
+                end_differences.update(seq_word_end_diffs)
+                differences.update(seq_differences)
+
+                if seq_differences:
+                    seq_tse = statistics.mean(abs(diff) for diff in seq_differences)
+                    tse_dict[ref_seq_tag] = (hyp_seq_tag, seq_tse)
+
+                    logging.info(
+                        f"Sequence {hyp_seq_tag} ({idx} / {len(file_list)}):\n    Word start distances are {seq_word_start_diffs}\n    Word end distances are {seq_word_end_diffs}\n    Sequence TSE is {seq_tse} frames"
+                    )
+                    counted_seqs += 1
+                else:
+                    logging.warning(
+                        f"Sequence {hyp_seq_tag} ({idx} / {len(file_list)}):\n    Discarded since all distances are over the upper limit"
+                    )
+                    discarded_seqs += 1
+                    continue
 
         logging.info(
             f"Processing finished. Computed TSE value based on {counted_seqs} sequences; {discarded_seqs} sequences were discarded."
@@ -767,6 +775,11 @@ class ComputeTimeStampErrorJob(Job):
         self.out_word_end_frame_differences.set({key: end_differences[key] for key in sorted(end_differences.keys())})
         self.out_boundary_frame_differences.set({key: differences[key] for key in sorted(differences.keys())})
         self.out_tse_frames.set(statistics.mean(abs(diff) for diff in differences.elements()))
+        with util.uopen(self.out_tse_differences_file.get_path(), "wt") as f:
+            for ref_seq_tag, (hyp_seq_tag, avg_tse) in sorted(
+                tse_dict.items(), key=lambda k_v: k_v[1][1], reverse=True
+            ):
+                f.write(f"{ref_seq_tag}\t{hyp_seq_tag}\t{avg_tse}\n")
 
     def plot(self):
         for descr, dict_file, plot_file in [
