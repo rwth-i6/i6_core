@@ -1039,10 +1039,9 @@ class RemoveDNFAlignmentsFromAlignmentLogsJob(Job):
 
     def run(self):
         for i, log_file in enumerate(self.alignment_logs):
-            to_delete = []  # parent, child
             logging.info(f"Reading: {log_file}")
             file_path = log_file.get_path()
-            document = ET.parse(uopen(file_path))
+            document = ET.parse(util.uopen(file_path))
             recording_list = document.findall(".//recording")
             for recording in recording_list:
                 segment_list = recording.findall(".//segment")
@@ -1050,11 +1049,6 @@ class RemoveDNFAlignmentsFromAlignmentLogsJob(Job):
                     for warning in segment.findall(".//warning"):
                         if "Alignment did not reach any final state." in warning.text:
                             recording.remove(segment)
-                            # to_delete.append((recording, segment))
                             break
-
-            # for parent, child_to_delete in to_delete:
-            #     parent.remove(child_to_delete)
-
-            with uopen(self.out_alignment_logs[i].get_path(), "wb") as out_xml:
+            with util.uopen(self.out_alignment_logs[i].get_path(), "wb") as out_xml:
                 document.write(out_xml, "UTF-8", xml_declaration=True)
