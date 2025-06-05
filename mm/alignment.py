@@ -7,6 +7,7 @@ __all__ = [
     "ComputeTimeStampErrorJob",
     "GetLongestAllophoneFileJob",
     "PlotViterbiAlignmentJob",
+    "RemoveDNFAlignmentsFromAlignmentLogsJob",
 ]
 
 import itertools
@@ -1018,3 +1019,42 @@ class PlotViterbiAlignmentJob(Job):
                 "The following alignments weren't plotted because their alignments were empty:\n"
                 f"{empty_alignment_seg_names}"
             )
+
+
+class RemoveDNFAlignmentsFromAlignmentLogsJob(Job):
+    """
+    Removes all traces of alignments that didn't reach a final state from the alignment logs,
+    so that the alignment logs and the alignment caches contain the exact same information.
+    """
+
+    def __init__(self, alignment_logs: List[tk.Path]):
+        self.alignment_logs = alignment_logs
+
+        self.out_alignment_logs = [self.output_path(f"out_log.{i}.gz") for i in range(1, len(self.alignment_logs) + 1)]
+
+        self.rqmt = {"cpu": 1, "mem": 1.0, "time": 1.0}
+
+    def tasks(self):
+        yield Task("run", resume="run", rqmt=self.rqmt)
+
+    def run(self):
+        for i, log_file in enumerate(self.alignment_logs):
+            to_delete = []  # parent, child
+            logging.info(f"Reading: {log_file}")
+            file_path = log_file.get_path()
+            document = ET.parse(uopen(file_path))
+            recording_list = document.findall(".//recording")
+            for recording in recording_list:
+                segment_list = recording.findall(".//segment")
+                for segment in segment_list:
+                    for warning in segment.findall(".//warning"):
+                        if "Alignment did not reach any final state." in warning.text:
+                            recording.remove(segment)
+                            # to_delete.append((recording, segment))
+                            break
+
+            # for parent, child_to_delete in to_delete:
+            #     parent.remove(child_to_delete)
+
+            with uopen(self.out_alignment_logs[i].get_path(), "wb") as out_xml:
+                document.write(out_xml, "UTF-8", xml_declaration=True)
