@@ -183,15 +183,10 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
             document = ET.parse(uopen(file_path))
             _seg_list = document.findall(".//segment")
             for seg in _seg_list:
-                if remove_dnf_alignments:
-                    skip_segment = False
-                    for warning in seg.findall(".//warning"):
-                        if "Alignment did not reach any final state." in warning.text:
-                            # Skip alignment as it hasn't reached a final state.
-                            skip_segment = True
-                            break
-                    if skip_segment:
-                        continue
+                if remove_dnf_alignments and any(
+                    "Alignment did not reach any final state." in warning.text for warning in seg.findall(".//warning")
+                ):
+                    continue
                 avg = seg.find(".//score/avg")
                 full_seg_name = seg.attrib["full-name"]
                 full_rec_name = "/".join(full_seg_name.split("/")[:-1])
