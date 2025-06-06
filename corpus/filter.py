@@ -157,8 +157,18 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
         if plot:
             self.out_plot_avg = self.output_path("score.png")
 
-    def _parse_alignment_logs(self, alignment_logs: Dict[int, Path]) -> Dict[str, List[Tuple[str, float]]]:
+    def _parse_alignment_logs(
+        self, alignment_logs: Dict[int, Path], remove_dnf_alignments: bool = False
+    ) -> Dict[str, List[Tuple[str, float]]]:
         """
+        :param alignment_logs: Alignment logs to analyze.
+        :param remove_dnf_alignments: Whether alignments that haven't reached a final state
+            should be considered in the final statistics dictionary.
+
+            Note that these alignments haven't made it to the final alignment caches,
+            so parsing them is inconsistent with respect to the final caches
+            and pollutes any statistics retrieved from the data.
+            The default value is `False` only for retrocompatibility purposes, and `True` is recommended instead.
         :return: Dictionary of recording full names to list of (segment full name, alignment score).
 
             Note: the names adhere to the standards of the :class:`i6_core.lib.corpus.Recording`
@@ -173,6 +183,15 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
             document = ET.parse(uopen(file_path))
             _seg_list = document.findall(".//segment")
             for seg in _seg_list:
+                if remove_dnf_alignments:
+                    skip_segment = False
+                    for warning in seg.findall(".//warning"):
+                        if "Alignment did not reach any final state." in warning.text:
+                            # Skip alignment as it hasn't reached a final state.
+                            skip_segment = True
+                            break
+                    if skip_segment:
+                        continue
                 avg = seg.find(".//score/avg")
                 full_seg_name = seg.attrib["full-name"]
                 full_rec_name = "/".join(full_seg_name.split("/")[:-1])
