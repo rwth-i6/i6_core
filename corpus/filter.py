@@ -380,6 +380,14 @@ class FilterRecordingsByAlignmentConfidenceJob(FilterSegmentsByAlignmentConfiden
 
         return filtered_segments
 
+    def run(self):
+        # Alignments that haven't reached a final state can bias the mean computation, so they're removed.
+        recording_dict = self._parse_alignment_logs(self.alignment_logs, remove_dnf_alignments=True)
+        avg_score_threshold = self._get_avg_score_threshold(recording_dict)
+        filtered_segments = self._filter_segments(recording_dict, avg_score_threshold)
+        self._write_output_segment_files(filtered_segments)
+        self._plot(recording_dict)
+
 
 class FilterCorpusBySegmentsJob(Job):
     __sis_hash_exclude__ = {"delete_empty_recordings": False}
