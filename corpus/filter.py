@@ -128,6 +128,8 @@ class FilterSegmentsByRegexJob(Job):
 
 
 class FilterSegmentsByAlignmentConfidenceJob(Job):
+    __sis_hash_exclude__ = {"remove_dnf_alignments": False}
+
     def __init__(
         self,
         alignment_logs: Dict[int, Path],
@@ -135,6 +137,7 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
         crp: Optional[rasr.CommonRasrParameters] = None,
         plot: bool = True,
         absolute_threshold: Optional[float] = None,
+        remove_dnf_alignments: bool = False,
     ):
         """
         :param alignment_logs: alignment_job.out_log_file; task_id -> log_file
@@ -142,12 +145,20 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
         :param crp: used to set the number of output segments. if none, number of alignment log files is used instead.
         :param plot: plot the distribution of alignment scores
         :param absolute_threshold: alignments with score above this number are discarded
+        :param remove_dnf_alignments: Whether alignments that haven't reached a final state
+            should be considered in the final statistics dictionary.
+
+            Note that these alignments haven't made it to the final alignment caches,
+            so parsing them is inconsistent with respect to the final caches
+            and pollutes any statistics retrieved from the data.
+            The default value is `False` only for retrocompatibility purposes, and `True` is recommended instead.
         """
         self.alignment_logs = alignment_logs  # alignment_job.log_file
         self.percentile = percentile
         self.absolute_threshold = absolute_threshold
         self.num_segments = len(alignment_logs) if crp is None else crp.concurrent
         self.plot = plot
+        self.remove_dnf_alignments = remove_dnf_alignments
 
         self.out_single_segment_files = dict(
             (i, self.output_path("segments.%d" % i)) for i in range(1, self.num_segments + 1)
@@ -285,7 +296,9 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
         yield Task("run", resume="run", mini_task=True)
 
     def run(self):
-        recording_dict = self._parse_alignment_logs(self.alignment_logs)
+        recording_dict = self._parse_alignment_logs(
+            self.alignment_logs, remove_dnf_alignments=self.remove_dnf_alignments
+        )
         avg_score_threshold = self._get_avg_score_threshold(recording_dict)
         filtered_segments = self._filter_segments(recording_dict, avg_score_threshold)
         self._write_output_segment_files(filtered_segments)
