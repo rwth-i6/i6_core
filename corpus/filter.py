@@ -128,6 +128,8 @@ class FilterSegmentsByRegexJob(Job):
 
 
 class FilterSegmentsByAlignmentConfidenceJob(Job):
+    __sis_hash_exclude__ = {"remove_dnf_alignments": False}
+
     def __init__(
         self,
         alignment_logs: Dict[int, Path],
@@ -135,6 +137,7 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
         crp: Optional[rasr.CommonRasrParameters] = None,
         plot: bool = True,
         absolute_threshold: Optional[float] = None,
+        remove_dnf_alignments: bool = False,
     ):
         """
         :param alignment_logs: alignment_job.out_log_file; task_id -> log_file
@@ -142,12 +145,20 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
         :param crp: used to set the number of output segments. if none, number of alignment log files is used instead.
         :param plot: plot the distribution of alignment scores
         :param absolute_threshold: alignments with score above this number are discarded
+        :param remove_dnf_alignments: Whether alignments that haven't reached a final state
+            should be considered in the final statistics dictionary.
+
+            Note that these alignments haven't made it to the final alignment caches,
+            so parsing them is inconsistent with respect to the final caches
+            and pollutes any statistics retrieved from the data.
+            The default value is `False` only for retrocompatibility purposes, and `True` is recommended instead.
         """
         self.alignment_logs = alignment_logs  # alignment_job.log_file
         self.percentile = percentile
         self.absolute_threshold = absolute_threshold
         self.num_segments = len(alignment_logs) if crp is None else crp.concurrent
         self.plot = plot
+        self.remove_dnf_alignments = remove_dnf_alignments
 
         self.out_single_segment_files = dict(
             (i, self.output_path("segments.%d" % i)) for i in range(1, self.num_segments + 1)
@@ -157,8 +168,18 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
         if plot:
             self.out_plot_avg = self.output_path("score.png")
 
-    def _parse_alignment_logs(self, alignment_logs: Dict[int, Path]) -> Dict[str, List[Tuple[str, float]]]:
+    def _parse_alignment_logs(
+        self, alignment_logs: Dict[int, Path], remove_dnf_alignments: bool = False
+    ) -> Dict[str, List[Tuple[str, float]]]:
         """
+        :param alignment_logs: Alignment logs to analyze.
+        :param remove_dnf_alignments: Whether alignments that haven't reached a final state
+            should be considered in the final statistics dictionary.
+
+            Note that these alignments haven't made it to the final alignment caches,
+            so parsing them is inconsistent with respect to the final caches
+            and pollutes any statistics retrieved from the data.
+            The default value is `False` only for retrocompatibility purposes, and `True` is recommended instead.
         :return: Dictionary of recording full names to list of (segment full name, alignment score).
 
             Note: the names adhere to the standards of the :class:`i6_core.lib.corpus.Recording`
@@ -173,6 +194,10 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
             document = ET.parse(uopen(file_path))
             _seg_list = document.findall(".//segment")
             for seg in _seg_list:
+                if remove_dnf_alignments and any(
+                    "Alignment did not reach any final state." in warning.text for warning in seg.findall(".//warning")
+                ):
+                    continue
                 avg = seg.find(".//score/avg")
                 full_seg_name = seg.attrib["full-name"]
                 full_rec_name = "/".join(full_seg_name.split("/")[:-1])
@@ -271,7 +296,9 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
         yield Task("run", resume="run", mini_task=True)
 
     def run(self):
-        recording_dict = self._parse_alignment_logs(self.alignment_logs)
+        recording_dict = self._parse_alignment_logs(
+            self.alignment_logs, remove_dnf_alignments=self.remove_dnf_alignments
+        )
         avg_score_threshold = self._get_avg_score_threshold(recording_dict)
         filtered_segments = self._filter_segments(recording_dict, avg_score_threshold)
         self._write_output_segment_files(filtered_segments)
@@ -360,6 +387,14 @@ class FilterRecordingsByAlignmentConfidenceJob(FilterSegmentsByAlignmentConfiden
                     f_discarded.write(f"{full_rec_name} {avg_alignment_score}\n")
 
         return filtered_segments
+
+    def run(self):
+        # Alignments that haven't reached a final state can bias the mean computation, so they're removed.
+        recording_dict = self._parse_alignment_logs(self.alignment_logs, remove_dnf_alignments=True)
+        avg_score_threshold = self._get_avg_score_threshold(recording_dict)
+        filtered_segments = self._filter_segments(recording_dict, avg_score_threshold)
+        self._write_output_segment_files(filtered_segments)
+        self._plot(recording_dict)
 
 
 class FilterCorpusBySegmentsJob(Job):
