@@ -272,10 +272,9 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
 
     def _plot(self, recording_dict: Dict[str, List[Tuple[str, float]]]):
         """
-        Plots an alignment score.
+        Plots the individual segment alignment scores.
 
-        Note: the plot only takes into account strictly positive values.
-        For more customizable plotting, it's suggested to use :class:`i6_core.mm.alignment.PlotAlignmentJob` instead.
+        :param recording_dict: Dictionary of recording full names to list of (segment full name, alignment score).
         """
         import matplotlib
         import matplotlib.pyplot as plt
