@@ -285,8 +285,7 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
         score_np = self._get_alignment_scores_array(recording_dict)
 
         # Before filtering.
-        np.clip(score_np, 0, 200, out=score_np)
-        plt.hist(score_np, bins=100, range=(0, 200))
+        plt.hist(score_np, bins=100)
         plt.xlabel("Average Maximum-Likelihood Score")
         plt.ylabel("Number of Segments")
         plt.title("Histogram of Alignment Scores")
