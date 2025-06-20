@@ -99,6 +99,9 @@ class PtCheckpoint:
     def __repr__(self):
         return "'%s'" % self.path
 
+    def __fspath__(self):
+        return self.path.get()
+
     def exists(self):
         return os.path.exists(self.path.get_path())
 
