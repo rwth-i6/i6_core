@@ -386,6 +386,26 @@ class FilterRecordingsByAlignmentConfidenceJob(FilterSegmentsByAlignmentConfiden
 
         return filtered_segments
 
+    def _plot(self, recording_dict: Dict[str, List[Tuple[str, float]]]):
+        """
+        Plots the average recording alignment scores.
+
+        :param recording_dict: Dictionary of recording full names to list of (segment full name, alignment score).
+        """
+        import matplotlib
+        import matplotlib.pyplot as plt
+
+        matplotlib.use("Agg")
+
+        score_np = self._get_alignment_scores_array(recording_dict)
+
+        # Before filtering.
+        plt.hist(score_np, bins=100)
+        plt.xlabel("Average Maximum-Likelihood Score")
+        plt.ylabel("Number of Recordings")
+        plt.title("Histogram of Alignment Scores")
+        plt.savefig(fname=self.out_plot_avg.get_path())
+
     def run(self):
         # Alignments that haven't reached a final state can bias the mean computation, so they're removed.
         recording_dict = self._parse_alignment_logs(self.alignment_logs, remove_dnf_alignments=True)
