@@ -66,9 +66,9 @@ class FilterSegmentsByListJob(Job):
 
     def run(self):
         if isinstance(self.filter_list, tk.Path):
-            filter_list = [line.rstrip() for line in open(self.filter_list.get_path(), "r")]
+            filter_list = {line.rstrip() for line in open(self.filter_list.get_path(), "r")}
         elif isinstance(self.filter_list, list):
-            filter_list = self.filter_list
+            filter_list = set(self.filter_list)
         else:
             assert False
 
