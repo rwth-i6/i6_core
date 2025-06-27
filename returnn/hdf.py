@@ -583,6 +583,7 @@ class BlissToAudioHDFJob(Job):
 
         def _process_segment(segment: Tuple[str, float, float]):
             segment_name, start, end = segment
+            start_timestamp = start
             if self.rounding == BlissToPcmHDFJob.RoundingScheme.start_and_duration:
                 start = int(start * self.target_sampling_rate / self.round_factor) * self.round_factor
                 duration = int((end - start) * self.target_sampling_rate / self.round_factor) * self.round_factor
@@ -591,7 +592,10 @@ class BlissToAudioHDFJob(Job):
                 duration = math.floor(end * self.target_sampling_rate / self.round_factor) * self.round_factor - start
             else:
                 raise NotImplementedError(f"RoundingScheme {self.rounding} not implemented.")
-            assert start + duration <= len(audio_data)
+            assert start + duration <= len(audio_data), (
+                f"Segment {segment_name} ({start_timestamp:.2f}s-{end:.2f}s) exceeds audio length: "
+                f"want from {start} to {start + duration} but have only {len(audio_data)} frames."
+            )
             data = audio_data[start : start + duration]
 
             if self.ffmpeg_output_args is not None:
