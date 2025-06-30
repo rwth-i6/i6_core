@@ -206,8 +206,8 @@ class UpdateRasrCachesJob(Job):
         --mode combine        \
         --allow-overwrite yes \
         final.cache           \
-        original.cache        \
-        updated.cache
+        updated.cache         \
+        original.cache
     ```
     This is specified very similarly in the RASR wiki as an example from the archiver binary
     which combines two caches into one.
