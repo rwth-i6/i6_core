@@ -275,9 +275,9 @@ class UpdateRasrCachesJob(Job):
         self.rqmt = {"cpu": 1, "mem": 1.0, "time": 1.0}
 
     def tasks(self):
-        yield Task("run", resume="run", rqmt=self.rqmt, args=range(1, len(self.original_caches) + 1))
+        yield Task("run", resume="run", rqmt=self.rqmt, args=list(self.original_caches.keys()))
         if self.original_logs is not None and self.updated_logs is not None:
-            yield Task("update_logs", resume="update_logs", rqmt=self.rqmt, args=range(1, len(self.original_logs) + 1))
+            yield Task("update_logs", resume="update_logs", rqmt=self.rqmt, args=list(self.original_logs.keys()))
 
     def run(self, task_id: int):
         sp.check_call(
