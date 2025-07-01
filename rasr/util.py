@@ -3,7 +3,8 @@ __all__ = [
     "RemapSegmentsWithBundlesJob",
     "ClusterMapToSegmentListJob",
     "RemapSegmentsJob",
-    "UpdateRasrCachesJob",
+    "CombineRasrCachesJob",
+    "CombineRasrLogsJob",
 ]
 
 import collections
@@ -190,7 +191,7 @@ class RemapSegmentsJob(Job):
                     f.write("%s\n" % tk.uncached_path(self.cache_paths[b]))
 
 
-class UpdateRasrCachesJob(Job):
+class CombineRasrCachesJob(Job):
     """
     Combines the information from a given set of "original" RASR caches
     with the information on another set of "updated" RASR caches.
@@ -237,12 +238,7 @@ class UpdateRasrCachesJob(Job):
     """
 
     def __init__(
-        self,
-        original_caches: Dict[int, tk.Path],
-        updated_caches: Dict[int, tk.Path],
-        rasr_archiver_exe: tk.Path,
-        original_logs: Optional[Dict[int, tk.Path]] = None,
-        updated_logs: Optional[Dict[int, tk.Path]] = None,
+        self, original_caches: Dict[int, tk.Path], updated_caches: Dict[int, tk.Path], rasr_archiver_exe: tk.Path
     ):
         """
         :param original_caches: Caches that must be overwritten.
@@ -253,14 +249,6 @@ class UpdateRasrCachesJob(Job):
 
             The dictionary keys provided here must have a 1-to-1 correspondence with those of :param:`original_caches`.
         :param rasr_archiver_exe: Executable for the compiled RASR archiver.
-        :param original_logs: Logs whose corresponding caches that must be overwritten.
-
-            If provided along with :param:`updated_logs`, a new set of logs will be created,
-            in which the segment reports from the original logs are updated with the content from the updated logs.
-        :param updated_logs: Logs whose caches will overwrite the original caches.
-
-            If provided along with :param:`original_logs`, a new set of logs will be created,
-            in which the segment reports from the original logs are updated with the content from the updated logs.
         """
 
         set_original_caches_keys = set(original_caches.keys())
@@ -272,29 +260,16 @@ class UpdateRasrCachesJob(Job):
         )
         self.original_caches = original_caches
         self.updated_caches = updated_caches
-        self.original_logs = original_logs
-        self.updated_logs = updated_logs
         self.rasr_archiver_exe = rasr_archiver_exe
 
         self.out_final_single_caches = {
             i: self.output_path(f"cache.{i}", cached=True) for i in range(1, len(original_caches) + 1)
         }
-        if self.original_logs is not None and self.updated_logs is not None:
-            set_original_logs_keys = set(original_logs.keys())
-            set_updated_logs_keys = set(updated_logs.keys())
-            assert set_original_logs_keys == set_updated_logs_keys, (
-                "Original and updated dictionaries don't have a 1-to-1 correspondence:\n"
-                f"Original - updated: {set_original_logs_keys.difference(set_updated_logs_keys)}\n"
-                f"Updated - original: {set_updated_logs_keys.difference(set_original_logs_keys)}"
-            )
-            self.out_final_logs = {i: self.output_path(f"log.{i}.gz") for i in range(1, len(self.original_logs) + 1)}
 
         self.rqmt = {"cpu": 1, "mem": 1.0, "time": 1.0}
 
     def tasks(self):
         yield Task("run", resume="run", rqmt=self.rqmt, args=list(self.original_caches.keys()))
-        if self.original_logs is not None and self.updated_logs is not None:
-            yield Task("update_logs", resume="update_logs", rqmt=self.rqmt, args=list(self.original_logs.keys()))
 
     def run(self, task_id: int):
         sp.check_call(
@@ -308,7 +283,49 @@ class UpdateRasrCachesJob(Job):
             ]
         )
 
-    def update_logs(self, task_id: int):
+
+class CombineRasrLogsJob(Job):
+    """
+    Outputs the information from `<segment>` tags in the updated logs if available.
+    If not, outputs the same information from the original logs.
+
+    The code treats the log contents as a key-value mapping, in which the key is the segment's full name
+    and the value is the information stored in the log for such a segment.
+    Following the example from this dict-based structure,
+    triggering this job would achieve the same result as `original_log.update(updated_log)`,
+    or the following explicit pseudocode:
+    ```
+    final_log[segment_full_name] = (
+        updated_log[segment_full_name]
+        if segment_full_name in updated_log
+        else original_log[segment_full_name]
+    )
+    ```
+    """
+
+    def __init__(self, original_logs: Dict[int, tk.Path], updated_logs: Dict[int, tk.Path]):
+        """
+        :param original_logs: Logs whose corresponding information must be overwritten.
+        :param updated_logs: Logs whose information will overwrite the original caches.
+        """
+        self.original_logs = original_logs
+        self.updated_logs = updated_logs
+        set_original_logs_keys = set(original_logs.keys())
+        set_updated_logs_keys = set(updated_logs.keys())
+        assert set_original_logs_keys == set_updated_logs_keys, (
+            "Original and updated dictionaries don't have a 1-to-1 correspondence:\n"
+            f"Original - updated: {set_original_logs_keys.difference(set_updated_logs_keys)}\n"
+            f"Updated - original: {set_updated_logs_keys.difference(set_original_logs_keys)}"
+        )
+
+        self.out_final_logs = {i: self.output_path(f"log.{i}.gz") for i in range(1, len(self.original_logs) + 1)}
+
+        self.rqmt = {"cpu": 1, "mem": 1.0, "time": 1.0}
+
+    def tasks(self):
+        yield Task("run", resume="run", rqmt=self.rqmt, args=list(self.original_logs.keys()))
+
+    def run(self, task_id: int):
         seg_name_to_xml_content = {}
         # Read the updated logs and store the information listed there.
         with uopen(self.updated_logs[task_id], "rt") as f:
@@ -323,7 +340,7 @@ class UpdateRasrCachesJob(Job):
             _rec_list = document.findall(".//recording")
             for rec in _rec_list:
                 for i, child in enumerate(rec):
-                    if child.attrib.get("full-name") in seg_name_to_xml_content:
+                    if child.tag == "segment" and child.attrib.get("full-name") in seg_name_to_xml_content:
                         rec[i] = seg_name_to_xml_content[child.attrib["full-name"]]
 
         # Dump the final logs.
