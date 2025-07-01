@@ -192,15 +192,38 @@ class RemapSegmentsJob(Job):
 
 class UpdateRasrCachesJob(Job):
     """
-    Updates the information from a given set of alignment caches ("original")
-    with the information on another set of alignment caches ("updated").
+    Combines the information from a given set of "original" RASR caches
+    with the information on another set of "updated" RASR caches.
 
-    For that, the RASR archiver binary is used in `combine` mode, such that:
-    1. The original cache information is read on a segment-wise basis.
-    2. The updated cache information is also read, and overwrites the former original cache information.
-    3. The result is dumped into the final cache.
+    The term "RASR cache" refers to a flow node with the `generic-cache` filter. For more information, please refer to
+    https://github.com/rwth-i6/rasr/blob/master/src/Flow/Cache.hh,
+    https://github.com/rwth-i6/rasr/blob/master/src/Flow/Cache.cc,
+    and https://github.com/rwth-i6/i6_core/blob/main/lib/rasr_cache.py (python interface).
 
-    The call in `run` is equivalent to:
+    The information that can be found in the caches is generic,
+    but it usually follows a map structure composed of key-value pairs.
+    Usually the key is the segment's full name, and the value is any data about the segment (features, alignments...).
+    
+    This job is meant to **work with RASR caches with key-value pairs**.
+    **Any other usage is not intended and the result is unknown**.
+
+    If the original and the updated caches were to be interpreted as python dictionaries,
+    triggering this job would achieve the same result as `original_caches.update(updated_caches)`,
+    or the following explicit pseudocode:
+    ```
+    final_cache[segment_full_name] = (
+        updated_cache[segment_full_name]
+        if segment_full_name in updated_cache
+        else original_cache[segment_full_name]
+    )
+    ```
+
+    To achieve this purpose, the RASR archiver binary is used in `combine` mode, such that:
+    1. The original cache information reads segments along with their corresponding data.
+    2. The updated cache information is also read, and overwrites the information from the original cache.
+    3. The result of the update is dumped into the final cache.
+
+    The call in the :func:`run` function is equivalent to:
     ```
     archiver           \
         --mode combine \
@@ -211,11 +234,6 @@ class UpdateRasrCachesJob(Job):
     This is specified very similarly in the RASR wiki as an example from the archiver binary
     which combines two caches into one.
     For more information, please see https://www-i6.informatik.rwth-aachen.de/rwth-asr/manual/index.php/Archiver.
-
-    The job also accepts two additional parameters, `original_logs` and `updated_logs`.
-    If both are specified, the job will output additional log files.
-    In these output logs, the information from `<segment>` tags from the original logs
-    will be overwritten with the same segment content from the updated logs (identified by full segment name).
     """
 
     def __init__(
