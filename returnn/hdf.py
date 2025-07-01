@@ -570,6 +570,7 @@ class BlissToAudioHDFJob(Job):
             assert audio.getsampwidth() == 2
             assert audio.getframerate() == self.target_sampling_rate
 
+            n_audio_frames = audio.getnframes()
             audio_data: bytes = audio.readframes(audio.getnframes())
 
         audio_data_int16 = array.array("h")
@@ -592,9 +593,9 @@ class BlissToAudioHDFJob(Job):
                 duration = math.floor(end * self.target_sampling_rate / self.round_factor) * self.round_factor - start
             else:
                 raise NotImplementedError(f"RoundingScheme {self.rounding} not implemented.")
-            assert start + duration <= len(audio_data), (
+            assert start + duration <= n_audio_frames, (
                 f"Segment {segment_name} ({start_timestamp:.2f}s-{end:.2f}s) exceeds audio length: "
-                f"want from {start} to {start + duration} but have only {len(audio_data)} frames."
+                f"want from {start} to {start + duration} but have only {n_audio_frames} frames."
             )
             data = audio_data[start : start + duration]
 
