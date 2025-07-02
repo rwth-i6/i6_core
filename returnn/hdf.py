@@ -405,7 +405,7 @@ class BlissToAudioHDFJob(Job):
         round_factor: int = 1,
         target_sampling_rate: int = 16000,
         concurrent: int = 1,
-        num_workers: int = 21,
+        num_workers: int = 9,
     ):
         """
         :param bliss_corpus: Bliss corpus to read segments and audio files from
@@ -441,8 +441,8 @@ class BlissToAudioHDFJob(Job):
             Note that within-job concurrency is more I/O efficient than between-job concurrency,
             so prefer increasing `num_workers` over increasing `concurrent`, when possible.
         :param num_workers: Num subprocs (multiprocessing.Pool size) used for parallel recording processing.
-            It can be increased to e.g. match the number of CPU cores on a big cluster machine,
-            and the job will stay I/O efficient.
+            It is recommended to use about three workers per assigned CPU core and about 24 workers per 1000h of audio.
+            The number can be increased further and the job will stay I/O efficient.
         """
         self.bliss_corpus = bliss_corpus
         self.splits = splits
