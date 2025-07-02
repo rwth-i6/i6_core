@@ -366,7 +366,7 @@ class BlissToPcmHDFJob(Job):
 
 class BlissToAudioHDFJob(Job):
     """
-    Gets audio files from a Bliss corpus and stores them as HDF file compatible with
+    Gets audio files from a Bliss corpus and stores them as HDF files compatible with
     the RETURNN HDFDataset.
 
     More robust and faster version of `BlissToPcmHDFJob`, suitable for processing
