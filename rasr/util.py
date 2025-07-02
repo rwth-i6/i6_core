@@ -193,48 +193,50 @@ class RemapSegmentsJob(Job):
 
 class CombineRasrCachesJob(Job):
     """
-    Combines the information from a given set of "original" RASR caches
-    with the information on another set of "updated" RASR caches.
+    Uses the RASR archiver binary in `combine` mode in order to combine the information
+    from `original_caches[task_id]` and `updated_caches[task_id]`
+    (giving priority to `updated_caches[task_id]`), and dumps the result into `final_caches[task_id]`.
 
-    The term "RASR cache" refers to a flow node with the `generic-cache` filter. For more information, please refer to
-    https://github.com/rwth-i6/rasr/blob/master/src/Flow/Cache.hh,
-    https://github.com/rwth-i6/rasr/blob/master/src/Flow/Cache.cc,
-    and https://github.com/rwth-i6/i6_core/blob/main/lib/rasr_cache.py (python interface).
+    This job is meant to **work with RASR caches whose information inside is composed of key-value pairs**
+    (key: segment full name, value: information about the segment such as features, alignments...),
+    and requires that `original_caches.keys() == updated_caches.keys()`.
 
-    The information that can be found in the caches is generic,
-    but it usually follows a map structure composed of key-value pairs.
-    Usually the key is the segment's full name, and the value is any data about the segment (features, alignments...).
-    
-    This job is meant to **work with RASR caches with key-value pairs**.
-    **Any other usage is not intended and the result is unknown**.
-
-    If the original and the updated caches were to be interpreted as python dictionaries,
-    triggering this job would achieve the same result as `original_caches.update(updated_caches)`,
-    or the following explicit pseudocode:
+    The job's output is similar to the following python pseudocode:
     ```
-    final_cache[segment_full_name] = (
-        updated_cache[segment_full_name]
+    final_cache_contents[segment_full_name] = (
+        updated_cache_contents[segment_full_name]
         if segment_full_name in updated_cache
-        else original_cache[segment_full_name]
+        else original_cache_contents[segment_full_name]
     )
     ```
 
-    To achieve this purpose, the RASR archiver binary is used in `combine` mode, such that:
-    1. The original cache information reads segments along with their corresponding data.
-    2. The updated cache information is also read, and overwrites the information from the original cache.
-    3. The result of the update is dumped into the final cache.
+    **The user is responsible of the content of the original and the updated cache**.
+    For assistance, if using multiple split files, one can use the :class:`i6_core.corpus.segments.SegmentCorpusJob`
+    along with the :class:`i6_core.corpus.filter.FilterSegmentsByListJob`
+    (which ensures a correspondence between original and updated segment splits)
+    in order to obtain an exact subset of each original split files as follows:
+    ```
+    # Obtain all segments from the updated corpus.
+    updated_corpus_segments_job = i6_core.corpus.segments.SegmentCorpusJob(
+        updated_corpus, num_segments=num_original_corpus_splits
+    )
+    all_updated_corpus_segments = i6_core.text.processing.ConcatenateJob(
+        list(updated_corpus_segments_job.out_single_segment_files.values()), zip_out=False
+    ).out
+    # Filter the segments from the original corpus and keep the same split structure.
+    updated_corpus_filtered_segments_job = i6_core.corpus.filter.FilterSegmentsByListJob(
+        segment_files=individual_segment_files_dict, filter_list=all_updated_corpus_segments, invert_match=True
+    )
+    ```
 
-    The call in the :func:`run` function is equivalent to:
-    ```
-    archiver           \
-        --mode combine \
-        final.cache    \
-        updated.cache  \
-        original.cache
-    ```
-    This is specified very similarly in the RASR wiki as an example from the archiver binary
-    which combines two caches into one.
-    For more information, please see https://www-i6.informatik.rwth-aachen.de/rwth-asr/manual/index.php/Archiver.
+    More information about the archiver is available here:
+    https://www-i6.informatik.rwth-aachen.de/rwth-asr/manual/index.php/Archiver.
+
+    Note: the term "RASR cache" refers to a file in binary format that supports compression,
+    or equivalently, a flow node with the `generic-cache` filter. More information available here:
+    - https://github.com/rwth-i6/rasr/blob/master/src/Flow/Cache.hh
+    - https://github.com/rwth-i6/rasr/blob/master/src/Flow/Cache.cc
+    - https://github.com/rwth-i6/i6_core/blob/main/lib/rasr_cache.py (python interface).
     """
 
     def __init__(
@@ -242,12 +244,12 @@ class CombineRasrCachesJob(Job):
     ):
         """
         :param original_caches: Caches that must be overwritten.
-            The items that are not available in :param:`updated_caches` will remain as found in these caches.
-
-            The dictionary keys provided here must have a 1-to-1 correspondence with those of :param:`updated_caches`.
+            The internal key-value pairs inside the `i`-th final cache
+            will have the value provided in the `i`-th original cache
+            only if the key is not found in the corresponding `i`-th updated cache.
         :param updated_caches: Caches with which the contents inside the respective original caches should be updated.
-
-            The dictionary keys provided here must have a 1-to-1 correspondence with those of :param:`original_caches`.
+            The internal key-value pairs inside the `i`-th final cache
+            will always prioritize the corresponding key-value pairs inside the `i`-th updated cache.
         :param rasr_archiver_exe: Executable for the compiled RASR archiver.
         """
 
