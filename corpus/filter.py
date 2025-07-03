@@ -2,17 +2,19 @@ __all__ = [
     "FilterSegmentsByListJob",
     "FilterSegmentsByRegexJob",
     "FilterSegmentsByAlignmentConfidenceJob",
+    "FilterRecordingsByAlignmentConfidenceJob",
     "FilterCorpusBySegmentsJob",
     "FilterCorpusRemoveUnknownWordSegmentsJob",
     "FilterCorpusBySegmentDurationJob",
 ]
 
+from collections import defaultdict
 import gzip
 import logging
 import numpy as np
 import re
 import xml.etree.cElementTree as ET
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Tuple, Union
 
 from i6_core import rasr
 from i6_core.lib import corpus
@@ -64,9 +66,9 @@ class FilterSegmentsByListJob(Job):
 
     def run(self):
         if isinstance(self.filter_list, tk.Path):
-            filter_list = [line.rstrip() for line in open(self.filter_list.get_path(), "r")]
+            filter_list = {line.rstrip() for line in open(self.filter_list.get_path(), "r")}
         elif isinstance(self.filter_list, list):
-            filter_list = self.filter_list
+            filter_list = set(self.filter_list)
         else:
             assert False
 
@@ -126,6 +128,8 @@ class FilterSegmentsByRegexJob(Job):
 
 
 class FilterSegmentsByAlignmentConfidenceJob(Job):
+    __sis_hash_exclude__ = {"remove_dnf_alignments": False}
+
     def __init__(
         self,
         alignment_logs: Dict[int, Path],
@@ -133,6 +137,7 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
         crp: Optional[rasr.CommonRasrParameters] = None,
         plot: bool = True,
         absolute_threshold: Optional[float] = None,
+        remove_dnf_alignments: bool = False,
     ):
         """
         :param alignment_logs: alignment_job.out_log_file; task_id -> log_file
@@ -140,12 +145,20 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
         :param crp: used to set the number of output segments. if none, number of alignment log files is used instead.
         :param plot: plot the distribution of alignment scores
         :param absolute_threshold: alignments with score above this number are discarded
+        :param remove_dnf_alignments: Whether alignments that haven't reached a final state
+            should be considered in the final statistics dictionary.
+
+            Note that these alignments haven't made it to the final alignment caches,
+            so parsing them is inconsistent with respect to the final caches
+            and pollutes any statistics retrieved from the data.
+            The default value is `False` only for retrocompatibility purposes, and `True` is recommended instead.
         """
         self.alignment_logs = alignment_logs  # alignment_job.log_file
         self.percentile = percentile
         self.absolute_threshold = absolute_threshold
         self.num_segments = len(alignment_logs) if crp is None else crp.concurrent
         self.plot = plot
+        self.remove_dnf_alignments = remove_dnf_alignments
 
         self.out_single_segment_files = dict(
             (i, self.output_path("segments.%d" % i)) for i in range(1, self.num_segments + 1)
@@ -155,24 +168,68 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
         if plot:
             self.out_plot_avg = self.output_path("score.png")
 
-    def tasks(self):
-        yield Task("run", resume="run", mini_task=True)
+    def _parse_alignment_logs(
+        self, alignment_logs: Dict[int, Path], remove_dnf_alignments: bool = False
+    ) -> Dict[str, List[Tuple[str, float]]]:
+        """
+        :param alignment_logs: Alignment logs to analyze.
+        :param remove_dnf_alignments: Whether alignments that haven't reached a final state
+            should be considered in the final statistics dictionary.
 
-    def run(self):
-        segment_dict = {}
-        for task_id, log_file in self.alignment_logs.items():
+            Note that these alignments haven't made it to the final alignment caches,
+            so parsing them is inconsistent with respect to the final caches
+            and pollutes any statistics retrieved from the data.
+            The default value is `False` only for retrocompatibility purposes, and `True` is recommended instead.
+        :return: Dictionary of recording full names to list of (segment full name, alignment score).
+
+            Note: the names adhere to the standards of the :class:`i6_core.lib.corpus.Recording`
+            and :class:`i6_core.lib.corpus.Segment` classes,
+            in which the segment name is appended to the full recording name (joined by a slash)
+            to make the full segment name.
+        """
+        recording_dict: Dict[str, List[Tuple[str, float]]] = defaultdict(list)
+        for _, log_file in alignment_logs.items():
             logging.info("Reading: {}".format(log_file))
             file_path = tk.uncached_path(log_file)
             document = ET.parse(uopen(file_path))
             _seg_list = document.findall(".//segment")
             for seg in _seg_list:
+                if remove_dnf_alignments and any(
+                    "Alignment did not reach any final state." in warning.text for warning in seg.findall(".//warning")
+                ):
+                    continue
                 avg = seg.find(".//score/avg")
-                segment_dict[seg.attrib["full-name"]] = float(avg.text)
+                full_seg_name = seg.attrib["full-name"]
+                full_rec_name = "/".join(full_seg_name.split("/")[:-1])
+                recording_dict[full_rec_name].append((full_seg_name, float(avg.text)))
             del document
+        logging.info("Scores has {} entries.".format(len(recording_dict)))
 
-        logging.info("Scores has {} entries.".format(len(segment_dict)))
-        score_np = np.asarray(list(segment_dict.values()))
+        return recording_dict
+
+    def _get_alignment_scores_array(self, recording_dict: Dict[str, List[Tuple[str, float]]]) -> np.array:
+        """
+        :param recording_dict: Dictionary of recording full names to list of (segment full name, alignment score).
+        :return: Array with the alignment confidence scores **per segment**.
+        """
+        return np.asarray(
+            [
+                alignment_score
+                for seg_name_and_score in recording_dict.values()
+                for (_, alignment_score) in seg_name_and_score
+            ]
+        )
+
+    def _get_avg_score_threshold(self, recording_dict: Dict[str, List[Tuple[str, float]]]) -> float:
+        """
+        :param recording_dict: Dictionary of recording full names to list of (segment full name, alignment score).
+        :return: Alignment score threshold below which samples should be kept,
+            and above which samples should be discarded.
+            It's calculated according to the `percentile` and `absolute_threshold` values provided by the user.
+        """
+        score_np = self._get_alignment_scores_array(recording_dict)
         logging.info("Max {}; Min {}; Median {}".format(score_np.max(), score_np.min(), np.median(score_np)))
+
         avg_score_threshold = np.percentile(score_np, self.percentile)
         if np.isnan(avg_score_threshold):
             avg_score_threshold = np.inf
@@ -181,24 +238,29 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
             avg_score_threshold = min(avg_score_threshold, self.absolute_threshold)
         logging.info("Threshold is {}".format(avg_score_threshold))
 
-        if self.plot:
-            import matplotlib
+        return avg_score_threshold
 
-            matplotlib.use("Agg")
-            import matplotlib.pyplot as plt
-
-            plot_percentile = np.percentile(score_np, 90)  # there can be huge outliers
-            np.clip(score_np, 0, 200, out=score_np)
-            plt.hist(score_np, bins=100, range=(0, 200))
-            plt.xlabel("Average Maximum-Likelihood Score")
-            plt.ylabel("Number of Segments")
-            plt.title("Histogram of Alignment Scores")
-            plt.savefig(fname=self.out_plot_avg.get_path())
-
-        # Only keep segments that are below the threshold
-        filtered_segments = [seg for seg, avg in segment_dict.items() if avg <= avg_score_threshold]
+    def _filter_segments(
+        self, recording_dict: Dict[str, List[Tuple[str, float]]], avg_score_threshold: float
+    ) -> List[str]:
+        """
+        :param recording_dict: Dictionary of recording full names to list of (segment full name, alignment score).
+        :param avg_score_threshold: Alignment score threshold below which samples should be kept,
+            and above which samples should be discarded.
+        :return: List of segments (represented by their full name) that should be kept.
+        """
+        # Only keep segments that are below the threshold.
+        filtered_segments = [
+            seg for seg_avg in recording_dict.values() for (seg, avg) in seg_avg if avg <= avg_score_threshold
+        ]
         logging.info("Have {} entries after filtering.".format(len(filtered_segments)))
 
+        return filtered_segments
+
+    def _write_output_segment_files(self, filtered_segments: List[str]):
+        """
+        :param filtered_segments: List of segments (represented by their full name) that should be kept.
+        """
         for idx, segments in enumerate(chunks(filtered_segments, self.num_segments)):
             with open(self.out_single_segment_files[idx + 1].get_path(), "wt") as segment_file:
                 for segment in segments:
@@ -207,6 +269,132 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
         with open(self.out_single_file.get_path(), "wt") as segment_file:
             for segment in filtered_segments:
                 segment_file.write(segment + "\n")
+
+    def _plot(self, recording_dict: Dict[str, List[Tuple[str, float]]]):
+        """
+        Plots an alignment score.
+
+        Note: the plot only takes into account strictly positive values.
+        For more customizable plotting, it's suggested to use :class:`i6_core.mm.alignment.PlotAlignmentJob` instead.
+        """
+        import matplotlib
+        import matplotlib.pyplot as plt
+
+        matplotlib.use("Agg")
+
+        score_np = self._get_alignment_scores_array(recording_dict)
+
+        # Before filtering.
+        np.clip(score_np, 0, 200, out=score_np)
+        plt.hist(score_np, bins=100, range=(0, 200))
+        plt.xlabel("Average Maximum-Likelihood Score")
+        plt.ylabel("Number of Segments")
+        plt.title("Histogram of Alignment Scores")
+        plt.savefig(fname=self.out_plot_avg.get_path())
+
+    def tasks(self):
+        yield Task("run", resume="run", mini_task=True)
+
+    def run(self):
+        recording_dict = self._parse_alignment_logs(
+            self.alignment_logs, remove_dnf_alignments=self.remove_dnf_alignments
+        )
+        avg_score_threshold = self._get_avg_score_threshold(recording_dict)
+        filtered_segments = self._filter_segments(recording_dict, avg_score_threshold)
+        self._write_output_segment_files(filtered_segments)
+        self._plot(recording_dict)
+
+
+class FilterRecordingsByAlignmentConfidenceJob(FilterSegmentsByAlignmentConfidenceJob):
+    """
+    Filter segments like :class:`FilterSegmentsByAlignmentConfidenceJob` does.
+    However, instead of taking into account the alignment confidence of a single segment,
+    take into account the average alignment confidence of the whole recording.
+    """
+
+    def __init__(
+        self,
+        alignment_logs: Dict[int, Path],
+        percentile: float,
+        crp: Optional[rasr.CommonRasrParameters] = None,
+        plot: bool = True,
+        absolute_threshold: Optional[float] = None,
+    ):
+        """
+        :param alignment_logs: Mapping of `task_id` into log file.
+            Can be directly used as the output `out_log_file` of the job :class:`i6_core.mm.AlignmentJob`.
+        :param percentile: Percent of recordings whose segments should be keep, in the range `(0,100]`.
+            Used directly in :func:`np.percentile`.
+        :param crp: Used to set the number of output segments.
+            If `None` (default value), all segments in all alignment log files are considered.
+        :param plot: Whether to plot the distribution of alignment scores.
+        :param absolute_threshold: All segments from a recording are discarded
+            if the recording's average alignment score is above this number.
+        """
+        super().__init__(
+            alignment_logs=alignment_logs,
+            percentile=percentile,
+            crp=crp,
+            plot=plot,
+            absolute_threshold=absolute_threshold,
+        )
+
+        self.out_kept_recordings = self.output_path("kept_recordings.txt")
+        self.out_discarded_recordings = self.output_path("discarded_recordings.txt")
+
+    def _get_avg_confidence_per_recording(self, recording_dict: Dict[str, List[Tuple[str, float]]]) -> Dict[str, float]:
+        """
+        :param recording_dict: Dictionary of recording full names to list of (segment full name, alignment score).
+        :return: Dictionary of recording full names to average recording alignment score
+            (calculated as the average of all alignment scores of the segments that compose the recording).
+        """
+        return {
+            full_rec_name: np.average([conf for (_, conf) in seg_and_confs])
+            for full_rec_name, seg_and_confs in recording_dict.items()
+        }
+
+    def _get_alignment_scores_array(self, recording_dict: Dict[str, List[Tuple[str, float]]]) -> np.array:
+        """
+        :param recording_dict: Dictionary of recording full names to list of (segment full name, alignment score).
+        :return: Array with the alignment confidence scores **per recording**.
+        """
+        return np.asarray(list(self._get_avg_confidence_per_recording(recording_dict).values()))
+
+    def _filter_segments(
+        self, recording_dict: Dict[str, List[Tuple[str, float]]], avg_score_threshold: float
+    ) -> List[str]:
+        """
+        :param recording_dict: Dictionary of recording full names to list of (segment full name, alignment score).
+        :param avg_score_threshold: Alignment score threshold below which samples should be kept,
+            and above which samples should be discarded.
+        :return: List of segments (represented by their full name) that should be kept.
+        """
+        recording_to_average_conf = self._get_avg_confidence_per_recording(recording_dict)
+
+        filtered_segments = []
+        # Write outputs that are local to this job here to avoid passing more variables around.
+        with uopen(self.out_kept_recordings.get_path(), "wt") as f_kept, uopen(
+            self.out_discarded_recordings.get_path(), "wt"
+        ) as f_discarded:
+            for full_rec_name, avg_alignment_score in recording_to_average_conf.items():
+                if avg_alignment_score <= avg_score_threshold:
+                    # Keep the whole recording.
+                    f_kept.write(f"{full_rec_name} {avg_alignment_score}\n")
+                    for segment_name, _ in recording_dict[full_rec_name]:
+                        filtered_segments.append(segment_name)
+                else:
+                    # Discard the whole recording.
+                    f_discarded.write(f"{full_rec_name} {avg_alignment_score}\n")
+
+        return filtered_segments
+
+    def run(self):
+        # Alignments that haven't reached a final state can bias the mean computation, so they're removed.
+        recording_dict = self._parse_alignment_logs(self.alignment_logs, remove_dnf_alignments=True)
+        avg_score_threshold = self._get_avg_score_threshold(recording_dict)
+        filtered_segments = self._filter_segments(recording_dict, avg_score_threshold)
+        self._write_output_segment_files(filtered_segments)
+        self._plot(recording_dict)
 
 
 class FilterCorpusBySegmentsJob(Job):

@@ -1,10 +1,12 @@
 __all__ = [
+    "get_segment_name_to_alignment_mapping",
     "AlignmentJob",
     "DumpAlignmentJob",
     "PlotAlignmentJob",
     "AMScoresFromAlignmentLogJob",
     "ComputeTimeStampErrorJob",
     "GetLongestAllophoneFileJob",
+    "PlotViterbiAlignmentJob",
 ]
 
 import itertools
@@ -13,18 +15,38 @@ import math
 import os
 import shutil
 import statistics
+from typing import Callable, Counter, Dict, List, Optional, Tuple, Union
 import xml.etree.ElementTree as ET
-from typing import Callable, Counter, List, Optional, Tuple, Union
 
+import numpy as np
 from sisyphus import *
 
-Path = setup_path(__package__)
-
+import i6_core.lib.corpus as corpus
 import i6_core.lib.rasr_cache as rasr_cache
 import i6_core.rasr as rasr
 import i6_core.util as util
 
 from .flow import alignment_flow, dump_alignment_flow
+
+
+Path = setup_path(__package__)
+
+
+_SegmentNameToAlignmentType = Dict[str, List[Tuple[int, int, int, float]]]
+"""Mapping from segment names to `(timestamp, allophone_id, hmm_state, alignment_weight)`."""
+
+
+def get_segment_name_to_alignment_mapping(alignment_cache: rasr_cache.FileArchive) -> _SegmentNameToAlignmentType:
+    """
+    :param alignment_cache: Opened alignment cache from which to extract the alignments.
+    :return: Mapping from segment names to alignments (by frame).
+        The alignments are a list of tuples (timestamp, allophone_id, hmm_state, alignment_weight).
+    """
+    return {
+        segment_name: alignment_cache.read(segment_name, "align")
+        for segment_name in alignment_cache.ft.keys()
+        if not segment_name.endswith(".attribs")
+    }
 
 
 class AlignmentJob(rasr.RasrCommand, Job):
@@ -153,7 +175,6 @@ class AlignmentJob(rasr.RasrCommand, Job):
             )
 
     def plot(self):
-        import numpy as np
         import matplotlib
         import matplotlib.pyplot as plt
 
@@ -464,7 +485,6 @@ class PlotAlignmentJob(Job):
         yield Task("plot", resume="plot", rqmt=self.rqmt)
 
     def plot(self):
-        import numpy as np
         import matplotlib
         import matplotlib.pyplot as plt
 
@@ -542,8 +562,8 @@ class ComputeTimeStampErrorJob(Job):
 
     def __init__(
         self,
-        hyp_alignment_cache: tk.Path,
-        ref_alignment_cache: tk.Path,
+        hyp_alignment_cache: Union[tk.Path, List[tk.Path]],
+        ref_alignment_cache: Union[tk.Path, List[tk.Path]],
         hyp_allophone_file: tk.Path,
         ref_allophone_file: tk.Path,
         hyp_silence_phone: str = "[SILENCE]",
@@ -565,12 +585,16 @@ class ComputeTimeStampErrorJob(Job):
         :param hyp_seq_tag_transform: Function that transforms seq tag in alignment cache such that it matches the seq tags in the reference
         :param remove_outlier_limit: If set, boundary differences greater than this frame limit are discarded from computation
         """
-        self.hyp_alignment_cache = hyp_alignment_cache
+        self.hyp_alignment_caches = (
+            hyp_alignment_cache if isinstance(hyp_alignment_cache, List) else [hyp_alignment_cache]
+        )
         self.hyp_allophone_file = hyp_allophone_file
         self.hyp_silence_phone = hyp_silence_phone
         self.hyp_upsample_factor = hyp_upsample_factor
 
-        self.ref_alignment_cache = ref_alignment_cache
+        self.ref_alignment_caches = (
+            ref_alignment_cache if isinstance(ref_alignment_cache, List) else [ref_alignment_cache]
+        )
         self.ref_allophone_file = ref_allophone_file
         self.ref_silence_phone = ref_silence_phone
         self.ref_upsample_factor = ref_upsample_factor
@@ -585,6 +609,7 @@ class ComputeTimeStampErrorJob(Job):
         self.out_plot_word_end_frame_differences = self.output_path("end_frame_differences.png")
         self.out_boundary_frame_differences = self.output_var("boundary_frame_differences")
         self.out_plot_boundary_frame_differences = self.output_path("boundary_frame_differences.png")
+        self.out_tse_differences_file = self.output_path("tse_differences.txt")
 
         self.rqmt = None
 
@@ -640,102 +665,105 @@ class ComputeTimeStampErrorJob(Job):
         start_differences = Counter()
         end_differences = Counter()
         differences = Counter()
+        tse_dict: Dict[str, Tuple[str, float]] = {}  # ref_seg_name: (hyp_seg_name, avg_tse)
 
-        hyp_alignments = rasr_cache.open_file_archive(self.hyp_alignment_cache.get())
-        hyp_alignments.setAllophones(self.hyp_allophone_file.get())
-        if isinstance(hyp_alignments, rasr_cache.FileArchiveBundle):
-            hyp_allophone_map = next(iter(hyp_alignments.archives.values())).allophones
-        else:
-            hyp_allophone_map = hyp_alignments.allophones
-
-        ref_alignments = rasr_cache.open_file_archive(self.ref_alignment_cache.get())
-        ref_alignments.setAllophones(self.ref_allophone_file.get())
-        if isinstance(ref_alignments, rasr_cache.FileArchiveBundle):
-            ref_allophone_map = next(iter(ref_alignments.archives.values())).allophones
-        else:
-            ref_allophone_map = ref_alignments.allophones
-
-        file_list = [tag for tag in hyp_alignments.file_list() if not tag.endswith(".attribs")]
-
-        for idx, hyp_seq_tag in enumerate(file_list, start=1):
-            hyp_word_starts, hyp_word_ends, hyp_seq_length = self._compute_word_boundaries(
-                hyp_alignments,
-                hyp_allophone_map,
-                hyp_seq_tag,
-                self.hyp_silence_phone,
-                self.hyp_upsample_factor,
-            )
-            assert len(hyp_word_starts) == len(hyp_word_ends), (
-                f"Found different number of word starts ({len(hyp_word_starts)}) "
-                f"than word ends ({len(hyp_word_ends)}). Something seems to be broken."
-            )
-
-            if self.hyp_seq_tag_transform is not None:
-                ref_seq_tag = self.hyp_seq_tag_transform(hyp_seq_tag)
+        for hyp_alignment_cache, ref_alignment_cache in zip(self.hyp_alignment_caches, self.ref_alignment_caches):
+            hyp_alignments = rasr_cache.open_file_archive(hyp_alignment_cache.get())
+            hyp_alignments.setAllophones(self.hyp_allophone_file.get())
+            if isinstance(hyp_alignments, rasr_cache.FileArchiveBundle):
+                hyp_allophone_map = next(iter(hyp_alignments.archives.values())).allophones
             else:
-                ref_seq_tag = hyp_seq_tag
+                hyp_allophone_map = hyp_alignments.allophones
 
-            ref_word_starts, ref_word_ends, ref_seq_length = self._compute_word_boundaries(
-                ref_alignments,
-                ref_allophone_map,
-                ref_seq_tag,
-                self.ref_silence_phone,
-                self.ref_upsample_factor,
-            )
-            assert len(ref_word_starts) == len(ref_word_ends), (
-                f"Found different number of word starts ({len(hyp_word_starts)}) "
-                f"than word ends ({len(hyp_word_ends)}) in reference. Something seems to be broken."
-            )
-
-            if len(hyp_word_starts) != len(ref_word_starts):
-                logging.warning(
-                    f"Sequence {hyp_seq_tag} ({idx} / {len(file_list)}:\n    Discarded because the number of words in alignment ({len(hyp_word_starts)}) does not equal the number of words in reference ({len(ref_word_starts)})."
-                )
-                discarded_seqs += 1
-                continue
-
-            # Sometimes different feature extraction or subsampling may produce mismatched lengths that are different by a few frames, so cut off at the shorter length
-            shorter_seq_length = min(hyp_seq_length, ref_seq_length)
-
-            for i in range(len(hyp_word_ends) - 1, 0, -1):
-                if hyp_word_ends[i] > shorter_seq_length:
-                    hyp_word_ends[i] = shorter_seq_length
-                    hyp_word_starts[i] = min(hyp_word_starts[i], hyp_word_ends[i] - 1)
-                else:
-                    break
-            for i in range(len(ref_word_ends) - 1, 0, -1):
-                if ref_word_ends[i] > shorter_seq_length:
-                    ref_word_ends[i] = shorter_seq_length
-                    ref_word_starts[i] = min(ref_word_starts[i], ref_word_ends[i] - 1)
-                else:
-                    break
-
-            seq_word_start_diffs = [start - ref_start for start, ref_start in zip(hyp_word_starts, ref_word_starts)]
-            seq_word_end_diffs = [end - ref_end for end, ref_end in zip(hyp_word_ends, ref_word_ends)]
-
-            # Optionally remove outliers
-            seq_word_start_diffs = [diff for diff in seq_word_start_diffs if abs(diff) <= self.remove_outlier_limit]
-            seq_word_end_diffs = [diff for diff in seq_word_end_diffs if abs(diff) <= self.remove_outlier_limit]
-
-            seq_differences = seq_word_start_diffs + seq_word_end_diffs
-
-            start_differences.update(seq_word_start_diffs)
-            end_differences.update(seq_word_end_diffs)
-            differences.update(seq_differences)
-
-            if seq_differences:
-                seq_tse = statistics.mean(abs(diff) for diff in seq_differences)
-
-                logging.info(
-                    f"Sequence {hyp_seq_tag} ({idx} / {len(file_list)}):\n    Word start distances are {seq_word_start_diffs}\n    Word end distances are {seq_word_end_diffs}\n    Sequence TSE is {seq_tse} frames"
-                )
-                counted_seqs += 1
+            ref_alignments = rasr_cache.open_file_archive(ref_alignment_cache.get())
+            ref_alignments.setAllophones(self.ref_allophone_file.get())
+            if isinstance(ref_alignments, rasr_cache.FileArchiveBundle):
+                ref_allophone_map = next(iter(ref_alignments.archives.values())).allophones
             else:
-                logging.warning(
-                    f"Sequence {hyp_seq_tag} ({idx} / {len(file_list)}):\n    Discarded since all distances are over the upper limit"
+                ref_allophone_map = ref_alignments.allophones
+
+            file_list = [tag for tag in hyp_alignments.file_list() if not tag.endswith(".attribs")]
+
+            for idx, hyp_seq_tag in enumerate(file_list, start=1):
+                hyp_word_starts, hyp_word_ends, hyp_seq_length = self._compute_word_boundaries(
+                    hyp_alignments,
+                    hyp_allophone_map,
+                    hyp_seq_tag,
+                    self.hyp_silence_phone,
+                    self.hyp_upsample_factor,
                 )
-                discarded_seqs += 1
-                continue
+                assert len(hyp_word_starts) == len(hyp_word_ends), (
+                    f"Found different number of word starts ({len(hyp_word_starts)}) "
+                    f"than word ends ({len(hyp_word_ends)}). Something seems to be broken."
+                )
+
+                if self.hyp_seq_tag_transform is not None:
+                    ref_seq_tag = self.hyp_seq_tag_transform(hyp_seq_tag)
+                else:
+                    ref_seq_tag = hyp_seq_tag
+
+                ref_word_starts, ref_word_ends, ref_seq_length = self._compute_word_boundaries(
+                    ref_alignments,
+                    ref_allophone_map,
+                    ref_seq_tag,
+                    self.ref_silence_phone,
+                    self.ref_upsample_factor,
+                )
+                assert len(ref_word_starts) == len(ref_word_ends), (
+                    f"Found different number of word starts ({len(hyp_word_starts)}) "
+                    f"than word ends ({len(hyp_word_ends)}) in reference. Something seems to be broken."
+                )
+
+                if len(hyp_word_starts) != len(ref_word_starts):
+                    logging.warning(
+                        f"Sequence {hyp_seq_tag} ({idx} / {len(file_list)}:\n    Discarded because the number of words in alignment ({len(hyp_word_starts)}) does not equal the number of words in reference ({len(ref_word_starts)})."
+                    )
+                    discarded_seqs += 1
+                    continue
+
+                # Sometimes different feature extraction or subsampling may produce mismatched lengths that are different by a few frames, so cut off at the shorter length
+                shorter_seq_length = min(hyp_seq_length, ref_seq_length)
+
+                for i in range(len(hyp_word_ends) - 1, 0, -1):
+                    if hyp_word_ends[i] > shorter_seq_length:
+                        hyp_word_ends[i] = shorter_seq_length
+                        hyp_word_starts[i] = min(hyp_word_starts[i], hyp_word_ends[i] - 1)
+                    else:
+                        break
+                for i in range(len(ref_word_ends) - 1, 0, -1):
+                    if ref_word_ends[i] > shorter_seq_length:
+                        ref_word_ends[i] = shorter_seq_length
+                        ref_word_starts[i] = min(ref_word_starts[i], ref_word_ends[i] - 1)
+                    else:
+                        break
+
+                seq_word_start_diffs = [start - ref_start for start, ref_start in zip(hyp_word_starts, ref_word_starts)]
+                seq_word_end_diffs = [end - ref_end for end, ref_end in zip(hyp_word_ends, ref_word_ends)]
+
+                # Optionally remove outliers
+                seq_word_start_diffs = [diff for diff in seq_word_start_diffs if abs(diff) <= self.remove_outlier_limit]
+                seq_word_end_diffs = [diff for diff in seq_word_end_diffs if abs(diff) <= self.remove_outlier_limit]
+
+                seq_differences = seq_word_start_diffs + seq_word_end_diffs
+
+                start_differences.update(seq_word_start_diffs)
+                end_differences.update(seq_word_end_diffs)
+                differences.update(seq_differences)
+
+                if seq_differences:
+                    seq_tse = statistics.mean(abs(diff) for diff in seq_differences)
+                    tse_dict[ref_seq_tag] = (hyp_seq_tag, seq_tse)
+
+                    logging.info(
+                        f"Sequence {hyp_seq_tag} ({idx} / {len(file_list)}):\n    Word start distances are {seq_word_start_diffs}\n    Word end distances are {seq_word_end_diffs}\n    Sequence TSE is {seq_tse} frames"
+                    )
+                    counted_seqs += 1
+                else:
+                    logging.warning(
+                        f"Sequence {hyp_seq_tag} ({idx} / {len(file_list)}):\n    Discarded since all distances are over the upper limit"
+                    )
+                    discarded_seqs += 1
+                    continue
 
         logging.info(
             f"Processing finished. Computed TSE value based on {counted_seqs} sequences; {discarded_seqs} sequences were discarded."
@@ -747,6 +775,11 @@ class ComputeTimeStampErrorJob(Job):
         self.out_word_end_frame_differences.set({key: end_differences[key] for key in sorted(end_differences.keys())})
         self.out_boundary_frame_differences.set({key: differences[key] for key in sorted(differences.keys())})
         self.out_tse_frames.set(statistics.mean(abs(diff) for diff in differences.elements()))
+        with util.uopen(self.out_tse_differences_file.get_path(), "wt") as f:
+            for ref_seq_tag, (hyp_seq_tag, avg_tse) in sorted(
+                tse_dict.items(), key=lambda k_v: k_v[1][1], reverse=True
+            ):
+                f.write(f"{ref_seq_tag}\t{hyp_seq_tag}\t{avg_tse}\n")
 
     def plot(self):
         for descr, dict_file, plot_file in [
@@ -825,3 +858,163 @@ class GetLongestAllophoneFileJob(Job):
                 line_set = {*lines} - {None}
                 assert len(line_set) == 1, f"Line {i}: expected only one allophone, but found two or more: {line_set}."
                 f.write(list(line_set)[0])
+
+
+class PlotViterbiAlignmentJob(Job):
+    """
+    Plots the alignments of each segment in the specified alignment files.
+    """
+
+    def __init__(
+        self,
+        alignment_caches: List[tk.Path],
+        allophone_file: tk.Path,
+        segment_names_to_plot: Optional[tk.Path] = None,
+        corpus_file: Optional[tk.Path] = None,
+    ):
+        """
+        :param alignment_caches: Alignment files to be plotted.
+        :param allophone_file: Allophone file used in the alignment process.
+        :param segment_names_to_plot: Specific segment names to plot.
+            By default, plot all segments given in :param:`alignment_caches`.
+        :param corpus_file: Corpus used to generate the alignments. By default, the plots have no title.
+            If provided, the plots will have the text from the respective segment as title,
+            whenever the segment is available in the corpus. This should only be given for convenience.
+        """
+        self.alignment_caches = alignment_caches
+        self.allophone_file = allophone_file
+        self.segment_names_to_plot = segment_names_to_plot
+        self.corpus_file = corpus_file
+
+        self.out_plot_dir = self.output_path("plots", directory=True)
+
+        self.rqmt = {"cpu": 1, "mem": 2.0, "time": 1.0}
+
+    def tasks(self):
+        yield Task("run", resume="run", rqmt=self.rqmt, args=range(1, len(self.alignment_caches) + 1))
+
+    def extract_phoneme_sequence(self, alignment: np.array) -> Tuple[np.array, np.array]:
+        """
+        :param alignment: Monophone alignment, for instance: `np.array(["a", "a", "b", "b", "b", "c", ...])`.
+        :return:
+            - Monophone sequence (ordered as provided in :param:`alignment`).
+
+            - **Indices** corresponding to the monophone sequence from the Viterbi alignment.
+            In the example above, these would be `[0, 0, 1, 1, 1, 2, ...]`.
+        """
+        boundaries = np.concatenate(
+            [
+                np.where(alignment[:-1] != alignment[1:])[0],
+                [len(alignment) - 1],  # manually add boundary of last allophone
+            ]
+        )
+
+        lengths = boundaries - np.concatenate([[-1], boundaries[:-1]])
+        phonemes = alignment[boundaries]
+        monotonic_idx_alignment = np.repeat(np.arange(len(phonemes)), lengths)
+        return phonemes, monotonic_idx_alignment
+
+    def make_viterbi_matrix(self, label_indices: np.array) -> np.array:
+        """
+        :param label_indices: Sequence of label (allophone) indices,
+            corresponding to the monophone sequence from the Viterbi alignment.
+
+            For example, for an alignment of `np.array(["a", "a", "b", "b", "b", "c", ...])`,
+            :param:`label_indices` would be `[0, 0, 1, 1, 1, 2, ...]`.
+        :return: Matrix corresponding to the Viterbi alignment.
+        """
+        num_timestamps = len(label_indices)
+        num_allophones = max(label_indices) + 1
+        # Place the timestamps on the Y axis because we'll map the label indices to the different phonemes there.
+        viterbi_matrix = np.zeros((num_allophones, num_timestamps), dtype=bool)
+        for i, t_i in enumerate(label_indices):
+            viterbi_matrix[t_i, i] = True
+        return viterbi_matrix
+
+    def plot(self, viterbi_matrix: np.array, allophone_sequence: List[str], file_name: str, title: str = ""):
+        """
+        :param viterbi_matrix: Matrix to be plotted, corresponding to the Viterbi alignment.
+        :param allophone_sequence: Allophone sequence (Y-axis tick labels).
+        :param file_name: File name where to store the plot, relative to `<job>/output/plots/`.
+        :param title: Optional title to add to the image. By default there will be no title.
+        :return: Plot corresponding to the monotonic alignment.
+        """
+        import matplotlib
+        import matplotlib.pyplot as plt
+
+        matplotlib.use("Agg")
+
+        num_allophones, num_timestamps = np.shape(viterbi_matrix)
+
+        fig, ax = plt.subplots(figsize=(10, 10))
+        ax.set_xlabel("Frame")
+        ax.xaxis.set_label_coords(0.98, -0.03)
+        ax.set_xbound(0, num_timestamps - 1)
+        ax.set_ybound(-0.5, num_allophones - 0.5)
+
+        ax.set_yticks(np.arange(num_allophones))
+        ax.set_yticklabels(allophone_sequence)
+
+        ax.set_title(title)
+
+        ax.imshow(viterbi_matrix, cmap="Blues", interpolation="none", aspect="auto", origin="lower")
+
+        # The plot will be purposefully divided into subdirectories.
+        os.makedirs(os.path.dirname(os.path.join(self.out_plot_dir.get_path(), file_name)), exist_ok=True)
+        fig.savefig(os.path.join(self.out_plot_dir.get_path(), f"{file_name}.png"))
+        matplotlib.pyplot.close(fig)
+
+    def run(self, task_id: int):
+        if self.segment_names_to_plot is not None:
+            # Load the segment names to plot.
+            with util.uopen(self.segment_names_to_plot.get_path(), "rt") as f:
+                segment_names_to_plot = {seg_name.strip() for seg_name in f}
+            # Load the segment names from the alignment caches.
+            align_cache = rasr_cache.FileArchive(self.alignment_caches[task_id - 1].get_path())
+            align_cache.setAllophones(self.allophone_file.get_path())
+            seg_name_to_alignments = {
+                seg_name: alignments
+                for seg_name, alignments in get_segment_name_to_alignment_mapping(align_cache).items()
+                # Only load the specific segment names that the user has provided.
+                if seg_name in segment_names_to_plot
+            }
+        else:
+            # Load the segment names from the alignment caches.
+            align_cache = rasr_cache.FileArchive(self.alignment_caches[task_id - 1].get_path())
+            align_cache.setAllophones(self.allophone_file.get_path())
+            seg_name_to_alignments = get_segment_name_to_alignment_mapping(align_cache)
+            # Plot everything from the local alignment cache.
+            segment_names_to_plot = seg_name_to_alignments.keys()
+
+        seg_name_to_text = {}
+        if self.corpus_file is not None:
+            c = corpus.Corpus()
+            c.load(self.corpus_file.get_path())
+            seg_name_to_text = {seg_name: segment.full_orth() for seg_name, segment in c.get_segment_mapping().items()}
+
+        empty_alignment_seg_names = []
+        for seg_name in segment_names_to_plot:
+            alignments = seg_name_to_alignments.get(seg_name, None)
+            if alignments is None:
+                continue
+            # In some rare cases, the alignment doesn't have to reach a satisfactory end.
+            # In these cases, the final alignment is empty. Skip those cases.
+            if len(alignments) == 0:
+                empty_alignment_seg_names.append(seg_name)
+                continue
+
+            for i, (_, allo_id, _, _) in enumerate(alignments):
+                allophone = align_cache.allophones[allo_id]
+                # Get the central part of the allophone.
+                seg_name_to_alignments[seg_name][i] = allophone.split("{")[0]
+
+            center_allophones = np.array(seg_name_to_alignments[seg_name])
+            phonemes, alignment_indices = self.extract_phoneme_sequence(center_allophones)
+            viterbi_matrix = self.make_viterbi_matrix(alignment_indices)
+            self.plot(viterbi_matrix, phonemes, file_name=seg_name, title=seg_name_to_text.get(seg_name, ""))
+
+        if empty_alignment_seg_names:
+            logging.warning(
+                "The following alignments weren't plotted because their alignments were empty:\n"
+                f"{empty_alignment_seg_names}"
+            )
