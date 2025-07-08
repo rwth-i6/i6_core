@@ -8,7 +8,7 @@ __all__ = [
     "FilterCorpusBySegmentDurationJob",
 ]
 
-from collections import defaultdict
+from collections import defaultdict, Counter
 import gzip
 import logging
 import numpy as np
@@ -540,7 +540,7 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
             """
 
             def __init__(self):
-                self.oov_counts = defaultdict(int)
+                self.oov_counts = Counter()
 
             def __call__(self, corpus: corpus.Corpus, recording: corpus.Recording, segment: corpus.Segment) -> bool:
                 """
@@ -558,8 +558,7 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
                 oov_words = [word for word in words if word not in vocabulary]
 
                 if log_oov_list:
-                    for oov in oov_words:
-                        self.oov_counts[oov] += 1
+                    self.oov_counts.update(oov_words)
 
                 num_oov_words = len(oov_words)
 
@@ -589,10 +588,9 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
             _delete_empty_recordings(c, self.out_removed_recordings.get_path())
 
         if self.log_oov_list:
-            sorted_oov = sorted(unknown_filter.oov_counts.items(), key=lambda item: item[1], reverse=True)
             with open(self.out_oov_list.get_path(), "w") as f:
-                for word, count in sorted_oov:
-                    f.write(f"{word}: {count}\n")
+                for word, frequency in unknown_filter.oov_counts.most_common():
+                    f.write(f"{word}: {frequency}\n")
 
         c.dump(self.out_corpus.get_path())
 
