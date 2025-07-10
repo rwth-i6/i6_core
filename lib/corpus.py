@@ -197,7 +197,7 @@ class Corpus(NamedEntity, CorpusSection):
         """
         :return: the segment specified by its full name
         """
-        recording_name = "/".join(name.split("/")[:-1])
+        recording_name, _ = name.rsplit("/", 1)
         assert recording_name in self.recordings, (
             f"When searching for segment '{name}', recording '{recording_name}' was not found in corpus"
         )
