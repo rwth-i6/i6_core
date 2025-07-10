@@ -181,7 +181,7 @@ class Corpus(NamedEntity, CorpusSection):
         :return: an iterator over all segments within the corpus
         """
         for r in self.recordings.values():
-            yield from r.segments
+            yield from r.segments.values()
         for sc in self.subcorpora.values():
             yield from sc.segments()
 
