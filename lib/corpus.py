@@ -344,7 +344,7 @@ class Recording(NamedEntity, CorpusSection):
         super().__init__()
         self.audio: Optional[str] = None
         self.corpus: Optional[Corpus] = None
-        self.segments: List[Segment] = []
+        self.segments: Dict[str, Segment] = {}
 
     def fullname(self) -> str:
         return self.corpus.fullname() + "/" + self.name
@@ -365,21 +365,26 @@ class Recording(NamedEntity, CorpusSection):
         if self.speaker_name is not None:
             out.write('%s  <speaker name="%s"/>\n' % (indentation, self.speaker_name))
 
-        for s in self.segments:
+        for s in self.segments.values():
             s.dump(out, indentation + "  ")
 
         out.write("%s</recording>\n" % indentation)
 
+    def get_segment_by_name(self, name: str):
+        assert name in self.segments, f"Segment '{name}' was not found in recording '{self.name}'"
+
+        return self.segments[name]
+
     def add_segment(self, segment: Segment):
         assert isinstance(segment, Segment)
         segment.recording = self
-        self.segments.append(segment)
+        self.segments[segment.fullname()] = segment
 
     def get_segment_mapping(self) -> Dict[str, Segment]:
         """
         :return: Mapping from segment fullnames to actual segments.
         """
-        return {seg.fullname(): seg for seg in self.segments}
+        return {seg.fullname(): seg for seg in self.segments.values()}
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self.fullname()}>"
