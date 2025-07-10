@@ -45,7 +45,7 @@ class CorpusParser(sax.handler.ContentHandler):
     """
     This classes methods are called by the sax-parser whenever it encounters an event in the xml-file
     (tags/characters/namespaces/...). It uses a stack of elements to remember the part of the corpus that
-    is currently beeing read.
+    is currently being read.
     """
 
     def __init__(self, corpus: Corpus, path: str, *, reformat_orth: bool = True):
@@ -77,7 +77,7 @@ class CorpusParser(sax.handler.ContentHandler):
             subcorpus = Corpus()
             subcorpus.name = attrs["name"]
             subcorpus.parent_corpus = e
-            e.subcorpora.append(subcorpus)
+            e.subcorpora[subcorpus.name] = subcorpus
             self.elements.append(subcorpus)
         elif name == "include":
             assert isinstance(e, Corpus), "<include> may only occur within a <corpus> or <subcorpus> element"
@@ -88,12 +88,12 @@ class CorpusParser(sax.handler.ContentHandler):
                 print(
                     "Warning: included corpus (%s) has a different name than the current corpus (%s)" % (c.name, e.name)
                 )
-            for sc in c.subcorpora:
+            for sc in c.subcorpora.values():
                 sc.parent_corpus = e.parent_corpus
-            for r in c.recordings:
+            for r in c.recordings.values():
                 r.corpus = e
-            e.subcorpora.extend(c.subcorpora)
-            e.recordings.extend(c.recordings)
+            e.subcorpora.update(c.subcorpora)
+            e.recordings.update(c.recordings)
             e.speakers.update(c.speakers)
         elif name == "recording":
             assert isinstance(e, Corpus), "<recording> may only occur within a <corpus> or <subcorpus> element"
@@ -173,85 +173,75 @@ class Corpus(NamedEntity, CorpusSection):
 
         self.parent_corpus: Optional[Corpus] = None
 
-        self.subcorpora: List[Corpus] = []
-        self.recordings: List[Recording] = []
+        self.subcorpora: Dict[str, Corpus] = {}  # full-name: Corpus
+        self.recordings: Dict[str, Recording] = {}  # full-name: Recording
 
     def segments(self) -> Iterable[Segment]:
         """
         :return: an iterator over all segments within the corpus
         """
-        for r in self.recordings:
+        for r in self.recordings.values():
             yield from r.segments
-        for sc in self.subcorpora:
+        for sc in self.subcorpora.values():
             yield from sc.segments()
 
     def get_recording_by_name(self, name: str) -> Recording:
         """
-        :return: the recording specified by its name
+        :return: the recording specified by its full name
         """
-        for rec in self.all_recordings():
-            if rec.fullname() == name:
-                return rec
-        assert False, f"Recording '{name}' was not found in corpus"
+        assert name in self.recordings, f"Recording '{name}' was not found in corpus"
+
+        return self.recordings[name]
 
     def get_segment_by_name(self, name: str) -> Segment:
         """
-        :return: the segment specified by its name
+        :return: the segment specified by its full name
         """
-        for seg in self.segments():
-            if seg.fullname() == name:
-                return seg
-        assert False, f"Segment '{name}' was not found in corpus"
+        recording_name = "/".join(name.split("/")[:-1])
+        assert recording_name in self.recordings, (
+            f"When searching for segment '{name}', recording '{recording_name}' was not found in corpus"
+        )
+
+        return self.recordings[recording_name].get_segment_by_name(name)
 
     def all_recordings(self) -> Iterable[Recording]:
-        yield from self.recordings
-        for sc in self.subcorpora:
+        yield from self.recordings.values()
+        for sc in self.subcorpora.values():
             yield from sc.all_recordings()
 
     def all_speakers(self) -> Iterable[Speaker]:
         yield from self.speakers.values()
-        for sc in self.subcorpora:
+        for sc in self.subcorpora.values():
             yield from sc.all_speakers()
 
     def top_level_recordings(self) -> Iterable[Recording]:
-        yield from self.recordings
+        yield from self.recordings.values()
 
     def top_level_subcorpora(self) -> Iterable[Corpus]:
-        yield from self.subcorpora
+        yield from self.subcorpora.values()
 
     def top_level_speakers(self) -> Iterable[Speaker]:
         yield from self.speakers.values()
 
     def remove_recording(self, recording: Recording):
-        to_delete = []
-        for idx, r in enumerate(self.recordings):
-            if r is recording or r == recording or r.name == recording:
-                to_delete.append(idx)
-        for idx in reversed(to_delete):
-            del self.recordings[idx]
-        for sc in self.subcorpora:
+        if recording.name in self.recordings:
+            del self.recordings[recording.fullname()]
+        for sc in self.subcorpora.values():
             sc.remove_recording(recording)
 
     def remove_recordings(self, recordings: List[Recording]):
-        recording_fullnames = {recording.fullname() for recording in recordings}
-        to_delete = []
-        for idx, r in enumerate(self.recordings):
-            if r.fullname() in recording_fullnames:
-                to_delete.append(idx)
-        for idx in reversed(to_delete):
-            del self.recordings[idx]
-        for sc in self.subcorpora:
-            sc.remove_recordings(recordings)
+        for r in recordings:
+            self.remove_recording(r)
 
     def add_recording(self, recording: Recording):
         assert isinstance(recording, Recording)
         recording.corpus = self
-        self.recordings.append(recording)
+        self.recordings[recording.fullname()] = recording
 
     def add_subcorpus(self, corpus: Corpus):
         assert isinstance(corpus, Corpus)
         corpus.parent_corpus = self
-        self.subcorpora.append(corpus)
+        self.subcorpora[corpus.fullname()] = corpus
 
     def add_speaker(self, speaker: Speaker):
         assert isinstance(speaker, Speaker)
@@ -281,9 +271,9 @@ class Corpus(NamedEntity, CorpusSection):
         filter all segments (including in subcorpora) using filter_function
         :param filter_function: takes arguments corpus, recording and segment, returns True if segment should be kept
         """
-        for r in self.recordings:
-            r.segments = [s for s in r.segments if filter_function(self, r, s)]
-        for sc in self.subcorpora:
+        for r in self.recordings.values():
+            r.segments = {s.fullname(): s for s in r.segments.values() if filter_function(self, r, s)}
+        for sc in self.subcorpora.values():
             sc.filter_segments(filter_function)
 
     def load(self, path: str, *, reformat_orth: bool = True):
@@ -322,10 +312,10 @@ class Corpus(NamedEntity, CorpusSection):
         if self.speaker_name is not None:
             out.write('%s  <speaker name="%s"/>\n' % (indentation, self.speaker_name))
 
-        for r in self.recordings:
+        for r in self.recordings.values():
             r.dump(out, indentation + "  ")
 
-        for sc in self.subcorpora:
+        for sc in self.subcorpora.values():
             sc._dump_internal(out, indentation + "  ")
 
         if self.parent_corpus is None:
