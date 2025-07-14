@@ -21,9 +21,9 @@ FilterFunction = Callable[["Corpus", "Recording", "Segment"], bool]
 
 
 class NamedEntity:
-    def __init__(self):
+    def __init__(self, name: Optional[str] = None):
         super().__init__()
-        self.name: Optional[str] = None
+        self.name = name
 
     def __repr__(self):
         if self.name is None:
@@ -168,8 +168,11 @@ class Corpus(NamedEntity, CorpusSection):
     attribute is set. Corpora with include statements can be read but are written back as a single file.
     """
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, name: Optional[str] = None):
+        """
+        :param name: Corpus name.
+        """
+        super().__init__(name=name)
 
         self.parent_corpus: Optional[Corpus] = None
 
@@ -340,8 +343,12 @@ class Corpus(NamedEntity, CorpusSection):
 
 
 class Recording(NamedEntity, CorpusSection):
-    def __init__(self):
-        super().__init__()
+    def __init__(self, name: Optional[str] = None):
+        """
+        :param name: Recording name.
+        """
+        super().__init__(name=name)
+
         self.audio: Optional[str] = None
         self.corpus: Optional[Corpus] = None
         self.segments: Dict[str, Segment] = {}
@@ -394,6 +401,7 @@ class Segment(NamedEntity):
     def __init__(
         self,
         *,
+        name: Optional[str] = None,
         start: float = 0.0,
         end: float = 0.0,
         track: Optional[int] = None,
@@ -413,7 +421,7 @@ class Segment(NamedEntity):
         :param speaker_name: Speaker name.
         :param recording: Recording in which the segment is embedded.
         """
-        super().__init__()
+        super().__init__(name=name)
 
         self.start = start
         self.end = end
