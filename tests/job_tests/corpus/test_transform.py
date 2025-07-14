@@ -30,8 +30,8 @@ class _CorpusCreatorHelper:
         corpus.name = corpus_dict["name"]
         for recording_dict in corpus_dict.get("recordings", []):
             recording = libcorpus.Recording()
-            corpus.add_recording(recording)
             recording.name = recording_dict["name"]
+            corpus.add_recording(recording)
             for segment_name in recording_dict.get("segments", []):
                 segment = libcorpus.Segment()
                 segment.name = segment_name
