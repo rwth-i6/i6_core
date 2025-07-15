@@ -86,12 +86,12 @@ class CorpusParser(sax.handler.ContentHandler):
                 print(
                     "Warning: included corpus (%s) has a different name than the current corpus (%s)" % (c.name, e.name)
                 )
-            for sc in c.subcorpora.values():
+            for sc in c.subcorpora:
                 sc.parent_corpus = e.parent_corpus
-            for r in c.recordings.values():
+            for r in c.recordings:
                 r.corpus = e
-            e.subcorpora.update(c.subcorpora)
-            e.recordings.update(c.recordings)
+            e._subcorpora.update(c.subcorpora)
+            e._recordings.update(c.recordings)
             e.speakers.update(c.speakers)
         elif name == "recording":
             assert isinstance(e, Corpus), "<recording> may only occur within a <corpus> or <subcorpus> element"
