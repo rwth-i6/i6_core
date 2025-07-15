@@ -456,6 +456,9 @@ class Segment(NamedEntity):
         return " ".join([s for s in [self.left_context_orth, self.orth, self.right_context_orth] if s])
 
     def fullname(self) -> str:
+        assert self.recording is not None, (
+            "Please add the recording to a corpus via Recording.add_segment() before triggering Segment.fullname()."
+        )
         return self.recording.fullname() + "/" + self.name
 
     def speaker(self) -> Speaker:
