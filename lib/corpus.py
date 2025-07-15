@@ -74,10 +74,8 @@ class CorpusParser(sax.handler.ContentHandler):
             e.name = attrs["name"]
         elif name == "subcorpus":
             assert isinstance(e, Corpus), "<subcorpus> may only occur within a <corpus> or <subcorpus> element"
-            subcorpus = Corpus()
-            subcorpus.name = attrs["name"]
-            subcorpus.parent_corpus = e
-            e.subcorpora[subcorpus.name] = subcorpus
+            subcorpus = Corpus(name=attrs["name"])
+            e.add_subcorpus(subcorpus)
             self.elements.append(subcorpus)
         elif name == "include":
             assert isinstance(e, Corpus), "<include> may only occur within a <corpus> or <subcorpus> element"
@@ -97,9 +95,7 @@ class CorpusParser(sax.handler.ContentHandler):
             e.speakers.update(c.speakers)
         elif name == "recording":
             assert isinstance(e, Corpus), "<recording> may only occur within a <corpus> or <subcorpus> element"
-            rec = Recording()
-            rec.name = attrs["name"]
-            rec.audio = attrs["audio"]
+            rec = Recording(name=attrs["name"], audio=attrs["audio"])
             e.add_recording(rec)
             self.elements.append(rec)
         elif name == "segment":
