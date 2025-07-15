@@ -437,16 +437,10 @@ class FilterCorpusBySegmentsJob(Job):
         c.load(tk.uncached_path(self.bliss_corpus))
 
         for rec in c.all_recordings():
-            segments_to_delete = []
-            for s in rec.segments:
-                if self.invert_match:
-                    if s.fullname() in segments or s.name in segments:
-                        segments_to_delete.append(s)
-                else:
-                    if s.fullname() not in segments and s.name not in segments:
-                        segments_to_delete.append(s)
-            for s in segments_to_delete:
-                rec.remove_segment(s)
+            if self.invert_match:
+                rec.segments = [x for x in rec.segments if x.fullname() not in segments and x.name not in segments]
+            else:
+                rec.segments = [x for x in rec.segments if x.fullname() in segments or x.name in segments]
 
         if self.delete_empty_recordings:
             # Remove the recordings without segments due to the filtering.
