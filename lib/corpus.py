@@ -325,10 +325,10 @@ class Corpus(NamedEntity, CorpusSection):
         if self.speaker_name is not None:
             out.write('%s  <speaker name="%s"/>\n' % (indentation, self.speaker_name))
 
-        for r in self.recordings.values():
+        for r in self.recordings:
             r.dump(out, indentation + "  ")
 
-        for sc in self.subcorpora.values():
+        for sc in self.subcorpora:
             sc._dump_internal(out, indentation + "  ")
 
         if self.parent_corpus is None:
