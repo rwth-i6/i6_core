@@ -32,14 +32,11 @@ def _delete_empty_recordings(corpus: corpus.Corpus, removed_recordings_file: str
     :param c: Corpus for which to delete the empty recordings.
     :param removed_recordings_file: File in which to dump all recordings that have been deleted.
     """
-    to_delete = []
-    for rec in corpus.all_recordings():
-        if not rec.segments:
-            to_delete.append(rec)
-
-    corpus.remove_recordings(to_delete)
     with open(removed_recordings_file, "w") as f:
-        f.write("\n".join(rec.fullname() for rec in to_delete))
+        for rec in corpus.all_recordings():
+            if not rec.segments:
+                corpus.remove_recording(rec)
+                f.write(f"{rec.fullname()}\n")
 
 
 class FilterSegmentsByListJob(Job):
@@ -440,10 +437,16 @@ class FilterCorpusBySegmentsJob(Job):
         c.load(tk.uncached_path(self.bliss_corpus))
 
         for rec in c.all_recordings():
-            if self.invert_match:
-                rec.segments = [x for x in rec.segments if x.fullname() not in segments and x.name not in segments]
-            else:
-                rec.segments = [x for x in rec.segments if x.fullname() in segments or x.name in segments]
+            segments_to_delete = []
+            for s in rec.segments:
+                if self.invert_match:
+                    if s.fullname() in segments or s.name in segments:
+                        segments_to_delete.append(s)
+                else:
+                    if s.fullname() not in segments and s.name not in segments:
+                        segments_to_delete.append(s)
+            for s in segments_to_delete:
+                rec.remove_segment(s)
 
         if self.delete_empty_recordings:
             # Remove the recordings without segments due to the filtering.
@@ -527,7 +530,7 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
 
         c = corpus.Corpus()
         c.load(self.corpus.get_path())
-        num_segments_per_recording = {r.fullname(): len(r.segments) for r in c.all_recordings()}
+        num_segments_per_recording = {r.fullname(): len(list(r.segments)) for r in c.all_recordings()}
 
         # use var name instead of attribute to avoid problem with name scope
         log_oov_list = self.log_oov_list
@@ -577,7 +580,7 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
             recordings_to_be_removed = []
             for r in c.all_recordings():
                 num_seg = num_segments_per_recording[r.fullname()]
-                new_num_seg = len(r.segments)
+                new_num_seg = len(list(r.segments))
                 if num_seg and (num_seg - new_num_seg) / num_seg > self.recording_oov_tolerance:
                     recordings_to_be_removed.append(r)
 

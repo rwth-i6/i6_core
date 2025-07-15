@@ -70,22 +70,22 @@ class ReplaceTranscriptionFromCtmJob(Job):
             words = [s[1] for s in transcriptions[recording.name]]
 
             if len(words) == 0 and self.remove_empty_segments:
-                recordings_to_delete = recording
+                recordings_to_delete = recording  # TODO: this does nothing.
                 continue
 
             segments_to_delete = []
-            for idx, segment in enumerate(recording.segments):
+            for segment in recording.segments:
                 left_idx = bisect.bisect_left(times, segment.start)
                 right_idx = bisect.bisect_left(times, segment.end)
 
                 if left_idx == right_idx and self.remove_empty_segments:
-                    segments_to_delete.append(idx)
+                    segments_to_delete.append(segment)
                     continue
 
                 segment.orth = " ".join(words[left_idx:right_idx]).replace("&", "&amp;")
 
-            for sidx in reversed(segments_to_delete):
-                del recording.segments[sidx]
+            for segment in reversed(segments_to_delete):
+                recording.remove_segment(segment)
 
         c.dump(self.output_corpus_path.get_path())
 
@@ -223,7 +223,7 @@ class CompressCorpusJob(Job):
                         sm_entry.value = "/".join([c.name, split_name, segment.name])
                         sm.map_entries.append(sm_entry)
 
-                        new_recording_element.segments.append(segment)
+                        new_recording_element.add_segment(segment)
                         segment_count += 1
 
                     # update the time stamp with the recording length and add to ffmpeg merge list
@@ -547,15 +547,14 @@ class ShiftCorpusSegmentStartJob(Job):
         nc.speaker_name = c.speaker_name
         # store index of last segment
         for r in c.recordings:
-            sr = corpus.Recording()
+            sr = corpus.Recording(corpus=nc)
             sr.name = r.name
-            sr.segments = r.segments
             sr.speaker_name = r.speaker_name
             sr.speakers = r.speakers
             sr.default_speaker = r.default_speaker
             sr.audio = r.audio
-            nc.add_recording(sr)
-            for s in sr.segments:
+            for s in r.segments:
+                sr.add_segment(s)
                 segment_file_names.append(nc.name + "/" + sr.name + "/" + s.name)
                 s.start += self.shift
 

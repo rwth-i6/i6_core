@@ -489,8 +489,8 @@ class Segment(NamedEntity):
         self.left_context_orth = left_context_orth
         self.right_context_orth = right_context_orth
         self.speaker_name = speaker_name
-
-        self.recording = recording
+        if recording:
+            recording.add_segment(self)
 
     def full_orth(self) -> str:
         """
