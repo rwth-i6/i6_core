@@ -353,17 +353,24 @@ class Corpus(NamedEntity, CorpusSection):
 
 
 class Recording(NamedEntity, CorpusSection):
-    def __init__(self, name: Optional[str] = None):
+    def __init__(self, name: Optional[str] = None, audio: Optional[str] = None):
         """
         :param name: Recording name.
         """
         super().__init__(name=name)
 
-        self.audio: Optional[str] = None
+        self.audio = audio
         self.corpus: Optional[Corpus] = None
-        self.segments: Dict[str, Segment] = {}
+        self._segments: Dict[str, Segment] = {}
+
+    @property
+    def segments(self):
+        return self._segments.values()
 
     def fullname(self) -> str:
+        assert self.corpus is not None, (
+            "Please add the recording to a corpus via Corpus.add_recording() before triggering fullname()."
+        )
         return self.corpus.fullname() + "/" + self.name
 
     def speaker(self, speaker_name: Optional[str] = None) -> Speaker:
@@ -382,26 +389,25 @@ class Recording(NamedEntity, CorpusSection):
         if self.speaker_name is not None:
             out.write('%s  <speaker name="%s"/>\n' % (indentation, self.speaker_name))
 
-        for s in self.segments.values():
+        for s in self.segments:
             s.dump(out, indentation + "  ")
 
         out.write("%s</recording>\n" % indentation)
 
     def get_segment_by_name(self, name: str):
-        assert name in self.segments, f"Segment '{name}' was not found in recording '{self.name}'"
-
-        return self.segments[name]
+        assert name in self._segments, f"Segment '{name}' was not found in recording '{self.name}'"
+        return self._segments[name]
 
     def add_segment(self, segment: Segment):
         assert isinstance(segment, Segment)
         segment.recording = self
-        self.segments[segment.fullname()] = segment
+        self._segments[segment.fullname()] = segment
 
     def get_segment_mapping(self) -> Dict[str, Segment]:
         """
         :return: Mapping from segment fullnames to actual segments.
         """
-        return self.segments.copy()
+        return self._segments.copy()
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self.fullname()}>"
