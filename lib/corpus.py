@@ -178,34 +178,38 @@ class Corpus(NamedEntity, CorpusSection):
     @property
     def subcorpora(self) -> Iterable[Corpus]:
         """
-        Read-only property.
-
         :return: Iterable of all top-level subcorpora.
         """
         return self._subcorpora.values()
 
     @subcorpora.setter
-    def subcorpora(self):
-        raise AttributeError(
-            "Corpus.subcorpora is a read-only attribute. "
-            "If you're using old code, please use the current proper API function."
+    def subcorpora(self, value: List[Corpus]):
+        """
+        :param value: List of subcorpora that the recording must hold.
+            The previous subcorpora will be overwritten.
+        """
+        assert isinstance(value, list) and all(isinstance(c, Corpus) for c in value), (
+            f"Can only set Corpus.subcorpora to a list, but tried setting it to {type(value)}."
         )
+        self._subcorpora = {c.fullname(): c for c in value}
 
     @property
     def recordings(self) -> Iterable[Recording]:
         """
-        Read-only property.
-
         :return: Iterable of all top-level recordings.
         """
         return self._recordings.values()
 
     @recordings.setter
-    def recordings(self):
-        raise AttributeError(
-            "Corpus.recordings is a read-only attribute. "
-            "If you're using old code, please use the current proper API function."
+    def recordings(self, value: List[Recording]):
+        """
+        :param value: List of recordings that the corpus must hold.
+            The previous recordings will be overwritten.
+        """
+        assert isinstance(value, list) and all(isinstance(r, Recording) for r in value), (
+            f"Can only set Corpus.recordings to a list, but tried setting it to {type(value)}."
         )
+        self._recordings = {r.fullname(): r for r in value}
 
     def segments(self) -> Iterable[Segment]:
         """
@@ -385,16 +389,20 @@ class Recording(NamedEntity, CorpusSection):
     @property
     def segments(self) -> Iterable[Segment]:
         """
-        Read-only property. If one wants to add a segment to this recording, please use :func:`Recording.add_segment`.
+        :return: Iterable of all segments in a recording.
         """
         return self._segments.values()
 
     @segments.setter
-    def segments(self):
-        raise AttributeError(
-            "Recording.segments is a read-only property. "
-            "If you're using old code, please use the current proper API function."
+    def segments(self, value: List[Segment]):
+        """
+        :param value: List of segments that the recording must hold.
+            The previous segments will be overwritten.
+        """
+        assert isinstance(value, list) and all(isinstance(s, Segment) for s in value), (
+            f"Can only set Recording.segments to a list, but tried setting it to {type(value)}."
         )
+        self._recordings = {s.fullname(): s for s in value}
 
     def fullname(self) -> str:
         assert self.corpus is not None, (
