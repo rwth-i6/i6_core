@@ -282,10 +282,12 @@ class Corpus(NamedEntity, CorpusSection):
         filter all segments (including in subcorpora) using filter_function
         :param filter_function: takes arguments corpus, recording and segment, returns True if segment should be kept
         """
-        for r in self.recordings.values():
-            r.segments = {s.fullname(): s for s in r.segments.values() if filter_function(self, r, s)}
-        for sc in self.subcorpora.values():
-            sc.filter_segments(filter_function)
+        for rec_full_name, r in self._recordings.items():
+            self._recordings[rec_full_name]._segments = {
+                s.fullname(): s for s in r.segments.values() if filter_function(self, r, s)
+            }
+        for subcorpus_full_name in self._subcorpora():
+            self._subcorpora[subcorpus_full_name].filter_segments(filter_function)
 
     def load(self, path: str, *, reformat_orth: bool = True):
         """
