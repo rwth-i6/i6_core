@@ -176,14 +176,14 @@ class Corpus(NamedEntity, CorpusSection):
         self._recordings: Dict[str, Recording] = {}  # full-name: Recording
 
     @property
-    def subcorpora(self):
+    def subcorpora(self) -> Iterable[Corpus]:
         """
         Read-only property. If one wants to add a subcorpus to this corpus, please use :func:`Corpus.add_subcorpus`.
         """
         return self._subcorpora.values()
 
     @property
-    def recordings(self):
+    def recordings(self) -> Iterable[Recording]:
         """
         Read-only property. If one wants to add a recording to this corpus, please use :func:`Corpus.add_recording`.
         """
@@ -364,7 +364,10 @@ class Recording(NamedEntity, CorpusSection):
         self._segments: Dict[str, Segment] = {}
 
     @property
-    def segments(self):
+    def segments(self) -> Iterable[Segment]:
+        """
+        Read-only property. If one wants to add a segment to this recording, please use :func:`Recording.add_segment`.
+        """
         return self._segments.values()
 
     def fullname(self) -> str:
