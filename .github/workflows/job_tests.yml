@@ -22,10 +22,11 @@ jobs:
         with:
           repository: "rwth-i6/returnn"
           path: "returnn"
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@v5
         with:
           python-version: 3.8
           cache: 'pip'
+          cache-dependency-path: '.github/workflows/job_tests.yml'
       - name: Setup Sisyphus environment
         run: |
           pip install --user --upgrade pip setuptools wheel
@@ -35,6 +36,7 @@ jobs:
           pip install pytest
           sudo apt update && sudo apt install -y libsndfile1
           pip install -r i6_core/requirements.txt
+          pip install -r returnn/requirements.txt
       - name: Test Jobs
         run: |
           set -e

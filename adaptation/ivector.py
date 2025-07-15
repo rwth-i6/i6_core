@@ -226,7 +226,7 @@ class IVectorTrainingJob(Job):
                 logging.warning("No data for segment: '%s' in alignment." % a)
                 continue
             allos = []
-            for (t, i, s, w) in align:
+            for t, i, s, w in align:
                 allos.append(aligncache.allophones[i])
             allos = list(aligncache.allophones[i] for (t, i, s, w) in align)
             T = len(list(filter(lambda al: al not in self.allophones_to_ignore, allos)))

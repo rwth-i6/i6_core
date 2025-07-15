@@ -32,6 +32,8 @@ class BlissChangeEncodingJob(BlissFfmpegJob):
         recover_duration: Optional[bool] = None,
         input_codec: Optional[str] = None,
         input_codec_options: Optional[List[str]] = None,
+        error_threshold: int = 0,
+        cpu_rqmt: int = 9,
     ):
         """
         For all parameter holds that "None" means to use the ffmpeg defaults, which depend on the input file
@@ -55,8 +57,10 @@ class BlissChangeEncodingJob(BlissFfmpegJob):
             There might be minimal differences when converting the encoding, so only set this to `False` if you're
             willing to accept this risk. `None` (default) means that the duration is recovered if either `output_format`
             or `codec` is specified because this might possibly lead to duration mismatches.
-        :param in_codec: specify the codec of the input file
-        :param in_codec_options: specify additional codec specific options for the in_codec
+        :param input_codec: specify the codec of the input file
+        :param input_codec_options: specify additional codec specific options for the in_codec
+        :param error_threshold: Allow upto this many files to fail conversion before failing this job
+        :param cpu_rqmt: number of cpu cores to use
         """
         ffmpeg_input_options = []
         ffmpeg_options = []
@@ -104,4 +108,6 @@ class BlissChangeEncodingJob(BlissFfmpegJob):
             output_format=output_format,
             ffmpeg_binary=ffmpeg_binary,
             hash_binary=hash_binary,
+            error_threshold=error_threshold,
+            cpu_rqmt=cpu_rqmt,
         )

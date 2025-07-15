@@ -1,19 +1,20 @@
 from collections.abc import Mapping
 import gzip
+import io
 import logging
 import os
 import shutil
 import stat
 import subprocess as sp
+from typing import Any, Dict, List, Optional, Union
 import xml.dom.minidom
 import xml.etree.ElementTree as ET
-from typing import Dict, Any, List, Optional, Union
 
 from sisyphus import *
 from sisyphus.delayed_ops import DelayedBase, DelayedFormat
 
+
 Path = setup_path(__package__)
-Variable = tk.Variable
 
 
 class MultiPath:
@@ -143,7 +144,7 @@ def reduce_tree(func, tree):
     return func([(reduce_tree(func, e) if type(e) == list else e) for e in tree])
 
 
-def uopen(path: Union[str, tk.Path], *args, **kwargs) -> Union[gzip.open, open]:
+def uopen(path: Union[str, tk.Path], *args, **kwargs) -> io.IOBase:
     path = tk.uncached_path(path)
     if path.endswith(".gz"):
         return gzip.open(path, *args, **kwargs)
@@ -152,7 +153,7 @@ def uopen(path: Union[str, tk.Path], *args, **kwargs) -> Union[gzip.open, open]:
 
 
 def get_val(var: Any) -> Any:
-    if isinstance(var, Variable):
+    if isinstance(var, tk.Variable):
         return var.get()
     return var
 
@@ -186,7 +187,7 @@ def chunks(l: List, n: int) -> List[List]:
 
 
 def relink(src: str, dst: str):
-    if os.path.exists(dst):
+    if os.path.exists(dst) or os.path.islink(dst):
         os.remove(dst)
     os.link(src, dst)
 

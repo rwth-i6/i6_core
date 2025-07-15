@@ -81,6 +81,8 @@ class BlissFfmpegJob(Job):
         ffmpeg_binary: Optional[Union[str, tk.Path]] = None,
         hash_binary: bool = False,
         ffmpeg_input_options: Optional[List[str]] = None,
+        error_threshold: int = 0,
+        cpu_rqmt: int = 5,
     ):
         """
 
@@ -92,6 +94,8 @@ class BlissFfmpegJob(Job):
         :param hash_binary: In some cases it might be required to work with a specific ffmpeg version,
                             in which case the binary needs to be hashed
         :param ffmpeg_input_options: list of ffmpeg parameters thare are applied for reading the input files
+        :param error_threshold: Allow upto this many files to fail conversion before failing this job
+        :param cpu_rqmt: number of cpu cores to use
         """
         self.corpus_file = corpus_file
         self.ffmpeg_input_options = ffmpeg_input_options
@@ -100,11 +104,18 @@ class BlissFfmpegJob(Job):
         self.output_format = output_format
         self.ffmpeg_binary = ffmpeg_binary if ffmpeg_binary else "ffmpeg"
         self.hash_binary = hash_binary
+        self.error_threshold = error_threshold
+        self.num_errors = 0
+        self.failed_files = []
 
         self.out_audio_folder = self.output_path("audio/", directory=True)
         self.out_corpus = self.output_path("corpus.xml.gz")
+        self.out_failed_files = None
+        if self.error_threshold > 0:
+            self.out_failed_files = self.output_path("failed_files.txt")
 
-        self.rqmt = {"time": 4, "cpu": 4, "mem": 8}
+        # e.g. 1 core for python and 4x2 cores for ffmpeg, one for input processing and one for output processing
+        self.rqmt = {"time": 4, "cpu": cpu_rqmt, "mem": 8}
 
     def tasks(self):
         yield Task("run", rqmt=self.rqmt)
@@ -116,11 +127,11 @@ class BlissFfmpegJob(Job):
 
     def run(self):
         c = corpus.Corpus()
-        c.load(tk.uncached_path(self.corpus_file))
+        c.load(self.corpus_file.get_path())
 
         from multiprocessing import pool
 
-        p = pool.Pool(self.rqmt["cpu"])
+        p = pool.Pool(self.rqmt["cpu"] // 2)
         p.map(self._perform_ffmpeg, c.all_recordings())
 
         for r in c.all_recordings():
@@ -130,7 +141,11 @@ class BlissFfmpegJob(Job):
         if self.recover_duration:
             c.dump("temp_corpus.xml.gz")
         else:
-            c.dump(tk.uncached_path(self.out_corpus))
+            c.dump(self.out_corpus.get_path())
+
+        if self.out_failed_files is not None:
+            with open(self.out_failed_files.get_path(), "wt") as out:
+                out.write("\n".join(self.failed_files))
 
     def run_recover_duration(self):
         """
@@ -183,19 +198,21 @@ class BlissFfmpegJob(Job):
         target = os.path.join(self.out_audio_folder.get_path(), audio_filename)
         if not os.path.exists(target):
             logging.info(f"try converting {target}")
-            command_head = [
-                self.ffmpeg_binary,
-                "-hide_banner",
-                "-y",
-            ]
+            command_head = [self.ffmpeg_binary, "-hide_banner", "-y", "-threads", "1"]
             command_in = ["-i", recording.audio]
-            command_out = [
-                os.path.join(self.out_audio_folder.get_path(), audio_filename),
-            ]
+            command_out = ["-threads", "1", target]
             in_options = self.ffmpeg_input_options or []
             out_options = self.ffmpeg_options or []
             command = command_head + in_options + command_in + out_options + command_out
-            subprocess.check_call(command)
+            ret = subprocess.run(command, check=False)
+            if ret.returncode != 0:
+                self.num_errors += 1
+                os.remove(target)
+                self.failed_files.append(recording.audio)
+            if self.num_errors > self.error_threshold:
+                with open(self.out_failed_files.get_path(), "wt") as out:
+                    out.write("\n".join(self.failed_files))
+                raise subprocess.SubprocessError("Error threshold exceeded")
         else:
             logging.info(f"skipped existing {target}")
 
@@ -204,4 +221,7 @@ class BlissFfmpegJob(Job):
         d = copy.copy(kwargs)
         if not kwargs["hash_binary"]:
             d.pop("ffmpeg_binary")
+        if kwargs["error_threshold"] == 0:
+            d.pop("error_threshold")
+        d.pop("cpu_rqmt")
         return super().hash(d)

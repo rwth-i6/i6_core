@@ -1,5 +1,6 @@
 __all__ = [
     "AverageTFCheckpointsJob",
+    "AverageTorchCheckpointsJob",
     "Checkpoint",
     "GetBestEpochJob",
     "GetBestTFCheckpointJob",
@@ -16,7 +17,8 @@ import sys
 import os
 import shutil
 import subprocess as sp
-from typing import Dict, Iterable, List, Optional, Union
+import numpy as np
+from typing import Dict, Sequence, Iterable, List, Optional, Union
 
 from sisyphus import *
 
@@ -96,6 +98,9 @@ class PtCheckpoint:
 
     def __repr__(self):
         return "'%s'" % self.path
+
+    def __fspath__(self):
+        return self.path.get()
 
     def exists(self):
         return os.path.exists(self.path.get_path())
@@ -250,11 +255,16 @@ class ReturnnTrainingJob(Job):
         if self.horovod_num_processes:
             if self.distributed_launch_cmd == "torchrun":
                 # use torchrun to lauch DDP training when the backend is torch
-                run_cmd = [
-                    "torchrun",
+                # Instead of using the torchrun binary, directly execute the corresponding Python module
+                # and directly use the correct Python environment.
+                prefix = [self.returnn_python_exe.get_path(), "-mtorch.distributed.run"]
+                if (self.multi_node_slots or 1) == 1:
+                    prefix += ["--standalone"]
+                prefix += [
                     f"--nnodes={self.multi_node_slots or 1}",
                     f"--nproc-per-node={self.horovod_num_processes}",
-                ] + run_cmd[1:]
+                ]
+                run_cmd = prefix + run_cmd[1:]
             elif self.distributed_launch_cmd == "mpirun":
                 # Normally, if the engine (e.g. SGE or Slurm) is configured correctly,
                 # it automatically provides the information on multiple nodes to mpirun,
@@ -290,7 +300,10 @@ class ReturnnTrainingJob(Job):
 
             try:
                 with open(file_path, "rt") as file:
-                    return eval(file.read().strip())
+                    return eval(
+                        file.read().strip(),
+                        {"EpochData": EpochData, "nan": float("nan"), "inf": float("inf"), "np": np},
+                    )
             except FileExistsError:
                 return None
             except FileNotFoundError:
@@ -386,7 +399,7 @@ class ReturnnTrainingJob(Job):
         with open(self.out_learning_rates.get_path(), "rt") as f:
             text = f.read()
 
-        data = eval(text)
+        data = eval(text, {"EpochData": EpochData, "nan": float("nan"), "inf": float("inf"), "np": np})
 
         epochs = list(sorted(data.keys()))
         train_score_keys = [k for k in data[epochs[0]]["error"] if k.startswith("train_score")]
@@ -480,14 +493,14 @@ class ReturnnTrainingJob(Job):
 
         if keep_epochs is not None:
             if not "cleanup_old_models" in post_config or isinstance(post_config["cleanup_old_models"], bool):
-                assert (
-                    post_config.get("cleanup_old_models", True) == True
-                ), "'cleanup_old_models' can not be False if 'keep_epochs' is specified"
+                assert post_config.get("cleanup_old_models", True) == True, (
+                    "'cleanup_old_models' can not be False if 'keep_epochs' is specified"
+                )
                 post_config["cleanup_old_models"] = {"keep": keep_epochs}
             elif isinstance(post_config["cleanup_old_models"], dict):
-                assert (
-                    "keep" not in post_config["cleanup_old_models"]
-                ), "you can only provide either 'keep_epochs' or 'cleanup_old_models/keep', but not both"
+                assert "keep" not in post_config["cleanup_old_models"], (
+                    "you can only provide either 'keep_epochs' or 'cleanup_old_models/keep', but not both"
+                )
                 post_config["cleanup_old_models"]["keep"] = keep_epochs
             else:
                 assert False, "invalid type of cleanup_old_models: %s" % type(post_config["cleanup_old_models"])
@@ -655,7 +668,6 @@ class ReturnnTrainingFromFileJob(Job):
 
     @classmethod
     def hash(cls, kwargs):
-
         d = {
             "returnn_config_file": kwargs["returnn_config_file"],
             "parameter_dict": kwargs["parameter_dict"],
@@ -696,7 +708,7 @@ class GetBestEpochJob(Job):
         with open(self.learning_rates.get_path(), "rt") as f:
             text = f.read()
 
-        data = eval(text, {"nan": float("nan"), "inf": float("inf"), "EpochData": EpochData})
+        data = eval(text, {"EpochData": EpochData, "nan": float("nan"), "inf": float("inf"), "np": np})
 
         epochs = list(sorted(data.keys()))
 
@@ -911,3 +923,44 @@ class AverageTFCheckpointsJob(Job):
 
         # The env override is needed if this job is run locally on a node with a GPU installed
         sp.check_call(args, env={"CUDA_VISIBLE_DEVICES": ""})
+
+
+class AverageTorchCheckpointsJob(Job):
+    """
+    average Torch model checkpoints
+    """
+
+    def __init__(
+        self,
+        *,
+        checkpoints: Sequence[Union[tk.Path, PtCheckpoint]],
+        returnn_python_exe: tk.Path,
+        returnn_root: tk.Path,
+    ):
+        """
+        :param checkpoints: input checkpoints
+        :param returnn_python_exe: file path to the executable for running returnn (python binary or .sh)
+        :param returnn_root: file path to the RETURNN repository root folder
+        """
+        self.checkpoints = [ckpt if isinstance(ckpt, PtCheckpoint) else PtCheckpoint(ckpt) for ckpt in checkpoints]
+        self.returnn_python_exe = returnn_python_exe
+        self.returnn_root = returnn_root
+
+        self.out_checkpoint = PtCheckpoint(self.output_path("model/average.pt"))
+
+        self.rqmt = {"cpu": 1, "time": 0.5, "mem": 5}
+
+    def tasks(self):
+        yield Task("run", rqmt=self.rqmt)
+
+    def run(self):
+        os.makedirs(os.path.dirname(self.out_checkpoint.path.get_path()), exist_ok=True)
+        args = [
+            self.returnn_python_exe.get_path(),
+            os.path.join(self.returnn_root.get_path(), "tools/torch_avg_checkpoints.py"),
+            "--checkpoints",
+            *[ckpt.path.get_path() for ckpt in self.checkpoints],
+            "--output_path",
+            self.out_checkpoint.path.get_path(),
+        ]
+        sp.check_call(args)

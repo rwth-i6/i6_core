@@ -45,7 +45,6 @@ class ViterbiTdpTuningJob(Job):
 
     def update(self):
         if self.cur_iter < self.max_iter:
-
             if self.last_tdp and self.last_tdp._sis_finished():
                 self.am_args = util.get_val(self.last_tdp.am_args)
                 self.tdp_list.append(self.am_args)

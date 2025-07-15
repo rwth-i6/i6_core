@@ -217,7 +217,7 @@ class ReturnnConfig:
             pp = pprint.PrettyPrinter(indent=2, width=150, **self.pprint_kwargs)
             network_definition = self.staged_network_dict[epoch]
             if isinstance(network_definition, dict):
-                content = "\nnetwork = %s" % pp.pformat(network_definition)
+                content = "\nnetwork = %s" % pp.pformat(instanciate_delayed(network_definition))
             elif isinstance(network_definition, str):
                 content = network_definition
             else:
@@ -349,7 +349,6 @@ class ReturnnConfig:
 
         # list of parameters that should never be hashed
         disallowed_in_config = [
-            "cleanup_old_models",
             "log_verbosity",
         ]
         for key in disallowed_in_config:

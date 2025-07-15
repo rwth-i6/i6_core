@@ -193,7 +193,7 @@ class UnwarpTimesInCTMJob(Job):
 
         def apply(recname, time):
             time_offset = 0
-            for (a, b) in silence_map[recname]:
+            for a, b in silence_map[recname]:
                 if time >= a:
                     time_offset = b - a
                     assert time_offset >= 0

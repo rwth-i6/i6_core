@@ -72,13 +72,13 @@ class FairseqHydraConfig:
             if isinstance(self.config_dict[group], dict):
                 for key in self.config_dict[group]:
                     if group in self.post_config_dict:
-                        assert (
-                            key not in self.post_config_dict[group].keys()
-                        ), f"{key} of {group} in post_config would overwrite existing entry in config"
+                        assert key not in self.post_config_dict[group].keys(), (
+                            f"{key} of {group} in post_config would overwrite existing entry in config"
+                        )
             else:
-                assert (
-                    group not in self.post_config_dict
-                ), f"{group} in post_config would overwrite existing entry in config"
+                assert group not in self.post_config_dict, (
+                    f"{group} in post_config would overwrite existing entry in config"
+                )
 
         # list of parameters that should never be hashed
         disallowed_in_config = ["save_interval", "max_epoch", "max_update"]
@@ -86,13 +86,13 @@ class FairseqHydraConfig:
         for group in self.config_dict:
             if isinstance(self.config_dict[group], dict):
                 for key in disallowed_in_config:
-                    assert (
-                        self.config_dict[group].get(key) is None
-                    ), f"please define {key} of {group} only as parameter in the post_config_dict"
+                    assert self.config_dict[group].get(key) is None, (
+                        f"please define {key} of {group} only as parameter in the post_config_dict"
+                    )
             else:
-                assert (
-                    self.config_dict[group].get(group) is None
-                ), f"please define {group} only as parameter in the post_config_dict"
+                assert self.config_dict[group].get(group) is None, (
+                    f"please define {group} only as parameter in the post_config_dict"
+                )
 
     def _sis_hash(self):
         h = {"fairseq_hydra_config": self.config_dict}
@@ -135,12 +135,7 @@ class FairseqHydraTrainingJob(Job):
         max_update=1,
         save_interval=1,
         keep_epochs=None,
-        rqmt={
-            "gpu": 1,
-            "cpu": 2,
-            "mem": 4,
-            "time": 4,
-        },
+        rqmt=None,
         fairseq_python_exe=None,
         fairseq_root,
         cache_manager=CacheManagerType.none,
@@ -215,7 +210,7 @@ class FairseqHydraTrainingJob(Job):
             "mem": 4,
             "time": 4,
         }
-        self.rqmt.update(rqmt)
+        self.rqmt.update(rqmt or {})
         self.gpu_rqmt = self.rqmt["gpu"]
         if self.gpu_rqmt > 1:
             self.rqmt["cpu"] *= self.gpu_rqmt
@@ -348,8 +343,8 @@ class FairseqHydraTrainingJob(Job):
                     i = 0
                     while i < len(lines):
                         line = lines[i]
-                        if "begin validation on" in line or "end of epoch" in line:
-                            epoch_dict = eval(lines[i + 1][lines[i + 1].index("{") :])
+                        if "[train][INFO]" in line or "[valid][INFO]" in line:
+                            epoch_dict = eval(line[line.index("{") :])
                             try:
                                 epoch = int(epoch_dict["epoch"])
                                 losses = {k: {epoch: float(v)} for k, v in epoch_dict.items() if k.endswith("_loss")}
@@ -360,12 +355,12 @@ class FairseqHydraTrainingJob(Job):
                                 continue
                             if "train_lr" in epoch_dict:
                                 learning_rates[epoch] = float(epoch_dict["train_lr"])
-                            if "begin validation on" in line:
+                            if "[valid][INFO]" in line:
                                 for k in losses.keys():
                                     valid_loss[k].update(losses[k])
                                 for k in accuracy.keys():
                                     valid_accuracy[k].update(accuracy[k])
-                            else:
+                            else:  # [train][INFO] is in line
                                 for k in losses.keys():
                                     train_loss[k].update(losses[k])
                                 for k in accuracy.keys():

@@ -1,6 +1,7 @@
 """
 Helper code for serializing any data, e.g. for ReturnnConfig.
 """
+
 from __future__ import annotations
 
 __all__ = [
@@ -8,6 +9,7 @@ __all__ = [
     "Collection",
     "Import",
     "PartialImport",
+    "CallImport",
     "ExternalImport",
     "CodeFromFunction",
     "NonhashedCode",
@@ -149,6 +151,8 @@ class Import(SerializerObject):
 class PartialImport(Import):
     """
     Like Import, but for partial callables where certain parameters are given fixed and are hashed.
+
+    If you are trying to import (and initialize) callable classes, `CallImport` may simplify your setup.
     """
 
     TEMPLATE = textwrap.dedent(
@@ -164,7 +168,7 @@ class PartialImport(Import):
         self,
         *,
         code_object_path: Union[str, FunctionType, Any],
-        unhashed_package_root: str,
+        unhashed_package_root: Optional[str],
         hashed_arguments: Dict[str, Any],
         unhashed_arguments: Dict[str, Any],
         import_as: Optional[str] = None,
@@ -212,6 +216,22 @@ class PartialImport(Import):
     def _sis_hash(self) -> bytes:
         super_hash = super()._sis_hash()
         return sis_hash_helper({"import": super_hash, "hashed_arguments": self.hashed_arguments})
+
+
+class CallImport(PartialImport):
+    """
+    Imports some function/class and calls it with given args.
+
+    See also :class:`PartialImport` to get a partial function/class.
+    """
+
+    TEMPLATE = textwrap.dedent(
+        """\
+            ${OBJECT_NAME} = __import__("${IMPORT_PATH}", fromlist=["${IMPORT_NAME}"]).${IMPORT_NAME}(
+                **${KWARGS}
+            )
+        """
+    )
 
 
 class ExternalImport(SerializerObject):
@@ -384,9 +404,10 @@ class Call(SerializerObject):
     ) -> None:
         """
         :param callable_name: Name of the callable for which the call is serialized.
-        :param args: Optional list of positional arguments provided to the call.
         :param kwargs: Optional list of keyword arguments provided to the call in the form of key-value tuples.
-        :param return_assign_variables: Optional name or list of variable names that the return value(s) of the call are assigned to.
+        :param unhashed_kwargs: same as above, but does not influence the hash
+        :param return_assign_variables: Optional name or list of variable names that the return value(s) of the call
+            are assigned to.
         """
         super().__init__()
         self.callable_name = callable_name

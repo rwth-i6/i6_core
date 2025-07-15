@@ -1,6 +1,7 @@
 """
 Helper functions and classes for Bliss xml corpus loading and writing
 """
+
 from __future__ import annotations
 
 __all__ = ["NamedEntity", "CorpusSection", "Corpus", "Recording", "Segment", "Speaker"]
@@ -24,6 +25,12 @@ class NamedEntity:
         super().__init__()
         self.name: Optional[str] = None
 
+    def __repr__(self):
+        if self.name is None:
+            return f"<{self.__class__.__name__}>"
+        else:
+            return f"<{self.__class__.__name__} {self.name}>"
+
 
 class CorpusSection:
     def __init__(self):
@@ -41,13 +48,23 @@ class CorpusParser(sax.handler.ContentHandler):
     is currently beeing read.
     """
 
-    def __init__(self, corpus: Corpus, path: str):
+    def __init__(self, corpus: Corpus, path: str, *, reformat_orth: bool = True):
+        """
+        :param corpus: Corpus to be parsed.
+        :param path: Path of the parent corpus (needed for include statements).
+        :param reformat_orth: Whether to do some processing of the text
+            that goes into the orth tag to get a nicer-looking formating.
+            If `True`, removes newline characters and multiple spaces inside the text.
+
+            Defaults to `True` (initial behavior of :class:`Corpus`).
+        """
         super().__init__()
 
         self.elements: List[NamedEntity] = [
             corpus
-        ]  # stack of objects to store the element of the corpus that is beeing read
-        self.path = path  # path of the parent corpus (needed for include statements)
+        ]  # stack of objects to store the element of the corpus that is being read
+        self.path = path
+        self.reformat_orth = reformat_orth
         self.chars = ""  # buffer for character events, it is reset whenever a new element starts
 
     def startElement(self, name: str, attrs: Dict[str, str]):
@@ -83,8 +100,7 @@ class CorpusParser(sax.handler.ContentHandler):
             rec = Recording()
             rec.name = attrs["name"]
             rec.audio = attrs["audio"]
-            rec.corpus = e
-            e.recordings.append(rec)
+            e.add_recording(rec)
             self.elements.append(rec)
         elif name == "segment":
             assert isinstance(e, Recording), "<segment> may only occur within a <recording> element"
@@ -93,13 +109,12 @@ class CorpusParser(sax.handler.ContentHandler):
             seg.start = float(attrs.get("start", "0.0"))
             seg.end = float(attrs.get("end", "0.0"))
             seg.track = int(attrs["track"]) if "track" in attrs else None
-            seg.recording = e
-            e.segments.append(seg)
+            e.add_segment(seg)
             self.elements.append(seg)
         elif name == "speaker-description":
-            assert isinstance(
-                e, CorpusSection
-            ), "<speaker-description> may only occur within a <corpus>, <subcorpus> or <recording>"
+            assert isinstance(e, CorpusSection), (
+                "<speaker-description> may only occur within a <corpus>, <subcorpus> or <recording>"
+            )
             speaker = Speaker()
             speaker.name = attrs.get("name", None)
             if speaker.name is not None:
@@ -108,24 +123,28 @@ class CorpusParser(sax.handler.ContentHandler):
                 e.default_speaker = speaker
             self.elements.append(speaker)
         elif name == "speaker":
-            assert isinstance(
-                e, (CorpusSection, Segment)
-            ), "<speaker> may only occur within a <corpus>, <subcorpus>, <recording> or <segment>"
+            assert isinstance(e, (CorpusSection, Segment)), (
+                "<speaker> may only occur within a <corpus>, <subcorpus>, <recording> or <segment>"
+            )
             e.speaker_name = attrs["name"]
         self.chars = ""
 
     def endElement(self, name: str):
         e = self.elements[-1]
 
-        if name == "orth":
+        if name in {"orth", "left-context-orth", "right-context-orth"}:
             assert isinstance(e, Segment)
-            # we do some processing of the text that goes into the orth tag to get a nicer formating, some corpora may have
-            # multiline content in the orth tag, but to keep it that way might not be consistent with the indentation during
-            # writing, thus we remove multiple spaces and newlines
+            # Minimum formatting (strip) to prevent spaces from accumulating to the left/right of the orth
+            # due to print("<orth> {orth} </orth>").
             text = self.chars.strip()
-            text = re.sub(" +", " ", text)
-            text = re.sub("\n", "", text)
-            e.orth = text
+            if self.reformat_orth:
+                # we do some processing of the text that goes into the orth tag to get a nicer-looking formating,
+                # some corpora may have multiline content in the orth tag,
+                # but to keep it that way might not be consistent with the indentation during writing,
+                # thus we remove multiple spaces and newlines
+                text = re.sub(" +", " ", text)
+                text = re.sub("\n", "", text)
+            setattr(e, name.replace("-", "_"), text)
         elif isinstance(e, Speaker) and name != "speaker-description":
             # we allow all sorts of elements within a speaker description
             e.attribs[name] = self.chars.strip()
@@ -166,6 +185,24 @@ class Corpus(NamedEntity, CorpusSection):
         for sc in self.subcorpora:
             yield from sc.segments()
 
+    def get_recording_by_name(self, name: str) -> Recording:
+        """
+        :return: the recording specified by its name
+        """
+        for rec in self.all_recordings():
+            if rec.fullname() == name:
+                return rec
+        assert False, f"Recording '{name}' was not found in corpus"
+
+    def get_segment_by_name(self, name: str) -> Segment:
+        """
+        :return: the segment specified by its name
+        """
+        for seg in self.segments():
+            if seg.fullname() == name:
+                return seg
+        assert False, f"Segment '{name}' was not found in corpus"
+
     def all_recordings(self) -> Iterable[Recording]:
         yield from self.recordings
         for sc in self.subcorpora:
@@ -194,6 +231,17 @@ class Corpus(NamedEntity, CorpusSection):
             del self.recordings[idx]
         for sc in self.subcorpora:
             sc.remove_recording(recording)
+
+    def remove_recordings(self, recordings: List[Recording]):
+        recording_fullnames = {recording.fullname() for recording in recordings}
+        to_delete = []
+        for idx, r in enumerate(self.recordings):
+            if r.fullname() in recording_fullnames:
+                to_delete.append(idx)
+        for idx in reversed(to_delete):
+            del self.recordings[idx]
+        for sc in self.subcorpora:
+            sc.remove_recordings(recordings)
 
     def add_recording(self, recording: Recording):
         assert isinstance(recording, Recording)
@@ -238,14 +286,19 @@ class Corpus(NamedEntity, CorpusSection):
         for sc in self.subcorpora:
             sc.filter_segments(filter_function)
 
-    def load(self, path: str):
+    def load(self, path: str, *, reformat_orth: bool = True):
         """
         :param path: corpus .xml or .xml.gz
+        :param reformat_orth: Whether to do some processing of the text
+            that goes into the orth tag to get a nicer-looking formating.
+            If `True`, removes newline characters and multiple spaces inside the text.
+
+            Defaults to `True` (initial behavior of :class:`Corpus`).
         """
         open_fun = gzip.open if path.endswith(".gz") else open
 
         with open_fun(path, "rt") as f:
-            handler = CorpusParser(self, path)
+            handler = CorpusParser(self, path, reformat_orth=reformat_orth)
             sax.parse(f, handler)
 
     def dump(self, path: str):
@@ -279,6 +332,21 @@ class Corpus(NamedEntity, CorpusSection):
             out.write("</corpus>\n")
         else:
             out.write("%s</subcorpus>\n" % (indentation,))
+
+    def get_segment_mapping(self) -> Dict[str, Segment]:
+        """
+        :return: Mapping from segment fullnames to actual segments.
+        """
+        return {seg.fullname(): seg for seg in self.segments()}
+
+    def get_recording_mapping(self) -> Dict[str, Recording]:
+        """
+        :return: Mapping from recording fullnames to actual recordings.
+        """
+        return {rec.fullname(): rec for rec in self.all_recordings()}
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} {self.fullname()}>"
 
 
 class Recording(NamedEntity, CorpusSection):
@@ -317,17 +385,56 @@ class Recording(NamedEntity, CorpusSection):
         segment.recording = self
         self.segments.append(segment)
 
+    def get_segment_mapping(self) -> Dict[str, Segment]:
+        """
+        :return: Mapping from segment fullnames to actual segments.
+        """
+        return {seg.fullname(): seg for seg in self.segments}
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} {self.fullname()}>"
+
 
 class Segment(NamedEntity):
-    def __init__(self):
+    def __init__(
+        self,
+        *,
+        start: float = 0.0,
+        end: float = 0.0,
+        track: Optional[int] = None,
+        orth: Optional[str] = None,
+        left_context_orth: Optional[str] = None,
+        right_context_orth: Optional[str] = None,
+        speaker_name: Optional[str] = None,
+        recording: Optional[Recording] = None,
+    ):
+        """
+        :param start: Segment start.
+        :param end: Segment end.
+        :param track: Segment track/channel.
+        :param orth: Segment text.
+        :param left_context_orth: Optional left context when aligning (specific for RASR alignment).
+        :param right_context_orth: Optional right context when aligning (specific for RASR alignment).
+        :param speaker_name: Speaker name.
+        :param recording: Recording in which the segment is embedded.
+        """
         super().__init__()
-        self.start = 0.0
-        self.end = 0.0
-        self.track: Optional[int] = None
-        self.orth: Optional[str] = None
-        self.speaker_name: Optional[str] = None
 
-        self.recording: Optional[Recording] = None
+        self.start = start
+        self.end = end
+        self.track = track
+        self.orth = orth
+        self.left_context_orth = left_context_orth
+        self.right_context_orth = right_context_orth
+        self.speaker_name = speaker_name
+
+        self.recording = recording
+
+    def full_orth(self) -> str:
+        """
+        :return: Left context orth (if any) + orth + right context orth (if any).
+        """
+        return " ".join([s for s in [self.left_context_orth, self.orth, self.right_context_orth] if s])
 
     def fullname(self) -> str:
         return self.recording.fullname() + "/" + self.name
@@ -347,10 +454,23 @@ class Segment(NamedEntity):
             out.write('%s  <speaker name="%s"/>\n' % (indentation, self.speaker_name))
         if self.orth is not None:
             out.write("%s  <orth> %s </orth>\n" % (indentation, saxutils.escape(self.orth)))
+        if self.left_context_orth is not None:
+            out.write(
+                "%s  <left-context-orth> %s </left-context-orth>\n"
+                % (indentation, saxutils.escape(self.left_context_orth))
+            )
+        if self.right_context_orth is not None:
+            out.write(
+                "%s  <right-context-orth> %s </right-context-orth>\n"
+                % (indentation, saxutils.escape(self.right_context_orth))
+            )
         if has_child_element:
             out.write("%s</segment>\n" % indentation)
         else:
             out.write("</segment>\n")
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__} {self.fullname()} {self.start:.02f}-{self.end:.02f})>"
 
 
 class Speaker(NamedEntity):

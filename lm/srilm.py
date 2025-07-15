@@ -1,5 +1,6 @@
 __all__ = [
     "CountNgramsJob",
+    "DiscountNgramsJob",
     "ComputeNgramLmJob",
     "ComputeNgramLmPerplexityJob",
     "ComputeBestMixJob",
@@ -11,6 +12,7 @@ import os
 import shutil
 import subprocess
 
+from collections import deque
 from enum import Enum
 from typing import Dict, List, Optional
 
@@ -70,7 +72,7 @@ class CountNgramsJob(Job):
     def create_files(self):
         """creates bash script that will be executed in the run Task"""
         cmd = [
-            f"{self.count_exe} \\\n",
+            f"{self.count_exe.get_path()} \\\n",
             f"  -text {self.data.get_path()} \\\n",
             f"  -order {self.ngram_order} \\\n",
             f"  -write counts \\\n",
@@ -94,10 +96,103 @@ class CountNgramsJob(Job):
         return super().hash(kwargs)
 
 
+class DiscountNgramsJob(Job):
+    """
+    Create a file with the discounted ngrams with SRILM
+    """
+
+    __sis_hash_exclude__ = {"data_for_optimization": None}
+
+    def __init__(
+        self,
+        ngram_order: int,
+        counts: tk.Path,
+        count_exe: tk.Path,
+        *,
+        vocab: Optional[tk.Path] = None,
+        data_for_optimization: Optional[tk.Path] = None,
+        extra_discount_args: Optional[List[str]] = None,
+        use_modified_srilm: bool = False,
+        cpu_rqmt: int = 1,
+        mem_rqmt: int = 48,
+        time_rqmt: float = 24,
+    ):
+        """
+        :param ngram_order: order of the ngram counts, typically 3 or 4.
+        :param counts: file with the ngram counts, see :class:`CountNgramsJob.out_counts`.
+        :param count_exe: path to the binary.
+        :param vocab: vocabulary file for the discounting.
+        :param data_for_optimization: the discounting will be optimized on this dataset.
+        :param extra_discount_args: additional arguments for the discounting step.
+        :param use_modified_srilm: Use the i6 modified SRILM version by Sundermeyer.
+                                   The SRILM binary ngram-count was modified.
+                                   This version is currently only available internally.
+        :param cpu_rqmt: CPU requirements.
+        :param mem_rqmt: memory requirements.
+        :param time_rqmt: time requirements.
+        """
+        self.ngram_order = ngram_order
+        self.counts = counts
+        self.vocab = vocab
+        self.data_for_optimization = data_for_optimization
+        self.discount_args = extra_discount_args or []
+        self.use_modified_srilm = use_modified_srilm
+
+        self.count_exe = count_exe
+
+        self.out_discounts = self.output_path("discounts", cached=True)
+
+        self.rqmt_run = {
+            "cpu": cpu_rqmt,
+            "mem": mem_rqmt,
+            "time": time_rqmt,
+        }
+
+    def tasks(self):
+        yield Task("create_files", mini_task=True)
+        yield Task("run", rqmt=self.rqmt_run)
+
+    def create_files(self):
+        """creates bash script to compute discounts"""
+        cmd = [
+            f"{self.count_exe.get_path()} \\\n",
+            f"  -order {self.ngram_order} \\\n",
+        ]
+        if self.vocab is not None:
+            cmd.append(f"  -vocab {self.vocab.get_cached_path()} \\\n")
+        cmd += ["  -kn discounts\\\n"] if not self.use_modified_srilm else [f"  -multi-kn-file discounts \\\n"]
+        if self.data_for_optimization is not None:
+            cmd.append(f"  -optimize-discounts {self.data_for_optimization.get_cached_path()} \\\n")
+        cmd += [
+            f"  -read {self.counts.get_cached_path()} \\\n",
+            f"  {' '.join(self.discount_args)} -memuse\n",
+        ]
+
+        create_executable("run.sh", cmd)
+
+    def run(self):
+        """executes the previously created bash script and relinks outputs from work folder to output folder"""
+        subprocess.check_call("./run.sh")
+        relink("discounts", self.out_discounts.get_path())
+
+    @classmethod
+    def hash(cls, kwargs):
+        """delete the queue requirements from the hashing"""
+        del kwargs["mem_rqmt"]
+        del kwargs["cpu_rqmt"]
+        del kwargs["time_rqmt"]
+        return super().hash(kwargs)
+
+
 class ComputeNgramLmJob(Job):
     """
     Generate count based LM with SRILM
     """
+
+    __sis_hash_exclude__ = {
+        "discounts": None,
+        "use_modified_srilm": False,
+    }
 
     class DataMode(Enum):
         TEXT = 1
@@ -111,7 +206,9 @@ class ComputeNgramLmJob(Job):
         count_exe: tk.Path,
         *,
         vocab: Optional[tk.Path] = None,
+        discounts: Optional[tk.Path] = None,
         extra_ngram_args: Optional[List[str]] = None,
+        use_modified_srilm: bool = False,
         mem_rqmt: int = 48,
         time_rqmt: float = 24,
         cpu_rqmt: int = 1,
@@ -123,7 +220,11 @@ class ComputeNgramLmJob(Job):
                      the counts file can come from the `CountNgramsJob.out_counts`
         :param data_mode: Defines whether input format is text based or count based
         :param vocab: Vocabulary file, one word per line
+        :param discounts: Discounting file from :class:`DiscountNgramsJob`.
         :param extra_ngram_args: Extra arguments for the execution call e.g. ['-kndiscount']
+        :param use_modified_srilm: Use the i6 modified SRILM version by Sundermeyer.
+                                   The SRILM binary ngram-count was modified.
+                                   This version is currently only available internally.
         :param count_exe: Path to srilm ngram-count exe
         :param mem_rqmt: Memory requirements of Job (not hashed)
         :param time_rqmt: Time requirements of Job (not hashed)
@@ -137,7 +238,9 @@ class ComputeNgramLmJob(Job):
         self.data = data
         self.data_mode = data_mode
         self.vocab = vocab
+        self.discounts = discounts
         self.ngram_args = extra_ngram_args if extra_ngram_args is not None else []
+        self.use_modified_srilm = use_modified_srilm
 
         self.count_exe = count_exe
 
@@ -178,6 +281,15 @@ class ComputeNgramLmJob(Job):
             f"{vocab_str}",
             f"  -order {self.ngram_order} \\\n",
             f"  -lm ngram.lm \\\n",
+        ]
+
+        if self.discounts is not None:
+            if not self.use_modified_srilm:
+                cmd.append(f"  -kn {self.discounts.get_path()}\\\n")
+            else:
+                cmd.append(f"  -multi-kn-file {self.discounts.get_path()}\\\n")
+
+        cmd += [
             f"  {' '.join(self.ngram_args)} -unk -memuse\n",
         ]
         create_executable("run.sh", cmd)
@@ -189,7 +301,7 @@ class ComputeNgramLmJob(Job):
         if self.vocab is None:
             relink("vocab", self.out_vocab.get_path())
         else:
-            relink(self.vocab.get_path(), self.out_vocab.get_path())
+            shutil.copy(self.vocab.get_path(), self.out_vocab.get_path())
 
     def compress(self):
         """executes the previously created compression script and relinks the lm from work folder to output folder"""
@@ -297,14 +409,14 @@ class ComputeNgramLmPerplexityJob(Job):
     def get_ppl(self):
         """extracts various outputs from the ppl.log file"""
         with open(self.out_ppl_log.get_path(), "rt") as f:
-            lines = f.readlines()[-2:]
+            lines = deque(f, maxlen=2)
             for line in lines:
                 line = line.split(" ")
                 for idx, ln in enumerate(line):
                     if ln == "sentences,":
                         self.out_num_sentences.set(int(line[idx - 1]))
                     if ln == "words,":
-                        self.out_num_words.set(int(line[idx - 1]))
+                        self.out_num_words.set(int(float(line[idx - 1])))
                     if ln == "OOVs":
                         self.out_num_oovs.set(int(line[idx - 1]))
                     if ln == "ppl=":
@@ -340,27 +452,23 @@ class ComputeBestMixJob(Job):
     def tasks(self):
         yield Task("run", mini_task=True)
 
-    def _get_cmd(self) -> str:
-        """creates command string for the bash call"""
-        cmd = self.compute_best_mix_exe.get_path()
-
-        cmd += " "
+    def _create_cmd(self) -> List[str]:
+        """:return: the command"""
+        cmd = [self.compute_best_mix_exe.get_path()]
 
         ppl_log = [x.get_path() for x in self.ppl_logs]
 
-        cmd += " ".join(ppl_log)
-
-        cmd += " &> cbm.log"
+        cmd += ppl_log
 
         return cmd
 
     def run(self):
         """Call the srilm script and extracts the different weights from the log, then relinks log to output folder"""
-        cmd = self._get_cmd()
-        subprocess.check_call(cmd)
+        cmd = self._create_cmd()
+        subprocess.check_call(cmd, stdout=open("cbm.log", "wb"), stderr=subprocess.STDOUT)
 
         lines = open("cbm.log", "rt").readlines()
-        lbds = lines[-2].split("(")[1].replace(")", "")
+        lbds = lines[-2].split("(")[1].split(")")[0]
         lbds = lbds.split()
 
         for i, v in enumerate(lbds):
@@ -427,35 +535,35 @@ class InterpolateNgramLmJob(Job):
     def tasks(self):
         yield Task("run", rqmt=self.rqmt)
 
-    def _get_cmd(self) -> str:
-        """creates command string for the bash call"""
-        cmd = self.ngram_exe.get_path()
-        cmd += f" -order {self.ngram_order} -unk"
+    def _create_cmd(self) -> List[str]:
+        """:return: the command"""
+        cmd = [self.ngram_exe.get_path()]
+        cmd += ["-order", str(self.ngram_order), "-unk"]
 
         for i, lm in enumerate(self.ngram_lms):
             if i == 0:
-                c = f" -lm {lm.get_path()}"
+                c = ["-lm", lm.get_path()]
             elif i == 1:
-                c = f" -mix-lm {lm.get_path()}"
+                c = ["-mix-lm", lm.get_path()]
             else:
-                c = f" -mix-lm{i} {lm.get_path()}"
+                c = [f"-mix-lm{i}", lm.get_path()]
             cmd += c
 
         for i, lmbd in enumerate(self.weights):
             if i == 0:
-                c = f" -lambda {lmbd.get()}"
+                c = ["-lambda", str(lmbd.get())]
             elif i == 1:
-                c = f""
+                c = []
             else:
-                c = f" -mix-lambda{i} {lmbd.get()}"
+                c = [f"-mix-lambda{i}", str(lmbd.get())]
             cmd += c
-        cmd += " -write-lm interpolated.lm.gz"
+        cmd += ["-write-lm", "interpolated.lm.gz"]
 
         return cmd
 
     def run(self):
-        """delete the executable from the hashing"""
-        cmd = self._get_cmd()
+        """run the command"""
+        cmd = self._create_cmd()
         subprocess.check_call(cmd)
         shutil.move("interpolated.lm.gz", self.out_interpolated_lm.get_path())
 

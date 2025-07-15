@@ -41,7 +41,6 @@ class GenerateReportStringJob(Job):
         yield Task("run", mini_task=True)
 
     def run(self):
-
         if self.report_template:
             if isinstance(self.report_template, str):
                 report = self.report_template.format(**self.report_values)
@@ -86,7 +85,6 @@ class MailJob(Job):
         yield Task("run", mini_task=True)
 
     def run(self):
-
         if self.subject is None:
             subject = f"Output {str(self.result)} is finished"
         else:

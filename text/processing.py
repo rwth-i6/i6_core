@@ -5,12 +5,21 @@ __all__ = [
     "TailJob",
     "SetDifferenceJob",
     "WriteToTextFileJob",
+    "WriteToCsvFileJob",
+    "SplitTextFileJob",
 ]
 
+import csv
+from io import IOBase
+import logging
 import os
+import shutil
+import subprocess
 from collections.abc import Iterable
+import tempfile
+from typing import Dict, List, Optional, Union
 
-from sisyphus import Job, Task, Path, global_settings as gs
+from sisyphus import Job, Task, Path, global_settings as gs, toolkit as tk
 from sisyphus.delayed_ops import DelayedBase
 
 import i6_core.util as util
@@ -119,13 +128,11 @@ class ConcatenateJob(Job):
     Concatenate all given input files (gz or raw)
     """
 
-    __sis_hash_exclude = {"zip_out": True, "out_name": "out"}
-
-    def __init__(self, text_files, zip_out=True, out_name="out"):
+    def __init__(self, text_files: List[Path], zip_out: bool = True, out_name: str = "out"):
         """
-        :param list[Path] text_files: input text files
-        :param bool zip_out: apply gzip to the output
-        :param str out_name: user specific name
+        :param text_files: input text files
+        :param zip_out: apply gzip to the output
+        :param out_name: user specific file name for the output file
         """
         assert text_files
 
@@ -136,6 +143,12 @@ class ConcatenateJob(Job):
 
         assert isinstance(text_files, list)
 
+        for input_file in text_files:
+            assert isinstance(input_file, (Path, str)), "input to Concatenate is not a valid path"
+
+        self.text_files = text_files
+        self.zip_out = zip_out
+
         # Skip this job if only one input is present
         if len(text_files) == 1:
             self.out = text_files.pop()
@@ -145,21 +158,20 @@ class ConcatenateJob(Job):
             else:
                 self.out = self.output_path(out_name)
 
-        for input in text_files:
-            assert isinstance(input, Path) or isinstance(input, str), "input to Concatenate is not a valid path"
-
-        self.text_files = text_files
-        self.zip_out = zip_out
-
     def tasks(self):
         yield Task("run", rqmt={"mem": 3, "time": 3})
 
     def run(self):
-        self.f_list = " ".join(gs.file_caching(str(i)) for i in self.text_files)
-        if self.zip_out:
-            self.sh("zcat -f {f_list} | gzip > {out}")
-        else:
-            self.sh("zcat -f {f_list} > {out}")
+        f_list = [
+            gs.file_caching(text_file) if isinstance(text_file, str) else text_file.get_cached_path()
+            for text_file in self.text_files
+        ]
+
+        with util.uopen(self.out, "wb") as out_file:
+            for f in f_list:
+                logging.info(f)
+                with util.uopen(f, "rb") as in_file:
+                    shutil.copyfileobj(in_file, out_file)
 
 
 class HeadJob(Job):
@@ -185,7 +197,9 @@ class HeadJob(Job):
         self.ratio = ratio
         self.zip_output = zip_output
 
-        self.out = self.output_path("out.gz")
+        self.out = self.output_path("out.gz") if self.zip_output else self.output_path("out")
+        if not self.zip_output:
+            self.out.hash_overwrite = (self, "out.gz")  # keep old hashing behavior
         self.length = self.output_var("length")
 
     def tasks(self):
@@ -202,7 +216,7 @@ class HeadJob(Job):
         if self.ratio:
             assert not self.num_lines
             length = int(self.sh("zcat -f {text_file} | wc -l", True))
-            self.lines = int(length * self.ratio)
+            self.num_lines = int(length * self.ratio)
 
         pipeline = "zcat -f {text_file} | head -n {num_lines}"
         if self.zip_output:
@@ -223,11 +237,17 @@ class TailJob(HeadJob):
 
     def run(self):
         if self.ratio:
-            assert not self.lines
+            assert not self.num_lines
             length = int(self.sh("zcat -f {text_file} | wc -l", True))
-            self.lines = int(length * self.ratio)
+            self.num_lines = int(length * self.ratio)
 
-        self.sh("zcat -f {text_file} | tail -n {num_lines} | gzip > {out}")
+        pipeline = "zcat -f {text_file} | tail -n {num_lines}"
+        if self.zip_output:
+            pipeline += " | gzip"
+        pipeline += " > {out}"
+
+        self.sh(pipeline)
+        self.length.set(self.num_lines)
 
 
 class SetDifferenceJob(Job):
@@ -265,32 +285,171 @@ class SetDifferenceJob(Job):
 
 class WriteToTextFileJob(Job):
     """
-    Write a given content into a text file, one entry per line
+    Write a given content into a text file, one entry per line.
+
+    This job supports multiple input types:
+    1. String.
+    2. Dictionary.
+    3. Iterable.
+
+    The corresponding output for each of the inputs above is:
+    1. The string is directly written into the file.
+    2. Each key/value pair is written as `<key>: <value>`.
+    3. Each element in the iterable is written in a separate line as a string.
     """
 
-    def __init__(
-        self,
-        content,
-    ):
+    __sis_hash_exclude__ = {"out_name": "file.txt"}
+
+    def __init__(self, content: Union[str, dict, Iterable, DelayedBase], out_name: str = "file.txt"):
         """
-        :param list|dict|str content: input which will be written into a text file
+        :param content: input which will be written into a text file
+        :param out_name: user specific file name for the output file
         """
         self.content = content
 
-        self.out_file = self.output_path("file.txt")
+        self.out_file = self.output_path(out_name)
+
+    def write_content_to_file(self, file_handler: IOBase):
+        content = util.instanciate_delayed(self.content)
+        if isinstance(content, str):
+            file_handler.write(content)
+        elif isinstance(content, dict):
+            for key, val in content.items():
+                file_handler.write(f"{key}: {val}\n")
+        elif isinstance(content, Iterable):
+            for line in content:
+                file_handler.write(f"{line}\n")
+        else:
+            raise NotImplementedError("Content of unknown type different from (str, dict, Iterable).")
 
     def tasks(self):
         yield Task("run", mini_task=True)
 
     def run(self):
         with open(self.out_file.get_path(), "w") as f:
-            if isinstance(self.content, str):
-                f.write(self.content)
-            elif isinstance(self.content, dict):
-                for key, val in self.content.items():
-                    f.write(f"{key}: {val}\n")
-            elif isinstance(self.content, Iterable):
-                for line in self.content:
-                    f.write(f"{line}\n")
+            self.write_content_to_file(f)
+
+
+class WriteToCsvFileJob(WriteToTextFileJob):
+    """
+    Write a given content into a csv file, one entry per line.
+
+    This job only supports dictionaries as input type. Each key/value pair is written as `<key><delimiter><value>`.
+    """
+
+    __sis_hash_exclude__ = {}  # It was filled in the base class, but it's not needed anymore since this is a new job.
+
+    def __init__(
+        self,
+        content: Dict[str, Union[str, List[str]]],
+        *,
+        out_name: str = "file.txt",
+        delimiter: str = "\t",
+    ):
+        """
+        :param content: input which will be written into a text file
+        :param out_name: user specific file name for the output file
+        :param delimiter: Delimiter used to separate the different entries.
+        """
+        super().__init__(content, out_name)
+
+        self.delimiter = delimiter
+
+    def write_content_to_file(self, file_handler: IOBase):
+        """
+        Writes the input contents (from `self.content`) into the file provided as parameter as a csv file.
+
+        :param file_handler: Open file to write the contents of `self.content` to.
+        """
+        csv_writer = csv.writer(file_handler, delimiter=self.delimiter)
+        content = util.instanciate_delayed(self.content)
+        if isinstance(content, dict):
+            for key, val in content.items():
+                if isinstance(val, list):
+                    csv_writer.writerow((key, *val))
+                else:
+                    csv_writer.writerow((key, val))
+        else:
+            raise NotImplementedError("Content of unknown type different from (str, dict, Iterable).")
+
+
+class SplitTextFileJob(Job):
+    def __init__(
+        self,
+        text_file: tk.Path,
+        num_lines_per_split: int,
+        num_text_file_lines: Optional[int] = None,
+        zip_output: bool = True,
+    ):
+        """
+        Job splits a text file into several smaller files.
+
+        https://stackoverflow.com/a/45761990/2062195
+
+        :param text_file: Input text file to be processed.
+        :param num_lines_per_split: Number of lines per split.
+        :param num_text_file_lines: Number of lines in the input text file.
+        :param zip_output: compress the output files.
+        """
+        self.in_text_file = text_file
+        self.num_lines_per_split = num_lines_per_split
+        self.num_text_file_lines = num_text_file_lines
+        self.zip_output = zip_output
+
+        if num_text_file_lines is not None:
+            self.num_output_files = self.num_text_file_lines // self.num_lines_per_split + int(
+                bool(self.num_text_file_lines % self.num_lines_per_split)
+            )
+        else:
+            raise NotImplementedError
+
+        self.out_split_text_files = {
+            k: self.output_path(f"split.{k:04}.{'txt.gz' if zip_output else 'txt'}")
+            for k in range(1, self.num_output_files + 1)
+        }
+
+        self.run_rqmt = {"cpu": 1, "mem": 12.0, "time": 6.0}
+
+    def tasks(self):
+        yield Task("run", rqmt=self.run_rqmt)
+
+    def run(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            if self.in_text_file.get_path().endswith(".gz"):
+                logging.info("Un-compressing file")
+                text_file = f"{tmp_dir}/input_file.txt"
+                with open(text_file, "wt") as f_in:
+                    uncompress_cmd = ["gzip", "-cdk", self.in_text_file.get_path()]
+                    subprocess.run(uncompress_cmd, check=True, stdout=f_in)
             else:
-                raise NotImplementedError
+                text_file = self.in_text_file.get_path()
+
+            logging.info("Split lines")
+            split_cmd = [
+                "split",
+                "-l",
+                str(self.num_lines_per_split),
+                "--suffix-length=4",
+                "--numeric-suffixes=1",
+                "--additional-suffix=.txt",
+                text_file,
+                f"{tmp_dir}/split.",
+            ]
+            subprocess.run(split_cmd, check=True)
+
+            for file_id in range(1, self.num_output_files + 1):
+                file_path = f"{tmp_dir}/split.{file_id:04}.txt"
+                assert os.path.isfile(file_path) and os.path.getsize(file_path) > 0
+
+            if self.zip_output:
+                logging.info("Compressing file")
+                compress_cmd = ["gzip"] + [
+                    f"{tmp_dir}/split.{file_id:04}.txt" for file_id in range(1, self.num_output_files + 1)
+                ]
+                subprocess.run(compress_cmd, check=True)
+
+            for file_id in range(1, self.num_output_files + 1):
+                shutil.move(
+                    f"{tmp_dir}/split.{file_id:04}.txt.gz" if self.zip_output else f"split.{file_id:04}.txt",
+                    self.out_split_text_files[file_id].get_path(),
+                )

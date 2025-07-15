@@ -13,7 +13,7 @@ import logging
 import mmap
 import numpy
 import os
-import typing
+from typing import Dict, List, Optional, Tuple
 import zlib
 from struct import pack, unpack
 
@@ -53,7 +53,7 @@ class FileArchive:
     def __init__(self, filename, must_exists=False, encoding="ascii"):
         self.encoding = encoding
 
-        self.ft = {}  # type: typing.Dict[str,FileInfo]
+        self.ft: Dict[str, FileInfo] = {}
         if os.path.exists(filename):
             self.allophones = []
             self.f = open(filename, "rb")
@@ -323,21 +323,26 @@ class FileArchive:
 
         if typ == "str":
             return self.read_str(size, self.encoding)
-
+        elif typ == "bytes":
+            return self.read_bytes(size)
         elif typ == "feat":
             type_len = self.read_U32()
             typ = self.read_str(type_len)
             # print(typ)
-            assert typ == "vector-f32"
+            assert typ in {"vector-f32", "f32"}
             count = self.read_U32()
-            data = [None] * count  # type: typing.List[typing.Optional[numpy.ndarray]]
-            time_ = [None] * count  # type: typing.List[typing.Optional[numpy.ndarray]]
-            for i in range(count):
-                size = self.read_U32()
-                data[i] = self.read_v("f", size)  # size x f32
-                time_[i] = self.read_v("d", 2)  # 2    x f64
+            data: List[Optional[numpy.ndarray]] = [None] * count
+            time_: List[Optional[numpy.ndarray]] = [None] * count
+            if typ == "vector-f32":
+                for i in range(count):
+                    size = self.read_U32()
+                    data[i] = self.read_v("f", size)  # size x f32
+                    time_[i] = self.read_v("d", 2)  # 2    x f64
+            elif typ == "f32":
+                for i in range(count):
+                    data[i] = self.read_v("f", 1)  # 1 x f32
+                    time_[i] = self.read_v("d", 2)  # 2 x f64
             return time_, data
-
         elif typ in ["align", "align_raw"]:
             type_len = self.read_U32()
             file_typ = self.read_str(type_len)
@@ -408,6 +413,8 @@ class FileArchive:
                     return alignment
             else:
                 raise Exception("No valid alignment header found (found: %r). Wrong cache?" % typ)
+        else:
+            raise NotImplementedError(f"Archive type '{typ}' is not yet implemented")
 
     def has_entry(self, filename):
         """
@@ -446,7 +453,7 @@ class FileArchive:
             a = array.array("b")
             a.fromfile(self.f, comp)
             # unpack
-            b = zlib.decompress(a.tostring(), 15 + 32)
+            b = zlib.decompress(a.tobytes(), 15 + 32)
             # substitute self.f by an anonymous memmap file object
             # restore original file handle after we're done
             backup_f = self.f
@@ -565,9 +572,9 @@ class FileArchiveBundle:
         :param str encoding: encoding used in the files
         """
         # filename -> FileArchive
-        self.archives = {}  # type: typing.Dict[str,FileArchive]
+        self.archives: Dict[str, FileArchive] = {}
         # archive content file -> FileArchive
-        self.files = {}  # type: typing.Dict[str,FileArchive]
+        self.files: Dict[str, FileArchive] = {}
         self._short_seg_names = {}
         for line in open(filename).read().splitlines():
             self.archives[line] = a = FileArchive(line, must_exists=True, encoding=encoding)
@@ -801,7 +808,7 @@ class MixtureSet:
         """
         a = array.array("b")
         a.fromfile(self.f, l)
-        return a.tostring().decode(enc)
+        return a.tobytes().decode(enc)
 
     def read_f32(self):
         """
@@ -921,9 +928,7 @@ class MixtureSet:
             self.densities[n, 1] = cov_idx
 
         self.num_mixtures = self.read_u32()
-        self.mixtures = [
-            None
-        ] * self.num_mixtures  # type: typing.List[typing.Optional[typing.Tuple[typing.List[int],typing.List[float]]]]  # nopep8
+        self.mixtures: List[Optional[Tuple[List[int], List[float]]]] = [None] * self.num_mixtures
         for n in range(self.num_mixtures):
             num_densities = self.read_u32()
             dns_idx = []
@@ -1024,7 +1029,7 @@ class WordBoundaries:
         """
         a = array.array("b")
         a.fromfile(self.f, l)
-        return a.tostring().decode(enc)
+        return a.tobytes().decode(enc)
 
     def __init__(self, filename):
         """

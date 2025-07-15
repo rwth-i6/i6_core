@@ -7,7 +7,6 @@ __all__ = [
 ]
 
 import itertools
-import pprint
 import re
 
 from typing import Dict, List, Optional, Tuple, Union
@@ -223,17 +222,22 @@ class CorpusToTextDictJob(Job):
     Extract the Text from a Bliss corpus to fit a "{key: text}" structure (e.g. for RETURNN)
     """
 
-    def __init__(self, bliss_corpus, segment_file=None, invert_match=False):
+    __sis_hash_exclude__ = {"gzip": False}
+
+    def __init__(
+        self, bliss_corpus: Path, *, segment_file: Optional[Path] = None, invert_match: bool = False, gzip: bool = False
+    ):
         """
-        :param Path bliss_corpus: bliss corpus file
-        :param Path|None segment_file: a segment file as optional whitelist
-        :param bool invert_match: use segment file as blacklist (needs to contain full segment names then)
+        :param bliss_corpus: bliss corpus file
+        :param segment_file: a segment file as optional whitelist
+        :param invert_match: use segment file as blacklist (needs to contain full segment names then)
+        :param gzip: output will be gzipped
         """
         self.bliss_corpus = bliss_corpus
         self.segment_file = segment_file
         self.invert_match = invert_match
 
-        self.out_dictionary = self.output_path("text_dictionary.py")
+        self.out_dictionary = self.output_path("text_dictionary.py" + (".gz" if gzip else ""))
 
     def tasks(self):
         yield Task("run", mini_task=True)
@@ -242,26 +246,23 @@ class CorpusToTextDictJob(Job):
         c = corpus.Corpus()
         c.load(self.bliss_corpus.get_path())
 
-        dictionary = {}
-
         segments = None
         if self.segment_file:
             with uopen(self.segment_file) as f:
                 segments = set(line.decode().strip() for line in f)
 
-        for segment in c.segments():
-            orth = segment.orth.strip()
-            key = segment.fullname()
-            if segments:
-                if not self.invert_match and key not in segments and segment.name not in segments:
-                    continue
-                if self.invert_match and key in segments:
-                    continue
-            dictionary[key] = orth
-
-        dictionary_string = pprint.pformat(dictionary, width=1000)
-        with uopen(self.out_dictionary, "wt") as f:
-            f.write(dictionary_string)
+        with uopen(self.out_dictionary, "wt") as out:
+            out.write("{\n")
+            for segment in c.segments():
+                orth = segment.orth.strip()
+                key = segment.fullname()
+                if segments is not None:
+                    if not self.invert_match and key not in segments and segment.name not in segments:
+                        continue
+                    if self.invert_match and key in segments:
+                        continue
+                out.write("%r: %r,\n" % (key, orth))
+            out.write("}\n")
 
 
 class CorpusToTxtJob(Job):

@@ -33,7 +33,6 @@ class NumeratorLatticeJob(rasr.RasrCommand, Job):
         extra_config=None,
         extra_post_config=None,
     ):
-
         assert isinstance(feature_scorer, rasr.FeatureScorer)
 
         self.set_vis_name("NumeratorLattice")
@@ -193,7 +192,6 @@ class RawDenominatorLatticeJob(rasr.RasrCommand, Job):
         extra_config=None,
         extra_post_config=None,
     ):
-
         assert isinstance(feature_scorer, rasr.FeatureScorer)
 
         self.set_vis_name("Raw Denominator Lattice")
@@ -267,7 +265,6 @@ class RawDenominatorLatticeJob(rasr.RasrCommand, Job):
         extra_post_config,
         **kwargs,
     ):
-
         lm_gc = recognition.AdvancedTreeSearchLmImageAndGlobalCacheJob(
             crp, feature_scorer, extra_config, extra_post_config
         )
@@ -384,7 +381,6 @@ class DenominatorLatticeJob(rasr.RasrCommand, Job):
         extra_config=None,
         extra_post_config=None,
     ):
-
         self.set_vis_name("Denominator Lattice")
 
         kwargs = locals()
@@ -445,7 +441,6 @@ class DenominatorLatticeJob(rasr.RasrCommand, Job):
         extra_post_config,
         **kwargs,
     ):
-
         search_opts = {"pruning-threshold": 15, "pruning-threshold-relative": True}
 
         if search_options:
@@ -523,7 +518,6 @@ class AccuracyJob(rasr.RasrCommand, Job):
         extra_config=None,
         extra_post_config=None,
     ):
-
         self.set_vis_name("Accuracy Lattice")
 
         kwargs = locals()
@@ -607,7 +601,6 @@ class AccuracyJob(rasr.RasrCommand, Job):
         extra_post_config,
         **kwargs,
     ):
-
         alignment_flow = cls.create_flow(feature_flow)
 
         alignopt = {
@@ -743,7 +736,6 @@ class PhoneAccuracyJob(AccuracyJob, Job):
         extra_post_config,
         **kwargs,
     ):
-
         config, post_config = super().create_config(
             crp,
             feature_flow,
@@ -817,7 +809,6 @@ class StateAccuracyJob(AccuracyJob, Job):
         extra_post_config,
         **kwargs,
     ):
-
         config, post_config = super().create_config(
             crp,
             feature_flow,
