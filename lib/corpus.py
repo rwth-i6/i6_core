@@ -302,7 +302,7 @@ class Corpus(NamedEntity, CorpusSection):
         """
         for rec_full_name, r in self._recordings.items():
             self._recordings[rec_full_name]._segments = {
-                s.fullname(): s for s in r.segments.values() if filter_function(self, r, s)
+                s.fullname(): s for s in r.segments if filter_function(self, r, s)
             }
         for subcorpus_full_name in self._subcorpora():
             self._subcorpora[subcorpus_full_name].filter_segments(filter_function)
