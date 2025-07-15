@@ -267,16 +267,28 @@ class Corpus(NamedEntity, CorpusSection):
             self.remove_recording(r)
 
     def add_recording(self, recording: Recording):
+        assert recording.fullname() not in self._recordings, (
+            f"Tried to add recording {recording.fullname()} to corpus {self.fullname()}, "
+            "but the recording is already contained in the corpus."
+        )
         assert isinstance(recording, Recording)
         recording.corpus = self
         self._recordings[recording.fullname()] = recording
 
     def add_subcorpus(self, corpus: Corpus):
+        assert corpus.fullname() not in self._subcorpora, (
+            f"Tried to add subcorpus {corpus.fullname()} to corpus {self.fullname()}, "
+            "but the subcorpus is already contained in the corpus."
+        )
         assert isinstance(corpus, Corpus)
         corpus.parent_corpus = self
         self._subcorpora[corpus.fullname()] = corpus
 
     def add_speaker(self, speaker: Speaker):
+        assert speaker.name not in self.speakers, (
+            f"Tried to add speaker {speaker.name} to corpus {self.fullname()}, "
+            "but the speaker is already contained in the corpus."
+        )
         assert isinstance(speaker, Speaker)
         self.speakers[speaker.name] = speaker
 
@@ -441,6 +453,10 @@ class Recording(NamedEntity, CorpusSection):
         return self._segments[name]
 
     def add_segment(self, segment: Segment):
+        assert segment.name not in self._segments, (
+            f"Tried to add segment {segment.name} to recording {self.fullname()}, "
+            "but the segment is already contained in the recording."
+        )
         assert self.corpus is not None, (
             "The recording must be added to a corpus via Corpus.add_recording() before using Recording.add_segment()."
         )
