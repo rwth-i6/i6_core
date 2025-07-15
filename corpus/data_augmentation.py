@@ -77,7 +77,8 @@ class SelfNoiseCorpusJob(Job):
             r.max_seg_end = max_seg_end
 
         # select noise files for each recording
-        for i, r in enumerate(c.recordings):
+        recording_list = list(c.recordings)
+        for i, r in enumerate(recording_list):
             audio_name = r.audio
             target_length = r.max_seg_end
             reverbed_audio_name = "noised_" + audio_name.split("/")[-1]
@@ -91,11 +92,11 @@ class SelfNoiseCorpusJob(Job):
                 noise_audios = []
 
                 while noise_length < target_length:
-                    random_index = rng.randint(0, len(c.recordings) - 1)
+                    random_index = rng.randint(0, len(recording_list) - 1)
                     while random_index == i:
-                        random_index = random.randint(0, len(c.recordings) - 1)
-                    noise_audios.append(c.recordings[random_index])
-                    noise_length += c.recordings[random_index].max_seg_end
+                        random_index = random.randint(0, len(recording_list) - 1)
+                    noise_audios.append(recording_list[random_index])
+                    noise_length += recording_list[random_index].max_seg_end
 
                 # create temp noise file
                 temp_noise_track_file = "/dev/shm/{id}/tmp_concat_%i.wav" % n
