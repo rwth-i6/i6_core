@@ -391,7 +391,7 @@ class Recording(NamedEntity, CorpusSection):
         """
         :return: Mapping from segment fullnames to actual segments.
         """
-        return {seg.fullname(): seg for seg in self.segments.values()}
+        return self.segments.copy()
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self.fullname()}>"
