@@ -172,59 +172,71 @@ class Corpus(NamedEntity, CorpusSection):
 
         self.parent_corpus: Optional[Corpus] = None
 
-        self.subcorpora: Dict[str, Corpus] = {}  # full-name: Corpus
-        self.recordings: Dict[str, Recording] = {}  # full-name: Recording
+        self._subcorpora: Dict[str, Corpus] = {}  # full-name: Corpus
+        self._recordings: Dict[str, Recording] = {}  # full-name: Recording
+
+    @property
+    def subcorpora(self):
+        """
+        Read-only property. If one wants to add a subcorpus to this corpus, please use :func:`Corpus.add_subcorpus`.
+        """
+        return self._subcorpora.values()
+
+    @property
+    def recordings(self):
+        """
+        Read-only property. If one wants to add a recording to this corpus, please use :func:`Corpus.add_recording`.
+        """
+        return self._recordings.values()
 
     def segments(self) -> Iterable[Segment]:
         """
         :return: an iterator over all segments within the corpus
         """
-        for r in self.recordings.values():
-            yield from r.segments.values()
-        for sc in self.subcorpora.values():
+        for r in self.recordings:
+            yield from r.segments
+        for sc in self.subcorpora:
             yield from sc.segments()
 
     def get_recording_by_name(self, name: str) -> Recording:
         """
         :return: the recording specified by its full name
         """
-        assert name in self.recordings, f"Recording '{name}' was not found in corpus"
-
-        return self.recordings[name]
+        assert name in self._recordings, f"Recording '{name}' was not found in corpus"
+        return self._recordings[name]
 
     def get_segment_by_name(self, name: str) -> Segment:
         """
         :return: the segment specified by its full name
         """
         recording_name, _ = name.rsplit("/", 1)
-        assert recording_name in self.recordings, (
+        assert recording_name in self._recordings, (
             f"When searching for segment '{name}', recording '{recording_name}' was not found in corpus"
         )
-
-        return self.recordings[recording_name].get_segment_by_name(name)
+        return self._recordings[recording_name].get_segment_by_name(name)
 
     def all_recordings(self) -> Iterable[Recording]:
-        yield from self.recordings.values()
-        for sc in self.subcorpora.values():
+        yield from self.recordings
+        for sc in self.subcorpora:
             yield from sc.all_recordings()
 
     def all_speakers(self) -> Iterable[Speaker]:
         yield from self.speakers.values()
-        for sc in self.subcorpora.values():
+        for sc in self.subcorpora:
             yield from sc.all_speakers()
 
     def top_level_recordings(self) -> Iterable[Recording]:
-        yield from self.recordings.values()
+        yield from self.recordings
 
     def top_level_subcorpora(self) -> Iterable[Corpus]:
-        yield from self.subcorpora.values()
+        yield from self.subcorpora
 
     def top_level_speakers(self) -> Iterable[Speaker]:
         yield from self.speakers.values()
 
     def remove_recording(self, recording: Recording):
-        if recording.name in self.recordings:
-            del self.recordings[recording.fullname()]
+        if recording.name in self._recordings:
+            del self._recordings[recording.fullname()]
         for sc in self.subcorpora.values():
             sc.remove_recording(recording)
 
@@ -235,12 +247,12 @@ class Corpus(NamedEntity, CorpusSection):
     def add_recording(self, recording: Recording):
         assert isinstance(recording, Recording)
         recording.corpus = self
-        self.recordings[recording.fullname()] = recording
+        self._recordings[recording.fullname()] = recording
 
     def add_subcorpus(self, corpus: Corpus):
         assert isinstance(corpus, Corpus)
         corpus.parent_corpus = self
-        self.subcorpora[corpus.fullname()] = corpus
+        self._subcorpora[corpus.fullname()] = corpus
 
     def add_speaker(self, speaker: Speaker):
         assert isinstance(speaker, Speaker)
