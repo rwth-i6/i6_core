@@ -178,16 +178,34 @@ class Corpus(NamedEntity, CorpusSection):
     @property
     def subcorpora(self) -> Iterable[Corpus]:
         """
-        Read-only property. If one wants to add a subcorpus to this corpus, please use :func:`Corpus.add_subcorpus`.
+        Read-only property.
+
+        :return: Iterable of all top-level subcorpora.
         """
         return self._subcorpora.values()
+
+    @subcorpora.setter
+    def subcorpora(self):
+        raise AttributeError(
+            "Corpus.subcorpora is a read-only attribute. "
+            "If you're using old code, please use the current proper API function."
+        )
 
     @property
     def recordings(self) -> Iterable[Recording]:
         """
-        Read-only property. If one wants to add a recording to this corpus, please use :func:`Corpus.add_recording`.
+        Read-only property.
+
+        :return: Iterable of all top-level recordings.
         """
         return self._recordings.values()
+
+    @recordings.setter
+    def recordings(self):
+        raise AttributeError(
+            "Corpus.recordings is a read-only attribute. "
+            "If you're using old code, please use the current proper API function."
+        )
 
     def segments(self) -> Iterable[Segment]:
         """
@@ -353,14 +371,15 @@ class Corpus(NamedEntity, CorpusSection):
 
 
 class Recording(NamedEntity, CorpusSection):
-    def __init__(self, name: Optional[str] = None, audio: Optional[str] = None):
+    def __init__(self, name: Optional[str] = None, audio: Optional[str] = None, corpus: Optional[Corpus] = None):
         """
         :param name: Recording name.
         """
         super().__init__(name=name)
 
         self.audio = audio
-        self.corpus: Optional[Corpus] = None
+        if corpus:
+            corpus.add_recording(self)
         self._segments: Dict[str, Segment] = {}
 
     @property
@@ -369,6 +388,13 @@ class Recording(NamedEntity, CorpusSection):
         Read-only property. If one wants to add a segment to this recording, please use :func:`Recording.add_segment`.
         """
         return self._segments.values()
+
+    @segments.setter
+    def segments(self):
+        raise AttributeError(
+            "Recording.segments is a read-only property. "
+            "If you're using old code, please use the current proper API function."
+        )
 
     def fullname(self) -> str:
         assert self.corpus is not None, (
@@ -402,6 +428,9 @@ class Recording(NamedEntity, CorpusSection):
         return self._segments[name]
 
     def add_segment(self, segment: Segment):
+        assert self.corpus is not None, (
+            "The recording must be added to a corpus via Corpus.add_recording() before using Recording.add_segment()."
+        )
         assert isinstance(segment, Segment)
         segment.recording = self
         self._segments[segment.fullname()] = segment
