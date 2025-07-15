@@ -423,7 +423,12 @@ class Recording(NamedEntity, CorpusSection):
 
         out.write("%s</recording>\n" % indentation)
 
-    def get_segment_by_name(self, name: str):
+    def get_segment_by_name(self, name: str) -> Segment:
+        """
+        :param name: Full name of the segment.
+
+        :return: Segment which is identified by the full name specified in :param:`name`.
+        """
         assert name in self._segments, f"Segment '{name}' was not found in recording '{self.name}'"
         return self._segments[name]
 
