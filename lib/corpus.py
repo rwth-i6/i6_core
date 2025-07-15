@@ -440,6 +440,12 @@ class Recording(NamedEntity, CorpusSection):
         segment.recording = self
         self._segments[segment.fullname()] = segment
 
+    def remove_segment(self, segment: Segment):
+        assert segment.fullname() in self._segments, (
+            f"Segment '{segment.fullname()}' was not found in recording '{self.name}'"
+        )
+        del self._segments[segment.fullname()]
+
     def get_segment_mapping(self) -> Dict[str, Segment]:
         """
         :return: Mapping from segment fullnames to actual segments.
