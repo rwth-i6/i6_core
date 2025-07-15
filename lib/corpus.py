@@ -22,6 +22,9 @@ FilterFunction = Callable[["Corpus", "Recording", "Segment"], bool]
 
 class NamedEntity:
     def __init__(self, name: Optional[str] = None):
+        """
+        :param name: Name of the entity.
+        """
         super().__init__()
         self.name = name
 
