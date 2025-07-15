@@ -202,13 +202,12 @@ class ChangeCorpusSpeedJob(Job):
                 "-ar {base_frequency} '{audio_out}/%s'" % (r.audio, perturbed_audio_name)
             )
 
-            pr = corpus.Recording()
+            pr = corpus.Recording(corpus=nc)
             pr.name = r.name
             pr.speaker_name = r.speaker_name
             pr.speakers = r.speakers
             pr.default_speaker = r.default_speaker
             pr.audio = str(self.out_audio_folder) + "/" + perturbed_audio_name
-            nc.add_recording(pr)
             for s in r.segments:
                 pr.add_segment(s)
                 segment_file_names.append(nc.name + "/" + pr.name + "/" + s.name)
