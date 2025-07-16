@@ -260,7 +260,7 @@ class Corpus(NamedEntity, CorpusSection):
         yield from self.speakers.values()
 
     def remove_recording(self, recording: Recording):
-        if recording.name in self._recordings:
+        if recording.fullname() in self._recordings:
             del self._recordings[recording.fullname()]
         for sc in self.subcorpora.values():
             sc.remove_recording(recording)
@@ -417,7 +417,7 @@ class Recording(NamedEntity, CorpusSection):
         assert isinstance(value, list) and all(isinstance(s, Segment) for s in value), (
             f"Can only set Recording.segments to a list, but tried setting it to {type(value)}."
         )
-        self._recordings = {s.fullname(): s for s in value}
+        self._segments = {s.fullname(): s for s in value}
 
     def fullname(self) -> str:
         assert self.corpus is not None, (
@@ -456,7 +456,7 @@ class Recording(NamedEntity, CorpusSection):
         return self._segments[name]
 
     def add_segment(self, segment: Segment):
-        assert segment.name not in self._segments, (
+        assert segment.fullname() not in self._segments, (
             f"Tried to add segment {segment.name} to recording {self.fullname()}, "
             "but the segment is already contained in the recording."
         )

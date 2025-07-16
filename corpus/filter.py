@@ -574,7 +574,7 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
             recordings_to_be_removed = []
             for r in c.all_recordings():
                 num_seg = num_segments_per_recording[r.fullname()]
-                new_num_seg = len(list(r.segments))
+                new_num_seg = len(r.segments)
                 if num_seg and (num_seg - new_num_seg) / num_seg > self.recording_oov_tolerance:
                     recordings_to_be_removed.append(r)
 
