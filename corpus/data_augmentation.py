@@ -77,7 +77,8 @@ class SelfNoiseCorpusJob(Job):
             r.max_seg_end = max_seg_end
 
         # select noise files for each recording
-        for i, r in enumerate(c.recordings):
+        recording_list = list(c.recordings)
+        for i, r in enumerate(recording_list):
             audio_name = r.audio
             target_length = r.max_seg_end
             reverbed_audio_name = "noised_" + audio_name.split("/")[-1]
@@ -91,11 +92,11 @@ class SelfNoiseCorpusJob(Job):
                 noise_audios = []
 
                 while noise_length < target_length:
-                    random_index = rng.randint(0, len(c.recordings) - 1)
+                    random_index = rng.randint(0, len(recording_list) - 1)
                     while random_index == i:
-                        random_index = random.randint(0, len(c.recordings) - 1)
-                    noise_audios.append(c.recordings[random_index])
-                    noise_length += c.recordings[random_index].max_seg_end
+                        random_index = random.randint(0, len(recording_list) - 1)
+                    noise_audios.append(recording_list[random_index])
+                    noise_length += recording_list[random_index].max_seg_end
 
                 # create temp noise file
                 temp_noise_track_file = "/dev/shm/{id}/tmp_concat_%i.wav" % n
@@ -134,15 +135,14 @@ class SelfNoiseCorpusJob(Job):
                 command = ffmpeg_head + noise_inputs + filter_head + volume_reduction + mixer + filter_tail
                 self.sh(command)
 
-            nr = corpus.Recording()
+            nr = corpus.Recording(corpus=nc)
             nr.name = r.name
-            nr.segments = r.segments
             nr.speaker_name = r.speaker_name
             nr.default_speaker = r.default_speaker
             nr.speakers = r.speakers
             nr.audio = str(self.out_audio_folder) + "/" + reverbed_audio_name
-            nc.add_recording(nr)
-            for s in nr.segments:
+            for s in r.segments:
+                nr.add_segment(s)
                 segment_file_names.append(nc.name + "/" + nr.name + "/" + s.name + "\n")
 
         nc.dump(self.out_corpus.get_path())
@@ -203,15 +203,14 @@ class ChangeCorpusSpeedJob(Job):
                 "-ar {base_frequency} '{audio_out}/%s'" % (r.audio, perturbed_audio_name)
             )
 
-            pr = corpus.Recording()
+            pr = corpus.Recording(corpus=nc)
             pr.name = r.name
-            pr.segments = r.segments
             pr.speaker_name = r.speaker_name
             pr.speakers = r.speakers
             pr.default_speaker = r.default_speaker
             pr.audio = str(self.out_audio_folder) + "/" + perturbed_audio_name
-            nc.add_recording(pr)
-            for s in pr.segments:
+            for s in r.segments:
+                pr.add_segment(s)
                 segment_file_names.append(nc.name + "/" + pr.name + "/" + s.name)
                 s.start /= self.speed_factor
                 s.end /= self.speed_factor
