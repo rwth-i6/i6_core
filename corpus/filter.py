@@ -524,7 +524,7 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
 
         c = corpus.Corpus()
         c.load(self.corpus.get_path())
-        num_segments_per_recording = {r.fullname(): len(list(r.segments)) for r in c.all_recordings()}
+        num_segments_per_recording = {r.fullname(): len(r.segments) for r in c.all_recordings()}
 
         # use var name instead of attribute to avoid problem with name scope
         log_oov_list = self.log_oov_list
