@@ -234,11 +234,15 @@ class Corpus(NamedEntity, CorpusSection):
         """
         :return: the segment specified by its full name
         """
-        recording_name, _ = name.rsplit("/", 1)
-        assert recording_name in self._recordings, (
-            f"When searching for segment '{name}', recording '{recording_name}' was not found in corpus"
-        )
-        return self._recordings[recording_name].get_segment_by_name(name)
+        recording_name, segment_name = name.rsplit("/", maxsplit=1)
+        if recording_name in self._recordings:
+            return self._recordings[recording_name].get_segment_by_name(segment_name)
+        else:
+            subcorpus_name, segment_name = name.split("/", maxsplit=1)
+            assert subcorpus_name in self._subcorpora, (
+                f"When searching for segment '{name}', recording '{recording_name}' was not found in corpus"
+            )
+            return self._subcorpora[subcorpus_name].get_segment_by_name(segment_name)
 
     def all_recordings(self) -> Iterable[Recording]:
         yield from self.recordings
@@ -446,12 +450,13 @@ class Recording(NamedEntity, CorpusSection):
 
     def get_segment_by_name(self, name: str) -> Segment:
         """
-        :param name: Full name of the segment.
+        :param name: Name or full name of the segment.
 
         :return: Segment which is identified by the full name specified in :param:`name`.
         """
-        assert name in self._segments, f"Segment '{name}' was not found in recording '{self.name}'"
-        return self._segments[name]
+        _, segment_name = name.rsplit("/", maxsplit=1)
+        assert segment_name in self._segments, f"Segment '{segment_name}' was not found in recording '{self.name}'"
+        return self._segments[segment_name]
 
     def add_segment(self, segment: Segment):
         assert segment.name not in self._segments, (
