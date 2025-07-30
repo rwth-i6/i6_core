@@ -11,6 +11,7 @@ from sisyphus import *
 Path = setup_path(__package__)
 
 import copy
+from enum import Enum
 import math
 import os
 import shutil
@@ -131,6 +132,11 @@ class AdvancedTreeSearchLmImageAndGlobalCacheJob(rasr.RasrCommand, Job):
 
 
 class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
+    class LmCacheMethod(Enum):
+        JOINED = "joined"
+        SEPARATE = "separate"
+        NONE = "none"
+
     def __init__(
         self,
         crp: rasr.CommonRasrParameters,
@@ -149,7 +155,7 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
         lmgc_mem: float = 12.0,
         lmgc_alias: Optional[str] = None,
         lmgc_scorer: Optional[rasr.FeatureScorer] = None,
-        separate_lm_image_gc_generation: bool = False,
+        lm_cache_metod: LmCacheMethod = LmCacheMethod.JOINED,
         model_combination_config: Optional[rasr.RasrConfig] = None,
         model_combination_post_config: Optional[rasr.RasrConfig] = None,
         extra_config: Optional[rasr.RasrConfig] = None,
@@ -173,7 +179,10 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
         :param lmgc_mem: Memory requirement for the AdvancedTreeSearchLmImageAndGlobalCacheJob
         :param lmgc_alias: Alias for the AdvancedTreeSearchLmImageAndGlobalCacheJob
         :param lmgc_scorer: Dummy scorer for the AdvancedTreeSearchLmImageAndGlobalCacheJob which is required but unused
-        :param separate_lm_image_gc_generation: Whether to generate the LM image and the global cache via two separate jobs for a more stable hash. Whether or not this flag is set is not part of the hash, so NOT using separate jobs is the default.
+        :param lm_cache_method: Specifies, how the LM image and the global cache should be created:
+            JOINED (default) -> automatically create lm images and global cache as output of one job
+            SEPARATE -> automatically create lm images and global cache separately
+            NONE -> don't create lm images or global cache as part of this job at all
         :param model_combination_config: Configuration for model combination
         :param model_combination_post_config: Post config for model combination
         :param extra_config: Additional Config for recognition
@@ -192,7 +201,7 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
             self.lm_gc_job,
             self.gc_job,
             self.lm_image_jobs,
-        ) = AdvancedTreeSearchJob.create_config(**kwargs)
+        ) = self.create_config(**kwargs)
         self.feature_flow = feature_flow
         self.exe = self.select_exe(crp.flf_tool_exe, "flf-tool")
         self.concurrent = crp.concurrent
@@ -272,7 +281,7 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
         lmgc_mem: float,
         lmgc_alias: Optional[str],
         lmgc_scorer: Optional[rasr.FeatureScorer],
-        separate_lm_image_gc_generation: bool,
+        lm_cache_method: LmCacheMethod,
         model_combination_config: Optional[rasr.RasrConfig],
         model_combination_post_config: Optional[rasr.RasrConfig],
         extra_config: Optional[rasr.RasrConfig],
@@ -284,7 +293,13 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
             crp.language_model_config = lm_config
             return crp
 
-        if separate_lm_image_gc_generation:
+        if lm_cache_method == cls.LmCacheMethod.NONE:
+            gc_job = None
+            lm_gc = None
+            lm_images = None
+            gc = None
+            lm_image_jobs = {}
+        elif lm_cache_method == cls.LmCacheMethod.SEPARATE:
             gc_job = BuildGlobalCacheJob(crp, extra_config, extra_post_config)
 
             arpa_lms = lm.find_arpa_lms(crp.language_model_config, None)
@@ -299,7 +314,7 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
             lm_images = {k: v.out_image for k, v in lm_image_jobs.items()}
 
             lm_gc = None
-        else:
+        elif lm_cache_method == cls.LmCacheMethod.JOINED:
             lm_gc = AdvancedTreeSearchLmImageAndGlobalCacheJob(
                 crp, lmgc_scorer if lmgc_scorer is not None else feature_scorer, extra_config, extra_post_config
             )
@@ -312,6 +327,8 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
 
             gc_job = None
             lm_image_jobs = {}
+        else:
+            raise TypeError("Argument `lm_cache_method` must be of type `AdvancedTreeSearchJob.LmCacheMethod`")
 
         search_parameters = cls.update_search_parameters(search_parameters)
 
@@ -411,14 +428,16 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
             ]
 
         post_config.flf_lattice_tool.global_cache.read_only = True
-        post_config.flf_lattice_tool.global_cache.file = gc
+        if lm_cache_method != cls.LmCacheMethod.NONE:
+            post_config.flf_lattice_tool.global_cache.file = gc
 
         arpa_lms = lm.find_arpa_lms(
             config.flf_lattice_tool.network.recognizer.lm,
             post_config.flf_lattice_tool.network.recognizer.lm,
         )
-        for i, (_lm_config, lm_post_config) in enumerate(arpa_lms):
-            lm_post_config.image = lm_images[i + 1]
+        if lm_cache_method != cls.LmCacheMethod.NONE:
+            for i, (_lm_config, lm_post_config) in enumerate(arpa_lms):
+                lm_post_config.image = lm_images[i + 1]
 
         # Remaining Flf-network
 
