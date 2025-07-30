@@ -9,7 +9,7 @@ def _has_image(c: rasr.RasrConfig, pc: rasr.RasrConfig):
     return res
 
 
-def find_arpa_lms(lm_config: rasr.RasrConfig, lm_post_config=None) -> List[Tuple[rasr.RasrConfig, rasr.RasrConfig]]:
+def find_arpa_lms(lm_config: rasr.RasrConfig, lm_post_config: Optional[rasr.RasrConfig] = None) -> List[Tuple[rasr.RasrConfig, rasr.RasrConfig]]:
     result = []
 
     if lm_config.type == "ARPA":
