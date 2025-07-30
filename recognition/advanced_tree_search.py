@@ -532,6 +532,8 @@ class AdvancedTreeSearchWithRescoringJob(AdvancedTreeSearchJob):
             self.config,
             self.post_config,
             self.lm_gc_job,
+            self.gc_job,
+            self.lm_image_jobs,
         ) = AdvancedTreeSearchWithRescoringJob.create_config(**kwargs)
 
     @classmethod
@@ -545,7 +547,7 @@ class AdvancedTreeSearchWithRescoringJob(AdvancedTreeSearchJob):
         rescoring_lookahead_scale,
         **kwargs,
     ):
-        config, post_config, lm_gc_job = super().create_config(**kwargs)
+        config, *remainder = super().create_config(**kwargs)
 
         config.flf_lattice_tool.network.recognizer.links = "rescore"
 
@@ -560,7 +562,7 @@ class AdvancedTreeSearchWithRescoringJob(AdvancedTreeSearchJob):
         rescore_config.lookahead_scale = rescoring_lookahead_scale
         rescore_config.lm = rescoring_lm_config
 
-        return config, post_config, lm_gc_job
+        return config, *remainder
 
 
 class BidirectionalAdvancedTreeSearchJob(rasr.RasrCommand, Job):
