@@ -288,7 +288,7 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
         extra_post_config: Optional[rasr.RasrConfig],
         **kwargs,
     ):
-        def add_lm_config_to_crp(crp, lm_config):
+        def add_lm_config_to_crp(crp: rasr.CommonRasrParameters, lm_config: rasr.RasrConfig):
             crp = copy.deepcopy(crp)
             crp.language_model_config = lm_config
             return crp
@@ -302,12 +302,12 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
         elif lm_cache_method == cls.LmCacheMethod.SEPARATE:
             gc_job = BuildGlobalCacheJob(crp, extra_config, extra_post_config)
 
-            arpa_lms = lm.find_arpa_lms(crp.language_model_config, None)
+            arpa_lms = lm.find_arpa_lms(crp.language_model_config, crp.language_model_post_config)
             lm_image_jobs = {
                 (i + 1): lm.CreateLmImageJob(
                     add_lm_config_to_crp(crp, lm_config), extra_config=extra_config, extra_post_config=extra_post_config
                 )
-                for i, (lm_config, _lm_post_config) in enumerate(arpa_lms)
+                for i, (lm_config, _) in enumerate(arpa_lms)
             }
 
             gc = gc_job.out_global_cache
