@@ -7,6 +7,7 @@ __all__ = [
 ]
 
 from sisyphus import *
+import pdb
 
 Path = setup_path(__package__)
 
@@ -817,7 +818,9 @@ class BuildGlobalCacheJob(rasr.RasrCommand, Job):
     Standalone job to create the global-cache for advanced-tree-search
     """
 
-    def __init__(self, crp, extra_config=None, extra_post_config=None):
+    __sis_hash_exclude__ = {"search_type": "advanced-tree-search"}
+
+    def __init__(self, crp, search_type="advanced-tree-search", extra_config=None, extra_post_config=None):
         """
         :param rasr.CommonRasrParameters crp: common RASR params (required: lexicon, acoustic_model, language_model, recognizer)
         :param rasr.Configuration extra_config: overlay config that influences the Job's hash
@@ -832,6 +835,7 @@ class BuildGlobalCacheJob(rasr.RasrCommand, Job):
             self.config,
             self.post_config,
         ) = BuildGlobalCacheJob.create_config(**kwargs)
+        pdb.set_trace()
         self.exe = self.select_exe(crp.speech_recognizer_exe, "speech-recognizer")
 
         self.out_log_file = self.log_file_output_path("build_global_cache", crp, False)
@@ -855,7 +859,7 @@ class BuildGlobalCacheJob(rasr.RasrCommand, Job):
         util.backup_if_exists("build_global_cache.log")
 
     @classmethod
-    def create_config(cls, crp, extra_config, extra_post_config, **kwargs):
+    def create_config(cls, crp, search_type, extra_config, extra_post_config, **kwargs):
         config, post_config = rasr.build_config_from_mapping(
             crp,
             {
@@ -867,7 +871,7 @@ class BuildGlobalCacheJob(rasr.RasrCommand, Job):
         )
 
         config.speech_recognizer.recognition_mode = "init-only"
-        config.speech_recognizer.search_type = "advanced-tree-search"
+        config.speech_recognizer.search_type = search_type
         config.speech_recognizer.global_cache.file = "global.cache"
         config.speech_recognizer.global_cache.read_only = False
 
