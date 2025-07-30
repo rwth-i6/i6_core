@@ -293,6 +293,7 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
             crp.language_model_config = lm_config
             return crp
 
+        crp.language_model_post_config = crp.language_model_post_config or rasr.RasrConfig()
         arpa_lms = lm.find_arpa_lms(crp.language_model_config, crp.language_model_post_config)
         if lm_cache_method == cls.LmCacheMethod.NONE:
             gc_job = None
