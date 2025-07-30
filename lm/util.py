@@ -1,11 +1,11 @@
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 import i6_core.rasr as rasr
 
 
-def _has_image(c: rasr.RasrConfig, pc: rasr.RasrConfig):
-    res = c._get("image") is not None
-    res = res or (pc is not None and pc._get("image") is not None)
+def _has_image(config: rasr.RasrConfig, post_config: Optional[rasr.RasrConfig]):
+    res = config._get("image") is not None
+    res = res or (post_config is not None and post_config._get("image") is not None)
     return res
 
 
