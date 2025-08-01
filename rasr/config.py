@@ -252,14 +252,17 @@ def build_config_from_mapping(crp, mapping, include_log_config=True, parallelize
     :return: config, post_config
     :rtype: (RasrConfig, RasrConfig)
     """
+    import pdb
+
     config = RasrConfig()
     post_config = RasrConfig()
 
+    pdb.set_trace()
     if include_log_config:
         config._update(crp.log_config)
         post_config._update(crp.log_post_config)
 
-    for mkey in ["corpus", "lexicon", "acoustic_model", "language_model", "recognizer"]:
+    for mkey in ["corpus", "lexicon", "acoustic_model", "language_model", "recognizer", "label_scorer"]:
         if mkey not in mapping:
             continue
         keys = mapping[mkey]
