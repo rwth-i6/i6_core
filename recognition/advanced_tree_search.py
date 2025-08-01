@@ -7,7 +7,6 @@ __all__ = [
 ]
 
 from sisyphus import *
-import pdb
 
 Path = setup_path(__package__)
 
@@ -842,7 +841,6 @@ class BuildGlobalCacheJob(rasr.RasrCommand, Job):
             self.config,
             self.post_config,
         ) = BuildGlobalCacheJob.create_config(**kwargs)
-        pdb.set_trace()
         self.exe = self.select_exe(crp.speech_recognizer_exe, "speech-recognizer")
 
         self.out_log_file = self.log_file_output_path("build_global_cache", crp, False)
@@ -867,10 +865,6 @@ class BuildGlobalCacheJob(rasr.RasrCommand, Job):
 
     @classmethod
     def create_config(cls, crp, search_type, recognizer_type, extra_config, extra_post_config, **kwargs):
-        import pdb
-
-        pdb.set_trace()
-
         mapping_dict = {
             "lexicon": "speech-recognizer.model-combination.lexicon",
             "acoustic_model": "speech-recognizer.model-combination.acoustic-model",
