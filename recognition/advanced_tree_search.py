@@ -883,6 +883,7 @@ class BuildGlobalCacheJob(rasr.RasrCommand, Job):
         config, post_config = rasr.build_config_from_mapping(crp, mapping_dict)
 
         config.speech_recognizer.recognition_mode = "init-only"
+        config.speech_recognizer.search_type = search_type
         config.speech_recognizer.reocgnizer_type = recognizer_type
         config.speech_recognizer.global_cache.file = "global.cache"
         config.speech_recognizer.global_cache.read_only = False
