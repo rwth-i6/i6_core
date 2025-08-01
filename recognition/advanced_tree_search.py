@@ -873,13 +873,6 @@ class BuildGlobalCacheJob(rasr.RasrCommand, Job):
             "label_scorer": "speech-recognizer.model-combination.label-scorer",
         }
 
-        if recognizer_type == "recognizer-v2":
-            mapping_dict.update(
-                {
-                    "recognizer": "speech-recognizer.recognizer.search-algorithm",
-                }
-            )
-
         config, post_config = rasr.build_config_from_mapping(crp, mapping_dict)
 
         config.speech_recognizer.recognition_mode = "init-only"
