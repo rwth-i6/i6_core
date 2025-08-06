@@ -392,8 +392,7 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
 
         # Handle caching of ARPA LMs and maybe build global cache
         arpa_lms = lm.find_arpa_lms(
-            config.flf_lattice_tool.network.recognizer.lm,
-            post_config.flf_lattice_tool.network.recognizer.lm
+            config.flf_lattice_tool.network.recognizer.lm, post_config.flf_lattice_tool.network.recognizer.lm
         )
         if lm_cache_method == cls.LmCacheMethod.NONE:
             gc_job = None
