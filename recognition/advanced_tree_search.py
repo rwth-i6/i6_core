@@ -293,44 +293,6 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
             crp.language_model_config = lm_config
             return crp
 
-        crp.language_model_post_config = crp.language_model_post_config or rasr.RasrConfig()
-        arpa_lms = lm.find_arpa_lms(crp.language_model_config, crp.language_model_post_config)
-        if lm_cache_method == cls.LmCacheMethod.NONE:
-            gc_job = None
-            lm_gc = None
-            lm_images = None
-            gc = None
-            lm_image_jobs = {}
-        elif lm_cache_method == cls.LmCacheMethod.SEPARATE:
-            gc_job = BuildGlobalCacheJob(crp, extra_config, extra_post_config)
-
-            lm_image_jobs = {
-                (i + 1): lm.CreateLmImageJob(
-                    add_lm_config_to_crp(crp, lm_config), extra_config=extra_config, extra_post_config=extra_post_config
-                )
-                for i, (lm_config, _) in enumerate(arpa_lms)
-            }
-
-            gc = gc_job.out_global_cache
-            lm_images = {k: v.out_image for k, v in lm_image_jobs.items()}
-
-            lm_gc = None
-        elif lm_cache_method == cls.LmCacheMethod.JOINED:
-            lm_gc = AdvancedTreeSearchLmImageAndGlobalCacheJob(
-                crp, lmgc_scorer if lmgc_scorer is not None else feature_scorer, extra_config, extra_post_config
-            )
-            if lmgc_alias is not None:
-                lm_gc.add_alias(lmgc_alias)
-            lm_gc.rqmt["mem"] = lmgc_mem
-
-            gc = lm_gc.out_global_cache
-            lm_images = lm_gc.out_lm_images
-
-            gc_job = None
-            lm_image_jobs = {}
-        else:
-            raise TypeError("Argument `lm_cache_method` must be of type `AdvancedTreeSearchJob.LmCacheMethod`")
-
         search_parameters = cls.update_search_parameters(search_parameters)
 
         la_opts = {
@@ -427,6 +389,47 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
             post_config.flf_lattice_tool.network.recognizer.recognizer.lm_lookahead.cache_size_high = la_opts[
                 "cache_high"
             ]
+
+        # Handle caching of ARPA LMs and maybe build global cache
+        arpa_lms = lm.find_arpa_lms(
+            config.flf_lattice_tool.network.recognizer.lm,
+            post_config.flf_lattice_tool.network.recognizer.lm
+        )
+        if lm_cache_method == cls.LmCacheMethod.NONE:
+            gc_job = None
+            lm_gc = None
+            lm_images = None
+            gc = None
+            lm_image_jobs = {}
+        elif lm_cache_method == cls.LmCacheMethod.SEPARATE:
+            gc_job = BuildGlobalCacheJob(crp, extra_config, extra_post_config)
+
+            lm_image_jobs = {
+                (i + 1): lm.CreateLmImageJob(
+                    add_lm_config_to_crp(crp, lm_config), extra_config=extra_config, extra_post_config=extra_post_config
+                )
+                for i, (lm_config, _) in enumerate(arpa_lms)
+            }
+
+            gc = gc_job.out_global_cache
+            lm_images = {k: v.out_image for k, v in lm_image_jobs.items()}
+
+            lm_gc = None
+        elif lm_cache_method == cls.LmCacheMethod.JOINED:
+            lm_gc = AdvancedTreeSearchLmImageAndGlobalCacheJob(
+                crp, lmgc_scorer if lmgc_scorer is not None else feature_scorer, extra_config, extra_post_config
+            )
+            if lmgc_alias is not None:
+                lm_gc.add_alias(lmgc_alias)
+            lm_gc.rqmt["mem"] = lmgc_mem
+
+            gc = lm_gc.out_global_cache
+            lm_images = lm_gc.out_lm_images
+
+            gc_job = None
+            lm_image_jobs = {}
+        else:
+            raise TypeError("Argument `lm_cache_method` must be of type `AdvancedTreeSearchJob.LmCacheMethod`")
 
         post_config.flf_lattice_tool.global_cache.read_only = True
         if lm_cache_method != cls.LmCacheMethod.NONE:
