@@ -170,15 +170,19 @@ class Corpus(NamedEntity, CorpusSection):
     _recordings: Dict[str, Recording]  # recording-name: Recording
     _subcorpora: Dict[str, Corpus]  # corpus-name: Corpus
 
-    def __init__(self, name: Optional[str] = None):
+    def __init__(self, name: Optional[str] = None, *, parent_corpus: Optional[Corpus] = None):
         """
         :param name: Corpus name.
         """
         super().__init__(name=name)
 
-        self.parent_corpus = None
         self._subcorpora = {}
         self._recordings = {}
+
+        if parent_corpus:
+            self.parent_corpus.add_subcorpus(self)
+        else:
+            self.parent_corpus = None
 
     @property
     def subcorpora(self) -> Iterable[Corpus]:
@@ -403,7 +407,7 @@ class Recording(NamedEntity, CorpusSection):
     _segments: Dict[str, Segment]
     corpus: Optional[Corpus]
 
-    def __init__(self, name: Optional[str] = None, audio: Optional[str] = None, corpus: Optional[Corpus] = None):
+    def __init__(self, name: Optional[str] = None, *, audio: Optional[str] = None, corpus: Optional[Corpus] = None):
         """
         :param name: Recording name.
         """
@@ -411,8 +415,11 @@ class Recording(NamedEntity, CorpusSection):
 
         self.audio = audio
         self._segments = {}
+
         if corpus:
             corpus.add_recording(self)
+        else:
+            self.corpus = None
 
     @property
     def segments(self) -> Iterable[Segment]:
@@ -512,8 +519,8 @@ class Segment(NamedEntity):
 
     def __init__(
         self,
-        *,
         name: Optional[str] = None,
+        *
         start: float = 0.0,
         end: float = 0.0,
         track: Optional[int] = None,
@@ -542,8 +549,11 @@ class Segment(NamedEntity):
         self.left_context_orth = left_context_orth
         self.right_context_orth = right_context_orth
         self.speaker_name = speaker_name
+
         if recording:
             recording.add_segment(self)
+        else:
+            self.recording = None
 
     def full_orth(self) -> str:
         """
