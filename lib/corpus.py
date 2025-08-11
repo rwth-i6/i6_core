@@ -481,9 +481,6 @@ class Recording(NamedEntity, CorpusSection):
             f"Tried to add segment {segment.name} to recording {self.fullname()}, "
             "but the segment is already contained in the recording."
         )
-        assert self.corpus is not None, (
-            "The recording must be added to a corpus via Corpus.add_recording() before using Recording.add_segment()."
-        )
         assert isinstance(segment, Segment)
         segment.recording = self
         self._segments[segment.name] = segment
