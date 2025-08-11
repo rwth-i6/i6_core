@@ -165,16 +165,20 @@ class Corpus(NamedEntity, CorpusSection):
     attribute is set. Corpora with include statements can be read but are written back as a single file.
     """
 
+    name: Optional[str]
+    parent_corpus: Optional[Corpus]
+    _recordings: Dict[str, Recording]  # recording-name: Recording
+    _subcorpora: Dict[str, Corpus]  # corpus-name: Corpus
+
     def __init__(self, name: Optional[str] = None):
         """
         :param name: Corpus name.
         """
         super().__init__(name=name)
 
-        self.parent_corpus: Optional[Corpus] = None
-
-        self._subcorpora: Dict[str, Corpus] = {}  # full-name: Corpus
-        self._recordings: Dict[str, Recording] = {}  # full-name: Recording
+        self.parent_corpus = None
+        self._subcorpora = {}
+        self._recordings = {}
 
     @property
     def subcorpora(self) -> Iterable[Corpus]:
@@ -390,6 +394,15 @@ class Corpus(NamedEntity, CorpusSection):
 
 
 class Recording(NamedEntity, CorpusSection):
+    """
+    This class represents a recording in Bliss format.
+    """
+
+    name: Optional[str]
+    audio: Optional[str]
+    _segments: Dict[str, Segment]
+    corpus: Optional[Corpus]
+
     def __init__(self, name: Optional[str] = None, audio: Optional[str] = None, corpus: Optional[Corpus] = None):
         """
         :param name: Recording name.
@@ -397,9 +410,9 @@ class Recording(NamedEntity, CorpusSection):
         super().__init__(name=name)
 
         self.audio = audio
+        self._segments = {}
         if corpus:
             corpus.add_recording(self)
-        self._segments: Dict[str, Segment] = {}
 
     @property
     def segments(self) -> Iterable[Segment]:
@@ -483,6 +496,20 @@ class Recording(NamedEntity, CorpusSection):
 
 
 class Segment(NamedEntity):
+    """
+    This class represents a segment in Bliss format.
+    """
+
+    name: Optional[str]
+    start: Optional[float]
+    end: Optional[float]
+    track: Optional[int]
+    orth: Optional[str]
+    left_context_orth: Optional[str]
+    right_context_orth: Optional[str]
+    speaker_name: Optional[str]
+    recording: Optional[Recording]
+
     def __init__(
         self,
         *,
