@@ -170,9 +170,13 @@ class Corpus(NamedEntity, CorpusSection):
     _recordings: Dict[str, Recording]  # recording-name: Recording
     _subcorpora: Dict[str, Corpus]  # corpus-name: Corpus
 
-    def __init__(self, name: Optional[str] = None, *, parent_corpus: Optional[Corpus] = None):
+    def __init__(
+        self, name: Optional[str] = None, *, parent_corpus: Optional[Corpus] = None, load_from: Optional[str] = None
+    ):
         """
         :param name: Corpus name.
+        :param parent_corpus: If provided, `self` will be directly added to :param:`parent_corpus` as a subcorpus.
+        :param load_from: If provided, :func:`load` will be directly run with this parameter.
         """
         super().__init__(name=name)
 
@@ -183,6 +187,9 @@ class Corpus(NamedEntity, CorpusSection):
             self.parent_corpus.add_subcorpus(self)
         else:
             self.parent_corpus = None
+
+        if load_from:
+            self.load(load_from)
 
     @property
     def subcorpora(self) -> Iterable[Corpus]:
@@ -410,6 +417,8 @@ class Recording(NamedEntity, CorpusSection):
     def __init__(self, name: Optional[str] = None, *, audio: Optional[str] = None, corpus: Optional[Corpus] = None):
         """
         :param name: Recording name.
+        :param audio: Actual path to the audio file which contains the playable media.
+        :param corpus: If provided, `self` will be directly added to the recordings in :param:`corpus`.
         """
         super().__init__(name=name)
 
@@ -528,6 +537,7 @@ class Segment(NamedEntity):
         recording: Optional[Recording] = None,
     ):
         """
+        :param name: Segment name.
         :param start: Segment start.
         :param end: Segment end.
         :param track: Segment track/channel.
@@ -535,7 +545,7 @@ class Segment(NamedEntity):
         :param left_context_orth: Optional left context when aligning (specific for RASR alignment).
         :param right_context_orth: Optional right context when aligning (specific for RASR alignment).
         :param speaker_name: Speaker name.
-        :param recording: Recording in which the segment is embedded.
+        :param recording: If provided, `self` will be directly added to the segments in :param:`recording`.
         """
         super().__init__(name=name)
 
