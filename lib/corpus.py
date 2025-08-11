@@ -517,7 +517,7 @@ class Segment(NamedEntity):
     def __init__(
         self,
         name: Optional[str] = None,
-        *
+        *,
         start: float = 0.0,
         end: float = 0.0,
         track: Optional[int] = None,
