@@ -82,9 +82,7 @@ class CorpusParser(sax.handler.ContentHandler):
             self.elements.append(subcorpus)
         elif name == "include":
             assert isinstance(e, Corpus), "<include> may only occur within a <corpus> or <subcorpus> element"
-            path = os.path.join(os.path.dirname(self.path), attrs["file"])
-            c = Corpus()
-            c.load(path)
+            c = Corpus(load_from=os.path.join(os.path.dirname(self.path), attrs["file"]))
             if c.name != e.name:
                 print(
                     "Warning: included corpus (%s) has a different name than the current corpus (%s)" % (c.name, e.name)
@@ -96,8 +94,7 @@ class CorpusParser(sax.handler.ContentHandler):
             e.speakers.update(c.speakers)
         elif name == "recording":
             assert isinstance(e, Corpus), "<recording> may only occur within a <corpus> or <subcorpus> element"
-            rec = Recording(name=attrs["name"], audio=attrs["audio"])
-            e.add_recording(rec)
+            rec = Recording(name=attrs["name"], audio=attrs["audio"], corpus=e)
             self.elements.append(rec)
         elif name == "segment":
             assert isinstance(e, Recording), "<segment> may only occur within a <recording> element"
@@ -175,8 +172,8 @@ class Corpus(NamedEntity, CorpusSection):
     ):
         """
         :param name: Corpus name.
-        :param parent_corpus: If provided, `self` will be directly added to :param:`parent_corpus` as a subcorpus.
-        :param load_from: If provided, :func:`load` will be directly run with this parameter.
+        :param parent_corpus: If provided, `self` will be directly linked as a subcorpus of :param:`parent_corpus`.
+        :param load_from: If provided, :func:`Corpus.load` will be directly run with this parameter.
         """
         super().__init__(name=name)
 
@@ -238,24 +235,47 @@ class Corpus(NamedEntity, CorpusSection):
 
     def get_recording_by_name(self, name: str) -> Recording:
         """
-        :return: the recording specified by its full name
+        :return: the recording specified by its name relative to `self`.
         """
-        assert name in self._recordings, f"Recording '{name}' was not found in corpus"
-        return self._recordings[name]
+        if "/" not in name:
+            assert name in self._recordings, f"Recording '{name}' was not found in corpus."
+            return self._recordings[name]
+        else:
+            subcorpus_name, recording_relative_name = name.split("/", maxsplit=1)
+            return self.get_subcorpus_by_name(subcorpus_name).get_recording_by_name(recording_relative_name)
+
+    def get_subcorpus_by_name(self, name: str) -> Corpus:
+        """
+        :return: The corpus specified by its name relative to `self`.
+        """
+        if "/" not in name:
+            assert name in self._subcorpora, f"Subcorpus '{name}' was not found in corpus."
+            return self._subcorpora[name]
+        else:
+            _, subcorpus_relative_name = name.split("/", maxsplit=1)
+            return self.get_subcorpus_by_name(subcorpus_relative_name)
 
     def get_segment_by_name(self, name: str) -> Segment:
         """
-        :return: the segment specified by its full name
+        :param name: Segment name relative to the corpus.
+            Note that it must be at least two levels deep, to also include the recording name.
+            Example: `my_recording/my_segment`.
+        :return: the segment specified by its name relative to `self`.
         """
-        recording_name, segment_name = name.rsplit("/", maxsplit=1)
+        assert "/" in name, (
+            "When running Corpus.get_segment_by_name(), at least two levels of depth 'recording/segment' "
+            "must be provided, separated with '/'."
+        )
+        recording_name, segment_name = name.split("/", maxsplit=1)
         if recording_name in self._recordings:
-            return self._recordings[recording_name].get_segment_by_name(segment_name)
+            return self.get_recording_by_name(recording_name).get_segment_by_name(segment_name)
         else:
-            subcorpus_name, segment_name = name.split("/", maxsplit=1)
+            # The first part is the subcorpus, and the second is the rest of the segment.
+            subcorpus_name, segment_relative_name = recording_name, segment_name
             assert subcorpus_name in self._subcorpora, (
-                f"When searching for segment '{name}', recording '{recording_name}' was not found in corpus"
+                f"When searching for segment '{name}', recording '{recording_name}' was not found in corpus."
             )
-            return self._subcorpora[subcorpus_name].get_segment_by_name(segment_name)
+            return self.get_subcorpus_by_name(subcorpus_name).get_segment_by_name(segment_relative_name)
 
     def all_recordings(self) -> Iterable[Recording]:
         yield from self.recordings
@@ -418,7 +438,7 @@ class Recording(NamedEntity, CorpusSection):
         """
         :param name: Recording name.
         :param audio: Actual path to the audio file which contains the playable media.
-        :param corpus: If provided, `self` will be directly added to the recordings in :param:`corpus`.
+        :param corpus: If provided, `self` will be directly linked as a recording of :param:`corpus`.
         """
         super().__init__(name=name)
 
@@ -481,9 +501,12 @@ class Recording(NamedEntity, CorpusSection):
 
         :return: Segment which is identified by the full name specified in :param:`name`.
         """
-        _, segment_name = name.rsplit("/", maxsplit=1)
-        assert segment_name in self._segments, f"Segment '{segment_name}' was not found in recording '{self.name}'"
-        return self._segments[segment_name]
+        assert "/" not in name, (
+            "Depth levels 'recording/segment' are not supported for Recording.get_segment_by_name(). "
+            "Use Corpus.get_segment_by_name() instead."
+        )
+        assert name in self._segments, f"Segment '{name}' was not found in recording '{self.name}'"
+        return self._segments[name]
 
     def add_segment(self, segment: Segment):
         assert segment.name not in self._segments, (
