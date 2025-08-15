@@ -180,7 +180,8 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
         :param lmgc_alias: Alias for the AdvancedTreeSearchLmImageAndGlobalCacheJob
         :param lmgc_scorer: Dummy scorer for the AdvancedTreeSearchLmImageAndGlobalCacheJob which is required but unused
         :param lm_cache_method: Specifies, how the LM image and the global cache should be created:
-            JOINED (default) -> automatically create lm images and global cache as output of one job
+            JOINED (default) -> automatically create lm images and global cache as output of one job. Note, that this could
+                create hash issues if e.g. many search jobs with different TDP configuration are started.
             SEPARATE -> automatically create lm images and global cache separately
             NONE -> don't create lm images or global cache as part of this job at all
         :param model_combination_config: Configuration for model combination
