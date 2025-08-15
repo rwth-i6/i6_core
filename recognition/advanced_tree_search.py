@@ -182,7 +182,7 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
         :param lm_cache_method: Specifies, how the LM image and the global cache should be created:
             JOINED (default) -> automatically create lm images and global cache as output of one job. Note, that this could
                 create hash issues if e.g. many search jobs with different TDP configuration are started.
-            SEPARATE -> automatically create lm images and global cache separately
+            SEPARATE -> automatically create lm images and global cache separately. This is to be preferred most of the time.
             NONE -> don't create lm images or global cache as part of this job at all
         :param model_combination_config: Configuration for model combination
         :param model_combination_post_config: Post config for model combination
