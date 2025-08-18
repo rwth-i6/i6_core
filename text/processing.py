@@ -418,7 +418,7 @@ class SplitTextFileJob(Job):
             if self.in_text_file.get_path().endswith(".gz"):
                 logging.info("Un-compressing file")
                 text_file = f"{tmp_dir}/input_file.txt"
-                with open(text_file, "wt") as f_in:
+                with open(text_file, "wb") as f_in:
                     uncompress_cmd = ["gzip", "-cdk", self.in_text_file.get_path()]
                     subprocess.run(uncompress_cmd, check=True, stdout=f_in)
             else:
