@@ -1,4 +1,4 @@
-__all__ = ["DownloadTEDLIUM2CorpusJob", "CreateTEDLIUM2BlissCorpusJob"]
+__all__ = ["DownloadTEDLIUM2CorpusJob", "CreateTEDLIUM2BlissCorpusJob", "CreateTEDLIUM2BlissCorpusJobV2"]
 
 import os
 import re
@@ -69,6 +69,8 @@ class CreateTEDLIUM2BlissCorpusJob(Job):
     """
     Processes stm files from TEDLIUM2 corpus folders and creates Bliss corpus files
     Outputs a stm file and a bliss .xml.gz file for each train/dev/test set
+    This job is deprecated due to changes applied to the reference text leading to incomparable results to literature
+    It is recommended to use CreateTEDLIUM2BlissCorpusJobV2
     """
 
     def __init__(self, corpus_folders):
@@ -214,3 +216,116 @@ class CreateTEDLIUM2BlissCorpusJob(Job):
                 text = " ".join(tokens[6:])
                 data.append([rec_name, channel, spk_name, start, end, gender, text])
         return data
+
+
+class CreateTEDLIUM2BlissCorpusJobV2(CreateTEDLIUM2BlissCorpusJob):
+    """
+    It has the same logic as CreateTEDLIUM2BlissCorpusJob but the corpus name is distinct for each partition
+    and the common text normalization for eliminating space before apostroph, similarly to Kaldi and ESPNet is applied
+    """
+
+    def make_stm(self):
+        def extend_segment_time(seg, prev_seg, next_seg, start_pad=0.15, end_pad=0.1):
+            start = float(seg[3])
+            end = float(seg[4])
+            # start padding (previous seg alread padded)
+            if prev_seg is not None and seg[0] == prev_seg[0]:
+                prev_end = float(prev_seg[4])
+            else:
+                prev_end = 0.0
+            start = max(start - start_pad, prev_end)
+            # end padding (next seg not yet padded and start padding is more important)
+            next_start = end + end_pad
+            if next_seg is not None and seg[0] == next_seg[0]:
+                next_start = max(float(next_seg[3]) - start_pad, end)
+            end = min(end + end_pad, next_start)
+            return "%.2f" % (start), "%.2f" % (end)
+
+        header = [
+            ";;",
+            ';; LABEL "o" "Overall" "Overall results"',
+            ';; LABEL "f0" "f0" "Wideband channel"',
+            ';; LABEL "f2" "f2" "Telephone channel"',
+            ';; LABEL "male" "Male" "Male Talkers"',
+            ';; LABEL "female" "Female" "Female Talkers"',
+            ";;",
+        ]
+        for corpus_key in ["train", "dev", "test"]:
+            f = open("%s.stm" % corpus_key, "w")
+            f.write("\n".join(header) + "\n")
+
+            stm_folder = os.path.join(self.corpus_folders[corpus_key].get_path(), "stm")
+            for stm_file in sorted(os.listdir(stm_folder)):
+                if not stm_file.endswith(".stm"):
+                    continue
+                data = self.load_stm_data(os.path.join(stm_folder, stm_file))
+                for idx in range(len(data)):
+                    # some text normalization
+                    text = data[idx][6]
+                    text = text.replace("imiss", "i miss")
+                    text = text.replace("uptheir", "up their")
+                    text = text.replace(" '", "'")
+                    data[idx][6] = text
+
+                    # train-only: segment boundary non-overlapping extension (kaldi)
+                    if corpus_key == "train":
+                        pre_seg = None if idx == 0 else data[idx - 1]
+                        next_seg = None if idx == len(data) - 1 else data[idx + 1]
+                        data[idx][3], data[idx][4] = extend_segment_time(data[idx], pre_seg, next_seg, 0.15, 0.1)
+
+                for seg in data:
+                    f.write(" ".join(seg) + "\n")
+
+            f.close()
+            shutil.move("%s.stm" % corpus_key, self.out_stm_files[corpus_key].get_path())
+
+    def make_corpus(self):
+        """
+        create bliss corpus from stm file (always include speakers)
+        """
+        for corpus_key in ["train", "dev", "test"]:
+            audio_dir = os.path.join(self.corpus_folders[corpus_key].get_path(), "sph")
+            stm_file = self.out_stm_files[corpus_key].get_path()
+            data = self.load_stm_data(stm_file)
+
+            c = corpus.Corpus()
+            c.name = f"TED-LIUM-2-{corpus_key}"
+
+            speakers = []
+            last_rec_name = ""
+            recording = None
+            for seg in data:
+                rec_name, channel, spk_name, start, end, gender, text = seg
+
+                if not spk_name in speakers:
+                    speakers.append(spk_name)
+                    speaker = corpus.Speaker()
+                    speaker.name = spk_name
+                    if "female" in gender:
+                        speaker.attribs["gender"] = "female"
+                    elif "male" in gender:
+                        speaker.attribs["gender"] = "male"
+                    c.add_speaker(speaker)
+
+                if rec_name != last_rec_name:
+                    if recording:
+                        c.add_recording(recording)
+                    recording = corpus.Recording()
+                    recording.name = rec_name
+                    recording.audio = os.path.join(audio_dir, "%s.sph" % rec_name)
+                    last_rec_name = rec_name
+                    seg_id = 1
+
+                segment = corpus.Segment()
+                segment.name = str(seg_id)
+                segment.start = float(start)
+                segment.end = float(end)
+                segment.speaker_name = spk_name
+                segment.orth = text
+
+                recording.add_segment(segment)
+                seg_id += 1
+
+            # add final recording
+            c.add_recording(recording)
+            c.dump(self.out_corpus_files[corpus_key].get_path())
