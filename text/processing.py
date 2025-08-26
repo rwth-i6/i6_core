@@ -5,16 +5,19 @@ __all__ = [
     "TailJob",
     "SetDifferenceJob",
     "WriteToTextFileJob",
+    "WriteToCsvFileJob",
     "SplitTextFileJob",
 ]
 
+import csv
+from io import IOBase
 import logging
 import os
 import shutil
 import subprocess
 from collections.abc import Iterable
 import tempfile
-from typing import List, Optional, Union
+from typing import Dict, List, Optional, Union
 
 from sisyphus import Job, Task, Path, global_settings as gs, toolkit as tk
 from sisyphus.delayed_ops import DelayedBase
@@ -282,7 +285,17 @@ class SetDifferenceJob(Job):
 
 class WriteToTextFileJob(Job):
     """
-    Write a given content into a text file, one entry per line
+    Write a given content into a text file, one entry per line.
+
+    This job supports multiple input types:
+    1. String.
+    2. Dictionary.
+    3. Iterable.
+
+    The corresponding output for each of the inputs above is:
+    1. The string is directly written into the file.
+    2. Each key/value pair is written as `<key>: <value>`.
+    3. Each element in the iterable is written in a separate line as a string.
     """
 
     __sis_hash_exclude__ = {"out_name": "file.txt"}
@@ -296,22 +309,68 @@ class WriteToTextFileJob(Job):
 
         self.out_file = self.output_path(out_name)
 
+    def write_content_to_file(self, file_handler: IOBase):
+        content = util.instanciate_delayed(self.content)
+        if isinstance(content, str):
+            file_handler.write(content)
+        elif isinstance(content, dict):
+            for key, val in content.items():
+                file_handler.write(f"{key}: {val}\n")
+        elif isinstance(content, Iterable):
+            for line in content:
+                file_handler.write(f"{line}\n")
+        else:
+            raise NotImplementedError("Content of unknown type different from (str, dict, Iterable).")
+
     def tasks(self):
         yield Task("run", mini_task=True)
 
     def run(self):
-        content = util.instanciate_delayed(self.content)
         with open(self.out_file.get_path(), "w") as f:
-            if isinstance(content, str):
-                f.write(content)
-            elif isinstance(content, dict):
-                for key, val in content.items():
-                    f.write(f"{key}: {val}\n")
-            elif isinstance(content, Iterable):
-                for line in content:
-                    f.write(f"{line}\n")
-            else:
-                raise NotImplementedError
+            self.write_content_to_file(f)
+
+
+class WriteToCsvFileJob(WriteToTextFileJob):
+    """
+    Write a given content into a csv file, one entry per line.
+
+    This job only supports dictionaries as input type. Each key/value pair is written as `<key><delimiter><value>`.
+    """
+
+    __sis_hash_exclude__ = {}  # It was filled in the base class, but it's not needed anymore since this is a new job.
+
+    def __init__(
+        self,
+        content: Dict[str, Union[str, List[str]]],
+        *,
+        out_name: str = "file.txt",
+        delimiter: str = "\t",
+    ):
+        """
+        :param content: input which will be written into a text file
+        :param out_name: user specific file name for the output file
+        :param delimiter: Delimiter used to separate the different entries.
+        """
+        super().__init__(content, out_name)
+
+        self.delimiter = delimiter
+
+    def write_content_to_file(self, file_handler: IOBase):
+        """
+        Writes the input contents (from `self.content`) into the file provided as parameter as a csv file.
+
+        :param file_handler: Open file to write the contents of `self.content` to.
+        """
+        csv_writer = csv.writer(file_handler, delimiter=self.delimiter)
+        content = util.instanciate_delayed(self.content)
+        if isinstance(content, dict):
+            for key, val in content.items():
+                if isinstance(val, list):
+                    csv_writer.writerow((key, *val))
+                else:
+                    csv_writer.writerow((key, val))
+        else:
+            raise NotImplementedError("Content of unknown type different from (str, dict, Iterable).")
 
 
 class SplitTextFileJob(Job):
