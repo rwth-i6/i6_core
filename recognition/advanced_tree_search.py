@@ -817,8 +817,6 @@ class BuildGlobalCacheJob(rasr.RasrCommand, Job):
     Standalone job to create the global-cache for advanced-tree-search
     """
 
-    __sis_hash_exclude__ = {"search_type": "advanced-tree-search", "recognizer_type": "recognizer"}
-
     def __init__(
         self,
         crp,
@@ -870,14 +868,17 @@ class BuildGlobalCacheJob(rasr.RasrCommand, Job):
             "acoustic_model": "speech-recognizer.model-combination.acoustic-model",
             "language_model": "speech-recognizer.model-combination.lm",
             "recognizer": "speech-recognizer.recognizer",
-            "label_scorer": "speech-recognizer.model-combination.label-scorer",
         }
+
+        if recognizer_type == "recognizer-v2":
+            mapping_dict["label_scorer"] = "speech-recognizer.model-combination.label-scorer"
 
         config, post_config = rasr.build_config_from_mapping(crp, mapping_dict)
 
         config.speech_recognizer.recognition_mode = "init-only"
         config.speech_recognizer.search_type = search_type
-        config.speech_recognizer.reocgnizer_type = recognizer_type
+        if recognizer_type != "recognizer":
+            config.speech_recognizer.reocgnizer_type = recognizer_type
         config.speech_recognizer.global_cache.file = "global.cache"
         config.speech_recognizer.global_cache.read_only = False
 
