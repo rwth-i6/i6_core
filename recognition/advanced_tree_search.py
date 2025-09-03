@@ -827,7 +827,7 @@ class BuildGlobalCacheJob(rasr.RasrCommand, Job):
     ):
         """
         :param rasr.CommonRasrParameters crp: common RASR params (required: lexicon, acoustic_model, language_model, recognizer)
-        :param str search_type: this parameter will not be used for building global cache in speech-recognizer. Left for retro-compatibility.
+        :param str search_type: this parameter will only be set when recognizer_type is recognizer, otherwise it is not needed 
         :param str recognizer_type: seach algorithm version, recognizer or recognizer-v2
         :param rasr.Configuration extra_config: overlay config that influences the Job's hash
         :param rasr.Configuration extra_post_config: overlay config that does not influences the Job's hash
