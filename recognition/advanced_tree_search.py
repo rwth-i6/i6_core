@@ -821,14 +821,14 @@ class BuildGlobalCacheJob(rasr.RasrCommand, Job):
         self,
         crp,
         search_type="advanced-tree-search",
-        recognizer_type="recognizer",
+        search_algorithm_interface_type="search",
         extra_config=None,
         extra_post_config=None,
     ):
         """
         :param rasr.CommonRasrParameters crp: common RASR params (required: lexicon, acoustic_model, language_model, recognizer)
-        :param str search_type: this parameter will only be set when recognizer_type is recognizer, otherwise it is not needed
-        :param str recognizer_type: seach algorithm version, recognizer or recognizer-v2
+        :param str search_type: this parameter will only be set when search_algorithm_interface_type is search, otherwise it is not needed
+        :param str search_algorithm_interface_type: choose search or search-v2
         :param rasr.Configuration extra_config: overlay config that influences the Job's hash
         :param rasr.Configuration extra_post_config: overlay config that does not influences the Job's hash
         """
@@ -864,7 +864,9 @@ class BuildGlobalCacheJob(rasr.RasrCommand, Job):
         util.backup_if_exists("build_global_cache.log")
 
     @classmethod
-    def create_config(cls, crp, search_type, recognizer_type, extra_config, extra_post_config, **kwargs):
+    def create_config(
+        cls, crp, search_type, search_algorithm_interface_type, extra_config, extra_post_config, **kwargs
+    ):
         mapping_dict = {
             "lexicon": "speech-recognizer.model-combination.lexicon",
             "acoustic_model": "speech-recognizer.model-combination.acoustic-model",
@@ -872,16 +874,16 @@ class BuildGlobalCacheJob(rasr.RasrCommand, Job):
             "recognizer": "speech-recognizer.recognizer",
         }
 
-        if recognizer_type == "recognizer-v2":
+        if search_algorithm_interface_type == "search-v2":
             mapping_dict["label_scorer"] = "speech-recognizer.model-combination.label-scorer"
 
         config, post_config = rasr.build_config_from_mapping(crp, mapping_dict)
 
         config.speech_recognizer.recognition_mode = "init-only"
-        if recognizer_type == "recognizer":
+        if search_algorithm_interface_type == "search":
             config.speech_recognizer.search_type = search_type
         else:
-            config.speech_recognizer.reocgnizer_type = recognizer_type
+            config.speech_recognizer.search_algorithm_interface_type = search_algorithm_interface_type
         config.speech_recognizer.global_cache.file = "global.cache"
         config.speech_recognizer.global_cache.read_only = False
 
