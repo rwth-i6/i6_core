@@ -1,4 +1,5 @@
 from collections import defaultdict
+import errno
 import glob
 import numpy as np
 import os
@@ -29,21 +30,39 @@ class MergeAudioDirsJob(Job):
         self.audio_dir_paths = audio_dir_paths
         self.file_extension = file_extension
         self.path_must_contain = path_must_contain
+        self.concurrent = len(audio_dir_paths)
 
         self.out_audio_dir_path = self.output_path("audio", directory=True)
 
-    def tasks(self):
-        yield Task("run", mini_task=True)
+        self.rqmt = {"time": 8, "cpu": 4, "mem": 4}
 
-    def run(self):
-        for dir_path in self.audio_dir_paths:
-            search_path = os.path.join(dir_path, "*." + self.file_extension)
-            for file in glob.iglob(search_path, recursive=True):
-                if self.path_must_contain and self.path_must_contain not in file:
-                    continue
-                base_name = os.path.basename(file)
-                dst = os.path.join(self.out_audio_dir_path, base_name)
-                os.symlink(file, dst)
+    def tasks(self):
+        yield Task("run", rqmt=self.rqmt, args=range(1, self.concurrent + 1))
+
+    def run(self, task_id):
+        dir_path = self.audio_dir_paths[task_id - 1]
+        search_path = os.path.join(dir_path, "*." + self.file_extension)
+        for file in glob.iglob(search_path, recursive=True):
+            if self.path_must_contain and self.path_must_contain not in file:
+                continue
+            base_name = os.path.basename(file)
+            creation_complete = False
+            dst = os.path.join(self.out_audio_dir_path, base_name)
+            i = 2
+            while not creation_complete:
+                while os.path.exists(dst):
+                    if os.path.realpath(dst) == file:
+                        creation_complete = True
+                        break
+                    dst = f"{os.path.splitext(dst)[0]}_{i}.{self.file_extension}"
+                    i += 1
+                else:
+                    try:
+                        os.symlink(file, dst)
+                        creation_complete = True
+                    except OSError as err:
+                        if err.errno != errno.EEXIST:
+                            raise err
 
 
 class CreateManifestJob(Job):
