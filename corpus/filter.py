@@ -8,7 +8,7 @@ __all__ = [
     "FilterCorpusBySegmentDurationJob",
 ]
 
-from collections import defaultdict
+from collections import defaultdict, Counter
 import gzip
 import logging
 import numpy as np
@@ -66,9 +66,9 @@ class FilterSegmentsByListJob(Job):
 
     def run(self):
         if isinstance(self.filter_list, tk.Path):
-            filter_list = [line.rstrip() for line in open(self.filter_list.get_path(), "r")]
+            filter_list = {line.rstrip() for line in open(self.filter_list.get_path(), "r")}
         elif isinstance(self.filter_list, list):
-            filter_list = self.filter_list
+            filter_list = set(self.filter_list)
         else:
             assert False
 
@@ -462,6 +462,7 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
         "delete_empty_recordings": False,
         "segment_oov_tolerance": None,
         "recording_oov_tolerance": 1.0,
+        "log_oov_list": False,
     }
 
     def __init__(
@@ -473,6 +474,7 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
         delete_empty_recordings: bool = False,
         segment_oov_tolerance: Optional[float] = None,
         recording_oov_tolerance: float = 1.0,
+        log_oov_list: bool = False,
     ):
         """
         :param bliss_corpus:
@@ -484,6 +486,7 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
             A value of 0.0 means no single OOV word is allowed, 1.0 means everything is allowed.
         :param maximal percentage of high word OOV rate segments for a recording to be kept.
             A value of 0.0 means a single high segment with an OOV rate above the segment_oov_tolerance will cause the recording to be deleted, 1.0 means no recording will be deleted.
+        :param log_oov_list: whether to output a log containing all OOVs and their frequencies
         """
         self.corpus = bliss_corpus
         self.lexicon = bliss_lexicon
@@ -495,10 +498,13 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
         self.delete_empty_recordings = delete_empty_recordings
         self.segment_oov_tolerance = segment_oov_tolerance
         self.recording_oov_tolerance = recording_oov_tolerance
+        self.log_oov_list = log_oov_list
 
         self.out_corpus = self.output_path("corpus.xml.gz", cached=True)
         if self.delete_empty_recordings:
             self.out_removed_recordings = self.output_path("removed_recordings.log")
+        if self.log_oov_list:
+            self.out_oov_list = self.output_path("oov.log")
 
     def tasks(self):
         yield Task("run", resume="run", mini_task=True)
@@ -523,28 +529,48 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
         c.load(self.corpus.get_path())
         num_segments_per_recording = {r.fullname(): len(r.segments) for r in c.all_recordings()}
 
-        def unknown_filter(corpus: corpus.Corpus, recording: corpus.Recording, segment: corpus.Segment) -> bool:
-            """
-            :param corpus: needed to match the filter signature
-            :param recording: needed to match the filter signature
-            :param segment: segment to filter
-            :return: whether the orth of segment contains at least one known word (all_unknown = True) or
-                     whether all orths are in the lexicon (all_unknown = False)
-            """
-            orth = segment.orth
-            if not orth:
-                return True
-            words = [maybe_to_lower(o) for o in orth.strip().split(" ")]
-            num_oov_words = sum(1 if w not in vocabulary else 0 for w in words)
+        # use var name instead of attribute to avoid problem with name scope
+        log_oov_list = self.log_oov_list
+        all_unknown = self.all_unknown
+        segment_oov_tolerance = self.segment_oov_tolerance
 
-            if self.segment_oov_tolerance is None:
-                if self.all_unknown:
-                    return num_oov_words < len(words)
+        class UnknownFilter:
+            """
+            Stateful callable to filter the corpus and potentially record all OOV
+            """
+
+            def __init__(self):
+                self.oov_counts = Counter()
+
+            def __call__(self, corpus: corpus.Corpus, recording: corpus.Recording, segment: corpus.Segment) -> bool:
+                """
+                :param corpus: needed to match the filter signature
+                :param recording: needed to match the filter signature
+                :param segment: segment to filter
+                :return: whether the orth of segment contains at least one known word (all_unknown = True) or
+                         whether all orths are in the lexicon (all_unknown = False)
+                """
+                orth = segment.orth
+                if not orth:
+                    return True
+
+                words = [maybe_to_lower(o) for o in orth.strip().split(" ")]
+                oov_words = [word for word in words if word not in vocabulary]
+
+                if log_oov_list:
+                    self.oov_counts.update(oov_words)
+
+                num_oov_words = len(oov_words)
+
+                if segment_oov_tolerance is None:
+                    if all_unknown:
+                        return num_oov_words < len(words)
+                    else:
+                        return num_oov_words == 0
                 else:
-                    return num_oov_words == 0
-            else:
-                return num_oov_words <= len(words) * self.segment_oov_tolerance
+                    return num_oov_words <= len(words) * segment_oov_tolerance
 
+        unknown_filter = UnknownFilter()
         c.filter_segments(unknown_filter)
 
         if self.recording_oov_tolerance < 1.0:
@@ -560,6 +586,11 @@ class FilterCorpusRemoveUnknownWordSegmentsJob(Job):
         if self.delete_empty_recordings:
             # Remove the recordings without segments due to the filtering.
             _delete_empty_recordings(c, self.out_removed_recordings.get_path())
+
+        if self.log_oov_list:
+            with open(self.out_oov_list.get_path(), "w") as f:
+                for word, frequency in unknown_filter.oov_counts.most_common():
+                    f.write(f"{word}: {frequency}\n")
 
         c.dump(self.out_corpus.get_path())
 
