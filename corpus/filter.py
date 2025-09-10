@@ -307,8 +307,8 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
     @classmethod
     def hash(self, kwargs):
         # only keep concurrent value from crp and ignore the rest
+        kwargs_copy = dict(**kwargs)
         if kwargs["crp"] is not None:
-            kwargs_copy = dict(**kwargs)
             concurrent = kwargs_copy["crp"].concurrent
             del kwargs_copy["crp"]
             kwargs_copy["concurrent"] = concurrent
