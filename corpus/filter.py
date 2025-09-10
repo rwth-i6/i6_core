@@ -304,6 +304,16 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
         self._write_output_segment_files(filtered_segments)
         self._plot(recording_dict)
 
+    @classmethod
+    def hash(self, kwargs):
+        # only keep concurrent value from crp and ignore the rest
+        kwargs_copy = dict(**kwargs)
+        if kwargs["crp"] is not None:
+            concurrent = kwargs_copy["crp"].concurrent
+            del kwargs_copy["crp"]
+            kwargs_copy["concurrent"] = concurrent
+        return super().hash(kwargs_copy)
+
 
 class FilterRecordingsByAlignmentConfidenceJob(FilterSegmentsByAlignmentConfidenceJob):
     """
