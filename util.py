@@ -320,11 +320,12 @@ def get_executable_path(
         if isinstance(path, tk.Path):
             return path
         elif isinstance(path, str):
-            logging.warning(f"use of str is deprecated, please provide a Path object for {path}")
+            logging.warning("get_executable_path: use of str is deprecated, please provide a Path object")
             return tk.Path(path)
         elif isinstance(path, DelayedFormat):
             logging.warning(
-                f"use of a DelayedFormat is deprecated, please use Path.join_right to provide a Path object for {path}"
+                "get_executable_path: "
+                "use of a DelayedFormat is deprecated, please use Path.join_right to provide a Path object"
             )
             if (
                 len(path.args) == 2
@@ -335,16 +336,18 @@ def get_executable_path(
                 return path.args[0].join_right(path.args[1])
             else:
                 return tk.Path(path.get())
-        assert False, f"unsupported type of {type(path)} for input {path}"
+        assert False, f"get_executable_path: unsupported type of {type(path)} for input {path}"
     if getattr(gs, gs_member_name, None) is not None:
         if gs_member_name not in already_printed_gs_warnings:
-            logging.warning(f"use of gs is deprecated, please provide a Path object for gs.{gs_member_name}")
+            logging.warning(
+                f"get_executable_path: use of gs is deprecated, please provide a Path object for gs.{gs_member_name}"
+            )
             already_printed_gs_warnings.add(gs_member_name)
 
         return tk.Path(getattr(gs, gs_member_name))
     if default_exec_path is not None:
         return default_exec_path
-    assert False, f"could not find executable for {gs_member_name}"
+    assert False, f"get_executable_path: could not find executable for {gs_member_name}"
 
 
 def get_returnn_root(returnn_root: tk.Path) -> tk.Path:
