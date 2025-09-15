@@ -226,7 +226,7 @@ def write_xml(filename: Union[Path, str], element_tree: Union[ET.ElementTree, ET
     elif isinstance(element_tree, ET.Element):
         root = element_tree
     else:
-        raise AssertionError("please provide an ElementTree or Element")
+        raise TypeError("please provide an ElementTree or Element")
 
     if prettify:
         remove_unwanted_whitespace(root)
