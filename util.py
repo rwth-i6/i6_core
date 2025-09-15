@@ -320,7 +320,7 @@ def get_executable_path(
         if isinstance(path, tk.Path):
             return path
         elif isinstance(path, str):
-            logging.warning("get_executable_path: use of str is deprecated, please provide a Path object")
+            logging.warning(f"get_executable_path: use of str is deprecated, please provide a Path object for {path}")
             return tk.Path(path)
         elif isinstance(path, DelayedFormat):
             logging.warning(
