@@ -336,7 +336,7 @@ def get_executable_path(
                 return path.args[0].join_right(path.args[1])
             else:
                 return tk.Path(path.get())
-        assert False, f"get_executable_path: unsupported type of {type(path)} for input {path}"
+        assert False, f"get_executable_path: unsupported type of {type(path)}"
     if getattr(gs, gs_member_name, None) is not None:
         if gs_member_name not in already_printed_gs_warnings:
             logging.warning(
