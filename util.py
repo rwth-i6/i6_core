@@ -301,7 +301,7 @@ already_printed_gs_warnings = set()
 
 
 def get_executable_path(
-    path: Optional[tk.Path],
+    path: Optional[Union[tk.Path, str, DelayedFormat]],
     gs_member_name: Optional[str],
     default_exec_path: Optional[tk.Path] = None,
 ) -> tk.Path:
