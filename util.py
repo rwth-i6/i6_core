@@ -336,7 +336,7 @@ def get_executable_path(
                 return path.args[0].join_right(path.args[1])
             else:
                 return tk.Path(path.get())
-        raise AssertionError(f"get_executable_path: unsupported type of {type(path)}")
+        raise TypeError(f"get_executable_path: unsupported type of {type(path)}")
     if getattr(gs, gs_member_name, None) is not None:
         if gs_member_name not in already_printed_gs_warnings:
             logging.warning(
@@ -347,7 +347,7 @@ def get_executable_path(
         return tk.Path(getattr(gs, gs_member_name))
     if default_exec_path is not None:
         return default_exec_path
-    raise AssertionError(f"get_executable_path: could not find executable for {gs_member_name}")
+    raise ValueError(f"get_executable_path: could not find executable for {gs_member_name}")
 
 
 def get_returnn_root(returnn_root: tk.Path) -> tk.Path:
