@@ -335,7 +335,12 @@ def get_executable_path(
             ):
                 return path.args[0].join_right(path.args[1])
             else:
-                return tk.Path(path.get())
+                raise ValueError(
+                    f"get_executable_path: DelayedFormat provided {path} seems to be more complex than expected. "
+                    "Will not attempt to resolve it with path.get(), which might lead to side effects. "
+                    "Consider concatenating `tk.Path.join_right(...).join_right(...)` in succession "
+                    "or using a less complex path."
+                )
         raise TypeError(f"get_executable_path: unsupported type of {type(path)}")
     if getattr(gs, gs_member_name, None) is not None:
         if gs_member_name not in already_printed_gs_warnings:
