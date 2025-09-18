@@ -226,7 +226,7 @@ def write_xml(filename: Union[Path, str], element_tree: Union[ET.ElementTree, ET
     elif isinstance(element_tree, ET.Element):
         root = element_tree
     else:
-        assert False, "please provide an ElementTree or Element"
+        raise TypeError("please provide an ElementTree or Element")
 
     if prettify:
         remove_unwanted_whitespace(root)
@@ -301,7 +301,7 @@ already_printed_gs_warnings = set()
 
 
 def get_executable_path(
-    path: Optional[tk.Path],
+    path: Optional[Union[tk.Path, str, DelayedFormat]],
     gs_member_name: Optional[str],
     default_exec_path: Optional[tk.Path] = None,
 ) -> tk.Path:
@@ -320,11 +320,12 @@ def get_executable_path(
         if isinstance(path, tk.Path):
             return path
         elif isinstance(path, str):
-            logging.warning(f"use of str is deprecated, please provide a Path object for {path}")
+            logging.warning(f"get_executable_path: use of str is deprecated, please provide a Path object for {path}")
             return tk.Path(path)
         elif isinstance(path, DelayedFormat):
             logging.warning(
-                f"use of a DelayedFormat is deprecated, please use Path.join_right to provide a Path object for {path}"
+                "get_executable_path: "
+                "use of a DelayedFormat is deprecated, please use Path.join_right to provide a Path object"
             )
             if (
                 len(path.args) == 2
@@ -334,17 +335,24 @@ def get_executable_path(
             ):
                 return path.args[0].join_right(path.args[1])
             else:
-                return tk.Path(path.get())
-        assert False, f"unsupported type of {type(path)} for input {path}"
+                raise ValueError(
+                    "get_executable_path: DelayedFormat provided seems to be more complex than expected. "
+                    "Will not attempt to resolve it with path.get(), which might lead to side effects. "
+                    "Consider concatenating `tk.Path.join_right(...).join_right(...)` in succession "
+                    "or using a less complex path."
+                )
+        raise TypeError(f"get_executable_path: unsupported type of {type(path)}")
     if getattr(gs, gs_member_name, None) is not None:
         if gs_member_name not in already_printed_gs_warnings:
-            logging.warning(f"use of gs is deprecated, please provide a Path object for gs.{gs_member_name}")
+            logging.warning(
+                f"get_executable_path: use of gs is deprecated, please provide a Path object for gs.{gs_member_name}"
+            )
             already_printed_gs_warnings.add(gs_member_name)
 
         return tk.Path(getattr(gs, gs_member_name))
     if default_exec_path is not None:
         return default_exec_path
-    assert False, f"could not find executable for {gs_member_name}"
+    raise ValueError(f"get_executable_path: could not find executable for {gs_member_name}")
 
 
 def get_returnn_root(returnn_root: tk.Path) -> tk.Path:
