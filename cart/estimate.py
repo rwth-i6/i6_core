@@ -73,7 +73,7 @@ class AccumulateCartStatisticsJob(rasr.RasrCommand, Job):
             rqmt=self.rqmt,
             args=range(1, self.concurrent + 1),
         )
-        yield Task("merge", mini_task=True)
+        yield Task("merge", mini_task=False)
 
     def create_files(self):
         self.write_config(self.config_accumulate, self.post_config_accumulate, "accumulate.config")
