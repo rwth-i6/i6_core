@@ -29,8 +29,7 @@ def escape_or_none(string: Optional[str]):
     """
     if string is None:
         return None
-    else:
-        return saxutils.escape(string)
+    return saxutils.escape(string)
 
 
 class NamedEntity:
