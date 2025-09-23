@@ -313,14 +313,14 @@ class Corpus(NamedEntity, CorpusSection):
 
     def _dump_internal(self, out: TextIO, indentation: str = ""):
         if self.parent_corpus is None:
-            out.write('<corpus name="%s">\n' % self.name)
+            out.write('<corpus name="%s">\n' % saxutils.escape(self.name))
         else:
-            out.write('%s<subcorpus name="%s">\n' % (indentation, self.name))
+            out.write('%s<subcorpus name="%s">\n' % (indentation, saxutils.escape(self.name)))
 
         for s in self.speakers.values():
             s.dump(out, indentation + "  ")
         if self.speaker_name is not None:
-            out.write('%s  <speaker name="%s"/>\n' % (indentation, self.speaker_name))
+            out.write('%s  <speaker name="%s"/>\n' % (indentation, saxutils.escape(self.speaker_name)))
 
         for r in self.recordings:
             r.dump(out, indentation + "  ")
@@ -368,12 +368,15 @@ class Recording(NamedEntity, CorpusSection):
             return self.corpus.speaker(speaker_name, self.default_speaker)
 
     def dump(self, out: TextIO, indentation: str = ""):
-        out.write('%s<recording name="%s" audio="%s">\n' % (indentation, self.name, self.audio))
+        out.write(
+            '%s<recording name="%s" audio="%s">\n'
+            % (indentation, saxutils.escape(self.name), saxutils.escape(self.audio))
+        )
 
         for s in self.speakers.values():
             s.dump(out, indentation + "  ")
         if self.speaker_name is not None:
-            out.write('%s  <speaker name="%s"/>\n' % (indentation, self.speaker_name))
+            out.write('%s  <speaker name="%s"/>\n' % (indentation, saxutils.escape(self.speaker_name)))
 
         for s in self.segments:
             s.dump(out, indentation + "  ")
@@ -451,7 +454,7 @@ class Segment(NamedEntity):
             % (indentation, self.name, self.start, self.end, t, new_line)
         )
         if self.speaker_name is not None:
-            out.write('%s  <speaker name="%s"/>\n' % (indentation, self.speaker_name))
+            out.write('%s  <speaker name="%s"/>\n' % (indentation, saxutils.escape(self.speaker_name)))
         if self.orth is not None:
             out.write("%s  <orth> %s </orth>\n" % (indentation, saxutils.escape(self.orth)))
         if self.left_context_orth is not None:
@@ -485,7 +488,7 @@ class Speaker(NamedEntity):
         if len(self.attribs) > 0:
             out.write("\n")
         for k, v in self.attribs.items():
-            out.write("%s  <%s>%s</%s>\n" % (indentation, k, v, k))
+            out.write("%s  <%s>%s</%s>\n" % (indentation, k, saxutils.escape(v), k))
         out.write("%s</speaker-description>\n" % (indentation if len(self.attribs) > 0 else ""))
 
 
