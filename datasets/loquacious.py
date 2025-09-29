@@ -17,14 +17,17 @@ filters = {
     "yodas": re.compile(".wav$"),
 }
 
+
 def extract_audio_from_text(entry, output_path):
     sp.run(
         [
             "ffmpeg",
             "-y",
             "-hide_banner",
-            "-loglevel", "error",
-            "-threads", "2",
+            "-loglevel",
+            "error",
+            "-threads",
+            "2",
             "-i",
             "pipe:0",
             "-ar",
@@ -45,8 +48,8 @@ def extract_audio_from_text(entry, output_path):
 
 
 def remove_audio_from_entry(entry):
-  entry.pop("wav")
-  return entry
+    entry.pop("wav")
+    return entry
 
 
 def create_recording_from_entry(entry, out_dir: str):
@@ -65,7 +68,6 @@ def create_recording_from_entry(entry, out_dir: str):
 
 
 class PrepareLoquaciousDatasetJob(Job):
-
     @classmethod
     def hash(cls, parsed_args: Dict[str, Any]) -> str:
         d = {}
@@ -78,9 +80,8 @@ class PrepareLoquaciousTrainSmallDatasetJob(PrepareLoquaciousDatasetJob):
     """
 
     def __init__(
-            self,
-            hf_home_dir: Path,
-
+        self,
+        hf_home_dir: Path,
     ):
         self.hf_home_dir = hf_home_dir
 
@@ -93,6 +94,7 @@ class PrepareLoquaciousTrainSmallDatasetJob(PrepareLoquaciousDatasetJob):
     def run(self):
         os.environ["HF_HOME"] = self.hf_home_dir.get_path()
         from datasets import load_dataset
+
         dataset = load_dataset(
             path="speechbrain/LoquaciousSet",
             name="small",
@@ -101,10 +103,10 @@ class PrepareLoquaciousTrainSmallDatasetJob(PrepareLoquaciousDatasetJob):
         )
         print("extract audio")
         text_only_dataset = dataset.map(
-                extract_audio_from_text,
-                fn_kwargs={"output_path": self.out_dir.get_path()},
-                num_proc=8, 
-                load_from_cache_file=False
+            extract_audio_from_text,
+            fn_kwargs={"output_path": self.out_dir.get_path()},
+            num_proc=8,
+            load_from_cache_file=False,
         )
         print("start corpus creation")
         corpus = Corpus()
@@ -126,9 +128,8 @@ class PrepareLoquaciousTrainMediumDatasetJob(PrepareLoquaciousDatasetJob):
     """
 
     def __init__(
-            self,
-            hf_home_dir: Path,
-
+        self,
+        hf_home_dir: Path,
     ):
         self.hf_home_dir = hf_home_dir
 
@@ -142,6 +143,7 @@ class PrepareLoquaciousTrainMediumDatasetJob(PrepareLoquaciousDatasetJob):
     def run(self):
         os.environ["HF_HOME"] = self.hf_home_dir.get_path()
         from datasets import load_dataset
+
         print("load small and medium datasets using HF")
         dataset_medium = load_dataset(
             path="speechbrain/LoquaciousSet",
@@ -161,7 +163,11 @@ class PrepareLoquaciousTrainMediumDatasetJob(PrepareLoquaciousDatasetJob):
 
         print("extract audio from medium set")
         text_only_dataset_medium = dataset_medium.map(
-            extract_audio_from_text, fn_kwargs={"output_path": self.out_dir.get_path()}, num_proc=8, load_from_cache_file=False)
+            extract_audio_from_text,
+            fn_kwargs={"output_path": self.out_dir.get_path()},
+            num_proc=8,
+            load_from_cache_file=False,
+        )
 
         print("get sequence IDs of small set")
         small_ids = set()
@@ -183,7 +189,7 @@ class PrepareLoquaciousTrainMediumDatasetJob(PrepareLoquaciousDatasetJob):
             recording = create_recording_from_entry(entry, self.out_dir.get_path())
             corpus.add_recording(recording)
             if entry["ID"] not in small_ids:
-              corpus_wo_small.add_recording(recording)
+                corpus_wo_small.add_recording(recording)
 
         corpus.dump(self.out_corpus.get_path())
         corpus_wo_small.dump(self.out_corpus_wo_small.get_path())
@@ -195,9 +201,8 @@ class PrepareLoquaciousTestDatasetsJob(PrepareLoquaciousDatasetJob):
     """
 
     def __init__(
-            self,
-            hf_home_dir: Path,
-
+        self,
+        hf_home_dir: Path,
     ):
         self.hf_home_dir = hf_home_dir
 
@@ -236,6 +241,7 @@ class PrepareLoquaciousTestDatasetsJob(PrepareLoquaciousDatasetJob):
     def run(self):
         os.environ["HF_HOME"] = self.hf_home_dir.get_path()
         from datasets import load_dataset
+
         dataset_dev = load_dataset(
             path="speechbrain/LoquaciousSet",
             name="small",
@@ -253,13 +259,13 @@ class PrepareLoquaciousTestDatasetsJob(PrepareLoquaciousDatasetJob):
             extract_audio_from_text,
             fn_kwargs={"output_path": self.out_dir.get_path()},
             num_proc=8,
-            load_from_cache_file=False
+            load_from_cache_file=False,
         )
         text_only_dataset_test = dataset_test.map(
             extract_audio_from_text,
             fn_kwargs={"output_path": self.out_dir.get_path()},
             num_proc=8,
-            load_from_cache_file=False
+            load_from_cache_file=False,
         )
 
         print("start corpus creation")
@@ -301,4 +307,3 @@ class PrepareLoquaciousTestDatasetsJob(PrepareLoquaciousDatasetJob):
             dev_corpus.dump(self.out_dev_corpora[key].get_path())
         for key, test_corpus in test_corpora.items():
             test_corpus.dump(self.out_test_corpora[key].get_path())
-    
