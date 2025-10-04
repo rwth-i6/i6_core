@@ -2,11 +2,17 @@
 https://huggingface.co/docs/datasets/
 """
 
-from typing import Optional, Any, Union
-from sisyphus import Job, Task, gs
+from __future__ import annotations
+from typing import TYPE_CHECKING, Optional, Any, Union, Callable, Sequence, Dict
+from sisyphus import Job, Task, Path, gs
 from sisyphus.delayed_ops import DelayedBase
 
 from i6_core.util import instanciate_delayed
+
+if TYPE_CHECKING:
+    from datasets import Dataset, DatasetDict
+
+    TransformFuncT = Union[Callable[[DatasetDict], DatasetDict], Callable[[Dataset], Dataset]]
 
 
 class DownloadAndPrepareHuggingFaceDatasetJob(Job):
@@ -112,3 +118,95 @@ class DownloadAndPrepareHuggingFaceDatasetJob(Job):
             "token": kwargs["token"],
         }
         return super().hash(d)
+
+
+class TransformAndMapHuggingFaceDatasetJob(Job):
+    """
+    Runs some functions (e.g. filtering, mapping, renaming columns, ...) on a HF dataset.
+
+    We do a map at the end, which supports to directly save to disk (via cache_file_name(s)),
+    without an additional save_to_disk
+    """
+
+    def __init__(
+        self,
+        path: Union[str, Path],
+        name: Optional[str] = None,
+        *,
+        load_dataset_opts: Optional[Dict[str, Any]] = None,  # e.g. "split", "revision", ...
+        non_hashed_load_dataset_opts: Optional[Dict[str, Any]] = None,  # e.g. {"num_proc": 8}
+        transform: Union[None, TransformFuncT, Sequence[TransformFuncT]] = None,
+        map_func: Optional[Callable] = None,
+        map_opts: Union[
+            None, Dict[str, Any], Callable[[Dataset], Dict[str, Any]], Callable[[DatasetDict], Dict[str, Any]]
+        ] = None,
+        non_hashed_map_opts: Optional[Dict[str, Any]] = None,
+    ):
+        super().__init__()
+
+        self.path = path
+        self.name = name
+        self.load_dataset_opts = load_dataset_opts
+        self.non_hashed_load_dataset_opts = non_hashed_load_dataset_opts
+        self.transform = transform
+        self.map_func = map_func
+        self.map_opts = map_opts
+        self.non_hashed_map_opts = non_hashed_map_opts
+
+        self.rqmt = {"cpu": 2, "mem": 2, "time": 1}
+
+        self.out_dir = self.output_path("dataset", directory=True)
+
+    @classmethod
+    def hash(cls, kwargs):
+        kwargs.pop("non_hashed_load_dataset_opts")
+        kwargs.pop("non_hashed_map_opts")
+        return super().hash(kwargs)
+
+    def tasks(self):
+        yield Task("run", resume="run", rqmt=self.rqmt)
+
+    def run(self):
+        import os
+        from datasets import load_dataset, Dataset, DatasetDict
+
+        assert os.environ.get("HF_HOME"), (
+            "HF_HOME env var not set,"
+            " set this in your settings.py DEFAULT_ENVIRONMENT_SET"
+            " (if not CLEANUP_ENVIRONMENT, otherwise in your current env),"
+            " or via job.set_env"
+        )
+
+        ds = load_dataset(
+            instanciate_delayed(self.path),
+            name=self.name,
+            **(instanciate_delayed(self.load_dataset_opts) or {}),
+            **(instanciate_delayed(self.non_hashed_load_dataset_opts) or {}),
+        )
+        assert isinstance(ds, (Dataset, DatasetDict))
+
+        if self.transform:
+            if callable(self.transform):
+                ds = self.transform(ds)
+                assert isinstance(ds, (Dataset, DatasetDict)), f"After {self.transform} got {type(ds)}"
+            else:
+                for func in self.transform:
+                    ds = func(ds)
+                    assert isinstance(ds, (Dataset, DatasetDict)), f"After {func} got {type(ds)}"
+
+        out_d = self.out_dir.get_path()
+        os.makedirs(out_d, exist_ok=True)
+        map_opts = self.map_opts
+        if callable(map_opts):
+            map_opts = map_opts(ds)
+        ds.map(
+            self.map_func,
+            **(map_opts or {}),
+            **(self.non_hashed_map_opts or {}),
+            **({"cache_file_name": f"{out_d}/data.arrow"} if isinstance(ds, Dataset) else {}),
+            **(
+                {"cache_file_names": {k: f"{out_d}/data-{k}.arrow" for k in ds.keys()}}
+                if isinstance(ds, DatasetDict)
+                else {}
+            ),
+        )
