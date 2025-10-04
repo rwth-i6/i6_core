@@ -216,8 +216,8 @@ class TransformAndMapHuggingFaceDatasetJob(Job):
         if callable(map_opts):
             map_opts = map_opts(ds)
         map_extra_opts = {}
-        if self.non_hashed_map_opts and "num_proc" in self.non_hashed_load_dataset_opts:
-            num_proc = self.non_hashed_load_dataset_opts["num_proc"]
+        if self.non_hashed_map_opts and "num_proc" in self.non_hashed_map_opts:
+            num_proc = self.non_hashed_map_opts["num_proc"]
         else:
             num_proc = self.rqmt["cpu"] * 2
             map_extra_opts["num_proc"] = num_proc
