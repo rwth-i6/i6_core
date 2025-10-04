@@ -124,9 +124,13 @@ class TransformAndMapHuggingFaceDatasetJob(Job):
     """
     Runs some functions (e.g. filtering, mapping, renaming columns, ...) on a HF dataset.
 
-    We do a map at the end, which supports to directly save to disk (via cache_file_name(s)),
-    without an additional save_to_disk
+    The map is handled with special logic, as this involves writing to disk.
+    We write to the work dir via cache_file_name(s).
+    Then we do a save_to_disk to the final output dir.
+    Then we clean up the work dir again.
     """
+
+    __sis_version__ = 2  # TODO remove later...
 
     def __init__(
         self,
@@ -141,8 +145,13 @@ class TransformAndMapHuggingFaceDatasetJob(Job):
             None, Dict[str, Any], Callable[[Dataset], Dict[str, Any]], Callable[[DatasetDict], Dict[str, Any]]
         ] = None,
         non_hashed_map_opts: Optional[Dict[str, Any]] = None,
+        num_shards: Union[None, int, Dict[str, int]] = None,
+        max_shard_size: Union[None, str, int] = None,
     ):
         super().__init__()
+
+        if max_shard_size is not None and num_shards is not None:
+            raise ValueError(f"{self}: please specify either max_shard_size or num_shards, but not both.")
 
         self.path = path
         self.name = name
@@ -152,8 +161,10 @@ class TransformAndMapHuggingFaceDatasetJob(Job):
         self.map_func = map_func
         self.map_opts = map_opts
         self.non_hashed_map_opts = non_hashed_map_opts
+        self.num_shards = num_shards
+        self.max_shard_size = max_shard_size
 
-        self.rqmt = {"cpu": 2, "mem": 2, "time": 1}
+        self.rqmt = {"cpu": 16, "mem": 16, "time": 12}
 
         self.out_dir = self.output_path("dataset", directory=True)
 
@@ -168,7 +179,10 @@ class TransformAndMapHuggingFaceDatasetJob(Job):
 
     def run(self):
         import os
+        import shutil
         from datasets import load_dataset, Dataset, DatasetDict
+        from datasets.utils.py_utils import convert_file_size_to_int
+        from datasets import config
 
         assert os.environ.get("HF_HOME"), (
             "HF_HOME env var not set,"
@@ -194,19 +208,47 @@ class TransformAndMapHuggingFaceDatasetJob(Job):
                     ds = func(ds)
                     assert isinstance(ds, (Dataset, DatasetDict)), f"After {func} got {type(ds)}"
 
-        out_d = self.out_dir.get_path()
-        os.makedirs(out_d, exist_ok=True)
+        work_out_d = "tmp-map-output"
+        if os.path.exists(work_out_d):
+            shutil.rmtree(work_out_d)
+        os.makedirs(work_out_d)
         map_opts = self.map_opts
         if callable(map_opts):
             map_opts = map_opts(ds)
-        ds.map(
+        map_extra_opts = {}
+        if self.non_hashed_map_opts and "num_proc" in self.non_hashed_load_dataset_opts:
+            num_proc = self.non_hashed_load_dataset_opts["num_proc"]
+        else:
+            num_proc = self.rqmt["cpu"] * 2
+            map_extra_opts["num_proc"] = num_proc
+        ds = ds.map(
             self.map_func,
             **(map_opts or {}),
             **(self.non_hashed_map_opts or {}),
-            **({"cache_file_name": f"{out_d}/data.arrow"} if isinstance(ds, Dataset) else {}),
+            **({"cache_file_name": f"{work_out_d}/data.arrow"} if isinstance(ds, Dataset) else {}),
             **(
-                {"cache_file_names": {k: f"{out_d}/data-{k}.arrow" for k in ds.keys()}}
+                {"cache_file_names": {k: f"{work_out_d}/data-{k}.arrow" for k in ds.keys()}}
                 if isinstance(ds, DatasetDict)
                 else {}
             ),
+            **map_extra_opts,
         )
+
+        num_shards = self.num_shards
+        max_shard_size = self.max_shard_size or config.MAX_SHARD_SIZE
+        max_shard_size = convert_file_size_to_int(max_shard_size)
+        if num_shards is None:
+            # This code is adapted from Dataset.save_to_disk to determine the number of shards.
+            # We make this independent of num_proc (because num_proc is not hashed).
+            if isinstance(ds, DatasetDict):
+                # noinspection PyProtectedMember
+                num_shards = {k: int(ds_._estimate_nbytes() / max_shard_size) + 1 for k, ds_ in ds.items()}
+            elif isinstance(ds, Dataset):
+                # noinspection PyProtectedMember
+                num_shards = int(ds._estimate_nbytes() / max_shard_size) + 1
+            else:
+                raise TypeError(f"Unexpected type: {type(ds)}")
+
+        ds.save_to_disk(self.out_dir.get_path(), num_shards=num_shards, num_proc=num_proc)
+        del ds
+        shutil.rmtree(work_out_d)
