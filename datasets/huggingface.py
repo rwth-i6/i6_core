@@ -280,13 +280,22 @@ class ExtractTextFromHuggingFaceDatasetJob(Job):
 
     def run(self):
         import gzip
+        import time
         from datasets import load_dataset, Dataset
 
         ds = load_dataset(self.path, self.name, split=self.split)
         assert isinstance(ds, Dataset), f"Expected a Dataset, got {type(ds)} {ds}"
         assert self.column_name in ds.column_names, f"Column name {self.column_name} not in columns {ds.column_names}"
 
+        size = ds.num_rows
+        start_time = time.monotonic()
         with gzip.open(self.out_text.get_path(), "wt", encoding="utf-8") as f:
-            for item in ds:
+            for i, item in enumerate(ds):
+                if (i + 1) % 10000 == 0 or i + 1 == size:
+                    elapsed = time.monotonic() - start_time
+                    speed = (i + 1) / elapsed if elapsed > 0 else 0
+                    eta = (size - (i + 1)) / speed if speed > 0 else float("inf")
+                    eta_str = time.strftime("%H:%M:%S", time.gmtime(eta)) if eta != float("inf") else "inf"
+                    print(f"Line {i + 1}/{size}, {((i + 1) / size * 100):.1f}%, {speed:.1f} it/s, ETA {eta_str}")
                 f.write(item[self.column_name])
                 f.write("\n")
