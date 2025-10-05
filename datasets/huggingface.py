@@ -252,3 +252,43 @@ class TransformAndMapHuggingFaceDatasetJob(Job):
         ds.save_to_disk(self.out_dir.get_path(), num_shards=num_shards, num_proc=num_proc)
         del ds
         shutil.rmtree(work_out_d)
+
+
+class ExtractTextFromHuggingFaceDatasetJob(Job):
+    """
+    Extract a text column from a HF dataset and write it to a gzipped text file.
+    """
+
+    def __init__(
+        self,
+        path: Union[str, Path],
+        name: Optional[str] = None,
+        *,
+        split: Optional[str] = "train",
+        column_name: str = "text",
+    ):
+        super().__init__()
+        self.path = path
+        self.name = name
+        self.split = split
+        self.column_name = column_name
+
+        self.rqmt = {"cpu": 4, "mem": 8, "time": 2}
+
+        self.out_text = self.output_path("text.txt.gz")
+
+    def tasks(self):
+        yield Task("run", resume="run", rqmt=self.rqmt)
+
+    def run(self):
+        import gzip
+        from datasets import load_dataset, Dataset
+
+        ds = load_dataset(self.path, self.name, split=self.split)
+        assert isinstance(ds, Dataset), f"Expected a Dataset, got {type(ds)} {ds}"
+        assert self.column_name in ds.column_names, f"Column name {self.column_name} not in columns {ds.column_names}"
+
+        with gzip.open(self.out_text.get_path(), "wt", encoding="utf-8") as f:
+            for item in ds:
+                f.write(item[self.column_name])
+                f.write("\n")
