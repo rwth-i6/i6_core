@@ -291,7 +291,7 @@ class ExtractTextFromHuggingFaceDatasetJob(Job):
         start_time = time.monotonic()
         with gzip.open(self.out_text.get_path(), "wt", encoding="utf-8") as f:
             for i, item in enumerate(ds):
-                if (i + 1) % 10000 == 0 or i + 1 == size:
+                if (i + 1) % 1000 == 0 or i + 1 == size:
                     elapsed = time.monotonic() - start_time
                     speed = (i + 1) / elapsed if elapsed > 0 else 0
                     eta = (size - (i + 1)) / speed if speed > 0 else float("inf")
