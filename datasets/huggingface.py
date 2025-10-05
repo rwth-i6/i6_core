@@ -273,7 +273,7 @@ class ExtractTextFromHuggingFaceDatasetJob(Job):
         self.split = split
         self.column_name = column_name
 
-        self.rqmt = {"cpu": 4, "mem": 8, "time": 2}
+        self.rqmt = {"cpu": 4, "mem": 8, "time": 10}
 
         self.out_text = self.output_path("text.txt.gz")
 
