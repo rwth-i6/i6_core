@@ -130,8 +130,6 @@ class TransformAndMapHuggingFaceDatasetJob(Job):
     Then we clean up the work dir again.
     """
 
-    __sis_version__ = 2  # TODO remove later...
-
     def __init__(
         self,
         path: Union[str, Path],
