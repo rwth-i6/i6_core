@@ -182,13 +182,6 @@ class TransformAndMapHuggingFaceDatasetJob(Job):
         from datasets.utils.py_utils import convert_file_size_to_int
         from datasets import config
 
-        assert os.environ.get("HF_HOME"), (
-            "HF_HOME env var not set,"
-            " set this in your settings.py DEFAULT_ENVIRONMENT_SET"
-            " (if not CLEANUP_ENVIRONMENT, otherwise in your current env),"
-            " or via job.set_env"
-        )
-
         dataset_path = instanciate_delayed(self.path)
         split = None
         load_dataset_opts = (instanciate_delayed(self.load_dataset_opts) or {}).copy()
@@ -212,7 +205,17 @@ class TransformAndMapHuggingFaceDatasetJob(Job):
             elif path_ext.endswith(".arrow"):
                 load_dataset_opts.pop("split", None)
                 ds = Dataset.from_file(path_ext, **load_dataset_opts)
+
         if ds is None:
+            # Use load_dataset.
+            # That can potentially download the dataset, so make sure that HF_HOME is set.
+            assert os.environ.get("HF_HOME"), (
+                "HF_HOME env var not set,"
+                " set this in your settings.py DEFAULT_ENVIRONMENT_SET"
+                " (if not CLEANUP_ENVIRONMENT, otherwise in your current env),"
+                " or via job.set_env"
+            )
+
             ds = load_dataset(dataset_path, **load_dataset_opts)
             assert isinstance(ds, (Dataset, DatasetDict))
 
