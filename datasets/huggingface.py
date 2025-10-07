@@ -189,13 +189,39 @@ class TransformAndMapHuggingFaceDatasetJob(Job):
             " or via job.set_env"
         )
 
-        ds = load_dataset(
-            instanciate_delayed(self.path),
-            name=self.name,
-            **(instanciate_delayed(self.load_dataset_opts) or {}),
-            **(instanciate_delayed(self.non_hashed_load_dataset_opts) or {}),
-        )
-        assert isinstance(ds, (Dataset, DatasetDict))
+        dataset_path = instanciate_delayed(self.path)
+        path_ext = f"{dataset_path}/{self.name}" if self.name is not None else dataset_path
+        ds = None
+        if os.path.exists(path_ext):
+            if os.path.isdir(path_ext):
+                if os.path.exists(f"{path_ext}/{config.DATASET_INFO_FILENAME}") and os.path.exists(
+                    f"{path_ext}/{config.DATASET_STATE_JSON_FILENAME}"
+                ):
+                    ds = Dataset.load_from_disk(
+                        path_ext,
+                        **(instanciate_delayed(self.load_dataset_opts) or {}),
+                        **(instanciate_delayed(self.non_hashed_load_dataset_opts) or {}),
+                    )
+                elif os.path.exists(f"{path_ext}/{config.DATASETDICT_JSON_FILENAME}"):
+                    ds = DatasetDict.load_from_disk(
+                        path_ext,
+                        **(instanciate_delayed(self.load_dataset_opts) or {}),
+                        **(instanciate_delayed(self.non_hashed_load_dataset_opts) or {}),
+                    )
+            elif path_ext.endswith(".arrow"):
+                ds = Dataset.from_file(
+                    path_ext,
+                    **(instanciate_delayed(self.load_dataset_opts) or {}),
+                    **(instanciate_delayed(self.non_hashed_load_dataset_opts) or {}),
+                )
+        if ds is None:
+            ds = load_dataset(
+                dataset_path,
+                **({"name": self.name} if self.name is not None else {}),
+                **(instanciate_delayed(self.load_dataset_opts) or {}),
+                **(instanciate_delayed(self.non_hashed_load_dataset_opts) or {}),
+            )
+            assert isinstance(ds, (Dataset, DatasetDict))
 
         if self.transform:
             if callable(self.transform):
