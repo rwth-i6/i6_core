@@ -241,18 +241,19 @@ class TransformAndMapHuggingFaceDatasetJob(Job):
         else:
             num_proc = self.rqmt["cpu"] * 2
             map_extra_opts["num_proc"] = num_proc
-        ds = ds.map(
-            self.map_func,
-            **(map_opts or {}),
-            **(self.non_hashed_map_opts or {}),
-            **({"cache_file_name": f"{work_out_d}/data.arrow"} if isinstance(ds, Dataset) else {}),
-            **(
-                {"cache_file_names": {k: f"{work_out_d}/data-{k}.arrow" for k in ds.keys()}}
-                if isinstance(ds, DatasetDict)
-                else {}
-            ),
-            **map_extra_opts,
-        )
+        if self.map_func:
+            ds = ds.map(
+                self.map_func,
+                **(map_opts or {}),
+                **(self.non_hashed_map_opts or {}),
+                **({"cache_file_name": f"{work_out_d}/data.arrow"} if isinstance(ds, Dataset) else {}),
+                **(
+                    {"cache_file_names": {k: f"{work_out_d}/data-{k}.arrow" for k in ds.keys()}}
+                    if isinstance(ds, DatasetDict)
+                    else {}
+                ),
+                **map_extra_opts,
+            )
 
         num_shards = self.num_shards
         max_shard_size = self.max_shard_size or config.MAX_SHARD_SIZE
