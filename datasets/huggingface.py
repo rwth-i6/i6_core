@@ -190,37 +190,30 @@ class TransformAndMapHuggingFaceDatasetJob(Job):
         )
 
         dataset_path = instanciate_delayed(self.path)
-        path_ext = f"{dataset_path}/{self.name}" if self.name is not None else dataset_path
+        split = None
+        load_dataset_opts = (instanciate_delayed(self.load_dataset_opts) or {}).copy()
+        load_dataset_opts.update(instanciate_delayed(self.non_hashed_load_dataset_opts) or {})
+        if self.name is not None:
+            load_dataset_opts["name"] = self.name
+        if "split" in load_dataset_opts:
+            split = load_dataset_opts["split"]
+        path_ext = f"{dataset_path}/{split}" if split is not None else dataset_path
         ds = None
         if os.path.exists(path_ext):
             if os.path.isdir(path_ext):
                 if os.path.exists(f"{path_ext}/{config.DATASET_INFO_FILENAME}") and os.path.exists(
                     f"{path_ext}/{config.DATASET_STATE_JSON_FILENAME}"
                 ):
-                    ds = Dataset.load_from_disk(
-                        path_ext,
-                        **(instanciate_delayed(self.load_dataset_opts) or {}),
-                        **(instanciate_delayed(self.non_hashed_load_dataset_opts) or {}),
-                    )
+                    load_dataset_opts.pop("split", None)
+                    ds = Dataset.load_from_disk(path_ext, **load_dataset_opts)
                 elif os.path.exists(f"{path_ext}/{config.DATASETDICT_JSON_FILENAME}"):
-                    ds = DatasetDict.load_from_disk(
-                        path_ext,
-                        **(instanciate_delayed(self.load_dataset_opts) or {}),
-                        **(instanciate_delayed(self.non_hashed_load_dataset_opts) or {}),
-                    )
+                    load_dataset_opts.pop("split", None)
+                    ds = DatasetDict.load_from_disk(path_ext, **load_dataset_opts)
             elif path_ext.endswith(".arrow"):
-                ds = Dataset.from_file(
-                    path_ext,
-                    **(instanciate_delayed(self.load_dataset_opts) or {}),
-                    **(instanciate_delayed(self.non_hashed_load_dataset_opts) or {}),
-                )
+                load_dataset_opts.pop("split", None)
+                ds = Dataset.from_file(path_ext, **load_dataset_opts)
         if ds is None:
-            ds = load_dataset(
-                dataset_path,
-                **({"name": self.name} if self.name is not None else {}),
-                **(instanciate_delayed(self.load_dataset_opts) or {}),
-                **(instanciate_delayed(self.non_hashed_load_dataset_opts) or {}),
-            )
+            ds = load_dataset(dataset_path, **load_dataset_opts)
             assert isinstance(ds, (Dataset, DatasetDict))
 
         if self.transform:
