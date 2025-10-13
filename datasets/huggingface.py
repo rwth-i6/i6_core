@@ -146,6 +146,32 @@ class TransformAndMapHuggingFaceDatasetJob(Job):
         num_shards: Union[None, int, Dict[str, int]] = None,
         max_shard_size: Union[None, str, int] = None,
     ):
+        """
+        :param path: for :func:`datasets.load_dataset`,
+            :func:`datasets.Dataset.load_from_disk` or :func:`datasets.DatasetDict.load_from_disk`.
+            We automatically detect which one to use.
+        :param name: for :func:`datasets.load_dataset`
+        :param load_dataset_opts: other options for :func:`datasets.load_dataset`
+            or :func:`datasets.Dataset.load_from_disk` or :func:`datasets.DatasetDict.load_from_disk`.
+            E.g. "split", "revision", ...
+        :param non_hashed_load_dataset_opts: like ``load_dataset_opts``, but not hashed.
+            E.g. ``{"num_proc": 8}``.
+        :param transform: function or list of functions to transform the dataset
+            ((Dataset) -> Dataset or (DatasetDict) -> DatasetDict).
+            E.g. filtering, renaming columns, ...
+        :param map_func: function to map the dataset examples, or batch of examples.
+            This is passed to :func:`datasets.Dataset.map` or :func:`datasets.DatasetDict.map`.
+            None (default) means identity.
+        :param map_opts: further options passed :func:`datasets.Dataset.map` or :func:`datasets.DatasetDict.map`,
+            or a function that returns such options (e.g. depending on the dataset size).
+            E.g. ``{"batched": True, "batch_size": 1000}``.
+        :param non_hashed_map_opts: like ``map_opts``, but not hashed.
+        :param num_shards: how many shards to write via :func:`datasets.Dataset.save_to_disk`
+            or :func:`datasets.DatasetDict.save_to_disk`.
+            If not given, will be auto-detected based on the dataset size and ``max_shard_size``.
+        :param max_shard_size: maximum size of each shard.
+            If not given, will use ``"500MB"``.
+        """
         super().__init__()
 
         if max_shard_size is not None and num_shards is not None:
