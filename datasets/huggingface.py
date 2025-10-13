@@ -256,7 +256,7 @@ class TransformAndMapHuggingFaceDatasetJob(Job):
             )
 
         num_shards = self.num_shards
-        max_shard_size = self.max_shard_size or config.MAX_SHARD_SIZE
+        max_shard_size = self.max_shard_size or "500MB"
         max_shard_size = convert_file_size_to_int(max_shard_size)
         if num_shards is None:
             # This code is adapted from Dataset.save_to_disk to determine the number of shards.
