@@ -314,6 +314,12 @@ class ExtractTextFromHuggingFaceDatasetJob(Job):
         split: Optional[str] = "train",
         column_name: str = "text",
     ):
+        """
+        :param path: for :func:`datasets.load_dataset`
+        :param name: for :func:`datasets.load_dataset`
+        :param split: for :func:`datasets.load_dataset`
+        :param column_name: name of the text column to extract
+        """
         super().__init__()
         self.path = path
         self.name = name
