@@ -9,6 +9,7 @@ __all__ = [
     "ReturnnModel",
     "ReturnnTrainingFromFileJob",
     "ReturnnTrainingJob",
+    "GetCheckpointFromEpochJob",
 ]
 
 import copy
@@ -964,3 +965,33 @@ class AverageTorchCheckpointsJob(Job):
             self.out_checkpoint.path.get_path(),
         ]
         sp.check_call(args)
+
+
+class GetCheckpointFromEpochJob(Job):
+    """
+    This job indexes the `checkpoint_dict` passed as parameter by the `epoch` variable.
+    It's meant to be integrated with jobs such as
+    :classref:`i6_core.tools.parameter_tuning.GetOptimalParametersAsVariableJob`,
+    in which the epoch retrieved is a :classref:`tk.Variable`.
+
+    This can't be done in the manager because `epoch` is a sisyphus variable,
+    whose value can't be retrieved at runtime
+    """
+
+    def __init__(self, checkpoint_dict: Dict[int, Checkpoint] | Dict[int, PtCheckpoint], epoch: tk.Variable):
+        self.checkpoint_dict = checkpoint_dict
+        self.epoch = epoch
+
+        self.out_checkpoint = self.output_path("out_checkpoint")
+
+        self.rqmt = {"cpu": 1, "mem": 1.0, "time": 1.0}
+
+    def tasks(self):
+        yield Task("run", resume="run", rqmt=self.rqmt)
+
+    def run(self):
+        epoch = self.epoch.get()
+        assert isinstance(epoch, int)
+        checkpoint = self.checkpoint_dict[epoch]
+        checkpoint_path = checkpoint.path if isinstance(checkpoint, PtCheckpoint) else checkpoint.index_path
+        shutil.copyfile(checkpoint_path, self.out_checkpoint.get_path())
