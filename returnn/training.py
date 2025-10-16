@@ -978,7 +978,7 @@ class GetCheckpointFromEpochJob(Job):
     whose value can't be retrieved at runtime
     """
 
-    def __init__(self, checkpoint_dict: Dict[int, Checkpoint] | Dict[int, PtCheckpoint], epoch: tk.Variable):
+    def __init__(self, checkpoint_dict: Union[Dict[int, Checkpoint], Dict[int, PtCheckpoint]], epoch: tk.Variable):
         self.checkpoint_dict = checkpoint_dict
         self.epoch = epoch
 
