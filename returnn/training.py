@@ -970,12 +970,15 @@ class AverageTorchCheckpointsJob(Job):
 class GetCheckpointFromEpochJob(Job):
     """
     This job indexes the `checkpoint_dict` passed as parameter by the `epoch` variable.
-    It's meant to be integrated with jobs such as
+
+    The checkpoint dictionary would usually come from :classref:`ReturnnTrainingJob` or similar jobs.
+
+    This job is meant to be integrated with jobs such as
     :classref:`i6_core.tools.parameter_tuning.GetOptimalParametersAsVariableJob`,
     in which the epoch retrieved is a :classref:`tk.Variable`.
-
-    This can't be done in the manager because `epoch` is a sisyphus variable,
-    whose value can't be retrieved at runtime
+    Indexing a base python dictionary (output of :classref:`ReturnnTrainingJob`) with a :classref:`tk.Variable`
+    can't be done in the manager because there's no way of indexing a python dictionary with a :classref:`tk.Variable`
+    (whose value can't be retrieved at runtime).
     """
 
     def __init__(self, checkpoint_dict: Union[Dict[int, Checkpoint], Dict[int, PtCheckpoint]], epoch: tk.Variable):
