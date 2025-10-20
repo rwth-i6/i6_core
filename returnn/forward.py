@@ -4,24 +4,27 @@ RETURNN forward jobs
 
 __all__ = ["ReturnnForwardJob", "ReturnnForwardJobV2"]
 
-from sisyphus import *
-
 import copy
 import glob
 import os
 import shutil
 import subprocess
 import tempfile
-from typing import List, Optional, Union
+from typing import List, Optional, Union, get_args
+
+from sisyphus import *
+from sisyphus.delayed_ops import DelayedBase
+from sisyphus.job_path import AbstractPath
 
 from i6_core.returnn.config import ReturnnConfig
-from i6_core.returnn.training import Checkpoint as TfCheckpoint, PtCheckpoint
+from i6_core.returnn.training import Checkpoint as TfCheckpoint
+from i6_core.returnn.training import PtCheckpoint
 import i6_core.util as util
 
 
 Path = setup_path(__package__)
 
-Checkpoint = Union[TfCheckpoint, PtCheckpoint, tk.Path]
+Checkpoint = Union[TfCheckpoint, PtCheckpoint, AbstractPath, DelayedBase]
 
 
 class ReturnnForwardJob(Job):
@@ -390,11 +393,27 @@ class ReturnnForwardJobV2(Job):
         return super().hash(d)
 
 
-def _get_model_path(model: Checkpoint) -> tk.Path:
-    if isinstance(model, tk.Path):
-        return model
+def _get_model_path(model: Checkpoint) -> str:
+    """
+    :param model: Base model checkpoint represented as a python/sisyphus object.
+    :return: Path on disk to the model checkpoint.
+    """
+
+    base_checkpoint_classes = get_args(Checkpoint)
+    assert isinstance(model, base_checkpoint_classes), (
+        f"Expected model to be of type {base_checkpoint_classes} but found model of type {type(model)}."
+    )
+    if isinstance(model, DelayedBase) and not isinstance(model, AbstractPath):
+        # For instance, sisyphus.delayed_ops.DelayedGetItem could wrap around a tk.Path or PtCheckpoint.
+        model = model.get()
+
     if isinstance(model, TfCheckpoint):
-        return model.index_path
-    if isinstance(model, PtCheckpoint):
-        return model.path
-    raise TypeError(f"Unknown model checkpoint type: {type(model)}")
+        model = model.index_path
+    elif isinstance(model, PtCheckpoint):
+        model = model.path
+
+    assert isinstance(model, AbstractPath), (
+        "Expected model after unwrapping to be of type AbstractPath "
+        f"(like sisyphus.job_path.Path or sisyphus.job_path.Variable), but found model of type {type(model)}."
+    )
+    return model.get_path()
