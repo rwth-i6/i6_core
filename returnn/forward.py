@@ -33,6 +33,8 @@ class ReturnnForwardJob(Job):
     Also allows to run an "eval" task pass, which is similar to "forward" but treats all layers as in training mode,
     which can be used to e.g. do cheating experiments.
 
+    As of 2025-10, the job also accepts the :class:`sisyphus.delayed_ops.DelayedGetItem` sisyphus class.
+
     Outputs:
 
     Dict[tk.Path] out_hdf_files: Dictionary of all output HDF files that were requested by the key list `hdf_outputs`
@@ -237,6 +239,8 @@ class ReturnnForwardJobV2(Job):
     Nothing is enforced here by intention, to keep it generic.
     The task by default is set to "forward",
     but other tasks of RETURNN might be used as well.
+
+    As of 2025-10, the job also accepts the :class:`sisyphus.delayed_ops.DelayedGetItem` sisyphus class.
     """
 
     def __init__(
