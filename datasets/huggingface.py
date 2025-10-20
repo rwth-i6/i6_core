@@ -254,6 +254,9 @@ class TransformAndMapHuggingFaceDatasetJob(Job):
                     ds = func(ds)
                     assert isinstance(ds, (Dataset, DatasetDict)), f"After {func} got {type(ds)}"
 
+        # We create this tmp dir inside the job work dir,
+        # because this might need a lot of space, e.g. several TB, e.g. 2TB for Loquacious,
+        # which is often more than what we have available on the local disk (/var/tmp or so).
         work_out_d = "tmp-map-output"
         if os.path.exists(work_out_d):
             shutil.rmtree(work_out_d)
