@@ -121,7 +121,7 @@ class ReturnnForwardJob(Job):
 
         # check here if model actually exists
         if self.model_checkpoint is not None:
-            assert os.path.exists(_get_model_path(self.model_checkpoint).get_path()), (
+            assert os.path.exists(_get_model_path(self.model_checkpoint)), (
                 f"Provided model checkpoint does not exists: {self.model_checkpoint}"
             )
 
@@ -307,7 +307,7 @@ class ReturnnForwardJobV2(Job):
 
         # check here if model actually exists
         if self.model_checkpoint is not None:
-            assert os.path.exists(_get_model_path(self.model_checkpoint).get_path()), (
+            assert os.path.exists(_get_model_path(self.model_checkpoint)), (
                 f"Provided model checkpoint does not exists: {self.model_checkpoint}"
             )
 
