@@ -121,7 +121,7 @@ class ReturnnForwardJob(Job):
 
         # check here if model actually exists
         if self.model_checkpoint is not None:
-            assert os.path.exists(_get_model_path(self.model_checkpoint)), (
+            assert os.path.exists(_get_model_path(self.model_checkpoint).get_path()), (
                 f"Provided model checkpoint does not exists: {self.model_checkpoint}"
             )
 
@@ -309,7 +309,7 @@ class ReturnnForwardJobV2(Job):
 
         # check here if model actually exists
         if self.model_checkpoint is not None:
-            assert os.path.exists(_get_model_path(self.model_checkpoint)), (
+            assert os.path.exists(_get_model_path(self.model_checkpoint).get_path()), (
                 f"Provided model checkpoint does not exists: {self.model_checkpoint}"
             )
 
@@ -395,7 +395,7 @@ class ReturnnForwardJobV2(Job):
         return super().hash(d)
 
 
-def _get_model_path(model: Checkpoint) -> str:
+def _get_model_path(model: Checkpoint) -> AbstractPath:
     """
     :param model: Base model checkpoint represented as a python/sisyphus object.
     :return: Path on disk to the model checkpoint.
