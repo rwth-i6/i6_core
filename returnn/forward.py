@@ -12,7 +12,7 @@ import subprocess
 import tempfile
 from typing import List, Optional, Union, get_args
 
-from sisyphus import Job, Task
+from sisyphus import Job, Task, gs, setup_path, tk
 from sisyphus.delayed_ops import DelayedBase
 from sisyphus.job_path import AbstractPath
 
