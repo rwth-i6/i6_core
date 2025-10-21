@@ -1,9 +1,7 @@
-__all__ = ["GetOptimalParametersAsVariableJob"]
-
+from sisyphus import Job, Task, tk
 from typing import Any, Literal, Sequence, Union
 
 import numpy as np
-from sisyphus import Job, Task, tk
 
 from i6_core.util import instanciate_delayed
 
