@@ -12,7 +12,7 @@ import subprocess
 import tempfile
 from typing import List, Optional, Union, get_args
 
-from sisyphus import *
+from sisyphus import Job, Task
 from sisyphus.delayed_ops import DelayedBase
 from sisyphus.job_path import AbstractPath
 
@@ -32,8 +32,6 @@ class ReturnnForwardJob(Job):
     Run a RETURNN "forward" pass to HDF with a specified model checkpoint.
     Also allows to run an "eval" task pass, which is similar to "forward" but treats all layers as in training mode,
     which can be used to e.g. do cheating experiments.
-
-    As of 2025-10, the job also accepts the :class:`sisyphus.delayed_ops.DelayedGetItem` sisyphus class.
 
     Outputs:
 
@@ -420,4 +418,4 @@ def _get_model_path(model: Checkpoint) -> str:
         "Expected model after unwrapping to be of type AbstractPath "
         f"(like sisyphus.job_path.Path or sisyphus.job_path.Variable), but found model of type {type(model)}."
     )
-    return model.get_path()
+    return model
