@@ -10,7 +10,7 @@ import os
 import shutil
 import subprocess
 import tempfile
-from typing import List, Optional, Union, get_args
+from typing import List, Optional, Union
 
 from sisyphus import Job, Task, gs, setup_path, tk
 from sisyphus.delayed_ops import DelayedBase
