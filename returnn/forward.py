@@ -406,10 +406,14 @@ def _get_model_path(model: Checkpoint) -> tk.Path:
         # For instance, sisyphus.delayed_ops.DelayedGetItem could wrap around a tk.Path or PtCheckpoint.
         model = model.get()
 
+    # Unwrap the internal tk.Path from any checkpoint that the user could have provided.
     if isinstance(model, TfCheckpoint):
         model = model.index_path
     elif isinstance(model, PtCheckpoint):
         model = model.path
+    elif isinstance(model, tk.Path):
+        # Already in tk.Path, which is what we need to return.
+        pass
 
     assert isinstance(model, tk.Path), (
         f"Expected model after unwrapping to be of type tk.Path but found model of type {type(model)}."
