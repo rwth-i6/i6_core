@@ -414,8 +414,7 @@ def _get_model_path(model: Checkpoint) -> tk.Path:
     elif isinstance(model, tk.Path):
         # Already in tk.Path, which is what we need to return.
         pass
+    else:
+        raise TypeError(f"Expected model after unwrapping to be of type tk.Path but found model of type {type(model)}.")
 
-    assert isinstance(model, tk.Path), (
-        f"Expected model after unwrapping to be of type tk.Path but found model of type {type(model)}."
-    )
     return model
