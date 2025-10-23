@@ -398,10 +398,6 @@ def _get_model_path(model: Checkpoint) -> tk.Path:
     :return: Path on disk to the model checkpoint.
     """
 
-    base_checkpoint_classes = get_args(Checkpoint)
-    assert isinstance(model, base_checkpoint_classes), (
-        f"Expected model to be of type {base_checkpoint_classes} but found model of type {type(model)}."
-    )
     if isinstance(model, DelayedBase) and not isinstance(model, tk.Path):
         # For instance, sisyphus.delayed_ops.DelayedGetItem could wrap around a tk.Path or PtCheckpoint.
         model = model.get()
