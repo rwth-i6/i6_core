@@ -14,7 +14,6 @@ from typing import List, Optional, Union, get_args
 
 from sisyphus import Job, Task, gs, setup_path, tk
 from sisyphus.delayed_ops import DelayedBase
-from sisyphus.job_path import AbstractPath
 
 from i6_core.returnn.config import ReturnnConfig
 from i6_core.returnn.training import Checkpoint as TfCheckpoint
@@ -24,7 +23,7 @@ import i6_core.util as util
 
 Path = setup_path(__package__)
 
-Checkpoint = Union[TfCheckpoint, PtCheckpoint, AbstractPath, DelayedBase]
+Checkpoint = Union[TfCheckpoint, PtCheckpoint, DelayedBase]
 
 
 class ReturnnForwardJob(Job):
@@ -393,7 +392,7 @@ class ReturnnForwardJobV2(Job):
         return super().hash(d)
 
 
-def _get_model_path(model: Checkpoint) -> AbstractPath:
+def _get_model_path(model: Checkpoint) -> tk.Path:
     """
     :param model: Base model checkpoint represented as a python/sisyphus object.
     :return: Path on disk to the model checkpoint.
@@ -403,7 +402,7 @@ def _get_model_path(model: Checkpoint) -> AbstractPath:
     assert isinstance(model, base_checkpoint_classes), (
         f"Expected model to be of type {base_checkpoint_classes} but found model of type {type(model)}."
     )
-    if isinstance(model, DelayedBase) and not isinstance(model, AbstractPath):
+    if isinstance(model, DelayedBase) and not isinstance(model, tk.Path):
         # For instance, sisyphus.delayed_ops.DelayedGetItem could wrap around a tk.Path or PtCheckpoint.
         model = model.get()
 
@@ -412,8 +411,7 @@ def _get_model_path(model: Checkpoint) -> AbstractPath:
     elif isinstance(model, PtCheckpoint):
         model = model.path
 
-    assert isinstance(model, AbstractPath), (
-        "Expected model after unwrapping to be of type AbstractPath "
-        f"(like sisyphus.job_path.Path or sisyphus.job_path.Variable), but found model of type {type(model)}."
+    assert isinstance(model, tk.Path), (
+        f"Expected model after unwrapping to be of type tk.Path but found model of type {type(model)}."
     )
     return model
