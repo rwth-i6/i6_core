@@ -23,7 +23,7 @@ import i6_core.util as util
 
 Path = setup_path(__package__)
 
-Checkpoint = Union[TfCheckpoint, PtCheckpoint, DelayedBase]
+Checkpoint = Union[TfCheckpoint, PtCheckpoint, tk.Path, DelayedBase]
 
 
 class ReturnnForwardJob(Job):
