@@ -4,8 +4,6 @@ RETURNN forward jobs
 
 __all__ = ["ReturnnForwardJob", "ReturnnForwardJobV2"]
 
-from sisyphus import *
-
 import copy
 import glob
 import os
@@ -14,14 +12,18 @@ import subprocess
 import tempfile
 from typing import List, Optional, Union
 
+from sisyphus import Job, Task, gs, setup_path, tk
+from sisyphus.delayed_ops import DelayedBase
+
 from i6_core.returnn.config import ReturnnConfig
-from i6_core.returnn.training import Checkpoint as TfCheckpoint, PtCheckpoint
+from i6_core.returnn.training import Checkpoint as TfCheckpoint
+from i6_core.returnn.training import PtCheckpoint
 import i6_core.util as util
 
 
 Path = setup_path(__package__)
 
-Checkpoint = Union[TfCheckpoint, PtCheckpoint, tk.Path]
+Checkpoint = Union[TfCheckpoint, PtCheckpoint, tk.Path, DelayedBase]
 
 
 class ReturnnForwardJob(Job):
@@ -391,10 +393,24 @@ class ReturnnForwardJobV2(Job):
 
 
 def _get_model_path(model: Checkpoint) -> tk.Path:
-    if isinstance(model, tk.Path):
-        return model
+    """
+    :param model: Base model checkpoint represented as a python/sisyphus object.
+    :return: Path on disk to the model checkpoint.
+    """
+
+    if isinstance(model, DelayedBase) and not isinstance(model, tk.Path):
+        # For instance, sisyphus.delayed_ops.DelayedGetItem could wrap around a tk.Path or PtCheckpoint.
+        model = model.get()
+
+    # Unwrap the internal tk.Path from any checkpoint that the user could have provided.
     if isinstance(model, TfCheckpoint):
-        return model.index_path
-    if isinstance(model, PtCheckpoint):
-        return model.path
-    raise TypeError(f"Unknown model checkpoint type: {type(model)}")
+        model = model.index_path
+    elif isinstance(model, PtCheckpoint):
+        model = model.path
+    elif isinstance(model, tk.Path):
+        # Already in tk.Path, which is what we need to return.
+        pass
+    else:
+        raise TypeError(f"Expected model after unwrapping to be of type tk.Path but found model of type {type(model)}.")
+
+    return model
