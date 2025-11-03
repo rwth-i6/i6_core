@@ -392,3 +392,15 @@ def update_nested_dict(dict1: Dict[str, Any], dict2: Dict[str, Any]):
         else:
             dict1[k] = v
     return dict1
+
+
+def add_extra_rqmt(rqmt: Dict[str, Any], extra: Optional[Dict[str, Any]]):
+    """
+    Adds additional requirements to existing ones
+    """
+    if extra is None:
+        return
+    for k in extra:
+        if k not in rqmt:
+            rqmt[k] = 0
+        rqmt[k] += extra[k]

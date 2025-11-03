@@ -581,6 +581,7 @@ class System:
         corpus: str,
         flow: Union[selector_type, rasr.FlowNetwork],
         feature_scorer: Union[selector_type, rasr.FeatureScorer],
+        align_extra_rqmt=None,
         **kwargs,
     ):
         """
@@ -588,6 +589,7 @@ class System:
         :param corpus:
         :param flow:
         :param feature_scorer:
+        :param align_extra_rqmt:
         :param kwargs:
         :return:
         """
@@ -597,8 +599,9 @@ class System:
             feature_scorer=select_element(self.feature_scorers, corpus, feature_scorer),
             **kwargs,
         )
-
+        util.add_extra_rqmt(j.rqmt, align_extra_rqmt)
         self.jobs[corpus]["alignment_%s" % name] = j
+        j.add_alias("alignment_%s" % name)
         self.alignments[corpus][name] = rasr.FlagDependentFlowAttribute(
             "cache_mode",
             {"task_dependent": j.out_alignment_path, "bundle": j.out_alignment_bundle},

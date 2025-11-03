@@ -14,6 +14,7 @@ from i6_core.mm.alignment import AlignmentJob, AMScoresFromAlignmentLogJob
 from i6_core.mm.flow import FlowNetwork
 from i6_core.mm.mixtures import EstimateMixturesJob
 from i6_core.rasr import FlagDependentFlowAttribute, DiagonalMaximumScorer
+from i6_core.util import add_extra_rqmt
 
 
 class AlignSplitAccumulateSequence:
@@ -91,14 +92,6 @@ class AlignSplitAccumulateSequence:
         split_keep_values = {} if split_keep_values is None else split_keep_values
         accumulate_keep_values = {} if accumulate_keep_values is None else accumulate_keep_values
 
-        def update_rqmt(rqmt, extra):
-            if extra is None:
-                return
-            for k in extra:
-                if k not in rqmt:
-                    rqmt[k] = 0
-                rqmt[k] += extra[k]
-
         assert len(action_sequence) > 0
         assert parallelization in ["segments", "bundle"]
         assert initial_mixtures is not None or initial_alignment is not None
@@ -145,7 +138,7 @@ class AlignSplitAccumulateSequence:
                     args.update(seq_extra_args[a_idx])
 
                 job = AlignmentJob(**args)
-                update_rqmt(job.rqmt, align_extra_rqmt)
+                add_extra_rqmt(job.rqmt, align_extra_rqmt)
                 if alias_path is not None:
                     job.add_alias(os.path.join(alias_path, "action_%i_align" % a_idx))
                 self.all_jobs.append(job)
@@ -185,7 +178,7 @@ class AlignSplitAccumulateSequence:
                     args.update(seq_extra_args[a_idx])
 
                 job = EstimateMixturesJob(**args)
-                update_rqmt(
+                add_extra_rqmt(
                     job.accumulate_rqmt,
                     split_extra_rqmt if split else accumulate_extra_rqmt,
                 )
