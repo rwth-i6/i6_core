@@ -1,21 +1,24 @@
-__all__ = ["CreateEmptyCorpusJob"]
+__all__ = ["WriteCorpusJob"]
 
 from sisyphus import Job, Task
 
 import i6_core.lib.corpus as libcorpus
 
 
-class CreateEmptyCorpusJob(Job):
+class WriteCorpusJob(Job):
     """
-    Creates an empty Bliss corpus.
+    Writes the Bliss corpus received as parameter into an output file.
     """
 
-    def __init__(self):
-        self.out_empty_corpus = self.output_path("out.xml.gz")
+    def __init__(self, corpus: libcorpus.Corpus):
+        self.corpus = corpus
+
+        self.out_corpus_file = self.output_path("out.xml.gz")
+
+        self.rqmt = {"cpu": 1, "mem": 1.0, "time": 1.0}
 
     def tasks(self):
-        yield Task("run", resume="run", mini_task=True)
+        yield Task("run", resume="run", rqmt=self.rqmt)
 
     def run(self):
-        empty_corpus = libcorpus.Corpus()
-        empty_corpus.dump(self.out_empty_corpus.get_path())
+        self.corpus.dump(self.out_corpus_file.get_path())
