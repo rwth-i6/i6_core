@@ -13,10 +13,8 @@ class CreateEmptyCorpusJob(Job):
     def __init__(self):
         self.out_empty_corpus = self.output_path("out.xml.gz")
 
-        self.rqmt = None
-
     def tasks(self):
-        yield Task("run", resume="run", rqmt=self.rqmt, mini_task=self.rqmt is None)
+        yield Task("run", resume="run", mini_task=True)
 
     def run(self):
         empty_corpus = libcorpus.Corpus()
