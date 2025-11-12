@@ -17,5 +17,6 @@ class WriteCorpusJob(Job):
 
     def tasks(self):
         yield Task("run", resume="run", mini_task=True)
+
     def run(self):
         self.corpus.dump(self.out_corpus_file.get_path())
