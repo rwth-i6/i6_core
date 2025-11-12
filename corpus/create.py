@@ -15,10 +15,7 @@ class WriteCorpusJob(Job):
 
         self.out_corpus_file = self.output_path("out.xml.gz")
 
-        self.rqmt = {"cpu": 1, "mem": 1.0, "time": 1.0}
-
     def tasks(self):
-        yield Task("run", resume="run", rqmt=self.rqmt)
-
+        yield Task("run", resume="run", mini_task=True)
     def run(self):
         self.corpus.dump(self.out_corpus_file.get_path())
