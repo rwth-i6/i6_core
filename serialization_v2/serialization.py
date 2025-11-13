@@ -138,51 +138,6 @@ def _instanciate_delayed_copy(o: Any) -> Any:
     return tree.map_structure(_instanciate_delayed_obj, o)
 
 
-def _parse_python(code: Any, name=None):
-    if code is None:
-        return ""
-    if isinstance(code, str):
-        return code
-    if isinstance(code, DelayedBase):
-        return _parse_python(code.get())
-    if isinstance(code, (tuple, list)):
-        return "\n".join(_parse_python(c) for c in code)
-    if isinstance(code, dict):
-        return "\n".join(_parse_python(v, name=k) for k, v in code.items())
-    if inspect.isfunction(code):
-        try:
-            return inspect.getsource(code)
-        except OSError:
-            # cannot get source, e.g. code is a lambda
-            assert name is not None
-            args = [
-                code.__code__.co_argcount,
-                code.__code__.co_kwonlyargcount,
-                code.__code__.co_nlocals,
-                code.__code__.co_stacksize,
-                code.__code__.co_flags,
-                code.__code__.co_code,
-                code.__code__.co_consts,
-                code.__code__.co_names,
-                code.__code__.co_varnames,
-                code.__code__.co_filename,
-                code.__code__.co_name,
-                code.__code__.co_firstlineno,
-                code.__code__.co_lnotab,
-                code.__code__.co_freevars,
-                code.__code__.co_cellvars,
-            ]
-            compiled = base64.b64encode(pickle.dumps(args)).decode("utf8")
-            return (
-                "import types; import base64; import pickle; "
-                'code = types.CodeType(*pickle.loads(base64.b64decode("%s".encode("utf8")))); '
-                '%s = types.FunctionType(code, globals(), "%s")' % (compiled, name, code.__name__)
-            )
-    if inspect.isclass(code):
-        return inspect.getsource(code)
-    raise RuntimeError("Could not serialize %s" % code)
-
-
 def _is_valid_python_identifier_name(name: str) -> bool:
     """
     :return: whether the name is a valid Python identifier name (including attrib name)
@@ -201,9 +156,16 @@ class ReturnnConfigWithNewSerialization(ReturnnConfig):
 
     @staticmethod
     def from_cfg(old_returnn_cfg: ReturnnConfig, *, returnn_root: Optional[Union[str, Path]] = None):
-        assert not old_returnn_cfg.staged_network_dict  # not supported
-        ReturnnConfigWithNewSerialization(
+        """
+        Creates a ReturnnConfigWithNewSerialization from an existing ReturnnConfig.
+
+        This is used to override the serialization behavior to V2.
+        """
+
+        assert not old_returnn_cfg.staged_network_dict, "V2 serialization does not support staged net dicts"
+        return ReturnnConfigWithNewSerialization(
             config=old_returnn_cfg.config,
+            hash_full_python_code=old_returnn_cfg.hash_full_python_code,
             post_config=old_returnn_cfg.post_config,
             python_epilog=old_returnn_cfg.python_epilog,
             python_epilog_hash=old_returnn_cfg.python_epilog_hash,
@@ -240,8 +202,8 @@ class ReturnnConfigWithNewSerialization(ReturnnConfig):
             if isinstance(item, ExternalImport)
         ]
 
-        python_prolog_code = _parse_python(self.python_prolog)
-        python_epilog_code = _parse_python(self.python_epilog)
+        python_prolog_code = self.__parse_python(self.python_prolog)
+        python_epilog_code = self.__parse_python(self.python_epilog)
         serialized = serialize_config(
             config,
             post_config,
