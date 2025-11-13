@@ -59,7 +59,7 @@ import types
 from types import BuiltinFunctionType, FunctionType, MethodType, ModuleType
 from typing import Any, Collection, Dict, List, Optional, Sequence, Tuple, Union, TYPE_CHECKING
 
-from sisyphus import Path
+from sisyphus import tk, Path
 from sisyphus.delayed_ops import DelayedBase
 from sisyphus.hash import sis_hash_helper
 
@@ -90,9 +90,13 @@ def serialize_config(
     inlining: bool = True,
     known_modules: Collection[str] = (),
     extra_sys_paths: Sequence[str] = (),
+    returnn_root: Optional[Union[str, Path]] = None,
     sis_path_handling: SisPathHandling = None,
 ) -> SerializedConfig:
     """serialize config. see module docstring for more info."""
+    if returnn_root is not None:
+        assert tk.running_in_worker(), "returnn_root only supported in sisyphus worker context"
+        sys.path.insert(0, str(returnn_root))
     serializer = _Serializer(
         config=config, post_config=post_config, known_modules=known_modules, sis_path_handling=sis_path_handling
     )
@@ -188,19 +192,24 @@ def _is_valid_python_identifier_name(name: str) -> bool:
 
 class ReturnnConfigWithNewSerialization(ReturnnConfig):
     """
-    Overwrites the serialization behavior of ReturnnConfig
+    Overwrites the serialization behavior of ReturnnConfig.
     """
 
+    def __init__(self, *args, returnn_root: Optional[Union[str, Path]] = None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.returnn_root = returnn_root
+
     @staticmethod
-    def from_cfg(old_returnn_cfg: ReturnnConfig):
+    def from_cfg(old_returnn_cfg: ReturnnConfig, *, returnn_root: Optional[Union[str, Path]] = None):
         assert not old_returnn_cfg.staged_network_dict  # not supported
-        return ReturnnConfigWithNewSerialization(
+        ReturnnConfigWithNewSerialization(
             config=old_returnn_cfg.config,
             post_config=old_returnn_cfg.post_config,
             python_epilog=old_returnn_cfg.python_epilog,
             python_epilog_hash=old_returnn_cfg.python_epilog_hash,
             python_prolog=old_returnn_cfg.python_prolog,
             python_prolog_hash=old_returnn_cfg.python_prolog_hash,
+            returnn_root=returnn_root,
             sort_config=False,
         )
 
@@ -241,6 +250,9 @@ class ReturnnConfigWithNewSerialization(ReturnnConfig):
             # but allow the config to be used with any other RETURNN version.
             known_modules={"returnn"},
             extra_sys_paths=extra_sys_paths,
+            # in case RETURNN cannot be imported from recipe code we allow specifying
+            # a root to import it from here
+            returnn_root=self.returnn_root,
             # instanciate_delayed should already have handled it (e.g. Path),
             # or if it has not, then we want to keep it as it is (e.g. PtCheckpoint),
             # but without dependencies.
