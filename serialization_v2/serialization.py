@@ -8,6 +8,7 @@ This is conceptually similar to :class:`i6_experiments.common.utils.dump_py_code
 and :func:`i6_experiments.common.setups.returnn.serialization.get_serializable_config`.
 
 See :func:`serialize_config` for the main entry point.
+See :class:`ReturnnConfigWithNewSerialization` for an easy :class:`ReturnnTrainingJob` integration.
 
 Note: Sisyphus hashes are currently just defined by the config keys/values,
 using the `sis_hash_helper` function, without any special handling,
