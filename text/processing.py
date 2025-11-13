@@ -13,6 +13,7 @@ __all__ = [
 import csv
 from io import IOBase
 import logging
+import numpy as np
 import os
 import shutil
 import subprocess
@@ -482,17 +483,20 @@ class TakeNRandomLinesJob(Job):
         yield Task("run", mini_task=True)
 
     def run(self):
-        import random
-
         with util.uopen(self.text, "rt") as text_file:
             num_lines_in_file = sum(1 for line in text_file if line.strip())
 
-        num_to_take = min(self.num_lines, num_lines_in_file)
-        take_map = [True for _ in range(num_to_take)] + [False for _ in range(max(num_lines_in_file - num_to_take, 0))]
-        random.seed(self.seed)
-        random.shuffle(take_map)
+        if self.num_lines >= num_lines_in_file:
+            with util.uopen(self.text, "rt") as in_file, util.uopen(self.out, "wt") as out_file:
+                non_empty_lines = (line for line in in_file if line.strip())
+                out_file.writelines(non_empty_lines)
+            return
+
+        np.random.seed(self.seed)
+        indices = np.random.choice(num_lines_in_file, size=self.num_lines, replace=False)
+        indices_set = set(indices)
 
         with util.uopen(self.text, "rt") as in_file, util.uopen(self.out, "wt") as out_file:
             non_empty_lines = (line for line in in_file if line.strip())
-            lines_to_write = (line for line, take_it in zip(non_empty_lines, take_map) if take_it)
+            lines_to_write = (line for i, line in enumerate(non_empty_lines) if i in indices_set)
             out_file.writelines(lines_to_write)
