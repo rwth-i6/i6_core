@@ -500,14 +500,14 @@ class TakeNRandomLinesJob(Job):
         with util.uopen(self.text, "rt") as text_file:
             num_non_empty_lines = sum(1 for line in text_file if line.strip())
 
+        if num_non_empty_lines < self.num_lines and self.error_on_fewer_lines_than_selected:
+            raise ValueError(
+                f"Input file {self.text} has only {num_non_empty_lines} non-empty lines, "
+                f"which is fewer than the requested {self.num_lines} lines."
+            )
+
         with util.uopen(self.text, "rt") as in_file, util.uopen(self.out, "wt") as out_file:
             non_empty_lines = (line for line in in_file if line.strip())
-
-            if num_non_empty_lines < self.num_lines and self.error_on_fewer_lines_than_selected:
-                raise ValueError(
-                    f"Input file {self.text} has only {num_non_empty_lines} non-empty lines, "
-                    f"which is fewer than the requested {self.num_lines} lines."
-                )
 
             np.random.seed(self.seed)
             indices = np.random.choice(num_non_empty_lines, size=self.num_lines, replace=False)
