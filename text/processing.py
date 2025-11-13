@@ -486,17 +486,15 @@ class TakeNRandomLinesJob(Job):
         with util.uopen(self.text, "rt") as text_file:
             num_lines_in_file = sum(1 for line in text_file if line.strip())
 
-        if self.num_lines >= num_lines_in_file:
-            with util.uopen(self.text, "rt") as in_file, util.uopen(self.out, "wt") as out_file:
-                non_empty_lines = (line for line in in_file if line.strip())
-                out_file.writelines(non_empty_lines)
-            return
-
-        np.random.seed(self.seed)
-        indices = np.random.choice(num_lines_in_file, size=self.num_lines, replace=False)
-        indices_set = set(indices)
-
         with util.uopen(self.text, "rt") as in_file, util.uopen(self.out, "wt") as out_file:
             non_empty_lines = (line for line in in_file if line.strip())
+
+            if self.num_lines >= num_lines_in_file:
+                out_file.writelines(non_empty_lines)
+                return
+
+            np.random.seed(self.seed)
+            indices = np.random.choice(num_lines_in_file, size=self.num_lines, replace=False)
+            indices_set = set(indices)
             lines_to_write = (line for i, line in enumerate(non_empty_lines) if i in indices_set)
             out_file.writelines(lines_to_write)
