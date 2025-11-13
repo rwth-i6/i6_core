@@ -7,6 +7,7 @@ __all__ = [
     "WriteToTextFileJob",
     "WriteToCsvFileJob",
     "SplitTextFileJob",
+    "TakeNRandomLinesJob",
 ]
 
 import csv
@@ -453,3 +454,45 @@ class SplitTextFileJob(Job):
                     f"{tmp_dir}/split.{file_id:04}.txt.gz" if self.zip_output else f"{tmp_dir}/split.{file_id:04}.txt",
                     self.out_split_text_files[file_id].get_path(),
                 )
+
+
+class TakeNRandomLinesJob(Job):
+    """
+    Take N random non-empty lines from a text file.
+    """
+
+    def __init__(self, text_file: Path, num_lines: int, *, gzip: bool = True, seed: int = 42):
+        """
+        :param text_file: File to select lines from.
+        :param num_lines: Number of lines to take.
+            Will take at max all non-empty lines if num_lines exceeds that.
+        :param gzip: Whether to gzip the output file.
+        :param seed: Random seed for reproducibility.
+        """
+
+        self.text = text_file
+        assert num_lines > 0
+        self.num_lines = num_lines
+        self.gzip = gzip
+        self.seed = seed
+
+        self.out = self.output_path("out.txt" + (".gz" if gzip else ""))
+
+    def tasks(self):
+        yield Task("run", mini_task=True)
+
+    def run(self):
+        import random
+
+        with util.uopen(self.text, "rt") as text_file:
+            num_lines_in_file = sum(1 for line in text_file if line.strip())
+
+        num_to_take = min(self.num_lines, num_lines_in_file)
+        take_map = [True for _ in range(num_to_take)] + [False for _ in range(max(num_lines_in_file - num_to_take, 0))]
+        random.seed(self.seed)
+        random.shuffle(take_map)
+
+        with util.uopen(self.text, "rt") as in_file, util.uopen(self.out, "wt") as out_file:
+            non_empty_lines = (line for line in in_file if line.strip())
+            lines_to_write = (line for line, take_it in zip(non_empty_lines, take_map) if take_it)
+            out_file.writelines(lines_to_write)
