@@ -503,7 +503,7 @@ class TakeNRandomLinesJob(Job):
         with util.uopen(self.text, "rt") as in_file, util.uopen(self.out, "wt") as out_file:
             non_empty_lines = (line for line in in_file if line.strip())
 
-            if self.num_lines >= num_non_empty_lines:
+            if self.num_lines > num_non_empty_lines:
                 if self.error_on_fewer_lines_than_selected:
                     raise ValueError(
                         f"Input file {self.text} has only {num_non_empty_lines} non-empty lines, "
