@@ -450,6 +450,6 @@ class SplitTextFileJob(Job):
 
             for file_id in range(1, self.num_output_files + 1):
                 shutil.move(
-                    f"{tmp_dir}/split.{file_id:04}.txt.gz" if self.zip_output else f"split.{file_id:04}.txt",
+                    f"{tmp_dir}/split.{file_id:04}.txt.gz" if self.zip_output else f"{tmp_dir}/split.{file_id:04}.txt",
                     self.out_split_text_files[file_id].get_path(),
                 )

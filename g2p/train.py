@@ -64,9 +64,9 @@ class TrainG2PModelJob(Job):
         self.out_best_error_rate = self.output_var("err-best")
 
         self.rqmt = {
-            "time": max(0.5, (self.max_iter / 20.0) * (self.num_ramp_ups + 1)),
+            "time": max(0.5, (self.max_iter / 5.0) * (self.num_ramp_ups + 1)),
             "cpu": 1,
-            "mem": 2,
+            "mem": 4,
         }
 
     def tasks(self):
@@ -120,3 +120,12 @@ class TrainG2PModelJob(Job):
         )
         os.symlink("model-%d" % best[0], self.out_best_model.get_path())
         self.out_best_error_rate.set(best[1])
+
+    def path_available(self, path):
+        if super().path_available(path):
+            return True
+
+        if os.path.exists(path.get_path()):
+            return True
+
+        return False
