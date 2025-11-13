@@ -41,7 +41,15 @@ This also allows circular references.
 from __future__ import annotations
 
 
-__all__ = ["serialize_config", "SisPathHandling", "ReturnnConfigWithNewSerialization", "SerializedConfig"]
+__all__ = [
+    "serialize_config",
+    "SisPathHandling",
+    "ReturnnConfigWithNewSerialization",
+    "SerializedConfig",
+    "SerializationError",
+    "PyCode",
+    "PyEvalCode",
+]
 
 import base64
 import builtins
