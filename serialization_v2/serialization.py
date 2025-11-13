@@ -51,16 +51,13 @@ __all__ = [
     "PyEvalCode",
 ]
 
-import base64
 import builtins
 from dataclasses import dataclass
 import enum
 import functools
-import inspect
 from keyword import iskeyword
 import math
 import os
-import pickle
 import re
 import subprocess
 import sys
