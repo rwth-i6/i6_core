@@ -495,6 +495,6 @@ class TakeNRandomLinesJob(Job):
 
             np.random.seed(self.seed)
             indices = np.random.choice(num_lines_in_file, size=self.num_lines, replace=False)
-            indices_set = set(indices)
+            indices_set = set(int(v) for v in indices)
             lines_to_write = (line for i, line in enumerate(non_empty_lines) if i in indices_set)
             out_file.writelines(lines_to_write)
