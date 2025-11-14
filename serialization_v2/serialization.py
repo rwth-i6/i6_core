@@ -351,7 +351,7 @@ class _Serializer:
 
         known_globals: dict[str, type] = {}
 
-        if _Serializer._isinstance_returnn_obj(obj):
+        if _isinstance_returnn_obj(obj):
             # obj is from returnn, so we're free to import its known globals now
             from returnn.tensor import Dim, Tensor, batch_dim, single_step_dim
 
@@ -379,7 +379,7 @@ class _Serializer:
         if not name and (
             isinstance(queue_item.value, (type, FunctionType, BuiltinFunctionType, ModuleType, Import, Call))
             or (getattr(queue_item.value, "__module__", None) and getattr(queue_item.value, "__qualname__", None))
-            or (_Serializer._isinstance_returnn_dim(queue_item.value) and queue_item.value.name)
+            or (_isinstance_returnn_dim(queue_item.value) and queue_item.value.name)
         ):
             # For those types, prefer a name based on the value, even over any other suggested name.
             name = self._get_unique_suggested_name(self._suggest_name_from_value(queue_item.value))
@@ -474,16 +474,8 @@ class _Serializer:
         self.assignments_dict_by_idx[code.idx] = code
 
     @staticmethod
-    def _isinstance_returnn_dim(obj: Any) -> bool:
-        return obj.__class__.__name__ == "Dim" and _Serializer._isinstance_returnn_obj(obj)
-
-    @staticmethod
-    def _isinstance_returnn_obj(obj: Any) -> bool:
-        return obj.__class__.__module__.startswith("returnn.")
-
-    @staticmethod
     def _suggest_name_from_value(value: Any) -> str:
-        if _Serializer._isinstance_returnn_dim(value):
+        if _isinstance_returnn_dim(value):
             return _Serializer._suggested_name_for_dim(value)
         if isinstance(value, (Import, PartialImport, CallImport)):
             return value.import_as or value.object_name
@@ -638,7 +630,7 @@ class _Serializer:
             return self._serialize_tuple(value, prefix)
         if isinstance(value, set):
             return self._serialize_set(value, prefix)
-        if _Serializer._isinstance_returnn_dim(value):
+        if _isinstance_returnn_dim(value):
             return self._serialize_dim(value, prefix)
         if isinstance(value, functools.partial):
             return self._serialize_functools_partial(value, name)
@@ -1255,3 +1247,17 @@ def _get_module_path_from_module(mod: ModuleType) -> str:
     else:
         mod_path = os.path.dirname(mod_filename)
     return mod_path
+
+
+def _isinstance_returnn_obj(obj: Any) -> bool:
+    mod_s = getattr(type(obj), "__module__", None)
+    return mod_s is not None and mod_s.startswith("returnn.")
+
+
+def _isinstance_returnn_dim(obj: Any) -> bool:
+    if not _isinstance_returnn_obj(obj):
+        return False
+
+    from returnn.tensor import Dim
+
+    return isinstance(obj, Dim)
