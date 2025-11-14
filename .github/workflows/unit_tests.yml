@@ -38,4 +38,6 @@ jobs:
           pip install -r i6_core/requirements.txt
           pip install -r returnn/requirements.txt
       - name: Run Tests
-        run: pytest i6_core/tests/unit_tests
+        run: |
+          set -e
+          pytest i6_core/tests/unit_tests
