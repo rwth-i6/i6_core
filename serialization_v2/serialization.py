@@ -65,7 +65,7 @@ import types
 from types import BuiltinFunctionType, FunctionType, MethodType, ModuleType
 from typing import Any, Collection, Dict, List, Optional, Sequence, Tuple, Union, TYPE_CHECKING
 
-from sisyphus import tk, Path
+from sisyphus import Path
 from sisyphus.delayed_ops import DelayedBase
 from sisyphus.hash import sis_hash_helper
 
