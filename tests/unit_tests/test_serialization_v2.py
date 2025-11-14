@@ -150,14 +150,16 @@ def test_cached_file():
     assert mod_filename.endswith("/__init__.py")
     mod_path = os.path.dirname(mod_filename[: -len("/__init__.py")])
 
-    cf = CachedFile("/path/to/some/file.txt")
-    config = {"obj": cf}
+    cf1 = CachedFile("/path/to/some/file1.txt")
+    cf2 = CachedFile("/path/to/some/file2.txt")
+    config = {"obj": cf1, "obj2": cf2}
     assert serialize_config(config, inlining=False).as_serialized_code() == textwrap.dedent(
         f"""\
         import sys
         sys.path.insert(0, {mod_path!r})
         from returnn.util.file_cache import CachedFile
-        obj = CachedFile('/path/to/some/file.txt')
+        obj = CachedFile('/path/to/some/file1.txt')
+        obj2 = CachedFile('/path/to/some/file2.txt')
         """
     )
 

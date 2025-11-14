@@ -25,7 +25,7 @@ Note: Sisyphus Path objects are serialized directly using :func:`sisyphus.Path.g
 We handle those objects specially:
 - primitive types (int, float, bool, str)
 - Sisyphus Path objects
-- RETURNN Dim objects
+- RETURNN Dim and CachedFile objects
 - dict, list, tuple, set
 - functions, classes, modules
 - functools.partial (just some nicer repr)
