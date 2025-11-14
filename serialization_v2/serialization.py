@@ -507,7 +507,7 @@ class _Serializer:
         return type(value).__name__.lower()
 
     @staticmethod
-    def _suggested_name_for_dim(dim: "Dim") -> str:
+    def _suggested_name_for_dim(dim: Dim) -> str:
         if not dim.name:
             return "dim"  # fallback
         name_ = dim.name
@@ -801,7 +801,7 @@ class _Serializer:
             serialized_items.append(serialized_value.py_inline())
         return PyEvalCode("{" + ", ".join(serialized_items) + "}")
 
-    def _serialize_dim(self, dim: "Dim", prefix: str) -> Union[PyEvalCode, PyCode]:
+    def _serialize_dim(self, dim: Dim, prefix: str) -> Union[PyEvalCode, PyCode]:
         # we serialize a Dim object, so we know that RETURNN is available for import
         from returnn.tensor import Dim, batch_dim, single_step_dim
 
