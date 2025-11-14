@@ -1,6 +1,10 @@
 """
 New simplified config serialization, usually for RETURNN configs.
 
+Allows serializing arbitrary Python objects inside the config
+including functions/classes/modules/objects,
+with automatic import handling.
+
 See https://github.com/rwth-i6/i6_experiments/blob/main/users/zeyer/serialization.rst
 for more details.
 
