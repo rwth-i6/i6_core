@@ -205,8 +205,8 @@ class ReturnnConfigWithNewSerialization(ReturnnConfig):
             if isinstance(item, ExternalImport)
         ]
 
-        python_prolog_code = self.__parse_python(self.python_prolog)
-        python_epilog_code = self.__parse_python(self.python_epilog)
+        python_prolog_code = super().__parse_python(self.python_prolog)
+        python_epilog_code = super().__parse_python(self.python_epilog)
         serialized = serialize_config(
             config,
             post_config,
