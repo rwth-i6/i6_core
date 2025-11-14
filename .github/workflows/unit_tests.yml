@@ -7,7 +7,7 @@ on:
     branches:
       - main
 jobs:
-  test-serialization-v2:
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
