@@ -96,13 +96,9 @@ def serialize_config(
     inlining: bool = True,
     known_modules: Collection[str] = (),
     extra_sys_paths: Sequence[str] = (),
-    returnn_root: Optional[Union[str, Path]] = None,
     sis_path_handling: SisPathHandling = None,
 ) -> SerializedConfig:
     """serialize config. see module docstring for more info."""
-    if returnn_root is not None:
-        assert tk.running_in_worker(), "returnn_root only supported in sisyphus worker context"
-        sys.path.insert(0, str(returnn_root))
     serializer = _Serializer(
         config=config, post_config=post_config, known_modules=known_modules, sis_path_handling=sis_path_handling
     )
@@ -156,12 +152,8 @@ class ReturnnConfigWithNewSerialization(ReturnnConfig):
     Overwrites the serialization behavior of ReturnnConfig.
     """
 
-    def __init__(self, *args, returnn_root: Optional[Union[str, Path]] = None, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.returnn_root = returnn_root
-
     @staticmethod
-    def from_cfg(old_returnn_cfg: ReturnnConfig, *, returnn_root: Optional[Union[str, Path]] = None):
+    def from_cfg(old_returnn_cfg: ReturnnConfig):
         """
         Creates a ReturnnConfigWithNewSerialization from an existing ReturnnConfig.
 
@@ -177,7 +169,6 @@ class ReturnnConfigWithNewSerialization(ReturnnConfig):
             python_epilog_hash=old_returnn_cfg.python_epilog_hash,
             python_prolog=old_returnn_cfg.python_prolog,
             python_prolog_hash=old_returnn_cfg.python_prolog_hash,
-            returnn_root=returnn_root,
             sort_config=False,
         )
 
@@ -218,9 +209,6 @@ class ReturnnConfigWithNewSerialization(ReturnnConfig):
             # but allow the config to be used with any other RETURNN version.
             known_modules={"returnn"},
             extra_sys_paths=extra_sys_paths,
-            # in case RETURNN cannot be imported from recipe code we allow specifying
-            # a root to import it from here
-            returnn_root=self.returnn_root,
             # instanciate_delayed should already have handled it (e.g. Path),
             # or if it has not, then we want to keep it as it is (e.g. PtCheckpoint),
             # but without dependencies.
@@ -260,14 +248,17 @@ class _Serializer:
         known_modules: Collection[str] = (),
         sis_path_handling: SisPathHandling = None,
     ):
-        from returnn.tensor import Dim, batch_dim, single_step_dim
+        # from returnn.tensor import Dim, batch_dim, single_step_dim
 
         self.config = config.copy()
         self.post_config = post_config.copy() if post_config else {}
         self.assignments_dict_by_value_ref: Dict[_Ref, PyCode] = {}  # value ref -> code
         self.assignments_dict_by_name: Dict[str, PyCode] = {}  # var name -> code
         self.assignments_dict_by_idx: Dict[int, PyCode] = {}  # idx -> code
-        self.assignments_dict_by_value_by_type: Dict[type, Dict[Any, PyCode]] = {Dim: {}}  # type -> dict value -> code
+        self.assignments_dict_by_value_by_type: Dict[type, Dict[Any, PyCode]] = {
+            # TODO: is this entry needed for correctness?
+            # Dim: {},
+        }  # type -> dict value -> code
         self.reduce_cache_by_value_ref: Dict[_Ref, Tuple[Any, ...]] = {}  # value ref -> (func, args, ...)
         self.added_sys_paths = set()
         self.known_modules = set(known_modules)
@@ -289,9 +280,10 @@ class _Serializer:
         # The config keys always have precedence.
         self._internal_reserved_names = {
             "sys": sys,
-            "batch_dim": batch_dim,
-            "single_step_dim": single_step_dim,
-            "Dim": Dim,
+            # TODO: are these entries needed for correctness?
+            # "batch_dim": batch_dim,
+            # "single_step_dim": single_step_dim,
+            # "Dim": Dim,
         }
         self._internal_reserved_names_by_value_ref = {
             _Ref(value): name for name, value in self._internal_reserved_names.items()
@@ -363,8 +355,6 @@ class _Serializer:
         self._next_assignment_idx += 1
 
     def _handle_next_queue_item(self, queue_item: _AssignQueueItem) -> Optional[_DeferredStateQueueItem]:
-        from returnn.tensor import Dim
-
         value_ref = _Ref(queue_item.value)
         if queue_item.required_var_name:
             assert queue_item.required_var_name not in self.assignments_dict_by_name
@@ -379,7 +369,7 @@ class _Serializer:
         if not name and (
             isinstance(queue_item.value, (type, FunctionType, BuiltinFunctionType, ModuleType, Import, Call))
             or (getattr(queue_item.value, "__module__", None) and getattr(queue_item.value, "__qualname__", None))
-            or (isinstance(queue_item.value, Dim) and queue_item.value.name)
+            or (_Serializer._isinstance_returnn_dim(queue_item.value) and queue_item.value.name)
         ):
             # For those types, prefer a name based on the value, even over any other suggested name.
             name = self._get_unique_suggested_name(self._suggest_name_from_value(queue_item.value))
@@ -474,10 +464,12 @@ class _Serializer:
         self.assignments_dict_by_idx[code.idx] = code
 
     @staticmethod
-    def _suggest_name_from_value(value: Any) -> str:
-        from returnn.tensor import Dim
+    def _isinstance_returnn_dim(obj: Any) -> bool:
+        return obj.__class__.__name__ == "Dim" == obj.__class__.__module__.startswith("returnn.")
 
-        if isinstance(value, Dim):
+    @staticmethod
+    def _suggest_name_from_value(value: Any) -> str:
+        if _Serializer._isinstance_returnn_dim(value):
             return _Serializer._suggested_name_for_dim(value)
         if isinstance(value, (Import, PartialImport, CallImport)):
             return value.import_as or value.object_name
@@ -501,7 +493,7 @@ class _Serializer:
         return type(value).__name__.lower()
 
     @staticmethod
-    def _suggested_name_for_dim(dim: Dim) -> str:
+    def _suggested_name_for_dim(dim: "Dim") -> str:
         if not dim.name:
             return "dim"  # fallback
         name_ = dim.name
@@ -557,8 +549,6 @@ class _Serializer:
     def _serialize_value(
         self, value: Any, prefix: str, *, recursive: bool = True, name: Optional[str] = None
     ) -> Union[PyEvalCode, PyCode, _PyCodeWithDeferredStateQueueItem]:
-        from returnn.tensor import Dim
-
         # The code here is somewhat similar as pickle._Pickler.save,
         # but we have some special treatment for a few types.
         value_ref = _Ref(value)
@@ -634,7 +624,7 @@ class _Serializer:
             return self._serialize_tuple(value, prefix)
         if isinstance(value, set):
             return self._serialize_set(value, prefix)
-        if isinstance(value, Dim):
+        if _Serializer._isinstance_returnn_dim(value):
             return self._serialize_dim(value, prefix)
         if isinstance(value, functools.partial):
             return self._serialize_functools_partial(value, name)
@@ -797,7 +787,8 @@ class _Serializer:
             serialized_items.append(serialized_value.py_inline())
         return PyEvalCode("{" + ", ".join(serialized_items) + "}")
 
-    def _serialize_dim(self, dim: Dim, prefix: str) -> Union[PyEvalCode, PyCode]:
+    def _serialize_dim(self, dim: "Dim", prefix: str) -> Union[PyEvalCode, PyCode]:
+        # we serialize a Dim object, so we know that RETURNN is available for import
         from returnn.tensor import Dim, batch_dim, single_step_dim
 
         assert isinstance(dim, Dim)
