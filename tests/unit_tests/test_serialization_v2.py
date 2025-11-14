@@ -122,11 +122,11 @@ def test_dim():
         f"""\
         import sys
         sys.path.insert(0, {mod_path!r})
-        from returnn.tensor import batch_dim
+        from returnn.tensor import batch_dim as global_batch_dim
         from returnn.tensor import Dim
         time_dim = Dim(None, name='time')
         feature_dim = Dim(42, name='feature')
-        extern_data_data_dims = [batch_dim, time_dim, feature_dim]
+        extern_data_data_dims = [global_batch_dim, time_dim, feature_dim]
         extern_data_data = {{'dims': extern_data_data_dims}}
         extern_data = {{'data': extern_data_data}}
         """
@@ -135,9 +135,9 @@ def test_dim():
         f"""\
         import sys
         sys.path.insert(0, {mod_path!r})
-        from returnn.tensor import batch_dim
+        from returnn.tensor import batch_dim as global_batch_dim
         from returnn.tensor import Dim
-        extern_data = {{'data': {{'dims': [batch_dim, Dim(None, name='time'), Dim(42, name='feature')]}}}}
+        extern_data = {{'data': {{'dims': [global_batch_dim, Dim(None, name='time'), Dim(42, name='feature')]}}}}
         """
     )
 
