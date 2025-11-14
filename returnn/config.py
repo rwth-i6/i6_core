@@ -1,4 +1,4 @@
-__all__ = ["CodeWrapper", "ReturnnConfig", "WriteReturnnConfigJob"]
+__all__ = ["CodeWrapper", "unparse_python", "ReturnnConfig", "WriteReturnnConfigJob"]
 
 import base64
 import inspect
@@ -11,6 +11,7 @@ import string
 import subprocess
 import sys
 import textwrap
+from typing import Any, Optional
 
 from sisyphus import *
 from sisyphus.delayed_ops import DelayedBase
@@ -34,6 +35,54 @@ class CodeWrapper:
         if isinstance(self.code, DelayedBase):
             return self.code.get()
         return self.code
+
+
+def unparse_python(code: Any, name: Optional[str] = None, hash_full_python_code: bool = False) -> str:
+    if code is None:
+        return ""
+    if isinstance(code, str):
+        return code
+    if isinstance(code, DelayedBase):
+        assert not hash_full_python_code, (
+            "DelayedBase object can not be passed if `hash_full_python_code` is set, as this will cause breaking hashes"
+        )
+        return unparse_python(code.get())
+    if isinstance(code, (tuple, list)):
+        return "\n".join(unparse_python(c) for c in code)
+    if isinstance(code, dict):
+        return "\n".join(unparse_python(v, name=k) for k, v in code.items())
+    if inspect.isfunction(code):
+        try:
+            return inspect.getsource(code)
+        except OSError:
+            # cannot get source, e.g. code is a lambda
+            assert name is not None
+            args = [
+                code.__code__.co_argcount,
+                code.__code__.co_kwonlyargcount,
+                code.__code__.co_nlocals,
+                code.__code__.co_stacksize,
+                code.__code__.co_flags,
+                code.__code__.co_code,
+                code.__code__.co_consts,
+                code.__code__.co_names,
+                code.__code__.co_varnames,
+                code.__code__.co_filename,
+                code.__code__.co_name,
+                code.__code__.co_firstlineno,
+                code.__code__.co_lnotab,
+                code.__code__.co_freevars,
+                code.__code__.co_cellvars,
+            ]
+            compiled = base64.b64encode(pickle.dumps(args)).decode("utf8")
+            return (
+                "import types; import base64; import pickle; "
+                'code = types.CodeType(*pickle.loads(base64.b64decode("%s".encode("utf8")))); '
+                '%s = types.FunctionType(code, globals(), "%s")' % (compiled, name, code.__name__)
+            )
+    if inspect.isclass(code):
+        return inspect.getsource(code)
+    raise RuntimeError("Could not serialize %s" % code)
 
 
 class ReturnnConfig:
@@ -291,52 +340,7 @@ class ReturnnConfig:
         self._write_to_file(self._serialize(), path)
 
     def __parse_python(self, code, name=None):
-        if code is None:
-            return ""
-        if isinstance(code, str):
-            return code
-        if isinstance(code, DelayedBase):
-            assert self.hash_full_python_code is False, (
-                "DelayedBase object can not be passed if `hash_full_python_code` is set, "
-                "as this will cause breaking hashes"
-            )
-            return self.__parse_python(code.get())
-        if isinstance(code, (tuple, list)):
-            return "\n".join(self.__parse_python(c) for c in code)
-        if isinstance(code, dict):
-            return "\n".join(self.__parse_python(v, name=k) for k, v in code.items())
-        if inspect.isfunction(code):
-            try:
-                return inspect.getsource(code)
-            except OSError:
-                # cannot get source, e.g. code is a lambda
-                assert name is not None
-                args = [
-                    code.__code__.co_argcount,
-                    code.__code__.co_kwonlyargcount,
-                    code.__code__.co_nlocals,
-                    code.__code__.co_stacksize,
-                    code.__code__.co_flags,
-                    code.__code__.co_code,
-                    code.__code__.co_consts,
-                    code.__code__.co_names,
-                    code.__code__.co_varnames,
-                    code.__code__.co_filename,
-                    code.__code__.co_name,
-                    code.__code__.co_firstlineno,
-                    code.__code__.co_lnotab,
-                    code.__code__.co_freevars,
-                    code.__code__.co_cellvars,
-                ]
-                compiled = base64.b64encode(pickle.dumps(args)).decode("utf8")
-                return (
-                    "import types; import base64; import pickle; "
-                    'code = types.CodeType(*pickle.loads(base64.b64decode("%s".encode("utf8")))); '
-                    '%s = types.FunctionType(code, globals(), "%s")' % (compiled, name, code.__name__)
-                )
-        if inspect.isclass(code):
-            return inspect.getsource(code)
-        raise RuntimeError("Could not serialize %s" % code)
+        return unparse_python(code, name, hash_full_python_code=self.hash_full_python_code)
 
     def check_consistency(self):
         """

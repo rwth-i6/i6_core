@@ -73,7 +73,7 @@ from sisyphus import Path
 from sisyphus.delayed_ops import DelayedBase
 from sisyphus.hash import sis_hash_helper
 
-from i6_core.returnn.config import CodeWrapper, ReturnnConfig
+from i6_core.returnn.config import CodeWrapper, ReturnnConfig, unparse_python
 from i6_core.returnn.training import Checkpoint, PtCheckpoint
 from i6_core.serialization import (
     Call,
@@ -208,8 +208,8 @@ class ReturnnConfigWithNewSerialization(ReturnnConfig):
             if isinstance(item, ExternalImport)
         ]
 
-        python_prolog_code = super().__parse_python(self.python_prolog)
-        python_epilog_code = super().__parse_python(self.python_epilog)
+        python_prolog_code = unparse_python(self.python_prolog, hash_full_python_code=True)
+        python_epilog_code = unparse_python(self.python_epilog, hash_full_python_code=True)
         serialized = serialize_config(
             config,
             post_config,
