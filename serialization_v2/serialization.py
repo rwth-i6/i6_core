@@ -195,7 +195,8 @@ class ReturnnConfigWithNewSerialization(ReturnnConfig):
         # So add all other paths here which we currently have.
         # (While testing this, this was sisyphus + returnn + recipes,
         #  but returnn is excluded below.)
-        extra_sys_paths = [p for p in sys.path if p not in _get_base_sys_path_list()]
+        sys_paths = set(_get_base_sys_path_list())
+        extra_sys_paths = [p for p in sys.path if p not in sys_paths]
 
         # Handle ExternalImports
         extra_sys_paths += [
