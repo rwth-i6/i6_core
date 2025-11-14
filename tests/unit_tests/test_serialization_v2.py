@@ -274,6 +274,18 @@ def test_known_modules():
     )
 
 
+def test_known_module_with_conflicting_key():
+    config = {"Dim": 1337, "feat_dim": Dim(12, name="feat")}
+    serialized = serialize_config(config, known_modules={"returnn"})
+    assert serialized.as_serialized_code() == textwrap.dedent(
+        """\
+        Dim = 1337
+        from returnn.tensor import Dim as Dim_1
+        feat_dim = Dim_1(12, name='feat')
+        """
+    )
+
+
 def test_set():
     config = {"tags": {"a", "b", "c"}}
     serialized = serialize_config(config)

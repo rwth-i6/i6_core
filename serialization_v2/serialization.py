@@ -248,8 +248,6 @@ class _Serializer:
         known_modules: Collection[str] = (),
         sis_path_handling: SisPathHandling = None,
     ):
-        # from returnn.tensor import Dim, batch_dim, single_step_dim
-
         self.config = config.copy()
         self.post_config = post_config.copy() if post_config else {}
         self.assignments_dict_by_value_ref: Dict[_Ref, PyCode] = {}  # value ref -> code
@@ -278,13 +276,7 @@ class _Serializer:
 
         # Avoid to use them, but if necessary (when inside the config), they can be used.
         # The config keys always have precedence.
-        self._internal_reserved_names = {
-            "sys": sys,
-            # TODO: are these entries needed for correctness?
-            # "batch_dim": batch_dim,
-            # "single_step_dim": single_step_dim,
-            # "Dim": Dim,
-        }
+        self._internal_reserved_names = {"sys": sys}
         self._internal_reserved_names_by_value_ref = {
             _Ref(value): name for name, value in self._internal_reserved_names.items()
         }
@@ -354,7 +346,23 @@ class _Serializer:
                 assign.py_code = new_assign.py_code
         self._next_assignment_idx += 1
 
+    def _fill_internal_reserved_names_dict_with_known_globals(self, obj: Any):
+        # currently only RETURNN objects are known globals
+
+        known_globals: dict[str, type] = {}
+
+        if _Serializer._isinstance_returnn_obj(obj):
+            # obj is from returnn, so we're free to import its known globals now
+            from returnn.tensor import Dim, batch_dim, single_step_dim
+
+            known_globals.update({"batch_dim": batch_dim, "single_step_dim": single_step_dim, "Dim": Dim})
+
+        for name, item in known_globals.items():
+            self._internal_reserved_names.setdefault(name, item)
+            self._internal_reserved_names_by_value_ref.setdefault(_Ref(item), name)
+
     def _handle_next_queue_item(self, queue_item: _AssignQueueItem) -> Optional[_DeferredStateQueueItem]:
+        self._fill_internal_reserved_names_dict_with_known_globals(queue_item.value)
         value_ref = _Ref(queue_item.value)
         if queue_item.required_var_name:
             assert queue_item.required_var_name not in self.assignments_dict_by_name
@@ -465,7 +473,11 @@ class _Serializer:
 
     @staticmethod
     def _isinstance_returnn_dim(obj: Any) -> bool:
-        return obj.__class__.__name__ == "Dim" == obj.__class__.__module__.startswith("returnn.")
+        return obj.__class__.__name__ == "Dim" and _Serializer._isinstance_returnn_obj(obj)
+
+    @staticmethod
+    def _isinstance_returnn_obj(obj: Any) -> bool:
+        return obj.__class__.__module__.startswith("returnn.")
 
     @staticmethod
     def _suggest_name_from_value(value: Any) -> str:
