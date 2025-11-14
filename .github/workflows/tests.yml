@@ -1,4 +1,4 @@
-name: job_tests
+name: Tests
 on:
   push:
     branches:
@@ -7,7 +7,7 @@ on:
     branches:
       - main
 jobs:
-  test-jobs:
+  job-tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -41,3 +41,38 @@ jobs:
         run: |
           set -e
           pytest i6_core/tests/job_tests
+
+  unit-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          repository: "rwth-i6/i6_core"
+          path: "i6_core"
+      - uses: actions/checkout@v2
+        with:
+          repository: "rwth-i6/sisyphus"
+          path: "sisyphus"
+      - uses: actions/checkout@v2
+        with:
+          repository: "rwth-i6/returnn"
+          path: "returnn"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: 3.8
+          cache: 'pip'
+          cache-dependency-path: '.github/workflows/unit_tests.yml'
+      - name: Setup Sisyphus environment
+        run: |
+          pip install --user --upgrade pip setuptools wheel
+          cd sisyphus
+          pip install .
+          cd ..
+          pip install pytest
+          sudo apt update && sudo apt install -y libsndfile1
+          pip install -r i6_core/requirements.txt
+          pip install -r returnn/requirements.txt
+      - name: Run Tests
+        run: |
+          set -e
+          pytest i6_core/tests/unit_tests
