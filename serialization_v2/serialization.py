@@ -177,6 +177,9 @@ class ReturnnConfigWithNewSerialization(ReturnnConfig):
             sort_config=False,
         )
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
     def _serialize(self) -> str:
         import tree
 
