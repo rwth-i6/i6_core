@@ -87,6 +87,7 @@ from i6_core.serialization import Collection as SerializerCollection
 
 if TYPE_CHECKING:
     from returnn.tensor import Dim
+    from returnn.util.file_cache import CachedFile
 
 
 def serialize_config(
@@ -354,9 +355,16 @@ class _Serializer:
         if _isinstance_returnn_obj(obj):
             # obj is from returnn, so we're free to import its known globals now
             from returnn.tensor import Dim, Tensor, batch_dim, single_step_dim
+            from returnn.util.file_cache import CachedFile
 
             known_globals.update(
-                {"batch_dim": batch_dim, "single_step_dim": single_step_dim, "Dim": Dim, "Tensor": Tensor}
+                {
+                    "batch_dim": batch_dim,
+                    "single_step_dim": single_step_dim,
+                    "CachedFile": CachedFile,
+                    "Dim": Dim,
+                    "Tensor": Tensor,
+                }
             )
 
         for name, item in known_globals.items():
@@ -632,6 +640,8 @@ class _Serializer:
             return self._serialize_set(value, prefix)
         if _isinstance_returnn_dim(value):
             return self._serialize_dim(value, prefix)
+        if _isinstance_returnn_cached_file(value):
+            return self._serialize_cached_file(value)
         if isinstance(value, functools.partial):
             return self._serialize_functools_partial(value, name)
         if isinstance(value, Call):
@@ -844,6 +854,16 @@ class _Serializer:
             f"{dim_type_str.py_inline()}"
             f"({dim.dimension}, {', '.join(f'{key}={value}' for key, value in kwargs.items())})"
         )
+
+    def _serialize_cached_file(self, cached_file: CachedFile) -> PyEvalCode:
+        # we serialize a CachedFile object, so we know that RETURNN is available for import
+        from returnn.util.file_cache import CachedFile
+
+        assert isinstance(cached_file, CachedFile)
+        cf_type_str = self._serialize_value(type(cached_file), prefix="CachedFile", recursive=True)
+        assert isinstance(cf_type_str, PyEvalCode)
+        assert isinstance(cached_file.filename, str)
+        return PyEvalCode(f"{cf_type_str.py_inline()}({repr(cached_file.filename)})")
 
     def _serialize_global(
         self, value: Any, name: str, *, mod_name: Optional[str] = None, qualname: Optional[str] = None
@@ -1252,6 +1272,15 @@ def _get_module_path_from_module(mod: ModuleType) -> str:
 def _isinstance_returnn_obj(obj: Any) -> bool:
     mod_s = getattr(type(obj), "__module__", None)
     return mod_s is not None and mod_s.startswith("returnn.")
+
+
+def _isinstance_returnn_cached_file(obj: Any) -> bool:
+    if not _isinstance_returnn_obj(obj):
+        return False
+
+    from returnn.util.file_cache import CachedFile
+
+    return isinstance(obj, CachedFile)
 
 
 def _isinstance_returnn_dim(obj: Any) -> bool:
