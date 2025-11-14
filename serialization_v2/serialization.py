@@ -353,9 +353,11 @@ class _Serializer:
 
         if _Serializer._isinstance_returnn_obj(obj):
             # obj is from returnn, so we're free to import its known globals now
-            from returnn.tensor import Dim, batch_dim, single_step_dim
+            from returnn.tensor import Dim, Tensor, batch_dim, single_step_dim
 
-            known_globals.update({"batch_dim": batch_dim, "single_step_dim": single_step_dim, "Dim": Dim})
+            known_globals.update(
+                {"batch_dim": batch_dim, "single_step_dim": single_step_dim, "Dim": Dim, "Tensor": Tensor}
+            )
 
         for name, item in known_globals.items():
             self._internal_reserved_names.setdefault(name, item)
