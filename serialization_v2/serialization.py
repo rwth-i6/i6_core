@@ -628,7 +628,7 @@ class _Serializer:
         if _isinstance_returnn_dim(value):
             return self._serialize_dim(value, prefix)
         if _isinstance_returnn_cached_file(value):
-            return self._serialize_cached_file(value)
+            return self._serialize_cached_file(value, prefix)
         if isinstance(value, functools.partial):
             return self._serialize_functools_partial(value, name)
         if isinstance(value, Call):
@@ -842,15 +842,16 @@ class _Serializer:
             f"({dim.dimension}, {', '.join(f'{key}={value}' for key, value in kwargs.items())})"
         )
 
-    def _serialize_cached_file(self, cached_file: CachedFile) -> PyEvalCode:
+    def _serialize_cached_file(self, cached_file: CachedFile, prefix: str) -> PyEvalCode:
         # we serialize a CachedFile object, so we know that RETURNN is available for import
         from returnn.util.file_cache import CachedFile
 
         assert isinstance(cached_file, CachedFile)
         cf_type_str = self._serialize_value(type(cached_file), prefix="CachedFile", recursive=True)
         assert isinstance(cf_type_str, PyEvalCode)
-        assert isinstance(cached_file.filename, str)
-        return PyEvalCode(f"{cf_type_str.py_inline()}({repr(cached_file.filename)})")
+        assert isinstance(cached_file.filename, (str, Path))
+        path = self._serialize_value(cached_file.filename, prefix=f"{prefix}_filename", recursive=True)
+        return PyEvalCode(f"{cf_type_str.py_inline()}({path.py_inline()})")
 
     def _serialize_global(
         self, value: Any, name: str, *, mod_name: Optional[str] = None, qualname: Optional[str] = None
