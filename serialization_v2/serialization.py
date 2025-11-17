@@ -55,6 +55,7 @@ __all__ = [
     "PyEvalCode",
 ]
 
+from contextlib import contextmanager
 import builtins
 from dataclasses import dataclass
 import enum
@@ -94,6 +95,27 @@ if TYPE_CHECKING:
     from returnn.util.file_cache import CachedFile
 
 
+_in_serialize_config_flag = False
+
+
+def in_serialize_config() -> bool:
+    """
+    Whether we are currently inside a serialize_config call.
+    """
+    return _in_serialize_config_flag
+
+
+@contextmanager
+def _set_in_serialize_config_ctx(value: bool = True):
+    global _in_serialize_config_flag
+    old_value = _in_serialize_config_flag
+    _in_serialize_config_flag = value
+    try:
+        yield
+    finally:
+        _in_serialize_config_flag = old_value
+
+
 def serialize_config(
     config: Dict[str, Any],
     post_config: Optional[Dict[str, Any]] = None,
@@ -109,9 +131,10 @@ def serialize_config(
     )
     for path in extra_sys_paths:
         serializer.add_sys_path(path, recursive=False)
-    serializer.work_queue()
-    if inlining:
-        serializer.work_inlining()
+    with _set_in_serialize_config_ctx():
+        serializer.work_queue()
+        if inlining:
+            serializer.work_inlining()
     return SerializedConfig(code_list=list(serializer.assignments_dict_by_idx.values()))
 
 
