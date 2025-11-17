@@ -262,10 +262,12 @@ class _Serializer:
         self.assignments_dict_by_value_ref: Dict[_Ref, PyCode] = {}  # value ref -> code
         self.assignments_dict_by_name: Dict[str, PyCode] = {}  # var name -> code
         self.assignments_dict_by_idx: Dict[int, PyCode] = {}  # idx -> code
-        self.assignments_dict_by_value_by_type: Dict[type, Dict[Any, PyCode]] = {
-            # TODO: is this entry needed for correctness?
-            # Dim: {},
-        }  # type -> dict value -> code
+        self.assignments_dict_by_value_by_type: Dict[type, Dict[Any, PyCode]] = {}  # type -> dict value -> code
+        if "returnn" in sys.modules:
+            from returnn.tensor import Dim
+
+            # because of simplified Dim serialization without same_as
+            self.assignments_dict_by_value_by_type[Dim] = {}
         self.reduce_cache_by_value_ref: Dict[_Ref, Tuple[Any, ...]] = {}  # value ref -> (func, args, ...)
         self.added_sys_paths = set()
         self.known_modules = set(known_modules)
