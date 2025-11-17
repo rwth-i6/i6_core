@@ -153,7 +153,8 @@ def _instanciate_delayed_copy(o: Any) -> Any:
     Recursively traverses a structure and calls .get() on all
     existing Delayed Operations, especially Variables in the structure
 
-    In contrast to :func:`i6_core.util.instanciate_delayed` this function does not operate inplace.
+    In contrast to :func:`i6_core.util.instanciate_delayed` this function does not operate inplace
+    and does not instantiate `SerializerObject`s so that `_Serializer` can pick them up later.
 
     :param o: nested structure that may contain DelayedBase objects
     :return: o with all DelayedBase objects replaced by their .get() value
