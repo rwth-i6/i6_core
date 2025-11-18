@@ -125,14 +125,14 @@ class ReturnnConfig:
         self.python_prolog_hash = python_prolog_hash
         if self.python_prolog_hash is None:
             if hash_full_python_code:
-                self.python_prolog_hash = self.__parse_python(python_prolog)
+                self.python_prolog_hash = unparse_python(python_prolog, hash_full_python_code=True)
             else:
                 self.python_prolog_hash = python_prolog
         self.python_epilog = python_epilog
         self.python_epilog_hash = python_epilog_hash
         if self.python_epilog_hash is None:
             if hash_full_python_code:
-                self.python_epilog_hash = self.__parse_python(python_epilog)
+                self.python_epilog_hash = unparse_python(python_epilog, hash_full_python_code=True)
             else:
                 self.python_epilog_hash = python_epilog
         self.hash_full_python_code = hash_full_python_code
@@ -292,7 +292,7 @@ class ReturnnConfig:
         self._write_to_file(self._serialize(), path)
 
     def __parse_python(self, code, name=None):
-        return unparse_python(code, name=name, hash_full_python_code=self.hash_full_python_code)
+        return unparse_python(code, hash_full_python_code=self.hash_full_python_code, name=name)
 
     def check_consistency(self):
         """
