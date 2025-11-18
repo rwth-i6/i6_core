@@ -149,6 +149,16 @@ class ReturnnConfigWithV2Serialization(ReturnnConfig):
     train_job = ReturnnTrainingJob(config=ReturnnConfigWithV2Serialization.from_cfg(config))
     # train job will use V2 serialization now
     ```
+
+    During serialization, we call `instanciate_delayed_copy` on the config dict.
+    This will resolve all delayed values and path objects into their actual values/str representation.
+    However, this will only catch those values that are reachable for the `tree` library,
+    i.e. all values contained in (nested) dictionaries/sequences.
+
+    If you have delayed values/path objects which are not directly reachable from the config dict,
+    e.g. by being inside some custom object instead of a dict/list/tuple/set,
+    then you need to resolve them manually before serialization or special-case their
+    `__reduce__` behavior via the :func:`in_serialize_config` flag.
     """
 
     @classmethod
