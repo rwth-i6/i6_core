@@ -5,14 +5,17 @@ Allows serializing arbitrary Python objects inside the config
 including functions/classes/modules/objects,
 with automatic import handling.
 
+See :class:`ReturnnConfigWithV2Serialization` for the :class:`ReturnnConfig` integration.
+The class's docstring shows an example usage of :class:`ReturnnTrainingJob` with new serialization.
+
+See :func:`serialize_config` for a lower level entry point to config dict serialization.
+
 See https://github.com/rwth-i6/i6_experiments/blob/main/users/zeyer/serialization.rst
+and https://github.com/rwth-i6/i6_core/pull/601
 for more details.
 
 This is conceptually similar to :class:`i6_experiments.common.utils.dump_py_code.PythonCodeDumper`
 and :func:`i6_experiments.common.setups.returnn.serialization.get_serializable_config`.
-
-See :func:`serialize_config` for the main entry point.
-See :class:`ReturnnConfigWithV2Serialization` for an easy :class:`ReturnnTrainingJob` integration.
 
 Note: Sisyphus hashes are currently just defined by the config keys/values,
 using the `sis_hash_helper` function, without any special handling,
@@ -142,7 +145,7 @@ class ReturnnConfigWithV2Serialization(ReturnnConfig):
     from i6_core.returnn import ReturnnConfig, ReturnnTrainingJob
     from i6_core.serialization_v2 import ReturnnConfigWithV2Serialization
 
-    config = ReturnnConfig(...)
+    config = ReturnnConfig(...)  # your usual config
     train_job = ReturnnTrainingJob(config=ReturnnConfigWithV2Serialization.from_cfg(config))
     # train job will use V2 serialization now
     ```
