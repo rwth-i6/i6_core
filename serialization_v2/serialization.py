@@ -24,8 +24,6 @@ This could be extended in the future by allowing more custom behavior
 e.g. for module scopes.
 Also, e.g. to specify ``unhashed_package_root`` for some of the references.
 
-Note: Sisyphus Path objects are serialized directly using :func:`sisyphus.Path.get_path`.
-
 We handle those objects specially:
 - primitive types (int, float, bool, str)
 - Sisyphus Path objects
@@ -33,8 +31,8 @@ We handle those objects specially:
 - dict, list, tuple, set
 - functions, classes, modules
 - functools.partial (just some nicer repr)
-- i6_core.serialization objects
 - CodeWrapper
+- CachedFile (from RETURNN, nicer repr)
 
 All other generic objects are handled in the same way as pickle does it
 (or also :class:`i6_experiments.common.utils.dump_py_code.PythonCodeDumper`),
@@ -47,7 +45,6 @@ from __future__ import annotations
 
 __all__ = [
     "serialize_config",
-    "SisPathHandling",
     "ReturnnConfigWithNewSerialization",
     "SerializedConfig",
     "SerializationError",
@@ -58,7 +55,6 @@ __all__ = [
 from contextlib import contextmanager
 import builtins
 from dataclasses import dataclass
-import enum
 import functools
 from keyword import iskeyword
 import math
@@ -71,24 +67,19 @@ from types import BuiltinFunctionType, FunctionType, MethodType, ModuleType
 from typing import Any, Collection, Dict, List, Optional, Sequence, Tuple, Union, TYPE_CHECKING
 
 from sisyphus import Path
-from sisyphus.delayed_ops import DelayedBase
 from sisyphus.hash import sis_hash_helper
 
 from i6_core.returnn.config import CodeWrapper, ReturnnConfig, unparse_python
-from i6_core.returnn.training import Checkpoint, PtCheckpoint
 from i6_core.serialization import (
-    Call,
-    CallImport,
     CodeFromFile,
     CodeFromFunction,
+    Collection as SerializerCollection,
     ExplicitHash,
     ExternalImport,
-    Import,
     NonhashedCode,
-    PartialImport,
     SerializerObject,
 )
-from i6_core.serialization import Collection as SerializerCollection
+from i6_core.util import instanciate_delayed
 
 if TYPE_CHECKING:
     from returnn.tensor import Dim
@@ -123,12 +114,9 @@ def serialize_config(
     inlining: bool = True,
     known_modules: Collection[str] = (),
     extra_sys_paths: Sequence[str] = (),
-    sis_path_handling: SisPathHandling = None,
 ) -> SerializedConfig:
     """serialize config. see module docstring for more info."""
-    serializer = _Serializer(
-        config=config, post_config=post_config, known_modules=known_modules, sis_path_handling=sis_path_handling
-    )
+    serializer = _Serializer(config=config, post_config=post_config, known_modules=known_modules)
     for path in extra_sys_paths:
         serializer.add_sys_path(path, recursive=False)
     with _set_in_serialize_config_ctx():
@@ -136,37 +124,6 @@ def serialize_config(
         if inlining:
             serializer.work_inlining()
     return SerializedConfig(code_list=list(serializer.assignments_dict_by_idx.values()))
-
-
-class SisPathHandling(enum.Enum):
-    """
-    SisPathHandling enum.
-    """
-
-    NONE = None
-    AS_STRING = "as_string"
-    NO_DEPS = "no_deps"
-
-
-def _instanciate_delayed_copy(o: Any) -> Any:
-    """
-    Recursively traverses a structure and calls .get() on all
-    existing Delayed Operations, especially Variables in the structure
-
-    In contrast to :func:`i6_core.util.instanciate_delayed` this function does not operate inplace
-    and does not instantiate `SerializerObject`s so that `_Serializer` can pick them up later.
-
-    :param o: nested structure that may contain DelayedBase objects
-    :return: o with all DelayedBase objects replaced by their .get() value
-    """
-    import tree
-
-    def _instanciate_delayed_obj(o: Any) -> Any:
-        if isinstance(o, DelayedBase) and not isinstance(o, SerializerObject):
-            return o.get()
-        return o
-
-    return tree.map_structure(_instanciate_delayed_obj, o)
 
 
 def _is_valid_python_identifier_name(name: str) -> bool:
@@ -212,8 +169,8 @@ class ReturnnConfigWithNewSerialization(ReturnnConfig):
 
         self.check_consistency()
 
-        config = _instanciate_delayed_copy(self.config)
-        post_config = _instanciate_delayed_copy(self.post_config)
+        config = instanciate_delayed(self.config)
+        post_config = instanciate_delayed(self.post_config)
 
         # I'm not really sure about it.
         # Our automatic mechanism will find direct imports (e.g. i6_experiments).
@@ -242,10 +199,6 @@ class ReturnnConfigWithNewSerialization(ReturnnConfig):
             # but allow the config to be used with any other RETURNN version.
             known_modules={"returnn"},
             extra_sys_paths=extra_sys_paths,
-            # instanciate_delayed should already have handled it (e.g. Path),
-            # or if it has not, then we want to keep it as it is (e.g. PtCheckpoint),
-            # but without dependencies.
-            sis_path_handling=SisPathHandling.AS_STRING,
         )
         return "\n\n".join(
             part
@@ -275,11 +228,7 @@ class SerializedConfig:
 
 class _Serializer:
     def __init__(
-        self,
-        config: Dict[str, Any],
-        post_config: Optional[Dict[str, Any]] = None,
-        known_modules: Collection[str] = (),
-        sis_path_handling: SisPathHandling = None,
+        self, config: Dict[str, Any], post_config: Optional[Dict[str, Any]] = None, known_modules: Collection[str] = ()
     ):
         self.config = config.copy()
         self.post_config = post_config.copy() if post_config else {}
@@ -300,7 +249,6 @@ class _Serializer:
             # Don't add those module path to sys.path again.
             self.added_sys_paths.add(_get_module_path_from_module(mod))
         self._next_sys_path_insert_idx = 0
-        self.sis_path_handling = sis_path_handling
         self._cur_added_refs: List[PyCode] = []
         self._next_assignment_idx = 0
         # We first serialize everything without inlining anything.
@@ -394,7 +342,7 @@ class _Serializer:
                 self._internal_reserved_names_by_value_ref[value_ref], allow_internal_reserved_name=True
             )
         if not name and (
-            isinstance(queue_item.value, (type, FunctionType, BuiltinFunctionType, ModuleType, Import, Call))
+            isinstance(queue_item.value, (type, FunctionType, BuiltinFunctionType, ModuleType))
             or (getattr(queue_item.value, "__module__", None) and getattr(queue_item.value, "__qualname__", None))
             or (_isinstance_returnn_dim(queue_item.value) and queue_item.value.name)
         ):
@@ -494,17 +442,6 @@ class _Serializer:
     def _suggest_name_from_value(value: Any) -> str:
         if _isinstance_returnn_dim(value):
             return _Serializer._suggested_name_for_dim(value)
-        if isinstance(value, (Import, PartialImport, CallImport)):
-            return value.import_as or value.object_name
-        if isinstance(value, Call) and value.return_assign_variables is not None:
-            if isinstance(value.return_assign_variables, str):
-                return value.return_assign_variables
-            elif isinstance(value.return_assign_variables, list) and len(value.return_assign_variables) == 1:
-                return value.return_assign_variables[0]
-            else:
-                raise NotImplementedError(
-                    "Cannot destructure-assign multiple return variables from calls in serialization_v2"
-                )
         if isinstance(value, CodeFromFunction):
             return value.name
         if isinstance(value, (type, ModuleType, FunctionType, BuiltinFunctionType)) and getattr(
@@ -585,7 +522,7 @@ class _Serializer:
             if isinstance(value, float) and not math.isfinite(value):
                 return PyEvalCode(f"float('{value}')")
             return PyEvalCode(repr(value))
-        if self.sis_path_handling and isinstance(value, Path):
+        if isinstance(value, Path):
             return self._serialize_sis_path(value)
         if isinstance(value, CodeWrapper):
             return self._serialize_code_wrapper(value)
@@ -657,16 +594,6 @@ class _Serializer:
             return self._serialize_cached_file(value, prefix)
         if isinstance(value, functools.partial):
             return self._serialize_functools_partial(value, name)
-        if isinstance(value, Call):
-            return self._serialize_call(value, name)
-        if isinstance(value, CallImport):
-            return self._serialize_call_import(value, name)
-        if isinstance(value, PartialImport):
-            return self._serialize_partial_import(value, name)
-        if isinstance(value, Import):
-            return self._serialize_import(value, name)
-        if isinstance(value, (Checkpoint, PtCheckpoint)):
-            return self._serialize_checkpoint(value)
         if isinstance(value, CodeFromFunction):
             return self._serialize_code_from_function(value, name)
         if isinstance(value, (CodeFromFile, ExplicitHash, ExternalImport, NonhashedCode)):
@@ -816,69 +743,6 @@ class _Serializer:
             serialized_items.append(serialized_value.py_inline())
         return PyEvalCode("{" + ", ".join(serialized_items) + "}")
 
-    def _serialize_dim(self, dim: Dim, prefix: str) -> Union[PyEvalCode, PyCode]:
-        # we serialize a Dim object, so we know that RETURNN is available for import
-        from returnn.tensor import Dim, batch_dim, single_step_dim
-
-        assert isinstance(dim, Dim)
-
-        # See also returnn_common.nn.naming.ReturnnDimTagsProxy.dim_ref_repr
-        # and returnn_common.nn.naming.ReturnnDimTagsProxy.DimRefProxy.dim_repr.
-        if dim == batch_dim:
-            return self._serialize_global(dim, prefix, mod_name="returnn.tensor", qualname="batch_dim")
-        if dim == single_step_dim:
-            return self._serialize_global(dim, prefix, mod_name="returnn.tensor", qualname="single_step_dim")
-
-        if dim.match_priority:
-            base_dim_str = self._serialize_value(dim.copy(match_priority=0), prefix=f"{prefix}_p0", recursive=True)
-            assert isinstance(base_dim_str, PyEvalCode)
-            return PyEvalCode(f"{base_dim_str.py_inline()}.copy(match_priority={dim.match_priority})")
-        if not dim.derived_from_op and dim.get_same_base().derived_from_op:
-            dim = dim.get_same_base()
-
-        if dim.derived_from_op:
-            if dim.derived_from_op.kind == "constant":
-                v = dim.derived_from_op.attribs["value"]
-                return PyEvalCode(str(v), need_brackets_when_inlined=v < 0)
-            func_map = {"truediv_left": "div_left", "ceildiv_left": "ceildiv_left", "ceildiv_right": "ceildiv_right"}
-            inputs_s: List[PyEvalCode] = [
-                self._serialize_value(x, prefix=f"{prefix}_in{i}", recursive=True)
-                for i, x in enumerate(dim.derived_from_op.inputs)
-            ]
-            assert all(isinstance(x, PyEvalCode) for x in inputs_s)
-            if dim.derived_from_op.kind in func_map:
-                assert len(dim.derived_from_op.inputs) == 2
-                a, b = inputs_s
-                a: PyEvalCode
-                b: PyEvalCode
-                return PyEvalCode(f"{a.py_inline()}.{func_map[dim.derived_from_op.kind]}({b.py_inline()})")
-            op_str = {"add": "+", "mul": "*", "truediv_right": "//", "floordiv_right": "//"}[dim.derived_from_op.kind]
-            s = f" {op_str} ".join(x.py_inline() for x in inputs_s)
-            return PyEvalCode(s, need_brackets_when_inlined=True)
-
-        # generic fallback
-        dim_type_str = self._serialize_value(type(dim), prefix="Dim", recursive=True)
-        assert isinstance(dim_type_str, PyEvalCode)
-        kwargs = {"name": repr(dim.name)}
-        if dim.kind is not None:
-            kind_s = {Dim.Types.Batch: "Batch", Dim.Types.Spatial: "Spatial", Dim.Types.Feature: "Feature"}[dim.kind]
-            kwargs["kind"] = f"{dim_type_str.py_inline()}.Types.{kind_s}"
-        return PyEvalCode(
-            f"{dim_type_str.py_inline()}"
-            f"({dim.dimension}, {', '.join(f'{key}={value}' for key, value in kwargs.items())})"
-        )
-
-    def _serialize_cached_file(self, cached_file: CachedFile, prefix: str) -> PyEvalCode:
-        # we serialize a CachedFile object, so we know that RETURNN is available for import
-        from returnn.util.file_cache import CachedFile
-
-        assert isinstance(cached_file, CachedFile)
-        cf_type_str = self._serialize_value(type(cached_file), prefix="CachedFile", recursive=True)
-        assert isinstance(cf_type_str, PyEvalCode)
-        assert isinstance(cached_file.filename, (str, Path))
-        path = self._serialize_value(cached_file.filename, prefix=f"{prefix}_filename", recursive=True)
-        return PyEvalCode(f"{cf_type_str.py_inline()}({path.py_inline()})")
-
     def _serialize_global(
         self, value: Any, name: str, *, mod_name: Optional[str] = None, qualname: Optional[str] = None
     ) -> Union[PyEvalCode, PyCode]:
@@ -1005,6 +869,12 @@ class _Serializer:
         self.assignments_dict_by_idx[code.idx] = code
         self.added_sys_paths.add(path)
 
+    def _serialize_sis_path(self, value: Path) -> PyEvalCode:
+        assert isinstance(value, Path)
+        path_type_str = self._serialize_value(type(value), prefix="Path", recursive=True)
+        assert isinstance(path_type_str, PyEvalCode)
+        return PyEvalCode(f"{path_type_str.py_inline()}({value.get_path()!r})")
+
     def _serialize_functools_partial(self, value: functools.partial, name: str) -> PyEvalCode:
         # The generic fallback using __reduce__ would also work with this.
         # However, the following is a bit nicer in the generated code.
@@ -1034,104 +904,77 @@ class _Serializer:
         assert isinstance(self_s, PyEvalCode)
         return PyEvalCode(f"{mod_s.py_inline()}.MethodType({func_s.py_inline()}, {self_s.py_inline()})")
 
-    def _serialize_call(self, value: Call, name: str) -> PyEvalCode:
-        assert isinstance(value, Call)
-        unhashed_args_s = self._serialize_value(
-            dict(value.unhashed_kwargs), recursive=True, prefix=f"{name}_unhashed_kwargs"
-        )
-        assert isinstance(unhashed_args_s, PyEvalCode)
-        hashed_args_s = self._serialize_value(dict(value.kwargs), recursive=True, prefix=f"{name}_hashed_kwargs")
-        assert isinstance(hashed_args_s, PyEvalCode)
-        call_str = f"{value.callable_name}(**{unhashed_args_s.py_inline()}, **{hashed_args_s.py_inline()})"
-        if value.return_assign_variables is not None:
-            assert isinstance(value.return_assign_variables, str) or len(value.return_assign_variables) == 1, (
-                "cannot destructure-assign when auto serialization is used"
-            )
-            return PyCode(name, value, py_code=f"{name} = {call_str}\n", py_value_repr=PyEvalCode(call_str))
-        return PyEvalCode(call_str)
-
-    def _serialize_call_import(self, value: CallImport, name: str) -> PyCode:
-        assert isinstance(value, CallImport)
-        func_s = PyEvalCode(f'__import__("{value.module}", fromlist=["{value.object_name}"]).{value.object_name}')
-
-        dictitems_s = []
-        for key, value_ in {**value.unhashed_arguments, **value.hashed_arguments}.items():
-            assert isinstance(key, str) and _is_valid_python_identifier_name(key)
-            serialized_value = self._serialize_value(value_, prefix=f"{name}_{key}", recursive=True)
-            assert isinstance(serialized_value, PyEvalCode)
-            dictitems_s.append((key, serialized_value))
-        dictitems_ss = ", ".join(f"{k}={v.py_inline()}" for k, v in dictitems_s)
-
-        repr_code = f"{func_s.py_inline()}({dictitems_ss})"
-        return PyCode(
-            name,
-            value,
-            py_code=f"{name} = {repr_code}\n",
-            py_value_repr=PyEvalCode(repr_code),
-        )
-
-    def _serialize_partial_import(self, value: PartialImport, name: str) -> PyCode:
-        assert isinstance(value, PartialImport)
-        mod_s = self._serialize_value(functools, prefix="functools")
-        assert isinstance(mod_s, PyEvalCode)
-        func_s = PyEvalCode(f'__import__("{value.module}", fromlist=["{value.object_name}"]).{value.object_name}')
-
-        dictitems_s = []
-        for key, value_ in {**value.unhashed_arguments, **value.hashed_arguments}.items():
-            assert isinstance(key, str) and _is_valid_python_identifier_name(key)
-            serialized_value = self._serialize_value(value_, prefix=f"{name}_{key}", recursive=True)
-            assert isinstance(serialized_value, PyEvalCode)
-            dictitems_s.append((key, serialized_value))
-        dictitems_ss = "".join(f", {k}={v.py_inline()}" for k, v in dictitems_s)
-
-        repr_code = f"{mod_s.py_inline()}.partial({func_s.py_inline()}, {dictitems_ss})"
-        return PyCode(
-            name,
-            value,
-            py_code=f"{name} = ${repr_code}\n",
-            py_value_repr=PyEvalCode(repr_code),
-        )
-
-    def _serialize_import(self, value: Import, name: str) -> PyCode:
-        assert isinstance(value, Import)
-        return PyCode(
-            py_name=name,
-            value=value,
-            py_code=f"from {value.module} import {value.object_name}\n"
-            if value.object_name == name
-            else f"from {value.module} import {value.object_name} as {name}\n",
-        )
-
     def _serialize_code_from_function(self, value: CodeFromFunction, name: str) -> PyCode:
         assert isinstance(value, CodeFromFunction)
         func_with_legal_name = CodeFromFunction(name=name, func=value.func)
         return PyCode(py_name=name, value=value, py_code=func_with_legal_name.get())
 
+    def _serialize_dim(self, dim: Dim, prefix: str) -> Union[PyEvalCode, PyCode]:
+        # we serialize a Dim object, so we know that RETURNN is available for import
+        from returnn.tensor import Dim, batch_dim, single_step_dim
+
+        assert isinstance(dim, Dim)
+
+        # See also returnn_common.nn.naming.ReturnnDimTagsProxy.dim_ref_repr
+        # and returnn_common.nn.naming.ReturnnDimTagsProxy.DimRefProxy.dim_repr.
+        if dim == batch_dim:
+            return self._serialize_global(dim, prefix, mod_name="returnn.tensor", qualname="batch_dim")
+        if dim == single_step_dim:
+            return self._serialize_global(dim, prefix, mod_name="returnn.tensor", qualname="single_step_dim")
+
+        if dim.match_priority:
+            base_dim_str = self._serialize_value(dim.copy(match_priority=0), prefix=f"{prefix}_p0", recursive=True)
+            assert isinstance(base_dim_str, PyEvalCode)
+            return PyEvalCode(f"{base_dim_str.py_inline()}.copy(match_priority={dim.match_priority})")
+        if not dim.derived_from_op and dim.get_same_base().derived_from_op:
+            dim = dim.get_same_base()
+
+        if dim.derived_from_op:
+            if dim.derived_from_op.kind == "constant":
+                v = dim.derived_from_op.attribs["value"]
+                return PyEvalCode(str(v), need_brackets_when_inlined=v < 0)
+            func_map = {"truediv_left": "div_left", "ceildiv_left": "ceildiv_left", "ceildiv_right": "ceildiv_right"}
+            inputs_s: List[PyEvalCode] = [
+                self._serialize_value(x, prefix=f"{prefix}_in{i}", recursive=True)
+                for i, x in enumerate(dim.derived_from_op.inputs)
+            ]
+            assert all(isinstance(x, PyEvalCode) for x in inputs_s)
+            if dim.derived_from_op.kind in func_map:
+                assert len(dim.derived_from_op.inputs) == 2
+                a, b = inputs_s
+                a: PyEvalCode
+                b: PyEvalCode
+                return PyEvalCode(f"{a.py_inline()}.{func_map[dim.derived_from_op.kind]}({b.py_inline()})")
+            op_str = {"add": "+", "mul": "*", "truediv_right": "//", "floordiv_right": "//"}[dim.derived_from_op.kind]
+            s = f" {op_str} ".join(x.py_inline() for x in inputs_s)
+            return PyEvalCode(s, need_brackets_when_inlined=True)
+
+        # generic fallback
+        dim_type_str = self._serialize_value(type(dim), prefix="Dim", recursive=True)
+        assert isinstance(dim_type_str, PyEvalCode)
+        kwargs = {"name": repr(dim.name)}
+        if dim.kind is not None:
+            kind_s = {Dim.Types.Batch: "Batch", Dim.Types.Spatial: "Spatial", Dim.Types.Feature: "Feature"}[dim.kind]
+            kwargs["kind"] = f"{dim_type_str.py_inline()}.Types.{kind_s}"
+        return PyEvalCode(
+            f"{dim_type_str.py_inline()}"
+            f"({dim.dimension}, {', '.join(f'{key}={value}' for key, value in kwargs.items())})"
+        )
+
+    def _serialize_cached_file(self, cached_file: CachedFile, prefix: str) -> PyEvalCode:
+        # we serialize a CachedFile object, so we know that RETURNN is available for import
+        from returnn.util.file_cache import CachedFile
+
+        assert isinstance(cached_file, CachedFile)
+        cf_type_str = self._serialize_value(type(cached_file), prefix="CachedFile", recursive=True)
+        assert isinstance(cf_type_str, PyEvalCode)
+        assert isinstance(cached_file.filename, (str, Path))
+        path = self._serialize_value(cached_file.filename, prefix=f"{prefix}_filename", recursive=True)
+        return PyEvalCode(f"{cf_type_str.py_inline()}({path.py_inline()})")
+
     def _serialize_code_wrapper(self, value: CodeWrapper) -> PyEvalCode:
         assert isinstance(value, CodeWrapper)
-        code = value.code
-        if isinstance(code, DelayedBase):
-            code = code.get()
-        return PyEvalCode(code, need_brackets_when_inlined=False)
-
-    def _serialize_sis_path(self, value: Path) -> PyEvalCode:
-        assert isinstance(value, Path)
-        assert self.sis_path_handling  # should not call this otherwise
-        if self.sis_path_handling == SisPathHandling.NO_DEPS:
-            path_type_str = self._serialize_value(type(value), prefix="Path", recursive=True)
-            assert isinstance(path_type_str, PyEvalCode)
-            return PyEvalCode(f"{path_type_str.py_inline()}({value.get_path()!r})")
-        elif self.sis_path_handling == SisPathHandling.AS_STRING:
-            # Note: If we would want to have Sisyphus file_caching support here,
-            # we could also refer to that file_caching function,
-            # and call it here in the generated code.
-            return PyEvalCode(repr(value.get_path()))
-        else:
-            raise ValueError(f"invalid sis_path_handling {self.sis_path_handling}")
-
-    def _serialize_checkpoint(self, value: Union[PtCheckpoint, Checkpoint]) -> PyEvalCode:
-        assert isinstance(value, (Checkpoint, PtCheckpoint))
-        return PyEvalCode(repr(value), need_brackets_when_inlined=False)
+        return PyEvalCode(repr(value), need_brackets_when_inlined=True)
 
 
 class _SerializationDependsOnNotYetSerializedOtherVarException(Exception):

@@ -8,7 +8,7 @@ import textwrap
 import functools
 from dataclasses import dataclass
 
-from i6_core.serialization_v2 import serialize_config, SisPathHandling, PyCode
+from i6_core.serialization_v2 import serialize_config, PyCode
 from returnn.tensor import Dim, batch_dim
 from sisyphus.hash import sis_hash_helper
 
@@ -192,9 +192,11 @@ def test_sis_path():
     from sisyphus import Path
 
     config = {"path": Path("/foo.txt")}
-    assert (
-        serialize_config(config, sis_path_handling=SisPathHandling.AS_STRING).as_serialized_code()
-        == "path = '/foo.txt'\n"
+    assert serialize_config(config).as_serialized_code() == textwrap.dedent(
+        """\
+        from sisyphus import Path
+        path = Path('/foo.txt')
+        """
     )
 
 
