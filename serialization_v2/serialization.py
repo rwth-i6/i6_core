@@ -79,7 +79,7 @@ from i6_core.serialization import (
     NonhashedCode,
     SerializerObject,
 )
-from i6_core.util import instanciate_delayed
+from i6_core.util import instanciate_delayed_copy
 
 if TYPE_CHECKING:
     from returnn.tensor import Dim
@@ -166,8 +166,8 @@ class ReturnnConfigWithV2Serialization(ReturnnConfig):
 
         self.check_consistency()
 
-        config = instanciate_delayed(self.config)
-        post_config = instanciate_delayed(self.post_config)
+        config = instanciate_delayed_copy(self.config)
+        post_config = instanciate_delayed_copy(self.post_config)
 
         # I'm not really sure about it.
         # Our automatic mechanism will find direct imports (e.g. i6_experiments).
