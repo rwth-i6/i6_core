@@ -75,8 +75,11 @@ class Checkpoint:
     def __repr__(self):
         return "'%s'" % self.ckpt_path
 
+    def __fspath__(self):
+        return self.index_path.get()
+
     def exists(self):
-        return os.path.exists(self.index_path.get_path())
+        return os.path.exists(self)
 
 
 class PtCheckpoint:
@@ -103,7 +106,7 @@ class PtCheckpoint:
         return self.path.get()
 
     def exists(self):
-        return os.path.exists(self.path.get_path())
+        return os.path.exists(self)
 
 
 class ReturnnTrainingJob(Job):
