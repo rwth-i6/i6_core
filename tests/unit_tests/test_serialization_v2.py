@@ -69,6 +69,7 @@ def test_func():
     assert serialize_config(config).as_serialized_code() == textwrap.dedent(
         f"""\
         import sys
+        # for module i6_core
         sys.path.insert(0, {mod_path!r})
         from i6_core.util import uopen as test_func
         """
@@ -86,6 +87,7 @@ def test_extra_sys_paths():
     assert serialize_config(config, extra_sys_paths=[mod_path]).as_serialized_code() == textwrap.dedent(
         f"""\
         import sys
+        # from extra_sys_paths
         sys.path.insert(0, {mod_path!r})
         num = 42
         """
@@ -103,6 +105,7 @@ def test_batch_dim():
     assert serialize_config(config, inlining=False).as_serialized_code() == textwrap.dedent(
         f"""\
         import sys
+        # for module returnn
         sys.path.insert(0, {mod_path!r})
         from returnn.tensor import batch_dim as dim
         """
@@ -122,6 +125,7 @@ def test_dim():
     assert serialize_config(config, inlining=False).as_serialized_code() == textwrap.dedent(
         f"""\
         import sys
+        # for module returnn
         sys.path.insert(0, {mod_path!r})
         from returnn.tensor import batch_dim as global_batch_dim
         from returnn.tensor import Dim
@@ -135,6 +139,7 @@ def test_dim():
     assert serialize_config(config).as_serialized_code() == textwrap.dedent(
         f"""\
         import sys
+        # for module returnn
         sys.path.insert(0, {mod_path!r})
         from returnn.tensor import batch_dim as global_batch_dim
         from returnn.tensor import Dim
@@ -157,6 +162,7 @@ def test_cached_file():
     assert serialize_config(config, inlining=False).as_serialized_code() == textwrap.dedent(
         f"""\
         import sys
+        # for module returnn
         sys.path.insert(0, {mod_path!r})
         from returnn.util.file_cache import CachedFile
         obj = CachedFile('/path/to/some/file1.txt')
@@ -178,6 +184,7 @@ def test_dim_hash():
     assert serialized.as_serialized_code() == textwrap.dedent(
         f"""\
         import sys
+        # for module returnn
         sys.path.insert(0, {mod_path!r})
         from returnn.tensor import Dim
         beam_dim = Dim(12, name='beam')
