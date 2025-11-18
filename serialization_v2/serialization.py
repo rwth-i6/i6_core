@@ -36,6 +36,7 @@ We handle those objects specially:
 - functools.partial (just some nicer repr)
 - CodeWrapper
 - CachedFile (from RETURNN, nicer repr)
+- TF Checkpoint (serialize prefix of .index file path)
 
 All other generic objects are handled in the same way as pickle does it
 (or also :class:`i6_experiments.common.utils.dump_py_code.PythonCodeDumper`),
@@ -73,6 +74,7 @@ from sisyphus import Path
 from sisyphus.hash import sis_hash_helper
 
 from i6_core.returnn.config import CodeWrapper, ReturnnConfig, unparse_python
+from i6_core.returnn.training import Checkpoint
 from i6_core.serialization import (
     CodeFromFile,
     CodeFromFunction,
@@ -538,14 +540,15 @@ class _Serializer:
         value_ref = _Ref(value)
         if value is None:
             return PyEvalCode("None")
+
         if isinstance(value, (int, float, bool, str, bytes)):
             if isinstance(value, float) and not math.isfinite(value):
                 return PyEvalCode(f"float('{value}')")
+            # see also _serialize_via_repr
             return PyEvalCode(repr(value))
+
         if isinstance(value, Path):
             return self._serialize_sis_path(value)
-        if isinstance(value, CodeWrapper):
-            return self._serialize_code_wrapper(value)
         if getattr(value, "__module__", None) == "builtins":
             val_name: str = getattr(value, "__name__", None)
             if val_name and getattr(builtins, val_name, None) is value:
@@ -608,10 +611,6 @@ class _Serializer:
             return self._serialize_tuple(value, prefix)
         if isinstance(value, set):
             return self._serialize_set(value, prefix)
-        if _isinstance_returnn_dim(value):
-            return self._serialize_dim(value, prefix)
-        if _isinstance_returnn_cached_file(value):
-            return self._serialize_cached_file(value, prefix)
         if isinstance(value, functools.partial):
             return self._serialize_functools_partial(value, name)
         if isinstance(value, CodeFromFunction):
@@ -625,6 +624,16 @@ class _Serializer:
             return self._serialize_module(value, name)
         if isinstance(value, MethodType):
             return self._serialize_method(value, name)
+
+        # special cased custom types
+        if _isinstance_returnn_dim(value):
+            return self._serialize_dim(value, prefix)
+        if _isinstance_returnn_cached_file(value):
+            return self._serialize_cached_file(value, prefix)
+        if isinstance(value, Checkpoint):
+            return self._serialize_via_repr(value, need_brackets_when_inlined=False)
+        if isinstance(value, CodeWrapper):
+            return self._serialize_via_repr(value, need_brackets_when_inlined=True)
 
         if isinstance(value, (type, FunctionType, BuiltinFunctionType)) or (
             getattr(value, "__module__", None) and getattr(value, "__qualname__", None)
@@ -996,9 +1005,9 @@ class _Serializer:
         path = self._serialize_value(cached_file.filename, prefix=f"{prefix}_filename", recursive=True)
         return PyEvalCode(f"{cf_type_str.py_inline()}({path.py_inline()})")
 
-    def _serialize_code_wrapper(self, value: CodeWrapper) -> PyEvalCode:
-        assert isinstance(value, CodeWrapper)
-        return PyEvalCode(repr(value), need_brackets_when_inlined=True)
+    def _serialize_via_repr(self, value: Any, need_brackets_when_inlined: bool) -> PyEvalCode:
+        assert isinstance(value, (Checkpoint, CodeWrapper))
+        return PyEvalCode(repr(value), need_brackets_when_inlined=need_brackets_when_inlined)
 
 
 class _SerializationDependsOnNotYetSerializedOtherVarException(Exception):

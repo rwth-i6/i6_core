@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from i6_core.returnn.config import ReturnnConfig
 from i6_core.serialization_v2 import serialize_config, PyCode, ReturnnConfigWithV2Serialization
 from returnn.tensor import Dim, batch_dim
+from sisyphus import Path
 from sisyphus.hash import sis_hash_helper
 
 
@@ -197,8 +198,6 @@ def test_dim_hash():
 
 
 def test_sis_path():
-    from sisyphus import Path
-
     config = {"path": Path("/foo.txt")}
     assert serialize_config(config).as_serialized_code() == textwrap.dedent(
         """\
@@ -436,3 +435,14 @@ def test_returnn_config_wrapper():
         # ensure monotonic progress
         index = serialized_config.index(line)
         serialized_config = serialized_config[index + len(line) :]
+
+
+def test_checkpoint():
+    from i6_core.returnn.training import Checkpoint
+
+    config = {"load": Checkpoint(Path("/path/to/ckpt.index"))}
+    assert serialize_config(config).as_serialized_code() == textwrap.dedent(
+        """\
+        load = '/path/to/ckpt'
+        """
+    )
