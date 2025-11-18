@@ -423,7 +423,7 @@ def test_returnn_config_wrapper():
     config_v2_ser = ReturnnConfigWithV2Serialization.from_cfg(config)
     serialized_config = config_v2_ser._serialize()
 
-    # cannot assert for equality since the serializer will include system-specific sys.path entries
+    # serializer will include system-specific sys.path entries, so just check rough contents and order here
     for line in [
         "#!returnn/rnn.py",
         "# some prolog",
