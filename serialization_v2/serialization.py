@@ -12,7 +12,7 @@ This is conceptually similar to :class:`i6_experiments.common.utils.dump_py_code
 and :func:`i6_experiments.common.setups.returnn.serialization.get_serializable_config`.
 
 See :func:`serialize_config` for the main entry point.
-See :class:`ReturnnConfigWithNewSerialization` for an easy :class:`ReturnnTrainingJob` integration.
+See :class:`ReturnnConfigWithV2Serialization` for an easy :class:`ReturnnTrainingJob` integration.
 
 Note: Sisyphus hashes are currently just defined by the config keys/values,
 using the `sis_hash_helper` function, without any special handling,
@@ -45,7 +45,7 @@ from __future__ import annotations
 
 __all__ = [
     "serialize_config",
-    "ReturnnConfigWithNewSerialization",
+    "ReturnnConfigWithV2Serialization",
     "SerializedConfig",
     "SerializationError",
     "PyCode",
@@ -133,21 +133,21 @@ def _is_valid_python_identifier_name(name: str) -> bool:
     return name.isidentifier() and not iskeyword(name)
 
 
-class ReturnnConfigWithNewSerialization(ReturnnConfig):
+class ReturnnConfigWithV2Serialization(ReturnnConfig):
     """
     Overwrites the serialization behavior of ReturnnConfig.
     """
 
-    @staticmethod
-    def from_cfg(old_returnn_cfg: ReturnnConfig):
+    @classmethod
+    def from_cfg(cls, old_returnn_cfg: ReturnnConfig):
         """
-        Creates a ReturnnConfigWithNewSerialization from an existing ReturnnConfig.
+        Creates a ReturnnConfigWithV2Serialization from an existing ReturnnConfig.
 
         This is used to override the serialization behavior to V2.
         """
 
         assert not old_returnn_cfg.staged_network_dict, "V2 serialization does not support staged net dicts"
-        return ReturnnConfigWithNewSerialization(
+        return cls(
             config=old_returnn_cfg.config,
             hash_full_python_code=old_returnn_cfg.hash_full_python_code,
             post_config=old_returnn_cfg.post_config,
