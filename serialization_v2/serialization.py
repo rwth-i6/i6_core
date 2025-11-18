@@ -136,6 +136,16 @@ def _is_valid_python_identifier_name(name: str) -> bool:
 class ReturnnConfigWithV2Serialization(ReturnnConfig):
     """
     Overwrites the serialization behavior of ReturnnConfig.
+
+    Can be used like:
+    ```python
+    from i6_core.returnn import ReturnnConfig, ReturnnTrainingJob
+    from i6_core.serialization_v2 import ReturnnConfigWithV2Serialization
+
+    config = ReturnnConfig(...)
+    train_job = ReturnnTrainingJob(config=ReturnnConfigWithV2Serialization.from_cfg(config))
+    # train job will use V2 serialization now
+    ```
     """
 
     @classmethod
