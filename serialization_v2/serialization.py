@@ -36,7 +36,7 @@ This also allows circular references.
 from __future__ import annotations
 
 
-__all__ = ["serialize_config", "SerializationError", "get_base_sys_path_list"]
+__all__ = ["in_serialize_config", "serialize_config", "SerializationError", "get_base_sys_path_list"]
 
 from contextlib import contextmanager
 import builtins
