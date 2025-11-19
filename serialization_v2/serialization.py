@@ -54,7 +54,6 @@ from types import BuiltinFunctionType, FunctionType, MethodType, ModuleType
 from typing import Any, Collection, Dict, List, Optional, Sequence, Tuple, Union, TYPE_CHECKING
 
 from sisyphus import Path
-from sisyphus.hash import sis_hash_helper
 
 from i6_core.returnn.config import CodeWrapper, ReturnnConfig, unparse_python
 from i6_core.returnn.training import Checkpoint
@@ -1031,14 +1030,6 @@ class _PyCode:
     ref_count: int = 0  # by other statements
     idx: Optional[int] = None
     has_later_state_setup: bool = False
-
-    def get(self) -> str:
-        return self.py_code
-
-    def _sis_hash(self) -> bytes:
-        if not self.use_for_hash:
-            raise Exception(f"{self} should not be hashed. Maybe wrap this in a serialization Collection")
-        return sis_hash_helper((self.py_name, self.value))
 
 
 @dataclass
