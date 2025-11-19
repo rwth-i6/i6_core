@@ -346,8 +346,6 @@ class _Serializer:
         self._next_assignment_idx += 1
         if queue_item.required_var_name:
             serialized.is_direct_config_entry = True
-            if queue_item.required_var_name in self.config:
-                serialized.use_for_hash = True
         assert serialized.py_name == name
         assert name not in self.assignments_dict_by_name  # double check
         self.assignments_dict_by_name[name] = serialized
@@ -1026,7 +1024,6 @@ class _PyCode:
     py_code: str
     py_value_repr: Optional[_PyEvalCode] = None
     is_direct_config_entry: bool = False
-    use_for_hash: bool = False
     ref_count: int = 0  # by other statements
     idx: Optional[int] = None
     has_later_state_setup: bool = False
