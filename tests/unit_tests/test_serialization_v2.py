@@ -9,21 +9,20 @@ import functools
 from dataclasses import dataclass
 
 from i6_core.returnn.config import ReturnnConfig
-from i6_core.serialization_v2 import serialize_config, PyCode, ReturnnConfigWithV2Serialization
+from i6_core.serialization_v2 import serialize_config, ReturnnConfigWithV2Serialization
 from returnn.tensor import Dim, batch_dim
 from sisyphus import Path
-from sisyphus.hash import sis_hash_helper
 
 
 def test_basic():
-    assert serialize_config({"var1": 42, "var2": "foo"}).as_serialized_code() == "var1 = 42\nvar2 = 'foo'\n"
+    assert serialize_config({"var1": 42, "var2": "foo"}) == "var1 = 42\nvar2 = 'foo'\n"
 
 
 def test_recursive():
     d_base = {"key": 1}
     d_other = {"key": 2, "base": d_base}
     # It should serialize d_base first, even when we have d_other first here in the dict.
-    assert serialize_config({"first": d_other, "second": d_base}).as_serialized_code() == textwrap.dedent(
+    assert serialize_config({"first": d_other, "second": d_base}) == textwrap.dedent(
         """\
         first_base = {'key': 1}
         first = {'key': 2, 'base': first_base}
@@ -34,8 +33,8 @@ def test_recursive():
 
 def test_inlining():
     d = {"d": {"k1": 1, "k2": {"k3": 3, "k4": 4}}}
-    assert serialize_config(d).as_serialized_code() == f"d = {d['d']!r}\n"
-    assert serialize_config(d, inlining=False).as_serialized_code() == textwrap.dedent(
+    assert serialize_config(d) == f"d = {d['d']!r}\n"
+    assert serialize_config(d, inlining=False) == textwrap.dedent(
         """\
         d_k2 = {'k3': 3, 'k4': 4}
         d = {'k1': 1, 'k2': d_k2}
@@ -45,17 +44,17 @@ def test_inlining():
 
 def test_builtin():
     d = {"func": sum}
-    assert serialize_config(d).as_serialized_code() == "func = sum\n"
+    assert serialize_config(d) == "func = sum\n"
 
 
 def test_builtin_as_is():
     d = {"sum": sum}
-    assert serialize_config(d).as_serialized_code() == "sum = sum\n"  # might change in the future...
+    assert serialize_config(d) == "sum = sum\n"  # might change in the future...
 
 
 def test_builtin_overwrite():
     d = {"sum": 42, "func": sum}
-    assert serialize_config(d).as_serialized_code() == "sum = 42\nfrom builtins import sum as func\n"
+    assert serialize_config(d) == "sum = 42\nfrom builtins import sum as func\n"
 
 
 def test_func():
@@ -67,7 +66,7 @@ def test_func():
     mod_path = os.path.dirname(mod_filename[: -len("/__init__.py")])
 
     config = {"test_func": uopen}
-    assert serialize_config(config).as_serialized_code() == textwrap.dedent(
+    assert serialize_config(config) == textwrap.dedent(
         f"""\
         import sys
         # for module i6_core
@@ -85,7 +84,7 @@ def test_extra_sys_paths():
     mod_path = os.path.dirname(mod_filename[: -len("/__init__.py")])
 
     config = {"num": 42}
-    assert serialize_config(config, extra_sys_paths=[mod_path]).as_serialized_code() == textwrap.dedent(
+    assert serialize_config(config, extra_sys_paths=[mod_path]) == textwrap.dedent(
         f"""\
         import sys
         # from extra_sys_paths
@@ -103,7 +102,7 @@ def test_batch_dim():
     mod_path = os.path.dirname(mod_filename[: -len("/__init__.py")])
 
     config = {"dim": batch_dim}
-    assert serialize_config(config, inlining=False).as_serialized_code() == textwrap.dedent(
+    assert serialize_config(config, inlining=False) == textwrap.dedent(
         f"""\
         import sys
         # for module returnn
@@ -123,7 +122,7 @@ def test_dim():
     time_dim = Dim(None, name="time")
     feat_dim = Dim(42, name="feature")
     config = {"extern_data": {"data": {"dims": [batch_dim, time_dim, feat_dim]}}}
-    assert serialize_config(config, inlining=False).as_serialized_code() == textwrap.dedent(
+    assert serialize_config(config, inlining=False) == textwrap.dedent(
         f"""\
         import sys
         # for module returnn
@@ -137,7 +136,7 @@ def test_dim():
         extern_data = {{'data': extern_data_data}}
         """
     )
-    assert serialize_config(config).as_serialized_code() == textwrap.dedent(
+    assert serialize_config(config) == textwrap.dedent(
         f"""\
         import sys
         # for module returnn
@@ -160,7 +159,7 @@ def test_cached_file():
     cf1 = CachedFile("/path/to/some/file1.txt")
     cf2 = CachedFile("/path/to/some/file2.txt")
     config = {"obj": cf1, "obj2": cf2}
-    assert serialize_config(config, inlining=False).as_serialized_code() == textwrap.dedent(
+    assert serialize_config(config, inlining=False) == textwrap.dedent(
         f"""\
         import sys
         # for module returnn
@@ -172,34 +171,9 @@ def test_cached_file():
     )
 
 
-def test_dim_hash():
-    import returnn
-
-    mod_filename = returnn.__file__
-    assert mod_filename.endswith("/__init__.py")
-    mod_path = os.path.dirname(mod_filename[: -len("/__init__.py")])
-
-    beam_dim = Dim(12, name="beam")
-    config = {"beam_dim": beam_dim}
-    serialized = serialize_config(config)
-    assert serialized.as_serialized_code() == textwrap.dedent(
-        f"""\
-        import sys
-        # for module returnn
-        sys.path.insert(0, {mod_path!r})
-        from returnn.tensor import Dim
-        beam_dim = Dim(12, name='beam')
-        """
-    )
-    coll = serialized.as_serialization_collection()
-    h = sis_hash_helper(coll)
-    href_ = sis_hash_helper({"delayed_objects": [("beam_dim", beam_dim)]})
-    assert h == href_
-
-
 def test_sis_path():
     config = {"path": Path("/foo.txt")}
-    assert serialize_config(config).as_serialized_code() == textwrap.dedent(
+    assert serialize_config(config) == textwrap.dedent(
         """\
         from sisyphus import Path
         path = Path('/foo.txt')
@@ -211,17 +185,7 @@ def test_post_config():
     config = {"learning_rate": 0.1}
     post_config = {"log_verbosity": 5}
     serialized = serialize_config(config, post_config)
-    assert serialized.as_serialized_code() == "learning_rate = 0.1\nlog_verbosity = 5\n"
-    assert len(serialized.code_list) == 2
-    code1, code2 = serialized.code_list
-    assert isinstance(code1, PyCode)
-    assert isinstance(code2, PyCode)
-    assert code1.py_name == "learning_rate" and code1.py_value_repr.py_value_repr == "0.1" and code1.use_for_hash
-    assert code2.py_name == "log_verbosity" and code2.py_value_repr.py_value_repr == "5" and not code2.use_for_hash
-    coll = serialized.as_serialization_collection()
-    h = sis_hash_helper(coll)
-    h_ref = sis_hash_helper({"delayed_objects": [("learning_rate", 0.1)]})
-    assert h == h_ref
+    assert serialized == "learning_rate = 0.1\nlog_verbosity = 5\n"
 
 
 class _CustomObj:
@@ -233,11 +197,11 @@ def test_generic_object():
     x_orig = _CustomObj((42, (43, 44)))
     config = {"x": x_orig}
     serialized = serialize_config(config)
-    print(serialized.as_serialized_code())
+    print(serialized)
     # Not really checking the exact serialized code here,
     # but instead just testing to execute it.
     scope = {}
-    exec(serialized.as_serialized_code(), scope)
+    exec(serialized, scope)
     assert "x" in scope
     x = scope["x"]
     assert isinstance(x, _CustomObj)
@@ -259,11 +223,11 @@ def test_generic_object_with_reduce():
     x_orig = _CustomObjWithReduce([42, [43, 44, [45, 46]]])
     config = {"x": x_orig}
     serialized = serialize_config(config)
-    print(serialized.as_serialized_code())
+    print(serialized)
     # Not really checking the exact serialized code here,
     # but instead just testing to execute it.
     scope = {}
-    exec(serialized.as_serialized_code(), scope)
+    exec(serialized, scope)
     assert "x" in scope
     x = scope["x"]
     assert isinstance(x, _CustomObjWithReduce)
@@ -279,11 +243,11 @@ def test_functools_partial():
     f_orig = functools.partial(_func, b=1)
     config = {"f": f_orig}
     serialized = serialize_config(config)
-    print(serialized.as_serialized_code())
+    print(serialized)
     # Not really checking the exact serialized code here,
     # but instead just testing to execute it.
     scope = {}
-    exec(serialized.as_serialized_code(), scope)
+    exec(serialized, scope)
     assert "f" in scope
     f = scope["f"]
     assert f is not f_orig
@@ -297,7 +261,7 @@ def test_functools_partial():
 def test_known_modules():
     config = {"feat_dim": Dim(12, name="feat")}
     serialized = serialize_config(config, known_modules={"returnn"})
-    assert serialized.as_serialized_code() == textwrap.dedent(
+    assert serialized == textwrap.dedent(
         """\
         from returnn.tensor import Dim
         feat_dim = Dim(12, name='feat')
@@ -308,7 +272,7 @@ def test_known_modules():
 def test_known_module_with_conflicting_key():
     config = {"Dim": 1337, "feat_dim": Dim(12, name="feat")}
     serialized = serialize_config(config, known_modules={"returnn"})
-    assert serialized.as_serialized_code() == textwrap.dedent(
+    assert serialized == textwrap.dedent(
         """\
         Dim = 1337
         from returnn.tensor import Dim as Dim_1
@@ -320,7 +284,7 @@ def test_known_module_with_conflicting_key():
 def test_set():
     config = {"tags": {"a", "b", "c"}}
     serialized = serialize_config(config)
-    code = serialized.as_serialized_code()
+    code = serialized
     assert code == "tags = {'a', 'b', 'c'}\n"
     scope = {}
     exec(code, scope)
@@ -330,7 +294,7 @@ def test_set():
 def test_mult_value_refs():
     config = {"a": True, "b": True}
     serialized = serialize_config(config)
-    assert serialized.as_serialized_code() == textwrap.dedent(
+    assert serialized == textwrap.dedent(
         """\
         a = True
         b = True
@@ -347,7 +311,7 @@ def test_dataclass():
     obj = _DemoData(42)
     config = {"obj": obj}
     serialized = serialize_config(config)
-    code = serialized.as_serialized_code()
+    code = serialized
     scope = {}
     exec(code, scope)
     obj_ = scope["obj"]
@@ -366,7 +330,7 @@ def test_dataclass_frozen():
     obj = _FrozenDemoData(42)
     config = {"obj": obj}
     serialized = serialize_config(config)
-    code = serialized.as_serialized_code()
+    code = serialized
     print(code)
     scope = {}
     exec(code, scope)
@@ -379,7 +343,7 @@ def test_dataclass_frozen():
 
 def test_inf():
     d = {"num": float("inf")}
-    assert serialize_config(d).as_serialized_code() == "num = float('inf')\n"
+    assert serialize_config(d) == "num = float('inf')\n"
 
 
 @dataclass
@@ -401,7 +365,7 @@ def test_bound_method():
     assert obj.collect_score_results_func("bar") == "foo bar"
     assert obj.collect_score_results_func.__self__ is obj
     serialized = serialize_config({"task": obj})
-    code = serialized.as_serialized_code()
+    code = serialized
     print(code)
     scope = {}
     exec(code, scope)
@@ -441,7 +405,7 @@ def test_checkpoint():
     from i6_core.returnn.training import Checkpoint
 
     config = {"load": Checkpoint(Path("/path/to/ckpt.index"))}
-    assert serialize_config(config).as_serialized_code() == textwrap.dedent(
+    assert serialize_config(config) == textwrap.dedent(
         """\
         load = '/path/to/ckpt'
         """
