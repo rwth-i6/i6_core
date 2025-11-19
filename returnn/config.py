@@ -1,4 +1,4 @@
-__all__ = ["CodeWrapper", "ReturnnConfig", "WriteReturnnConfigJob", "unparse_python"]
+__all__ = ["CodeWrapper", "ReturnnConfig", "ReturnnConfigV2", "WriteReturnnConfigJob", "unparse_python"]
 
 import base64
 import inspect
@@ -13,11 +13,11 @@ import sys
 import textwrap
 from typing import Any, Optional
 
-from sisyphus import *
+from sisyphus import setup_path, tk, Job, Task
 from sisyphus.delayed_ops import DelayedBase
 from sisyphus.hash import sis_hash_helper
 
-from i6_core.util import instanciate_delayed
+from i6_core.util import instanciate_delayed, instanciate_delayed_copy
 
 Path = setup_path(__package__)
 Variable = tk.Variable
@@ -44,6 +44,7 @@ class ReturnnConfig:
     It can be used to serialize python functions and class definitions directly from
     Sisyphus code and paste them into the RETURNN config file.
 
+    See also :class:`ReturnnConfigV2` for a version with improved (V2) serialization behavior.
     """
 
     PYTHON_CODE = textwrap.dedent(
@@ -320,6 +321,111 @@ class ReturnnConfig:
             h["returnn_networks"] = self.staged_network_dict
 
         return sis_hash_helper(h)
+
+
+class ReturnnConfigV2(ReturnnConfig):
+    """
+    Returnn config class with V2 serialization.
+
+    Can be constructed like the classic `ReturnnConfig` or from an existing config like this:
+    ```python
+    from i6_core.returnn import ReturnnConfig, ReturnnConfigV2, ReturnnTrainingJob
+
+    config = ReturnnConfig(...)  # your usual config
+    train_job = ReturnnTrainingJob(config=ReturnnConfigV2.from_cfg(config))
+    # train job will use V2 serialization now
+    ```
+
+    During serialization, we call `instanciate_delayed_copy` on the config dict.
+    This will resolve all delayed values and path objects into their actual values/str representation.
+    However, this will only catch those values that are reachable for the `tree` library,
+    i.e. all values contained in (nested) dictionaries/sequences.
+
+    If you have delayed values/path objects which are not directly reachable from the config dict,
+    e.g. by being inside some custom object instead of a dict/list/tuple/set,
+    then you need to resolve them manually before serialization or special-case their
+    `__reduce__` behavior via the :func:`in_serialize_config` flag.
+
+    See also :func:`i6_core.serialization_v2.serialize_config` and the corresponding module.
+    """
+
+    @classmethod
+    def from_cfg(cls, old_returnn_cfg: ReturnnConfig):
+        """
+        Creates a ReturnnConfigV2 from an existing ReturnnConfig.
+
+        This is used to override the serialization behavior of an existing config to V2.
+        """
+
+        assert not old_returnn_cfg.staged_network_dict, "V2 serialization does not support staged net dicts"
+        return cls(
+            config=old_returnn_cfg.config,
+            hash_full_python_code=old_returnn_cfg.hash_full_python_code,
+            post_config=old_returnn_cfg.post_config,
+            python_epilog=old_returnn_cfg.python_epilog,
+            python_epilog_hash=old_returnn_cfg.python_epilog_hash,
+            python_prolog=old_returnn_cfg.python_prolog,
+            python_prolog_hash=old_returnn_cfg.python_prolog_hash,
+            sort_config=False,
+        )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        assert not self.staged_network_dict, "V2 serialization does not support staged net dicts"
+
+    def _serialize(self) -> str:
+        import tree
+
+        from i6_core.serialization import ExternalImport
+        from i6_core.serialization_v2 import get_base_sys_path_list, serialize_config
+
+        assert not self.staged_network_dict, "V2 serialization does not support staged net dicts"
+
+        self.check_consistency()
+
+        config = instanciate_delayed_copy(self.config)
+        post_config = instanciate_delayed_copy(self.post_config)
+
+        # I'm not really sure about it.
+        # Our automatic mechanism will find direct imports (e.g. i6_experiments).
+        # However, it will not find indirect imports (e.g. sisyphus),
+        # and thus the generated code might fail.
+        # So add all other paths here which we currently have.
+        # (While testing this, this was sisyphus + returnn + recipes,
+        #  but returnn is excluded below.)
+        sys_paths = set(get_base_sys_path_list())
+        extra_sys_paths = [p for p in sys.path if p not in sys_paths]
+
+        # Handle ExternalImports
+        extra_sys_paths += [
+            item.import_path
+            for item in tree.flatten(config) + tree.flatten(post_config)
+            if isinstance(item, ExternalImport)
+        ]
+
+        python_prolog_code = unparse_python(self.python_prolog, hash_full_python_code=True)
+        python_epilog_code = unparse_python(self.python_epilog, hash_full_python_code=True)
+        serialized = serialize_config(
+            config,
+            post_config,
+            # Of course RETURNN knows about itself, no need to add to sys.path.
+            # Also, we don't want to force the current RETURNN here,
+            # but allow the config to be used with any other RETURNN version.
+            known_modules={"returnn"},
+            extra_sys_paths=extra_sys_paths,
+        )
+        return "\n\n".join(
+            stripped
+            for part in [
+                "#!returnn/rnn.py",
+                python_prolog_code,
+                serialized,
+                python_epilog_code,
+                "# -*- mode: python; tab-width: 4 -*-\n",
+            ]
+            if (stripped := part.strip())
+        )
 
 
 class WriteReturnnConfigJob(Job):

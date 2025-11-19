@@ -5,8 +5,7 @@ Allows serializing arbitrary Python objects inside the config
 including functions/classes/modules/objects,
 with automatic import handling.
 
-See :class:`ReturnnConfigWithV2Serialization` for the :class:`ReturnnConfig` integration.
-The class's docstring shows an example usage of :class:`ReturnnTrainingJob` with new serialization.
+See :class:`i6_core.returnn.ReturnnConfigV2` for the :class:`ReturnnTrainingJob` (etc.) integration.
 
 See :func:`serialize_config` for a lower level entry point to config dict serialization.
 
@@ -37,7 +36,7 @@ This also allows circular references.
 from __future__ import annotations
 
 
-__all__ = ["serialize_config", "ReturnnConfigWithV2Serialization", "SerializationError"]
+__all__ = ["serialize_config", "SerializationError", "get_base_sys_path_list"]
 
 from contextlib import contextmanager
 import builtins
@@ -55,10 +54,9 @@ from typing import Any, Collection, Dict, List, Optional, Sequence, Tuple, Union
 
 from sisyphus import Path
 
-from i6_core.returnn.config import CodeWrapper, ReturnnConfig, unparse_python
+from i6_core.returnn.config import CodeWrapper
 from i6_core.returnn.training import Checkpoint
 from i6_core.serialization import CodeFromFile, CodeFromFunction, ExplicitHash, ExternalImport, NonhashedCode
-from i6_core.util import instanciate_delayed_copy
 
 if TYPE_CHECKING:
     from returnn.tensor import Dim
@@ -110,103 +108,6 @@ def _is_valid_python_identifier_name(name: str) -> bool:
     :return: whether the name is a valid Python identifier name (including attrib name)
     """
     return name.isidentifier() and not iskeyword(name)
-
-
-class ReturnnConfigWithV2Serialization(ReturnnConfig):
-    """
-    Overwrites the serialization behavior of ReturnnConfig.
-
-    Can be used like:
-    ```python
-    from i6_core.returnn import ReturnnConfig, ReturnnTrainingJob
-    from i6_core.serialization_v2 import ReturnnConfigWithV2Serialization
-
-    config = ReturnnConfig(...)  # your usual config
-    train_job = ReturnnTrainingJob(config=ReturnnConfigWithV2Serialization.from_cfg(config))
-    # train job will use V2 serialization now
-    ```
-
-    During serialization, we call `instanciate_delayed_copy` on the config dict.
-    This will resolve all delayed values and path objects into their actual values/str representation.
-    However, this will only catch those values that are reachable for the `tree` library,
-    i.e. all values contained in (nested) dictionaries/sequences.
-
-    If you have delayed values/path objects which are not directly reachable from the config dict,
-    e.g. by being inside some custom object instead of a dict/list/tuple/set,
-    then you need to resolve them manually before serialization or special-case their
-    `__reduce__` behavior via the :func:`in_serialize_config` flag.
-    """
-
-    @classmethod
-    def from_cfg(cls, old_returnn_cfg: ReturnnConfig):
-        """
-        Creates a ReturnnConfigWithV2Serialization from an existing ReturnnConfig.
-
-        This is used to override the serialization behavior to V2.
-        """
-
-        assert not old_returnn_cfg.staged_network_dict, "V2 serialization does not support staged net dicts"
-        return cls(
-            config=old_returnn_cfg.config,
-            hash_full_python_code=old_returnn_cfg.hash_full_python_code,
-            post_config=old_returnn_cfg.post_config,
-            python_epilog=old_returnn_cfg.python_epilog,
-            python_epilog_hash=old_returnn_cfg.python_epilog_hash,
-            python_prolog=old_returnn_cfg.python_prolog,
-            python_prolog_hash=old_returnn_cfg.python_prolog_hash,
-            sort_config=False,
-        )
-
-    def _serialize(self) -> str:
-        import tree
-
-        # This is usually run within the worker, but it shouldn't really matter.
-        assert not self.staged_network_dict  # not supported
-
-        self.check_consistency()
-
-        config = instanciate_delayed_copy(self.config)
-        post_config = instanciate_delayed_copy(self.post_config)
-
-        # I'm not really sure about it.
-        # Our automatic mechanism will find direct imports (e.g. i6_experiments).
-        # However, it will not find indirect imports (e.g. sisyphus),
-        # and thus the generated code might fail.
-        # So add all other paths here which we currently have.
-        # (While testing this, this was sisyphus + returnn + recipes,
-        #  but returnn is excluded below.)
-        sys_paths = set(_get_base_sys_path_list())
-        extra_sys_paths = [p for p in sys.path if p not in sys_paths]
-
-        # Handle ExternalImports
-        extra_sys_paths += [
-            item.import_path
-            for item in tree.flatten(config) + tree.flatten(post_config)
-            if isinstance(item, ExternalImport)
-        ]
-
-        python_prolog_code = unparse_python(self.python_prolog, hash_full_python_code=True)
-        python_epilog_code = unparse_python(self.python_epilog, hash_full_python_code=True)
-        serialized = serialize_config(
-            config,
-            post_config,
-            # Of course RETURNN knows about itself, no need to add to sys.path.
-            # Also, we don't want to force the current RETURNN here,
-            # but allow the config to be used with any other RETURNN version.
-            known_modules={"returnn"},
-            extra_sys_paths=extra_sys_paths,
-        )
-        return "\n\n".join(
-            stripped
-            for part in [
-                "#!returnn/rnn.py",
-                python_prolog_code,
-                serialized,
-                python_epilog_code,
-                "# -*- mode: python; tab-width: 4 -*-\n",
-            ]
-            if (stripped := part.strip())
-        )
 
 
 class _Serializer:
@@ -822,7 +723,7 @@ class _Serializer:
         """
         if path in self.added_sys_paths:
             return  # already added
-        base_sys_path = [path_ for path_ in _get_base_sys_path_list() if path_]
+        base_sys_path = [path_ for path_ in get_base_sys_path_list() if path_]
         assert base_sys_path
         if path in base_sys_path:
             return  # already in (base) sys.path
@@ -1086,7 +987,7 @@ class _Ref:
 _base_sys_path_list: Optional[str] = None
 
 
-def _get_base_sys_path_list() -> List[str]:
+def get_base_sys_path_list() -> List[str]:
     global _base_sys_path_list
     if _base_sys_path_list is None:
         env_copy = os.environ.copy()

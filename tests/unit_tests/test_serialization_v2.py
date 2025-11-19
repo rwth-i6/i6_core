@@ -8,8 +8,8 @@ import textwrap
 import functools
 from dataclasses import dataclass
 
-from i6_core.returnn.config import ReturnnConfig
-from i6_core.serialization_v2 import serialize_config, ReturnnConfigWithV2Serialization
+from i6_core.returnn.config import ReturnnConfigV2
+from i6_core.serialization_v2 import serialize_config
 from returnn.tensor import Dim, batch_dim
 from sisyphus import Path
 
@@ -382,9 +382,8 @@ def test_bound_method():
 
 
 def test_returnn_config_wrapper():
-    config = ReturnnConfig({"learning_rate": 1.0}, python_prolog=["# some prolog"], python_epilog=["# some epilog"])
-    config_v2_ser = ReturnnConfigWithV2Serialization.from_cfg(config)
-    serialized_config = config_v2_ser._serialize()
+    config = ReturnnConfigV2({"learning_rate": 1.0}, python_prolog=["# some prolog"], python_epilog=["# some epilog"])
+    serialized_config = config._serialize()
 
     # serializer will include system-specific sys.path entries, so just check rough contents and order here
     for line in [
