@@ -9,7 +9,7 @@ import functools
 from dataclasses import dataclass
 
 from i6_core.returnn.config import ReturnnConfigV2
-from i6_core.serialization_v2 import serialize_config
+from i6_core.serialization.serialization_v2 import serialize_config
 from returnn.tensor import Dim, batch_dim
 from sisyphus import Path
 

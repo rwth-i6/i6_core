@@ -346,7 +346,7 @@ class ReturnnConfigV2(ReturnnConfig):
     then you need to resolve them manually before serialization or special-case their
     `__reduce__` behavior via the :func:`in_serialize_config` flag.
 
-    See also :func:`i6_core.serialization_v2.serialize_config` and the corresponding module.
+    See also :func:`i6_core.serialization.serialization_v2.serialize_config` and the corresponding module.
     """
 
     @classmethod
@@ -378,7 +378,7 @@ class ReturnnConfigV2(ReturnnConfig):
         import tree
 
         from i6_core.serialization import ExternalImport
-        from i6_core.serialization_v2 import get_base_sys_path_list, serialize_config
+        from i6_core.serialization.serialization_v2 import get_base_sys_path_list, serialize_config
 
         assert not self.staged_network_dict, "V2 serialization does not support staged net dicts"
 
