@@ -332,7 +332,9 @@ class ReturnnConfigV2(ReturnnConfig):
     from i6_core.returnn import ReturnnConfig, ReturnnConfigV2, ReturnnTrainingJob
 
     config = ReturnnConfig(...)  # your usual config
-    train_job = ReturnnTrainingJob(config=ReturnnConfigV2.from_cfg(config))
+    config_v2_serialization = ReturnnConfigV2({})
+    config_v2_serialization.update(config)
+    train_job = ReturnnTrainingJob(config=config_v2_serialization)
     # train job will use V2 serialization now
     ```
 
@@ -348,26 +350,6 @@ class ReturnnConfigV2(ReturnnConfig):
 
     See also :func:`i6_core.serialization.serialization_v2.serialize_config` and the corresponding module.
     """
-
-    @classmethod
-    def from_cfg(cls, old_returnn_cfg: ReturnnConfig):
-        """
-        Creates a ReturnnConfigV2 from an existing ReturnnConfig.
-
-        This is used to override the serialization behavior of an existing config to V2.
-        """
-
-        assert not old_returnn_cfg.staged_network_dict, "V2 serialization does not support staged net dicts"
-        return cls(
-            config=old_returnn_cfg.config,
-            hash_full_python_code=old_returnn_cfg.hash_full_python_code,
-            post_config=old_returnn_cfg.post_config,
-            python_epilog=old_returnn_cfg.python_epilog,
-            python_epilog_hash=old_returnn_cfg.python_epilog_hash,
-            python_prolog=old_returnn_cfg.python_prolog,
-            python_prolog_hash=old_returnn_cfg.python_prolog_hash,
-            sort_config=False,
-        )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
