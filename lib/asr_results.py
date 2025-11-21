@@ -209,7 +209,7 @@ def parse_asr_results(path: str | PathLike) -> list[BatchRecording]:
     return result
 
 
-def write_asr_results(results: list[BatchRecording], path: str | Path):
+def write_asr_results(results: list[BatchRecording], path: str | PathLike):
     """
     Write ASR results to a file.
 
