@@ -9,7 +9,7 @@ See :class:`i6_core.returnn.ReturnnConfigV2` for the :class:`ReturnnTrainingJob`
 
 See :func:`serialize_config` for a lower level entry point to config dict serialization.
 
-See https://github.com/rwth-i6/i6_experiments/blob/main/users/zeyer/serialization.rst
+See https://github.com/rwth-i6/i6_core/blob/main/serialization/README.rst
 and https://github.com/rwth-i6/i6_core/pull/601
 for more details.
 
