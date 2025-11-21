@@ -297,6 +297,22 @@ def instanciate_delayed(o: Any) -> Any:
     return o
 
 
+def instanciate_delayed_copy(o: Any) -> Any:
+    """
+    Recursively traverses a structure and calls .get() on all
+    existing Delayed Operations, especially Variables in the structure.
+
+    In contrast to :func:`instanciate_delayed` this function does not operate inplace.
+    Requires the `tree` package.
+
+    :param o: nested structure that may contain DelayedBase objects
+    :return: o with all DelayedBase objects replaced by their .get() value
+    """
+    import tree
+
+    return tree.map_structure(lambda o: o.get() if isinstance(o, DelayedBase) else o, o)
+
+
 already_printed_gs_warnings = set()
 
 
