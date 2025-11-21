@@ -22,7 +22,7 @@ jobs:
         with:
           repository: "rwth-i6/returnn"
           path: "returnn"
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: 3.10
           cache: 'pip'
