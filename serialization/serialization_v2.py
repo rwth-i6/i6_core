@@ -866,7 +866,6 @@ class _Serializer:
         return _PyEvalCode(f"{cf_type_str.py_inline()}({path.py_inline()})")
 
     def _serialize_via_repr(self, value: Any, need_brackets_when_inlined: bool) -> _PyEvalCode:
-        assert isinstance(value, (Checkpoint, CodeWrapper))
         return _PyEvalCode(repr(value), need_brackets_when_inlined=need_brackets_when_inlined)
 
 
