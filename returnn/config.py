@@ -382,7 +382,7 @@ class ReturnnConfigV2(ReturnnConfig):
         # Handle ExternalImports
         extra_sys_paths += [
             item.import_path
-            for item in tree.flatten(config) + tree.flatten(post_config)
+            for item in tree.flatten(self.python_prolog) + tree.flatten(self.python_epilog)
             if isinstance(item, ExternalImport)
         ]
 
