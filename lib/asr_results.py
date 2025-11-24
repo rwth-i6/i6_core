@@ -162,7 +162,6 @@ def stream_asr_results(path: str | PathLike) -> Generator[ASRResultsStream]:
     """
     record_adapter = TypeAdapter(ASRResultsStream)
 
-    path = Path(path)
     with uopen(path, "rt", encoding="utf-8") as f:
         for line in f:
             line = line.strip()
@@ -185,7 +184,7 @@ def parse_asr_results(path: str | PathLike) -> list[BatchRecording]:
     result = []
     current_recording = None
     current_alternatives = None
-    for record in stream_asr_results(path):
+    for idx, record in enumerate(stream_asr_results(path), 1):
         if isinstance(record, Recording):
             if current_alternatives:
                 current_alternatives.sort(key=lambda seg: seg.n_best_index)
@@ -202,6 +201,7 @@ def parse_asr_results(path: str | PathLike) -> list[BatchRecording]:
                 current_recording.alternatives.append(current_alternatives)
             current_alternatives.append(batch_segment)
         elif isinstance(record, TimedTranscript):
+            assert current_alternatives is not None, f"TimedTranscript occurred before a Segment in record {idx}"
             current_alternatives[-1].transcripts.append(record)
 
     if current_alternatives:
@@ -216,7 +216,6 @@ def write_asr_results(results: list[BatchRecording], path: str | PathLike):
     :param results: List of BatchRecording objects containing the parsed results.
     :param path: Path to the output file.
     """
-    path = Path(path)
     with uopen(path, "wt", encoding="utf-8") as f:
         for batch_recording in results:
             alternatives = batch_recording.alternatives
