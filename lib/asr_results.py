@@ -162,8 +162,10 @@ def stream_asr_results(path: str | PathLike) -> Generator[ASRResultsStream]:
     """
     record_adapter = TypeAdapter(ASRResultsStream)
 
+    in_recording : bool = False
+    in_segment : bool = False
     with uopen(path, "rt", encoding="utf-8") as f:
-        for line in f:
+        for line_no, line in enumerate(f, 1):
             line = line.strip()
             if not line:
                 # skip empty lines
@@ -171,6 +173,16 @@ def stream_asr_results(path: str | PathLike) -> Generator[ASRResultsStream]:
 
             # validate JSON directly into the union type
             record = record_adapter.validate_json(line)
+            match record:
+                case Recording():
+                    in_recording = True
+                    in_segment = False
+                case Segment():
+                    assert in_recording, f"Encountered a Segment outside of a recording in line {line_no}"
+                    in_segment = True
+                case TimedTranscript():
+                    assert in_recording, f"Encountered a TimedTranscript outside of a Recording in line {line_no}"
+                    assert in_segment, f"Encountered a TimedTranscript outside of a Segment in line {line_no}"
             yield record
 
 
@@ -201,7 +213,6 @@ def parse_asr_results(path: str | PathLike) -> list[BatchRecording]:
                 current_recording.alternatives.append(current_alternatives)
             current_alternatives.append(batch_segment)
         elif isinstance(record, TimedTranscript):
-            assert current_alternatives is not None, f"TimedTranscript occurred before a Segment in record {idx}"
             current_alternatives[-1].transcripts.append(record)
 
     if current_alternatives:
