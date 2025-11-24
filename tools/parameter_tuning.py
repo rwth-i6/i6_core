@@ -47,6 +47,7 @@ class GetOptimalParametersAsVariableJob(Job):
         yield Task("run", mini_task=True)
 
     def run(self):
+        self.parameters = instanciate_delayed(self.parameters)
         values = instanciate_delayed(self.values)
 
         if self.mode == "minimize":
