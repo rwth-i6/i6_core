@@ -162,8 +162,8 @@ def stream_asr_results(path: str | PathLike) -> Generator[ASRResultsStream]:
     """
     record_adapter = TypeAdapter(ASRResultsStream)
 
-    in_recording : bool = False
-    in_segment : bool = False
+    in_recording: bool = False
+    in_segment: bool = False
     with uopen(path, "rt", encoding="utf-8") as f:
         for line_no, line in enumerate(f, 1):
             line = line.strip()
