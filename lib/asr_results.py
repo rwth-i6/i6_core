@@ -118,6 +118,11 @@ class Segment(BaseModel):
         description="Index in the n-best list for this segment. For segments to be grouped into an n-best list the segment name should match.",
     )
 
+    speaker: Optional[SpeakerInfo] = Field(
+        default=None,
+        description="Optional speaker information.",
+    )
+
 
 class Recording(BaseModel):
     """
