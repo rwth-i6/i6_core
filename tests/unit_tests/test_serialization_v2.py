@@ -417,6 +417,7 @@ def test_checkpoint():
         """
     )
 
+
 def test_pt_checkpoint():
     from i6_core.returnn.training import PtCheckpoint
 
@@ -446,36 +447,32 @@ def test_codewrapper():
     )
 
 
-def smallfunction():
-    return "small"
-
-
 def test_codefromfunction():
-    config = {"fun": CodeFromFunction("foo", smallfunction)}
+    config = {"fun": CodeFromFunction("foo", _func)}
     assert serialize_config(config) == textwrap.dedent(
         """\
-        def _fun_QfvRmJvQr5EG():
-            def smallfunction():
-                return "small"
+        def _fun_x5QnOeWdYlWQ():
+            def _func(a, *, b):
+                return a + b
 
-            return smallfunction
-        fun = _fun_QfvRmJvQr5EG()
+            return _func
+        fun = _fun_x5QnOeWdYlWQ()
         """
     )
 
 
 def test_codefromfunction_in_config():
-    config = ReturnnConfigV2({"fun": CodeFromFunction("foo", smallfunction)})
+    config = ReturnnConfigV2({"fun": CodeFromFunction("foo", _func)})
     serialized_config = config._serialize()
     print(serialized_config)
     check_lines_in_config(
         serialized_config,
         [
-            "def _fun_QfvRmJvQr5EG():",
-            "    def smallfunction():",
-            '        return "small"',
-            "    return smallfunction",
-            "fun = _fun_QfvRmJvQr5EG()",
+            "def _fun_x5QnOeWdYlWQ():",
+            "    def _func(a, *, b):",
+            "        return a + b",
+            "    return _func",
+            "fun = _fun_x5QnOeWdYlWQ()",
         ],
     )
 
