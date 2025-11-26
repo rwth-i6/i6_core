@@ -488,12 +488,11 @@ class _Serializer:
         if _isinstance_returnn_dim(value):
             return self._serialize_dim(value, prefix)
         if _isinstance_returnn_cached_file(value):
-            return self._serialize_cached_file(value, prefix)
+            return self._serialize_single_attribute_object(value, "filename", prefix)
         if isinstance(value, Checkpoint):
             return self._serialize_via_repr(value, need_brackets_when_inlined=False)
         if isinstance(value, PtCheckpoint):
-            # nicer repr
-            return self._serialize_pt_checkpoint(value, prefix)
+            return self._serialize_single_attribute_object(value, "path", prefix)
         if isinstance(value, CodeWrapper):
             return self._serialize_via_repr(value, need_brackets_when_inlined=True)
 
@@ -856,25 +855,16 @@ class _Serializer:
             f"({dim.dimension}, {', '.join(f'{key}={value}' for key, value in kwargs.items())})"
         )
 
-    def _serialize_cached_file(self, cached_file: CachedFile, prefix: str) -> _PyEvalCode:
-        # we serialize a CachedFile object, so we know that RETURNN is available for import
-        from returnn.util.file_cache import CachedFile
-
-        assert isinstance(cached_file, CachedFile)
-        cf_type_str = self._serialize_value(type(cached_file), prefix="CachedFile", recursive=True)
-        assert isinstance(cf_type_str, _PyEvalCode)
-        assert isinstance(cached_file.filename, (str, Path))
-        path = self._serialize_value(cached_file.filename, prefix=f"{prefix}_filename", recursive=True)
-        return _PyEvalCode(f"{cf_type_str.py_inline()}({path.py_inline()})")
-
-    def _serialize_pt_checkpoint(self, ckpt: PtCheckpoint, prefix: str) -> _PyEvalCode:
-        # serialize it w/ nicer repr
-        assert isinstance(ckpt, PtCheckpoint)
-        ckpt_type_str = self._serialize_value(type(ckpt), prefix="PtCheckpoint", recursive=True)
-        assert isinstance(ckpt_type_str, _PyEvalCode)
-        assert isinstance(ckpt.path, (str, Path))
-        path = self._serialize_value(ckpt.path, prefix=f"{prefix}_path", recursive=True)
-        return _PyEvalCode(f"{ckpt_type_str.py_inline()}({path.py_inline()})")
+    def _serialize_single_attribute_object(self, obj: Any, attr_name: str, prefix: str) -> _PyEvalCode:
+        # Serialize objects that can be reconstructed on the fly from a single attribute like:
+        # - CachedFile("/path/to/file.hdf")
+        # - PtCheckpoint(Path("/path/to/checkpoint.pt"))
+        # Special-casing these objects during serialization avoids having too much boilerplate in the generated code.
+        assert hasattr(obj, attr_name), f"object of type {type(obj).__name__} has no attribute {attr_name}"
+        type_str = self._serialize_value(type(obj), prefix=f"{prefix}_{type(obj).__name__}", recursive=True)
+        assert isinstance(type_str, _PyEvalCode)
+        attr_str = self._serialize_value(getattr(obj, attr_name), prefix=f"{prefix}_{attr_name}", recursive=True)
+        return _PyEvalCode(f"{type_str.py_inline()}({attr_str.py_inline()})")
 
     def _serialize_via_repr(self, value: Any, need_brackets_when_inlined: bool) -> _PyEvalCode:
         return _PyEvalCode(repr(value), need_brackets_when_inlined=need_brackets_when_inlined)
