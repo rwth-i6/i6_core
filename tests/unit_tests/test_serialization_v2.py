@@ -442,7 +442,7 @@ def test_codewrapper():
     assert serialize_config(config) == textwrap.dedent(
         """\
         six = 2 * 3
-        important_files = [CachedFile("/file1"), CachedFile("/file2")]
+        important_files = [(CachedFile("/file1")), (CachedFile("/file2"))]
         """
     )
 
