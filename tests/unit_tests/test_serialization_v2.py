@@ -2,16 +2,27 @@
 Tests for serialization_v2.
 """
 
+from collections.abc import Iterable, Callable
 import os
-from typing import Callable
 import textwrap
 import functools
 from dataclasses import dataclass
 
 from i6_core.returnn.config import ReturnnConfigV2
+from i6_core.serialization import CodeFromFunction, Collection, ExternalImport, NonhashedCode, PartialImport
 from i6_core.serialization.serialization_v2 import serialize_config
 from returnn.tensor import Dim, batch_dim
 from sisyphus import Path
+
+
+def check_lines_in_config(serialized_config: str, lines: Iterable[str]):
+    """serializer will include system-specific sys.path entries, so just check rough contents and order here"""
+    for line in lines:
+        assert line in serialized_config
+
+        # ensure monotonic progress
+        index = serialized_config.index(line)
+        serialized_config = serialized_config[index + len(line) :]
 
 
 def test_basic():
@@ -384,20 +395,16 @@ def test_bound_method():
 def test_returnn_config_wrapper():
     config = ReturnnConfigV2({"learning_rate": 1.0}, python_prolog=["# some prolog"], python_epilog=["# some epilog"])
     serialized_config = config._serialize()
-
-    # serializer will include system-specific sys.path entries, so just check rough contents and order here
-    for line in [
-        "#!returnn/rnn.py",
-        "# some prolog",
-        "learning_rate = 1.0",
-        "# some epilog",
-        "# -*- mode: python; tab-width: 4 -*-",
-    ]:
-        assert line in serialized_config
-
-        # ensure monotonic progress
-        index = serialized_config.index(line)
-        serialized_config = serialized_config[index + len(line) :]
+    check_lines_in_config(
+        serialized_config,
+        [
+            "#!returnn/rnn.py",
+            "# some prolog",
+            "learning_rate = 1.0",
+            "# some epilog",
+            "# -*- mode: python; tab-width: 4 -*-",
+        ],
+    )
 
 
 def test_checkpoint():
@@ -408,4 +415,109 @@ def test_checkpoint():
         """\
         load = '/path/to/ckpt'
         """
+    )
+
+def test_pt_checkpoint():
+    from i6_core.returnn.training import PtCheckpoint
+
+    config = {"load": PtCheckpoint(Path("/path/to/ckpt"))}
+    assert serialize_config(config) == textwrap.dedent(
+        """\
+        load = '/path/to/ckpt'
+        """
+    )
+
+
+def test_codewrapper():
+    from i6_core.returnn.config import CodeWrapper
+    from sisyphus.delayed_ops import DelayedFormat
+
+    config = {
+        "six": CodeWrapper("2 * 3"),
+        "important_files": [
+            CodeWrapper(DelayedFormat('CachedFile("{f}")', f=f)) for f in [Path("/file1"), Path("/file2")]
+        ],
+    }
+    assert serialize_config(config) == textwrap.dedent(
+        """\
+        six = 2 * 3
+        important_files = [CachedFile("/file1"), CachedFile("/file2")]
+        """
+    )
+
+
+def smallfunction():
+    return "small"
+
+
+def test_codefromfunction():
+    config = {"fun": CodeFromFunction("foo", smallfunction)}
+    assert serialize_config(config) == textwrap.dedent(
+        """\
+        def _fun_QfvRmJvQr5EG():
+            def smallfunction():
+                return "small"
+
+            return smallfunction
+        fun = _fun_QfvRmJvQr5EG()
+        """
+    )
+
+
+def test_codefromfunction_in_config():
+    config = ReturnnConfigV2({"fun": CodeFromFunction("foo", smallfunction)})
+    serialized_config = config._serialize()
+    print(serialized_config)
+    check_lines_in_config(
+        serialized_config,
+        [
+            "def _fun_QfvRmJvQr5EG():",
+            "    def smallfunction():",
+            '        return "small"',
+            "    return smallfunction",
+            "fun = _fun_QfvRmJvQr5EG()",
+        ],
+    )
+
+
+def test_delayed_objects():
+    from sisyphus.delayed_ops import Delayed, DelayedFormat
+
+    config = ReturnnConfigV2({"six": Delayed(3) * 2}, python_prolog=DelayedFormat("# {} is fun", "Testing"))
+    serialized_config = config._serialize()
+    check_lines_in_config(
+        serialized_config,
+        [
+            "#!returnn/rnn.py",
+            "# Testing is fun",
+            "six = 6",
+            "# -*- mode: python; tab-width: 4 -*-",
+        ],
+    )
+
+
+def test_legacy_imports():
+    custom_repo = NonhashedCode('import sys\nsys.path.insert(0, "/path/to/custom_repo")\n')
+    i6_models = ExternalImport(import_path=Path("/path/to/i6_models/repo"))
+    pytorch_model = PartialImport(
+        code_object_path="custom_repo.lib.pytorch.networks.ConformerRelPosModel",
+        unhashed_package_root=None,
+        hashed_arguments={"num_layers": 12, "num_heads": 12},
+        unhashed_arguments={},
+        import_as="get_model",
+    )
+    config_dict = {"num_inputs": 70}
+    config = ReturnnConfigV2(config_dict, python_prolog=Collection([custom_repo, i6_models, pytorch_model]))
+    serialized_config = config._serialize()
+    check_lines_in_config(
+        serialized_config,
+        [
+            "import sys",
+            'sys.path.insert(0, "/path/to/custom_repo")',
+            'sys.path.insert(0, "/path/to/i6_models/repo")',
+            'get_model = __import__("functools").partial(',
+            '    __import__("custom_repo.lib.pytorch.networks", fromlist=["ConformerRelPosModel"]).ConformerRelPosModel,',
+            "    **{'num_layers': 12, 'num_heads': 12}",
+            "num_inputs = 70",
+        ],
     )
