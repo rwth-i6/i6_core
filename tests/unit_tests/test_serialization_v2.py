@@ -419,12 +419,22 @@ def test_checkpoint():
 
 
 def test_pt_checkpoint():
+    import i6_core
     from i6_core.returnn.training import PtCheckpoint
 
+    mod_filename = i6_core.__file__
+    assert mod_filename.endswith("/__init__.py")
+    mod_path = os.path.dirname(mod_filename[: -len("/__init__.py")])
+
     config = {"load": PtCheckpoint(Path("/path/to/ckpt"))}
-    assert serialize_config(config) == textwrap.dedent(
-        """\
-        load = '/path/to/ckpt'
+    assert serialize_config(config, inlining=False) == textwrap.dedent(
+        f"""\
+        import sys
+        # for module i6_core
+        sys.path.insert(0, {mod_path!r})
+        from i6_core.returnn import PtCheckpoint
+        from sisyphus import Path
+        load = PtCheckpoint(Path('/path/to/ckpt'))
         """
     )
 

@@ -19,12 +19,12 @@ and :func:`i6_experiments.common.setups.returnn.serialization.get_serializable_c
 We handle those objects specially:
 - primitive types (int, float, bool, str)
 - Sisyphus Path objects
-- RETURNN Dim and CachedFile objects
 - dict, list, tuple, set
 - functions, classes, modules
-- functools.partial (just some nicer repr)
+- functools.partial (nicer repr)
+- RETURNN Dim and CachedFile objects (nicer repr)
 - CodeWrapper
-- CachedFile (from RETURNN, nicer repr)
+- PtCheckpoint (nicer repr)
 - TF Checkpoint (serialize prefix of .index file path)
 
 All other generic objects are handled in the same way as pickle does it
@@ -34,7 +34,6 @@ This also allows circular references.
 """
 
 from __future__ import annotations
-
 
 __all__ = ["in_serialize_config", "serialize_config", "SerializationError", "get_base_sys_path_list"]
 
@@ -55,7 +54,7 @@ from typing import Any, Collection, Dict, List, Optional, Sequence, Tuple, Union
 from sisyphus import Path
 
 from i6_core.returnn.config import CodeWrapper
-from i6_core.returnn.training import Checkpoint
+from i6_core.returnn.training import Checkpoint, PtCheckpoint
 from i6_core.serialization import CodeFromFile, CodeFromFunction, ExplicitHash, ExternalImport, NonhashedCode
 
 if TYPE_CHECKING:
@@ -492,6 +491,9 @@ class _Serializer:
             return self._serialize_cached_file(value, prefix)
         if isinstance(value, Checkpoint):
             return self._serialize_via_repr(value, need_brackets_when_inlined=False)
+        if isinstance(value, PtCheckpoint):
+            # nicer repr
+            return self._serialize_pt_checkpoint(value, prefix)
         if isinstance(value, CodeWrapper):
             return self._serialize_via_repr(value, need_brackets_when_inlined=True)
 
@@ -864,6 +866,15 @@ class _Serializer:
         assert isinstance(cached_file.filename, (str, Path))
         path = self._serialize_value(cached_file.filename, prefix=f"{prefix}_filename", recursive=True)
         return _PyEvalCode(f"{cf_type_str.py_inline()}({path.py_inline()})")
+
+    def _serialize_pt_checkpoint(self, ckpt: PtCheckpoint, prefix: str) -> _PyEvalCode:
+        # serialize it w/ nicer repr
+        assert isinstance(ckpt, PtCheckpoint)
+        ckpt_type_str = self._serialize_value(type(ckpt), prefix="PtCheckpoint", recursive=True)
+        assert isinstance(ckpt_type_str, _PyEvalCode)
+        assert isinstance(ckpt.path, (str, Path))
+        path = self._serialize_value(ckpt.path, prefix=f"{prefix}_path", recursive=True)
+        return _PyEvalCode(f"{ckpt_type_str.py_inline()}({path.py_inline()})")
 
     def _serialize_via_repr(self, value: Any, need_brackets_when_inlined: bool) -> _PyEvalCode:
         return _PyEvalCode(repr(value), need_brackets_when_inlined=need_brackets_when_inlined)
