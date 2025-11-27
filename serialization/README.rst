@@ -19,7 +19,8 @@ We have various options now:
   And if it is part of the hash, how the hash is defined exactly
   (``unhashed_package_root``, ``ignore_import_as_for_hash``, etc.).
 
-  Those objects are intended to be put as the ``python_epilog`` in a :class:`ReturnnConfig`.
+  Those objects are intended to be put as the ``python_prolog`` or ``python_epilog``
+  in a :class:`ReturnnConfig`.
 
   As an example, see :func:`i6_experiments.users.zeyer.train_v3.train`,
   :func:`i6_experiments.users.zeyer.recog.search_dataset`,
