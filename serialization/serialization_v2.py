@@ -976,7 +976,7 @@ class _Ref:
         return not (self == other)
 
 
-_base_sys_path_list: Optional[str] = None
+_base_sys_path_list: Optional[List[str]] = None
 
 
 def get_base_sys_path_list() -> List[str]:
