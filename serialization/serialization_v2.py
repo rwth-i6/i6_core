@@ -59,7 +59,6 @@ from i6_core.serialization import CodeFromFile, CodeFromFunction, ExplicitHash, 
 
 if TYPE_CHECKING:
     from returnn.tensor import Dim
-    from returnn.util.file_cache import CachedFile
 
 
 _in_serialize_config_flag = False
