@@ -1,4 +1,4 @@
-name: tests
+name: Tests
 on:
   push:
     branches:
@@ -7,24 +7,31 @@ on:
     branches:
       - main
 jobs:
-  test-all:
+  tests:
+    strategy:
+      matrix:
+        python-version:
+          - 3.10.12
+        tests_path:
+          - tests/job_tests
+          - tests/unit_tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v6
         with:
           repository: "rwth-i6/i6_core"
           path: "i6_core"
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v6
         with:
           repository: "rwth-i6/sisyphus"
           path: "sisyphus"
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v6
         with:
           repository: "rwth-i6/returnn"
           path: "returnn"
       - uses: actions/setup-python@v6
         with:
-          python-version: 3.10.12
+          python-version: ${{ matrix.python-version }}
           cache: 'pip'
           cache-dependency-path: '.github/workflows/tests.yml'
       - name: Setup Sisyphus environment
@@ -40,4 +47,4 @@ jobs:
       - name: Run tests
         run: |
           set -e
-          pytest i6_core/tests
+          pytest i6_core/${{ matrix.tests_path }}

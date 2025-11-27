@@ -1,4 +1,4 @@
-__all__ = ["CodeWrapper", "ReturnnConfig", "WriteReturnnConfigJob"]
+__all__ = ["CodeWrapper", "ReturnnConfig", "ReturnnConfigV2", "WriteReturnnConfigJob", "unparse_python"]
 
 import base64
 import inspect
@@ -11,12 +11,13 @@ import string
 import subprocess
 import sys
 import textwrap
+from typing import Any, Optional
 
-from sisyphus import *
+from sisyphus import setup_path, tk, Job, Task
 from sisyphus.delayed_ops import DelayedBase
 from sisyphus.hash import sis_hash_helper
 
-from i6_core.util import instanciate_delayed
+from i6_core.util import instanciate_delayed, instanciate_delayed_copy
 
 Path = setup_path(__package__)
 Variable = tk.Variable
@@ -43,6 +44,7 @@ class ReturnnConfig:
     It can be used to serialize python functions and class definitions directly from
     Sisyphus code and paste them into the RETURNN config file.
 
+    See also :class:`ReturnnConfigV2` for a version with improved (V2) serialization behavior.
     """
 
     PYTHON_CODE = textwrap.dedent(
@@ -124,14 +126,14 @@ class ReturnnConfig:
         self.python_prolog_hash = python_prolog_hash
         if self.python_prolog_hash is None:
             if hash_full_python_code:
-                self.python_prolog_hash = self.__parse_python(python_prolog)
+                self.python_prolog_hash = unparse_python(python_prolog, allow_delayed_objects=False)
             else:
                 self.python_prolog_hash = python_prolog
         self.python_epilog = python_epilog
         self.python_epilog_hash = python_epilog_hash
         if self.python_epilog_hash is None:
             if hash_full_python_code:
-                self.python_epilog_hash = self.__parse_python(python_epilog)
+                self.python_epilog_hash = unparse_python(python_epilog, allow_delayed_objects=False)
             else:
                 self.python_epilog_hash = python_epilog
         self.hash_full_python_code = hash_full_python_code
@@ -291,52 +293,7 @@ class ReturnnConfig:
         self._write_to_file(self._serialize(), path)
 
     def __parse_python(self, code, name=None):
-        if code is None:
-            return ""
-        if isinstance(code, str):
-            return code
-        if isinstance(code, DelayedBase):
-            assert self.hash_full_python_code is False, (
-                "DelayedBase object can not be passed if `hash_full_python_code` is set, "
-                "as this will cause breaking hashes"
-            )
-            return self.__parse_python(code.get())
-        if isinstance(code, (tuple, list)):
-            return "\n".join(self.__parse_python(c) for c in code)
-        if isinstance(code, dict):
-            return "\n".join(self.__parse_python(v, name=k) for k, v in code.items())
-        if inspect.isfunction(code):
-            try:
-                return inspect.getsource(code)
-            except OSError:
-                # cannot get source, e.g. code is a lambda
-                assert name is not None
-                args = [
-                    code.__code__.co_argcount,
-                    code.__code__.co_kwonlyargcount,
-                    code.__code__.co_nlocals,
-                    code.__code__.co_stacksize,
-                    code.__code__.co_flags,
-                    code.__code__.co_code,
-                    code.__code__.co_consts,
-                    code.__code__.co_names,
-                    code.__code__.co_varnames,
-                    code.__code__.co_filename,
-                    code.__code__.co_name,
-                    code.__code__.co_firstlineno,
-                    code.__code__.co_lnotab,
-                    code.__code__.co_freevars,
-                    code.__code__.co_cellvars,
-                ]
-                compiled = base64.b64encode(pickle.dumps(args)).decode("utf8")
-                return (
-                    "import types; import base64; import pickle; "
-                    'code = types.CodeType(*pickle.loads(base64.b64decode("%s".encode("utf8")))); '
-                    '%s = types.FunctionType(code, globals(), "%s")' % (compiled, name, code.__name__)
-                )
-        if inspect.isclass(code):
-            return inspect.getsource(code)
-        raise RuntimeError("Could not serialize %s" % code)
+        return unparse_python(code, allow_delayed_objects=not self.hash_full_python_code, name=name)
 
     def check_consistency(self):
         """
@@ -366,6 +323,93 @@ class ReturnnConfig:
         return sis_hash_helper(h)
 
 
+class ReturnnConfigV2(ReturnnConfig):
+    """
+    Returnn config class with V2 serialization.
+
+    Can be constructed like the classic `ReturnnConfig` or from an existing config like this:
+    ```python
+    from i6_core.returnn import ReturnnConfig, ReturnnConfigV2, ReturnnTrainingJob
+
+    config = ReturnnConfig(...)  # your usual config
+    config_v2_serialization = ReturnnConfigV2({})
+    config_v2_serialization.update(config)
+    train_job = ReturnnTrainingJob(config=config_v2_serialization)
+    # train job will use V2 serialization now
+    ```
+
+    During serialization, we call `instanciate_delayed_copy` on the config dict.
+    This will resolve all delayed values and path objects into their actual values/str representation.
+    However, this will only catch those values that are reachable for the `tree` library,
+    i.e. all values contained in (nested) dictionaries/sequences.
+
+    If you have delayed values/path objects which are not directly reachable from the config dict,
+    e.g. by being inside some custom object instead of a dict/list/tuple/set,
+    then you need to resolve them manually before serialization or special-case their
+    `__reduce__` behavior via the :func:`in_serialize_config` flag.
+
+    See also :func:`i6_core.serialization.serialization_v2.serialize_config` and the corresponding module.
+    """
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        assert not self.staged_network_dict, "V2 serialization does not support staged net dicts"
+
+    def _serialize(self) -> str:
+        import tree
+
+        from i6_core.serialization import ExternalImport
+        from i6_core.serialization.serialization_v2 import get_base_sys_path_list, serialize_config
+
+        assert not self.staged_network_dict, "V2 serialization does not support staged net dicts"
+
+        self.check_consistency()
+
+        config = instanciate_delayed_copy(self.config)
+        post_config = instanciate_delayed_copy(self.post_config)
+
+        # I'm not really sure about it.
+        # Our automatic mechanism will find direct imports (e.g. i6_experiments).
+        # However, it will not find indirect imports (e.g. sisyphus),
+        # and thus the generated code might fail.
+        # So add all other paths here which we currently have.
+        # (While testing this, this was sisyphus + returnn + recipes,
+        #  but returnn is excluded below.)
+        sys_paths = set(get_base_sys_path_list())
+        extra_sys_paths = [p for p in sys.path if p not in sys_paths]
+
+        # Handle ExternalImports
+        extra_sys_paths += [
+            item.import_path
+            for item in tree.flatten(self.python_prolog) + tree.flatten(self.python_epilog)
+            if isinstance(item, ExternalImport)
+        ]
+
+        python_prolog_code = unparse_python(self.python_prolog, allow_delayed_objects=True)
+        python_epilog_code = unparse_python(self.python_epilog, allow_delayed_objects=True)
+        serialized = serialize_config(
+            config,
+            post_config,
+            # Of course RETURNN knows about itself, no need to add to sys.path.
+            # Also, we don't want to force the current RETURNN here,
+            # but allow the config to be used with any other RETURNN version.
+            known_modules={"returnn"},
+            extra_sys_paths=extra_sys_paths,
+        )
+        return "\n\n".join(
+            stripped
+            for part in [
+                "#!returnn/rnn.py",
+                python_prolog_code,
+                serialized,
+                python_epilog_code,
+                "# -*- mode: python; tab-width: 4 -*-\n",
+            ]
+            if (stripped := part.strip())
+        )
+
+
 class WriteReturnnConfigJob(Job):
     """
     Writes a ReturnnConfig into a .config file
@@ -387,3 +431,62 @@ class WriteReturnnConfigJob(Job):
 
     def run(self):
         self.returnn_config.write(self.out_returnn_config_file.get_path())
+
+
+def unparse_python(code: Any, *, allow_delayed_objects: bool = False, name: Optional[str] = None) -> str:
+    """
+    Unparse various python objects recursively into python code strings.
+
+    :param code: various types, e.g. str, function, class, list, dict, tuple, DelayedBase
+    :param bool allow_delayed_objects: if True, DelayedBase objects are allowed
+        and will be resolved into their values.
+    :param name:
+
+    :return: python code string
+    """
+    if code is None:
+        return ""
+    if isinstance(code, str):
+        return code
+    if isinstance(code, DelayedBase):
+        assert allow_delayed_objects, (
+            "DelayedBase object can not be passed if `allow_delayed_objects` is not set, "
+            "as this will cause breaking hashes."
+        )
+        return unparse_python(code.get())
+    if isinstance(code, (tuple, list)):
+        return "\n".join(unparse_python(c) for c in code)
+    if isinstance(code, dict):
+        return "\n".join(unparse_python(v, name=k) for k, v in code.items())
+    if inspect.isfunction(code):
+        try:
+            return inspect.getsource(code)
+        except OSError:
+            # cannot get source, e.g. code is a lambda
+            assert name is not None
+            args = [
+                code.__code__.co_argcount,
+                code.__code__.co_kwonlyargcount,
+                code.__code__.co_nlocals,
+                code.__code__.co_stacksize,
+                code.__code__.co_flags,
+                code.__code__.co_code,
+                code.__code__.co_consts,
+                code.__code__.co_names,
+                code.__code__.co_varnames,
+                code.__code__.co_filename,
+                code.__code__.co_name,
+                code.__code__.co_firstlineno,
+                code.__code__.co_lnotab,
+                code.__code__.co_freevars,
+                code.__code__.co_cellvars,
+            ]
+            compiled = base64.b64encode(pickle.dumps(args)).decode("utf8")
+            return (
+                "import types; import base64; import pickle; "
+                'code = types.CodeType(*pickle.loads(base64.b64decode("%s".encode("utf8")))); '
+                '%s = types.FunctionType(code, globals(), "%s")' % (compiled, name, code.__name__)
+            )
+    if inspect.isclass(code):
+        return inspect.getsource(code)
+    raise RuntimeError("Could not serialize %s" % code)
