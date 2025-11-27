@@ -490,7 +490,11 @@ def test_codefromfunction_in_config():
 def test_delayed_objects():
     from sisyphus.delayed_ops import Delayed, DelayedFormat
 
-    config = ReturnnConfigV2({"six": Delayed(3) * 2}, python_prolog=DelayedFormat("# {} is fun", "Testing"))
+    config = ReturnnConfigV2(
+        {"six": Delayed(3) * 2},
+        python_prolog=DelayedFormat("# {} is fun", "Testing"),
+        hash_full_python_code=False,
+    )
     serialized_config = config._serialize()
     check_lines_in_config(
         serialized_config,
