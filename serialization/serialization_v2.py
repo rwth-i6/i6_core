@@ -512,7 +512,7 @@ class _Serializer:
             rv = self.reduce_cache_by_value_ref[value_ref]
         else:
             reduce = getattr(value, "__reduce_ex__", None)
-            reduce_proto = 4  # not sure...
+            reduce_proto = 4  # default pickle protocol in Python 3.8–3.13
             if reduce is not None:
                 rv = reduce(reduce_proto)
             else:
