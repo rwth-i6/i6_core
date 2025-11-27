@@ -126,14 +126,14 @@ class ReturnnConfig:
         self.python_prolog_hash = python_prolog_hash
         if self.python_prolog_hash is None:
             if hash_full_python_code:
-                self.python_prolog_hash = unparse_python(python_prolog, hash_full_python_code=True)
+                self.python_prolog_hash = unparse_python(python_prolog, allow_delayed_objects=False)
             else:
                 self.python_prolog_hash = python_prolog
         self.python_epilog = python_epilog
         self.python_epilog_hash = python_epilog_hash
         if self.python_epilog_hash is None:
             if hash_full_python_code:
-                self.python_epilog_hash = unparse_python(python_epilog, hash_full_python_code=True)
+                self.python_epilog_hash = unparse_python(python_epilog, allow_delayed_objects=False)
             else:
                 self.python_epilog_hash = python_epilog
         self.hash_full_python_code = hash_full_python_code
@@ -293,7 +293,7 @@ class ReturnnConfig:
         self._write_to_file(self._serialize(), path)
 
     def __parse_python(self, code, name=None):
-        return unparse_python(code, hash_full_python_code=self.hash_full_python_code, name=name)
+        return unparse_python(code, allow_delayed_objects=not self.hash_full_python_code, name=name)
 
     def check_consistency(self):
         """
@@ -386,8 +386,8 @@ class ReturnnConfigV2(ReturnnConfig):
             if isinstance(item, ExternalImport)
         ]
 
-        python_prolog_code = unparse_python(self.python_prolog, hash_full_python_code=True)
-        python_epilog_code = unparse_python(self.python_epilog, hash_full_python_code=True)
+        python_prolog_code = unparse_python(self.python_prolog, allow_delayed_objects=True)
+        python_epilog_code = unparse_python(self.python_epilog, allow_delayed_objects=True)
         serialized = serialize_config(
             config,
             post_config,
@@ -433,7 +433,7 @@ class WriteReturnnConfigJob(Job):
         self.returnn_config.write(self.out_returnn_config_file.get_path())
 
 
-def unparse_python(code: Any, *, hash_full_python_code: bool = False, name: Optional[str] = None) -> str:
+def unparse_python(code: Any, *, allow_delayed_objects: bool = False, name: Optional[str] = None) -> str:
     """
     Unparse various python objects recursively into python code strings.
 
@@ -444,8 +444,9 @@ def unparse_python(code: Any, *, hash_full_python_code: bool = False, name: Opti
     if isinstance(code, str):
         return code
     if isinstance(code, DelayedBase):
-        assert not hash_full_python_code, (
-            "DelayedBase object can not be passed if `hash_full_python_code` is set, as this will cause breaking hashes"
+        assert allow_delayed_objects, (
+            "DelayedBase object can not be passed if `allow_delayed_objects` is not set, "
+            "as this will cause breaking hashes."
         )
         return unparse_python(code.get())
     if isinstance(code, (tuple, list)):
