@@ -437,6 +437,11 @@ def unparse_python(code: Any, *, allow_delayed_objects: bool = False, name: Opti
     """
     Unparse various python objects recursively into python code strings.
 
+    :param code: various types, e.g. str, function, class, list, dict, tuple, DelayedBase
+    :param bool allow_delayed_objects: if True, DelayedBase objects are allowed
+        and will be resolved into their values.
+    :param name:
+
     :return: python code string
     """
     if code is None:
