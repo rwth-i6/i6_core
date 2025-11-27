@@ -471,9 +471,7 @@ class _Serializer:
             return self._serialize_set(value, prefix)
         if isinstance(value, functools.partial):
             return self._serialize_functools_partial(value, name)
-        if isinstance(value, CodeFromFunction):
-            return self._serialize_code_from_function(value, name)
-        if isinstance(value, (CodeFromFile, ExplicitHash, ExternalImport, NonhashedCode)):
+        if isinstance(value, (CodeFromFile, CodeFromFunction, ExplicitHash, ExternalImport, NonhashedCode)):
             raise ValueError(
                 f"Cannot serialize {type(value).__name__} in config dict. "
                 "It does not represent a value and should go into python_prolog/python_epilog."
@@ -796,11 +794,6 @@ class _Serializer:
         self_s = self._serialize_value(value.__self__, prefix=f"{name}_self", recursive=True)
         assert isinstance(self_s, _PyEvalCode)
         return _PyEvalCode(f"{mod_s.py_inline()}.MethodType({func_s.py_inline()}, {self_s.py_inline()})")
-
-    def _serialize_code_from_function(self, value: CodeFromFunction, name: str) -> _PyCode:
-        assert isinstance(value, CodeFromFunction)
-        func_with_legal_name = CodeFromFunction(name=name, func=value.func)
-        return _PyCode(py_name=name, value=value, py_code=func_with_legal_name.get())
 
     def _serialize_dim(self, dim: Dim, prefix: str) -> Union[_PyEvalCode, _PyCode]:
         # we serialize a Dim object, so we know that RETURNN is available for import
