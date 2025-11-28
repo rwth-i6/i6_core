@@ -453,11 +453,13 @@ def unparse_python(code: Any, *, allow_delayed_objects: bool = False, name: Opti
             "DelayedBase object can not be passed if `allow_delayed_objects` is not set, "
             "as this will cause breaking hashes."
         )
-        return unparse_python(code.get())
+        return unparse_python(code.get(), allow_delayed_objects=allow_delayed_objects)
     if isinstance(code, (tuple, list)):
-        return "\n".join(unparse_python(c) for c in code)
+        return "\n".join(unparse_python(c, allow_delayed_objects=allow_delayed_objects) for c in code)
     if isinstance(code, dict):
-        return "\n".join(unparse_python(v, name=k) for k, v in code.items())
+        return "\n".join(
+            unparse_python(v, name=k, allow_delayed_objects=allow_delayed_objects) for k, v in code.items()
+        )
     if inspect.isfunction(code):
         try:
             return inspect.getsource(code)
