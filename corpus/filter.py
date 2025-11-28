@@ -272,10 +272,9 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
 
     def _plot(self, recording_dict: Dict[str, List[Tuple[str, float]]]):
         """
-        Plots an alignment score.
+        Plots the individual segment alignment scores.
 
-        Note: the plot only takes into account strictly positive values.
-        For more customizable plotting, it's suggested to use :class:`i6_core.mm.alignment.PlotAlignmentJob` instead.
+        :param recording_dict: Dictionary of recording full names to list of (segment full name, alignment score).
         """
         import matplotlib
         import matplotlib.pyplot as plt
@@ -285,8 +284,7 @@ class FilterSegmentsByAlignmentConfidenceJob(Job):
         score_np = self._get_alignment_scores_array(recording_dict)
 
         # Before filtering.
-        np.clip(score_np, 0, 200, out=score_np)
-        plt.hist(score_np, bins=100, range=(0, 200))
+        plt.hist(score_np, bins=100)
         plt.xlabel("Average Maximum-Likelihood Score")
         plt.ylabel("Number of Segments")
         plt.title("Histogram of Alignment Scores")
@@ -397,6 +395,26 @@ class FilterRecordingsByAlignmentConfidenceJob(FilterSegmentsByAlignmentConfiden
                     f_discarded.write(f"{full_rec_name} {avg_alignment_score}\n")
 
         return filtered_segments
+
+    def _plot(self, recording_dict: Dict[str, List[Tuple[str, float]]]):
+        """
+        Plots the average recording alignment scores.
+
+        :param recording_dict: Dictionary of recording full names to list of (segment full name, alignment score).
+        """
+        import matplotlib
+        import matplotlib.pyplot as plt
+
+        matplotlib.use("Agg")
+
+        score_np = self._get_alignment_scores_array(recording_dict)
+
+        # Before filtering.
+        plt.hist(score_np, bins=100)
+        plt.xlabel("Average Maximum-Likelihood Score")
+        plt.ylabel("Number of Recordings")
+        plt.title("Histogram of Alignment Scores")
+        plt.savefig(fname=self.out_plot_avg.get_path())
 
     def run(self):
         # Alignments that haven't reached a final state can bias the mean computation, so they're removed.
