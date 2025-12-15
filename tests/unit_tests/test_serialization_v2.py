@@ -242,7 +242,7 @@ def test_functools_partial():
 
 def test_known_modules():
     config = {"feat_dim": Dim(12, name="feat")}
-    serialized = serialize_config(config, known_modules={"returnn"})
+    serialized = serialize_config(config)
     assert serialized == textwrap.dedent(
         """\
         from returnn.tensor import Dim
@@ -253,7 +253,7 @@ def test_known_modules():
 
 def test_known_module_with_conflicting_key():
     config = {"Dim": 1337, "feat_dim": Dim(12, name="feat")}
-    serialized = serialize_config(config, known_modules={"returnn"})
+    serialized = serialize_config(config)
     assert serialized == textwrap.dedent(
         """\
         Dim = 1337
