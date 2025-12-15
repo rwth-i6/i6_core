@@ -125,11 +125,7 @@ class _Serializer:
             self.assignments_dict_by_value_by_type[Dim] = {}
         self.reduce_cache_by_value_ref: Dict[_Ref, Tuple[Any, ...]] = {}  # value ref -> (func, args, ...)
         self.added_sys_paths = set()
-        # Naturally RETURNN knows about itself, so no need to add sys.path.
-        #
-        # Also, by excluding the import path we avoid writing fixed paths into the config
-        # and the config can be used with any RETURNN installation.
-        self.known_modules = set(known_modules) | {"returnn"}
+        self.known_modules = set(known_modules)
         self._next_sys_path_insert_idx = 0
         self._cur_added_refs: List[_PyCode] = []
         self._next_assignment_idx = 0

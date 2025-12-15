@@ -107,7 +107,7 @@ def test_extra_sys_paths():
 
 def test_batch_dim():
     config = {"dim": batch_dim}
-    assert serialize_config(config, inlining=False) == textwrap.dedent(
+    assert serialize_config(config, inlining=False, known_modules=["returnn"]) == textwrap.dedent(
         """\
         from returnn.tensor import batch_dim as dim
         """
@@ -118,7 +118,7 @@ def test_dim():
     time_dim = Dim(None, name="time")
     feat_dim = Dim(42, name="feature")
     config = {"extern_data": {"data": {"dims": [batch_dim, time_dim, feat_dim]}}}
-    assert serialize_config(config, inlining=False) == textwrap.dedent(
+    assert serialize_config(config, inlining=False, known_modules=["returnn"]) == textwrap.dedent(
         """\
         from returnn.tensor import batch_dim as global_batch_dim
         from returnn.tensor import Dim
@@ -129,7 +129,7 @@ def test_dim():
         extern_data = {'data': extern_data_data}
         """
     )
-    assert serialize_config(config) == textwrap.dedent(
+    assert serialize_config(config, known_modules=["returnn"]) == textwrap.dedent(
         """\
         from returnn.tensor import batch_dim as global_batch_dim
         from returnn.tensor import Dim
@@ -144,7 +144,7 @@ def test_cached_file():
     cf1 = CachedFile("/path/to/some/file1.txt")
     cf2 = CachedFile("/path/to/some/file2.txt")
     config = {"obj": cf1, "obj2": cf2}
-    assert serialize_config(config, inlining=False) == textwrap.dedent(
+    assert serialize_config(config, inlining=False, known_modules=["returnn"]) == textwrap.dedent(
         """\
         from returnn.util.file_cache import CachedFile
         obj = CachedFile('/path/to/some/file1.txt')

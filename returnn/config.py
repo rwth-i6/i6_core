@@ -388,7 +388,16 @@ class ReturnnConfigV2(ReturnnConfig):
 
         python_prolog_code = unparse_python(self.python_prolog, allow_delayed_objects=True)
         python_epilog_code = unparse_python(self.python_epilog, allow_delayed_objects=True)
-        serialized = serialize_config(config, post_config, extra_sys_paths=extra_sys_paths)
+        serialized = serialize_config(
+            config,
+            post_config,
+            # Naturally RETURNN knows about itself, so no need to add sys.path.
+            #
+            # Also, by excluding the import path we avoid writing fixed paths into the config
+            # and the config can be used with any RETURNN installation.
+            known_modules={"returnn"},
+            extra_sys_paths=extra_sys_paths,
+        )
         return "\n\n".join(
             stripped
             for part in [
