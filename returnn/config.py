@@ -391,10 +391,9 @@ class ReturnnConfigV2(ReturnnConfig):
         serialized = serialize_config(
             config,
             post_config,
-            # Naturally RETURNN knows about itself, so no need to add sys.path.
-            #
-            # Also, by excluding the import path we avoid writing fixed paths into the config
-            # and the config can be used with any RETURNN installation.
+            # Of course RETURNN knows about itself, no need to add to sys.path.
+            # Also, we don't want to force the current RETURNN here,
+            # but allow the config to be used with any other RETURNN version.
             known_modules={"returnn"},
             extra_sys_paths=extra_sys_paths,
         )
