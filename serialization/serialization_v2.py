@@ -125,7 +125,11 @@ class _Serializer:
             self.assignments_dict_by_value_by_type[Dim] = {}
         self.reduce_cache_by_value_ref: Dict[_Ref, Tuple[Any, ...]] = {}  # value ref -> (func, args, ...)
         self.added_sys_paths = set()
-        self.known_modules = set(known_modules)
+        # Naturally RETURNN knows about itself, so no need to add sys.path.
+        #
+        # Also, by excluding the import path we avoid writing fixed paths into the config
+        # and the config can be used with any RETURNN installation.
+        self.known_modules = set(known_modules) | {"returnn"}
         self._next_sys_path_insert_idx = 0
         self._cur_added_refs: List[_PyCode] = []
         self._next_assignment_idx = 0
@@ -703,12 +707,6 @@ class _Serializer:
         if "." in mod_name:
             mod_name = mod_name.split(".", 1)[0]
         if mod_name in self.known_modules:
-            return
-        if mod_name == "returnn":
-            # Naturally RETURNN knows about itself, so no need to add sys.path.
-            #
-            # Also, by excluding the import path we avoid writing fixed paths into the config
-            # and the config can be used with any RETURNN installation.
             return
         mod = sys.modules[mod_name]
         if not hasattr(mod, "__file__"):
