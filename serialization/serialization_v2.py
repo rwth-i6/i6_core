@@ -127,6 +127,7 @@ class _Serializer:
         self.added_sys_paths = set()
         self.known_modules = set(known_modules)
         for mod_name in known_modules:
+            assert mod_name in sys.modules, f"unknown known_module {mod_name!r}"
             mod = sys.modules[mod_name]
             # Don't add those module path to sys.path again.
             self.added_sys_paths.add(_get_module_path_from_module(mod))
@@ -707,6 +708,12 @@ class _Serializer:
         if "." in mod_name:
             mod_name = mod_name.split(".", 1)[0]
         if mod_name in self.known_modules:
+            return
+        if mod_name == "returnn":
+            # Naturally RETURNN knows about itself, so no need to add sys.path.
+            #
+            # Also, by excluding the import path we avoid writing fixed paths into the config
+            # and the config can be used with any RETURNN installation.
             return
         mod = sys.modules[mod_name]
         if not hasattr(mod, "__file__"):

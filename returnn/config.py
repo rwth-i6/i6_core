@@ -388,15 +388,7 @@ class ReturnnConfigV2(ReturnnConfig):
 
         python_prolog_code = unparse_python(self.python_prolog, allow_delayed_objects=True)
         python_epilog_code = unparse_python(self.python_epilog, allow_delayed_objects=True)
-        serialized = serialize_config(
-            config,
-            post_config,
-            # Of course RETURNN knows about itself, no need to add to sys.path.
-            # Also, we don't want to force the current RETURNN here,
-            # but allow the config to be used with any other RETURNN version.
-            known_modules={"returnn"},
-            extra_sys_paths=extra_sys_paths,
-        )
+        serialized = serialize_config(config, post_config, extra_sys_paths=extra_sys_paths)
         return "\n\n".join(
             stripped
             for part in [
