@@ -106,75 +106,46 @@ def test_extra_sys_paths():
 
 
 def test_batch_dim():
-    import returnn
-
-    mod_filename = returnn.__file__
-    assert mod_filename.endswith("/__init__.py")
-    mod_path = os.path.dirname(mod_filename[: -len("/__init__.py")])
-
     config = {"dim": batch_dim}
-    assert serialize_config(config, inlining=False) == textwrap.dedent(
-        f"""\
-        import sys
-        # for module returnn
-        sys.path.insert(0, {mod_path!r})
+    assert serialize_config(config, inlining=False, known_modules=["returnn"]) == textwrap.dedent(
+        """\
         from returnn.tensor import batch_dim as dim
         """
     )
 
 
 def test_dim():
-    import returnn
-
-    mod_filename = returnn.__file__
-    assert mod_filename.endswith("/__init__.py")
-    mod_path = os.path.dirname(mod_filename[: -len("/__init__.py")])
-
     time_dim = Dim(None, name="time")
     feat_dim = Dim(42, name="feature")
     config = {"extern_data": {"data": {"dims": [batch_dim, time_dim, feat_dim]}}}
-    assert serialize_config(config, inlining=False) == textwrap.dedent(
-        f"""\
-        import sys
-        # for module returnn
-        sys.path.insert(0, {mod_path!r})
+    assert serialize_config(config, inlining=False, known_modules=["returnn"]) == textwrap.dedent(
+        """\
         from returnn.tensor import batch_dim as global_batch_dim
         from returnn.tensor import Dim
         time_dim = Dim(None, name='time')
         feature_dim = Dim(42, name='feature')
         extern_data_data_dims = [global_batch_dim, time_dim, feature_dim]
-        extern_data_data = {{'dims': extern_data_data_dims}}
-        extern_data = {{'data': extern_data_data}}
+        extern_data_data = {'dims': extern_data_data_dims}
+        extern_data = {'data': extern_data_data}
         """
     )
-    assert serialize_config(config) == textwrap.dedent(
-        f"""\
-        import sys
-        # for module returnn
-        sys.path.insert(0, {mod_path!r})
+    assert serialize_config(config, known_modules=["returnn"]) == textwrap.dedent(
+        """\
         from returnn.tensor import batch_dim as global_batch_dim
         from returnn.tensor import Dim
-        extern_data = {{'data': {{'dims': [global_batch_dim, Dim(None, name='time'), Dim(42, name='feature')]}}}}
+        extern_data = {'data': {'dims': [global_batch_dim, Dim(None, name='time'), Dim(42, name='feature')]}}
         """
     )
 
 
 def test_cached_file():
-    import returnn
     from returnn.util.file_cache import CachedFile
-
-    mod_filename = returnn.__file__
-    assert mod_filename.endswith("/__init__.py")
-    mod_path = os.path.dirname(mod_filename[: -len("/__init__.py")])
 
     cf1 = CachedFile("/path/to/some/file1.txt")
     cf2 = CachedFile("/path/to/some/file2.txt")
     config = {"obj": cf1, "obj2": cf2}
-    assert serialize_config(config, inlining=False) == textwrap.dedent(
-        f"""\
-        import sys
-        # for module returnn
-        sys.path.insert(0, {mod_path!r})
+    assert serialize_config(config, inlining=False, known_modules=["returnn"]) == textwrap.dedent(
+        """\
         from returnn.util.file_cache import CachedFile
         obj = CachedFile('/path/to/some/file1.txt')
         obj2 = CachedFile('/path/to/some/file2.txt')
