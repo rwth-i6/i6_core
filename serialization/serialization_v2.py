@@ -126,11 +126,6 @@ class _Serializer:
         self.reduce_cache_by_value_ref: Dict[_Ref, Tuple[Any, ...]] = {}  # value ref -> (func, args, ...)
         self.added_sys_paths = set()
         self.known_modules = set(known_modules)
-        for mod_name in known_modules:
-            assert mod_name in sys.modules, f"unknown known_module {mod_name!r}"
-            mod = sys.modules[mod_name]
-            # Don't add those module path to sys.path again.
-            self.added_sys_paths.add(_get_module_path_from_module(mod))
         self._next_sys_path_insert_idx = 0
         self._cur_added_refs: List[_PyCode] = []
         self._next_assignment_idx = 0
