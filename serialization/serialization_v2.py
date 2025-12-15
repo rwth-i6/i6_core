@@ -87,10 +87,11 @@ def serialize_config(
     post_config: Optional[Dict[str, Any]] = None,
     *,
     inlining: bool = True,
+    known_modules: Collection[str] = (),
     extra_sys_paths: Sequence[str] = (),
 ) -> str:
     """serialize config. see module docstring for more info."""
-    serializer = _Serializer(config=config, post_config=post_config)
+    serializer = _Serializer(config=config, post_config=post_config, known_modules=known_modules)
     for path in extra_sys_paths:
         serializer.add_sys_path(path, code_comment="# from extra_sys_paths\n", recursive=False)
     with _set_in_serialize_config_ctx():
@@ -108,7 +109,9 @@ def _is_valid_python_identifier_name(name: str) -> bool:
 
 
 class _Serializer:
-    def __init__(self, config: Dict[str, Any], post_config: Optional[Dict[str, Any]] = None):
+    def __init__(
+        self, config: Dict[str, Any], post_config: Optional[Dict[str, Any]] = None, known_modules: Collection[str] = ()
+    ):
         self.config = config.copy()
         self.post_config = post_config.copy() if post_config else {}
         self.assignments_dict_by_value_ref: Dict[_Ref, _PyCode] = {}  # value ref -> code
@@ -122,7 +125,12 @@ class _Serializer:
             self.assignments_dict_by_value_by_type[Dim] = {}
         self.reduce_cache_by_value_ref: Dict[_Ref, Tuple[Any, ...]] = {}  # value ref -> (func, args, ...)
         self.added_sys_paths = set()
-        self._added_modules = set()
+        self.known_modules = set(known_modules)
+        for mod_name in known_modules:
+            assert mod_name in sys.modules, f"unknown known_module {mod_name!r}"
+            mod = sys.modules[mod_name]
+            # Don't add those module path to sys.path again.
+            self.added_sys_paths.add(_get_module_path_from_module(mod))
         self._next_sys_path_insert_idx = 0
         self._cur_added_refs: List[_PyCode] = []
         self._next_assignment_idx = 0
@@ -699,7 +707,7 @@ class _Serializer:
         """make sure that the import works, by preparing ``sys.path`` if necessary"""
         if "." in mod_name:
             mod_name = mod_name.split(".", 1)[0]
-        if mod_name in self._added_modules:
+        if mod_name in self.known_modules:
             return
         if mod_name == "returnn":
             # Naturally RETURNN knows about itself, so no need to add sys.path.
@@ -712,7 +720,7 @@ class _Serializer:
             return  # assume builtin module or so
         mod_path = _get_module_path_from_module(mod)
         self.add_sys_path(mod_path, code_comment=f"# for module {mod_name}\n")
-        self._added_modules.add(mod_name)
+        self.known_modules.add(mod_name)
 
     def add_sys_path(self, path: str, *, code_comment: str = "", recursive: bool = True):
         """
