@@ -32,14 +32,11 @@ def _delete_empty_recordings(corpus: corpus.Corpus, removed_recordings_file: str
     :param c: Corpus for which to delete the empty recordings.
     :param removed_recordings_file: File in which to dump all recordings that have been deleted.
     """
-    to_delete = []
-    for rec in corpus.all_recordings():
-        if not rec.segments:
-            to_delete.append(rec)
-
-    corpus.remove_recordings(to_delete)
     with open(removed_recordings_file, "w") as f:
-        f.write("\n".join(rec.fullname() for rec in to_delete))
+        for rec in corpus.all_recordings():
+            if not rec.segments:
+                corpus.remove_recording(rec)
+                f.write(f"{rec.fullname()}\n")
 
 
 class FilterSegmentsByListJob(Job):
