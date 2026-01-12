@@ -42,6 +42,7 @@ class GetOptimalParametersAsVariableJob(Job):
         self.num_parameters = len(parameters[0])
 
         self.out_optimal_parameters = [self.output_var("param_%i" % i, pickle=True) for i in range(self.num_parameters)]
+        self.out_optimal_value = self.output_var("best_value")
 
     def tasks(self):
         yield Task("run", mini_task=True)
@@ -59,3 +60,4 @@ class GetOptimalParametersAsVariableJob(Job):
 
         for i, param in enumerate(best_parameters):
             self.out_optimal_parameters[i].set(param)
+        self.out_optimal_value.set(values[index])
