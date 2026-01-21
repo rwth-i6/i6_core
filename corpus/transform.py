@@ -8,6 +8,7 @@ __all__ = [
     "ShiftCorpusSegmentStartJob",
     "ApplyLexiconToCorpusJob",
     "MapRecordingsJob",
+    "IntegrateContextIntoOrthJob",
 ]
 
 import bisect
@@ -682,5 +683,32 @@ class MapRecordingsJob(Job):
         self.map_recordings(c, self.recording_callable)
         for sc in c.subcorpora:
             self.map_recordings(sc, self.recording_callable)
+
+        c.dump(self.out_bliss_corpus.get_path())
+
+
+class IntegrateContextIntoOrthJob(Job):
+    """
+    Integrates `left-context-orth`/`right-context-orth` of each segment into its corresponding `orth`.
+    """
+
+    def __init__(self, bliss_corpus: tk.Path):
+        self.bliss_corpus = bliss_corpus
+
+        self.out_bliss_corpus = self.output_path("out.xml.gz")
+
+        self.rqmt = {"mem": 1.0, "time": 1.0}
+
+    def tasks(self):
+        yield Task("run", resume="run", rqmt=self.rqmt)
+
+    def run(self):
+        c = corpus.Corpus()
+        c.load(self.bliss_corpus.get_path())
+
+        for segment in c.segments():
+            segment.orth = " ".join(segment.full_orth().split())
+            segment.left_context_orth = None
+            segment.right_context_orth = None
 
         c.dump(self.out_bliss_corpus.get_path())
