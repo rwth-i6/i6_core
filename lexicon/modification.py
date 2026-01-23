@@ -1,4 +1,4 @@
-__all__ = ["WriteLexiconJob", "MergeLexiconJob", "AddEowPhonemesToLexiconJob", "MatchLexiconPhonemeInventoriesJob"]
+__all__ = ["WriteLexiconJob", "MergeLexiconJob", "AddEowPhonemesToLexiconJob", "ReorderPhonemeInventoryJob"]
 
 import copy
 from collections import OrderedDict, defaultdict
