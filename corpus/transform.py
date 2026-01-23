@@ -707,7 +707,7 @@ class IntegrateContextIntoOrthJob(Job):
         c.load(self.bliss_corpus.get_path())
 
         for segment in c.segments():
-            segment.orth = " ".join(segment.full_orth().split())
+            segment.orth = segment.full_orth()
             segment.left_context_orth = None
             segment.right_context_orth = None
 
