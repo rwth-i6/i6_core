@@ -274,11 +274,11 @@ class AddEowPhonemesToLexiconJob(Job):
         write_xml(self.out_lexicon.get_path(), out_lex.to_xml())
 
 
-class MatchLexiconPhonemeInventoriesJob(Job):
+class ReorderPhonemeInventoryJob(Job):
     """
-    Makes a 1:1 matching in the order of the different phonemes in the phoneme inventory of two lexica.
+    Reorders the phoneme inventory of a lexicon to match a reference lexicon.
 
-    The job will raise an error if the phoneme set is different with respect to both lexica.
+    The job will raise an error if the phoneme set does not match between both lexica.
     """
 
     def __init__(self, lex_to_modify: tk.Path, ref_lex: tk.Path):
