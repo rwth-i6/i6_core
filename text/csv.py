@@ -9,8 +9,10 @@ from i6_core import util
 
 class GetColumnsFromCsvFileJob(Job):
     """
-    Obtains all values of a column from a csv file.
+    Dumps the values of a given set of columns from a csv file onto separate text files.
     The csv file must have been previously dumped with :funcref:`csv.writer` and :funcref:`csv.writerow`.
+
+    The i-th output file contails the i-th column.
     """
 
     def __init__(self, csv_file: tk.Path, columns: list[int], delimiter: str = ","):
