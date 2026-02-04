@@ -39,4 +39,5 @@ class GetColumnsFromCsvFileJob(Job):
             in_csv = csv.reader(f_in, delimiter=self.delimiter)
             for csv_line in in_csv:
                 for column in self.columns:
-                    opened_outs[column].write(f"{csv_line[column]}\n")
+                    # Encoding with unicode_escape allows special characters like "\n" to be printed as intended.
+                    opened_outs[column].write(f"{csv_line[column].encode('unicode_escape').decode('utf-8')}\n")
