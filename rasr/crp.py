@@ -26,6 +26,9 @@ class CommonRasrParameters:
             self.language_model_post_config = None
             self.recognizer_config = None
             self.recognizer_post_config = None
+            self.label_scorer_config = None
+            self.label_scorer_post_config = None
+
             self.log_config = None
             self.log_post_config = None
             self.compress_log_file = True

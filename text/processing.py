@@ -7,11 +7,13 @@ __all__ = [
     "WriteToTextFileJob",
     "WriteToCsvFileJob",
     "SplitTextFileJob",
+    "TakeNRandomLinesJob",
 ]
 
 import csv
 from io import IOBase
 import logging
+import numpy as np
 import os
 import shutil
 import subprocess
@@ -450,6 +452,64 @@ class SplitTextFileJob(Job):
 
             for file_id in range(1, self.num_output_files + 1):
                 shutil.move(
-                    f"{tmp_dir}/split.{file_id:04}.txt.gz" if self.zip_output else f"split.{file_id:04}.txt",
+                    f"{tmp_dir}/split.{file_id:04}.txt.gz" if self.zip_output else f"{tmp_dir}/split.{file_id:04}.txt",
                     self.out_split_text_files[file_id].get_path(),
                 )
+
+
+class TakeNRandomLinesJob(Job):
+    """
+    Take N random non-empty lines from a text file.
+    """
+
+    def __init__(
+        self,
+        text_file: Path,
+        num_lines: int,
+        *,
+        error_on_fewer_lines_than_selected: bool = True,
+        gzip: bool = True,
+        seed: int = 42,
+    ):
+        """
+        :param text_file: File to select lines from.
+        :param num_lines: Number of lines to take.
+            Depending on `error_on_fewer_lines_than_selected`,
+            if the input file has fewer non-empty lines than `num_lines`,
+            either all non-empty lines are returned,
+            or an error is raised.
+        :param error_on_fewer_lines_than_selected: Whether to raise an error
+            if the input file has fewer non-empty lines than `num_lines`.
+        :param gzip: Whether to gzip the output file.
+        :param seed: Random seed for reproducibility.
+        """
+
+        self.text = text_file
+        assert num_lines > 0
+        self.num_lines = num_lines
+        self.error_on_fewer_lines_than_selected = error_on_fewer_lines_than_selected
+        self.gzip = gzip
+        self.seed = seed
+
+        self.out = self.output_path("out.txt" + (".gz" if gzip else ""))
+
+    def tasks(self):
+        yield Task("run", mini_task=True)
+
+    def run(self):
+        with util.uopen(self.text, "rt") as text_file:
+            num_non_empty_lines = sum(1 for line in text_file if line.strip())
+
+        if num_non_empty_lines < self.num_lines and self.error_on_fewer_lines_than_selected:
+            raise ValueError(
+                f"Input file {self.text} has only {num_non_empty_lines} non-empty lines, "
+                f"which is fewer than the requested {self.num_lines} lines."
+            )
+
+        np.random.seed(self.seed)
+        indices = np.random.choice(num_non_empty_lines, size=self.num_lines, replace=False)
+        indices_set = set(int(v) for v in indices)
+        with util.uopen(self.text, "rt") as in_file, util.uopen(self.out, "wt") as out_file:
+            non_empty_lines = (line for line in in_file if line.strip())
+            lines_to_write = (line for i, line in enumerate(non_empty_lines) if i in indices_set)
+            out_file.writelines(lines_to_write)
