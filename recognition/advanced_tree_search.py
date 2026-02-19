@@ -19,6 +19,7 @@ import shutil
 from typing import Any, Dict, Optional
 
 import i6_core.lm as lm
+import i6_core.lm.util as lm_util
 import i6_core.rasr as rasr
 import i6_core.util as util
 
@@ -101,7 +102,7 @@ class AdvancedTreeSearchLmImageAndGlobalCacheJob(rasr.RasrCommand, Job):
         config.flf_lattice_tool.network.recognizer.feature_extraction.file = "dummy.flow"
         config.flf_lattice_tool.network.recognizer.lm.scale = 1.0
 
-        arpa_lms = lm.util.find_arpa_lms(
+        arpa_lms = lm_util.find_arpa_lms(
             config.flf_lattice_tool.network.recognizer.lm,
             post_config.flf_lattice_tool.network.recognizer.lm if post_config is not None else None,
         )
@@ -393,7 +394,7 @@ class AdvancedTreeSearchJob(rasr.RasrCommand, Job):
             ]
 
         # Handle caching of ARPA LMs and maybe build global cache
-        arpa_lms = lm.util.find_arpa_lms(
+        arpa_lms = lm_util.find_arpa_lms(
             config.flf_lattice_tool.network.recognizer.lm, post_config.flf_lattice_tool.network.recognizer.lm
         )
         if lm_cache_method == cls.LmCacheMethod.NONE:
