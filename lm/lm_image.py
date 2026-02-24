@@ -21,7 +21,7 @@ class CreateLmImageJob(rasr.RasrCommand, Job):
         extra_config=None,
         extra_post_config=None,
         encoding="utf-8",
-        mem=2,
+        mem=12,
     ):
         kwargs = locals()
         del kwargs["self"]
