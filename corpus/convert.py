@@ -229,8 +229,13 @@ class CorpusToTextDictJob(Job):
     ):
         """
         :param bliss_corpus: bliss corpus file
-        :param segment_file: a segment file as optional whitelist
-        :param invert_match: use segment file as blacklist (needs to contain full segment names then)
+        :param segment_file: Segment list from which to obtain the segments that will make it to the final corpus.
+            These can be given as full segment names or segment names. It's recommended to provide full segment names.
+        :param invert_match: If `True`, :paramref:`segment_file` will declare the segments
+            that **will not** appear in the output text dictionary.
+            In that case, :paramref:`segment_file` must contain the full segment names.
+
+            Default value: `False` (segment list defines segments that **will** appear in the output text dict).
         :param gzip: output will be gzipped
         """
         self.bliss_corpus = bliss_corpus
