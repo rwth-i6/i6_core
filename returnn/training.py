@@ -290,43 +290,49 @@ class ReturnnTrainingJob(Job):
 
         return run_cmd
 
-    def info(self):
-        def try_load_lr_log(file_path: str) -> Optional[dict]:
-            # Used in parsing the learning rates
-            @dataclass
-            class EpochData:
-                learningRate: float
-                error: Dict[str, float]
-
-            try:
-                with open(file_path, "rt") as file:
-                    return eval(
-                        file.read().strip(),
-                        {"EpochData": EpochData, "nan": float("nan"), "inf": float("inf"), "np": np},
-                    )
-            except FileExistsError:
-                return None
-            except FileNotFoundError:
-                return None
-
+    def _try_load_lr_log(self) -> Optional[dict]:
         lr_file = os.path.join(
             self._sis_path(gs.JOB_WORK_DIR),
             self.returnn_config.get("learning_rate_file", "learning_rates"),
         )
-        epochs = try_load_lr_log(lr_file)
 
-        if epochs is None:
+        try:
+            with open(lr_file, "rt") as file:
+                epochs = eval(
+                    file.read().strip(),
+                    {"EpochData": dict, "nan": float("nan"), "inf": float("inf"), "np": np},
+                )
+                if not isinstance(epochs, dict):
+                    raise TypeError(f"parsed learning rates must be a Dict[int, EpochData] but found {type(epochs)}")
+                return epochs
+        except FileExistsError:
+            return None
+        except FileNotFoundError:
             return None
 
-        if not isinstance(epochs, dict):
-            raise TypeError(f"parsed learning rates must be a Dict[int, EpochData] but found {type(epochs)}")
+    def _max_available_epoch(self) -> Optional[int]:
+        epochs = self._try_load_lr_log()
+        if epochs is None:
+            return None
+        available_epochs = {ep: data for ep, data in epochs.items() if len(data["error"]) > 0}
+        return max(available_epochs) if len(available_epochs) > 0 else 0
 
-        available_epochs = {ep: data for ep, data in epochs.items() if len(data.error) > 0}
-
-        max_available_ep = max(available_epochs) if len(available_epochs) > 0 else 0
+    def info(self):
+        max_available_ep = self._max_available_epoch()
+        if max_available_ep is None:
+            return None
         max_ep = max(self.out_checkpoints)
-
         return f"ep {max_available_ep}/{max_ep}"
+
+    def completed_fraction(self) -> Optional[float]:
+        """
+        :return: fraction between 0 and 1 or None if not available
+        """
+        max_available_ep = self._max_available_epoch()
+        if max_available_ep is None:
+            return None
+        max_ep = max(self.out_checkpoints)
+        return max_available_ep / max_ep
 
     def path_available(self, path):
         # if job is finished the path is available
@@ -492,7 +498,7 @@ class ReturnnTrainingJob(Job):
             post_config.update(copy.deepcopy(returnn_config.post_config))
 
         if keep_epochs is not None:
-            if not "cleanup_old_models" in post_config or isinstance(post_config["cleanup_old_models"], bool):
+            if "cleanup_old_models" not in post_config or isinstance(post_config["cleanup_old_models"], bool):
                 assert post_config.get("cleanup_old_models", True) == True, (
                     "'cleanup_old_models' can not be False if 'keep_epochs' is specified"
                 )
