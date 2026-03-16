@@ -1,4 +1,3 @@
-import filecmp
 import tempfile
 
 from sisyphus import setup_path
