@@ -42,4 +42,5 @@ class GetColumnsFromCsvFileJob(Job):
             in_csv = csv.reader(f_in, delimiter=self.delimiter)
             for csv_line in in_csv:
                 for column in self.columns:
-                    opened_outs[column].write(f"{' '.join(csv_line[column].split())}\n")
+                    escaped_csv_col = csv_line[column].replace("\n", r"\n")  # Replace newline by actual "\" + "n"
+                    opened_outs[column].write(f"{escaped_csv_col}\n")
