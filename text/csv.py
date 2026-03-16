@@ -12,6 +12,9 @@ class GetColumnsFromCsvFileJob(Job):
     Dumps the values of a given set of columns from a csv file onto separate text files.
     The csv file must have been previously dumped with :funcref:`csv.writer` and :funcref:`csv.writerow`.
 
+    Any extra spaces or newlines from each line in the CSV file will be removed by this job.
+    This is useful for using the output in subsequent pipeline steps such as LM training, SPM processing...
+
     The i-th output file contains the i-th column.
     """
 
@@ -40,4 +43,4 @@ class GetColumnsFromCsvFileJob(Job):
             for csv_line in in_csv:
                 for column in self.columns:
                     # Encoding with unicode_escape allows special characters like "\n" to be printed as intended.
-                    opened_outs[column].write(f"{csv_line[column].encode('unicode_escape').decode('utf-8')}\n")
+                    opened_outs[column].write(f"{' '.join(csv_line[column].split())}\n")
