@@ -1,3 +1,4 @@
 input
 hello
 world
+bye
