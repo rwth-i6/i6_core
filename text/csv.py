@@ -12,6 +12,12 @@ class GetColumnsFromCsvFileJob(Job):
     Dumps the values of a given set of columns from a csv file onto separate text files.
     The csv file must have been previously dumped with :funcref:`csv.writer` and :funcref:`csv.writerow`.
 
+    The job uses the default `csv.reader` parameters,
+    which are expected to be compatible with the default `csv.writer` parameters.
+    For instance, the contents of a column can contain the csv delimiter or newlines.
+    In this case, the start/end of each cell in a column is properly marked
+    (see e.g. https://docs.python.org/3/library/csv.html#csv.Dialect.quotechar).
+
     Any extra spaces or newlines from each line in the CSV file will be removed by this job.
     This is useful for using the output in subsequent pipeline steps such as LM training, SPM processing...
 
