@@ -52,11 +52,6 @@ class GetColumnsFromCsvFileJob(Job):
                     # json.dumps helps escaping conflictive characters, e.g. newlines.
                     escaped_csv_col = json.dumps(csv_line[column], ensure_ascii=False)
 
-                    # json.dumps also escapes double quotes because it adds them at the start/end.
+                    # Remove artificial start/end quotes added by json.dumps.
                     assert escaped_csv_col.startswith('"') and escaped_csv_col.endswith('"')
-                    # Remove artificial start/end quotes.
-                    escaped_csv_col = escaped_csv_col[1:-1]
-                    # Unescape the rest of the double quotes found.
-                    escaped_csv_col = escaped_csv_col.replace(r'\"', '"')
-
-                    opened_outs[column].write(f"{escaped_csv_col}\n")
+                    opened_outs[column].write(f"{escaped_csv_col[1:-1]}\n")
