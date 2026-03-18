@@ -3,3 +3,4 @@ hello
 world
 bye
 哔哩哔哩
+\\n
