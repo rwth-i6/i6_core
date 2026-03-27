@@ -238,8 +238,7 @@ class BlissToPcmHDFJob(Job):
             segment: corpus.Segment,
         ):
             assert data.shape[-1] == 1, (
-                "Audio has more than one channel, choose a supported multi_channel_strategy. "
-                f"Currently using {self}."
+                f"Audio has more than one channel, choose a supported multi_channel_strategy. Currently using {self}."
             )
             return data
 
@@ -252,7 +251,7 @@ class BlissToPcmHDFJob(Job):
 
         def process(self, data, segment: corpus.Segment):
             assert data.shape[-1] > self.channel, "Audio has too few channels."
-            data = data[:, self.channel: self.channel + 1]
+            data = data[:, self.channel : self.channel + 1]
             return data
 
     class TrackBasedStrategy(BaseStrategy):
@@ -262,7 +261,7 @@ class BlissToPcmHDFJob(Job):
             segment: corpus.Segment,
         ):
             assert data.ndim == 2 and data.shape[-1] > segment.track, "Audio has too few channels."
-            data = data[:, segment.track: segment.track + 1]
+            data = data[:, segment.track : segment.track + 1]
             return data
 
     class RoundingScheme(Enum):
