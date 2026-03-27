@@ -232,12 +232,38 @@ class BlissToPcmHDFJob(Job):
         def __eq__(self, other):
             return type(other) == type(self)
 
+        def process(
+            self,
+            data: np.ndarray,
+            segment: corpus.Segment,
+        ):
+            assert data.shape[-1] == 1, (
+                "Audio has more than one channel, choose a supported multi_channel_strategy. "
+                f"Currently using {self}."
+            )
+            return data
+
     @dataclass(frozen=True)
     class PickNth(BaseStrategy):
         channel: int
 
         def __eq__(self, other):
             return super().__eq__(other) and other.channel == self.channel
+
+        def process(self, data, segment: corpus.Segment):
+            assert data.shape[-1] > self.channel, "Audio has too few channels."
+            data = data[:, self.channel: self.channel + 1]
+            return data
+
+    class TrackBasedStrategy(BaseStrategy):
+        def process(
+            self,
+            data: np.ndarray,
+            segment: corpus.Segment,
+        ):
+            assert data.ndim == 2 and data.shape[-1] > segment.track, "Audio has too few channels."
+            data = data[:, segment.track: segment.track + 1]
+            return data
 
     class RoundingScheme(Enum):
         start_and_duration = auto()
@@ -269,6 +295,7 @@ class BlissToPcmHDFJob(Job):
             Currently implemented are:
             BaseStrategy(): no handling, assume only one channel
             PickNth(n): Takes audio from n-th channel
+            TrackBasedStrategy(): use segment track info to pick channel
         :param returnn_root: RETURNN repository
         :param rounding: defines how timestamps should be rounded if they do not exactly fall onto a sample:
             start_and_duration will round down the start time and the duration of the segment
@@ -311,7 +338,7 @@ class BlissToPcmHDFJob(Job):
         out_hdf = SimpleHDFWriter(filename=self.out_hdf, dim=1)
 
         for recording in c.all_recordings():
-            audio = None
+            audio = audio_file = None
             for segment in recording.segments:
                 if (segments_whitelist is not None) and (segment.fullname() not in segments_whitelist):
                     continue
@@ -337,13 +364,15 @@ class BlissToPcmHDFJob(Job):
                 # read audio data
                 audio.seek(start)
                 data = audio.read(duration, always_2d=True, dtype=self.output_dtype)
-                if isinstance(self.multi_channel_strategy, self.PickNth):
-                    data = data[:, self.multi_channel_strategy.channel]
-                else:
-                    assert data.shape[-1] == 1, (
-                        "Audio has more than one channel, choose a supported multi_channel_strategy. "
-                        f"Currently using {self.multi_channel_strategy}."
-                    )
+                assert data.shape[0] == duration, (
+                    f"Something went wrong reading {duration} samples starting at {start} in {audio_file}"
+                )
+
+                data = self.multi_channel_strategy.process(
+                    data=data,
+                    segment=segment,
+                )
+                assert data.ndim == 2 and data.shape[-1] == 1
 
                 # resample if necessary
                 if (sr := self.target_sampling_rate) is not None and sr != audio.samplerate:
