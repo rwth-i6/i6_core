@@ -266,13 +266,29 @@ def build_config_from_mapping(crp, mapping, include_log_config=True, parallelize
         if type(keys) == str:
             keys = (keys,)
         for key in keys:
-            c = getattr(crp, "%s_config" % mkey)
-            if c is not None:
-                config[key] = c
+            num_config = 1
+            if mkey == "label_scorer":
+                print(crp)
+                num_label_scorers = getattr(crp, "num_label_scorers")
+                print(f"num_label_scorers: {num_label_scorers}")
+                config.speech_recognizer.model_combination.num_label_scorers = num_label_scorers
+                num_config = num_label_scorers
 
-            c = getattr(crp, "%s_post_config" % mkey)
-            if c is not None:
-                post_config[key] = c
+            if num_config == 1:
+                c = getattr(crp, "%s_config" % mkey)
+                if c is not None:
+                    config[key] = c
+                c = getattr(crp, "%s_post_config" % mkey)
+                if c is not None:
+                    post_config[key] = c
+            else:
+                for i in range(num_label_scorers):
+                    c = getattr(crp, f"{mkey}_{i+1}_config")
+                    if c is not None:
+                        config[f"{key}-{i+1}"] = c
+                    c = getattr(crp, f"{mkey}_{i+1}_post_config")
+                    if c is not None:
+                        post_config[f"{key}-{i+1}"] = c
 
             if mkey == "corpus" and parallelize:
                 if crp.segment_path is not None:
