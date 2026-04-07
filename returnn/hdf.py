@@ -337,7 +337,8 @@ class BlissToPcmHDFJob(Job):
         out_hdf = SimpleHDFWriter(filename=self.out_hdf, dim=1)
 
         for recording in c.all_recordings():
-            audio = audio_file = None
+            audio = None
+            audio_file = None
             for segment in recording.segments:
                 if (segments_whitelist is not None) and (segment.fullname() not in segments_whitelist):
                     continue
