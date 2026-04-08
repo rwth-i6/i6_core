@@ -1,4 +1,4 @@
-__all__ = ["WriteLexiconJob", "MergeLexiconJob", "AddEowPhonemesToLexiconJob"]
+__all__ = ["WriteLexiconJob", "MergeLexiconJob", "AddEowPhonemesToLexiconJob", "ReorderPhonemeInventoryJob"]
 
 import copy
 from collections import OrderedDict, defaultdict
@@ -272,3 +272,42 @@ class AddEowPhonemesToLexiconJob(Job):
 
         # Write resulting lexicon to file
         write_xml(self.out_lexicon.get_path(), out_lex.to_xml())
+
+
+class ReorderPhonemeInventoryJob(Job):
+    """
+    Reorders the phoneme inventory of a lexicon to match a reference lexicon.
+
+    The job will raise an error if the phoneme set does not match between both lexica.
+    """
+
+    def __init__(self, lex_to_modify: tk.Path, ref_lex: tk.Path):
+        self.lex_to_modify = lex_to_modify
+        self.ref_lex = ref_lex
+
+        self.out_lexicon = self.output_path("lex.xml.gz")
+
+        self.rqmt = {"cpu": 1, "mem": 1.0, "time": 1.0}
+
+    def tasks(self):
+        yield Task("run", resume="run", rqmt=self.rqmt)
+
+    def run(self):
+        lex_to_modify = lexicon.Lexicon()
+        lex_to_modify.load(self.lex_to_modify.get_path())
+
+        ref_lex = lexicon.Lexicon()
+        ref_lex.load(self.ref_lex.get_path())
+
+        lex_to_modify_phoneme_set = set(lex_to_modify.phonemes)
+        ref_lex_phoneme_set = set(ref_lex.phonemes)
+        assert lex_to_modify_phoneme_set == ref_lex_phoneme_set, (
+            "Any of the phonemes in a phoneme set doesn't exist in the other.\n"
+            f"to_modify - ref = {lex_to_modify_phoneme_set - ref_lex_phoneme_set}\n"
+            f"ref - to_modify = {ref_lex_phoneme_set - lex_to_modify_phoneme_set}\n"
+            "Please solve this incongruency and rerun the job with the fixed lexica."
+        )
+
+        lex_to_modify.phonemes = ref_lex.phonemes
+
+        write_xml(self.out_lexicon.get_path(), lex_to_modify.to_xml())

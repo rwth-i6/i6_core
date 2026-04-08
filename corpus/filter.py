@@ -46,9 +46,14 @@ class FilterSegmentsByListJob(Job):
     def __init__(self, segment_files: Dict[int, Path], filter_list: Union[List[str], Path], invert_match: bool = False):
         """
         Filters segment list file using a given list of segments, which is either used as black or as white list
+
         :param segment_files: original segment list files to be filtered
         :param filter_list: list used for filtering or a path to a text file with the entries of that list one per line
-        :param invert_match: black list (if False) or white list (if True) usage
+        :param invert_match: If `True`, :paramref:`segment_files` will declare the segments
+            that are allowed in the final corpus.
+            If `False`, :paramref:`segment_files` will declare the segments that are removed from the final corpus.
+
+            Default value: `False`.
         """
         assert isinstance(filter_list, tk.Path) or isinstance(filter_list, list)
         self.segment_files = segment_files
@@ -421,8 +426,12 @@ class FilterCorpusBySegmentsJob(Job):
         """
         :param bliss_corpus:
         :param segment_file: a single segment file or a list of segment files
-        :param compressed:
-        :param invert_match:
+        :param compressed: Whether the final corpus will be compressed (`True`) or not (`False`).
+        :param invert_match: If `True`, :paramref:`segment_files` will declare the segments
+            that are removed from the final corpus.
+            If `False`, :paramref:`segment_files` will declare the segments that are allowed in the final corpus.
+
+            Default value: `False`.
         :param delete_empty_recordings: if true, empty recordings will be removed
         """
         self.bliss_corpus = bliss_corpus

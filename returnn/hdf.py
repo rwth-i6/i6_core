@@ -311,12 +311,14 @@ class BlissToPcmHDFJob(Job):
         out_hdf = SimpleHDFWriter(filename=self.out_hdf, dim=1)
 
         for recording in c.all_recordings():
-            audio_file = recording.audio
-            audio = sf.SoundFile(audio_file)
-
+            audio = None
             for segment in recording.segments:
                 if (segments_whitelist is not None) and (segment.fullname() not in segments_whitelist):
                     continue
+
+                if audio is None:
+                    audio_file = recording.audio
+                    audio = sf.SoundFile(audio_file)
 
                 # determine correct start and duration values
                 if self.rounding == self.RoundingScheme.start_and_duration:
@@ -359,7 +361,8 @@ class BlissToPcmHDFJob(Job):
                     seq_tag=[segment.fullname()],
                 )
 
-            audio.close()
+            if audio is not None:
+                audio.close()
 
         out_hdf.close()
 
