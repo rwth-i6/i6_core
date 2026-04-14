@@ -249,7 +249,11 @@ class BlissToPcmHDFJob(Job):
         def __eq__(self, other):
             return super().__eq__(other) and other.channel == self.channel
 
-        def process(self, data, segment: corpus.Segment):
+        def process(
+            self,
+            data: np.ndarray,
+            segment: corpus.Segment,
+        ):
             assert data.shape[-1] > self.channel, "Audio has too few channels."
             data = data[:, self.channel : self.channel + 1]
             return data
