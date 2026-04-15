@@ -268,9 +268,7 @@ def build_config_from_mapping(crp, mapping, include_log_config=True, parallelize
         for key in keys:
             num_config = 1
             if mkey == "label_scorer":
-                print(crp)
                 num_label_scorers = getattr(crp, "num_label_scorers")
-                print(f"num_label_scorers: {num_label_scorers}")
                 config.speech_recognizer.model_combination.num_label_scorers = num_label_scorers
                 num_config = num_label_scorers
 
