@@ -281,12 +281,12 @@ def build_config_from_mapping(crp, mapping, include_log_config=True, parallelize
                     post_config[key] = c
             else:
                 for i in range(num_label_scorers):
-                    c = getattr(crp, f"{mkey}_{i+1}_config")
+                    c = getattr(crp, f"{mkey}_{i + 1}_config")
                     if c is not None:
-                        config[f"{key}-{i+1}"] = c
-                    c = getattr(crp, f"{mkey}_{i+1}_post_config")
+                        config[f"{key}-{i + 1}"] = c
+                    c = getattr(crp, f"{mkey}_{i + 1}_post_config")
                     if c is not None:
-                        post_config[f"{key}-{i+1}"] = c
+                        post_config[f"{key}-{i + 1}"] = c
 
             if mkey == "corpus" and parallelize:
                 if crp.segment_path is not None:
