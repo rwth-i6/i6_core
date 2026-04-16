@@ -41,6 +41,26 @@ class LexiconToWordListJob(Job):
                 word_file.write("%s\n" % w)
 
 
+class LexiconToPhonemeListJob(Job):
+    def __init__(self, bliss_lexicon: Path):
+        self.set_vis_name("Lexicon to Word List")
+
+        self.bliss_lexicon = bliss_lexicon
+
+        self.out_phoneme_list = self.output_path("phoneme.txt", cached=True)
+
+    def tasks(self):
+        yield Task("run", mini_task=True)
+
+    def run(self):
+        with uopen(self.bliss_lexicon.get_path(), "r") as lexicon_file, open(
+            self.out_phoneme_list.get_path(), "wt"
+        ) as phoneme_file:
+            lexicon = ET.fromstring(lexicon_file.read())
+            for p in lexicon.findall("./phoneme-inventory/phoneme/symbol"):
+                phoneme_file.write(f"{p.text}\n")
+
+
 class FilterLexiconByWordListJob(Job):
     """
     Filter lemmata to given word list.
