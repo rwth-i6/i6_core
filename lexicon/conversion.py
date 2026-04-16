@@ -43,7 +43,7 @@ class LexiconToWordListJob(Job):
 
 class LexiconToPhonemeListJob(Job):
     def __init__(self, bliss_lexicon: Path):
-        self.set_vis_name("Lexicon to Word List")
+        self.set_vis_name("Lexicon to Phoneme List")
 
         self.bliss_lexicon = bliss_lexicon
 
