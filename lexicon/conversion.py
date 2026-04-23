@@ -56,9 +56,10 @@ class LexiconToPhonemeListJob(Job):
         with uopen(self.bliss_lexicon.get_path(), "r") as lexicon_file, open(
             self.out_phoneme_list.get_path(), "wt"
         ) as phoneme_file:
-            lexicon = ET.fromstring(lexicon_file.read())
-            for p in lexicon.findall("./phoneme-inventory/phoneme/symbol"):
-                phoneme_file.write(f"{p.text}\n")
+            lex = lexicon.Lexicon()
+            lex.load(self.bliss_lexicon)
+            for phon in lex.phonemes.keys():
+                phoneme_file.write(f"{phon}\n")
 
 
 class FilterLexiconByWordListJob(Job):
