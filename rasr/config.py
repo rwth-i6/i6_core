@@ -267,16 +267,19 @@ def build_config_from_mapping(crp, mapping, include_log_config=True, parallelize
             keys = (keys,)
         for key in keys:
             if mkey == "label_scorers":
-                label_scorer_configs = getattr(crp, mkey)
-                num_label_scorers = len(label_scorer_configs)
-                label_scorer_top_level_key = key.split(".")[: len(key.split(".")) - 1]
-                config[".".join(label_scorer_top_level_key + ["num-label-scorers"])] = num_label_scorers
-
-                for i, (c, pc) in enumerate(label_scorer_configs, start=1):
-                    if c is not None:
-                        config[f"{key}-{i}"] = c
-                    if pc is not None:
-                        post_config[f"{key}-{i}"] = pc
+                # ONLY continue when crp contains label_scorers
+                # most cases (recognizer-v1), crp does not have any label_scorers
+                label_scorer_configs = getattr(crp, mkey, None)
+                if label_scorer_configs is not None:
+                    num_label_scorers = len(label_scorer_configs)
+                    label_scorer_top_level_key = key.split(".")[: len(key.split(".")) - 1]
+                    config[".".join(label_scorer_top_level_key + ["num-label-scorers"])] = num_label_scorers
+    
+                    for i, (c, pc) in enumerate(label_scorer_configs, start=1):
+                        if c is not None:
+                            config[f"{key}-{i}"] = c
+                        if pc is not None:
+                            post_config[f"{key}-{i}"] = pc
             else:
                 c = getattr(crp, "%s_config" % mkey)
                 if c is not None:
