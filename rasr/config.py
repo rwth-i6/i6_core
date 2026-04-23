@@ -267,8 +267,6 @@ def build_config_from_mapping(crp, mapping, include_log_config=True, parallelize
             keys = (keys,)
         for key in keys:
             if mkey == "label_scorers":
-                # ONLY continue when crp contains label_scorers
-                # most cases (recognizer-v1), crp does not have any label_scorers
                 label_scorer_configs = getattr(crp, mkey, None)
                 if label_scorer_configs is not None:
                     num_label_scorers = len(label_scorer_configs)
