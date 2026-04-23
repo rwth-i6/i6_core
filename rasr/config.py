@@ -270,7 +270,7 @@ def build_config_from_mapping(crp, mapping, include_log_config=True, parallelize
                 label_scorer_configs = getattr(crp, mkey)
                 num_label_scorers = len(label_scorer_configs)
                 label_scorer_top_level_key = key.split(".")[: len(key.split(".")) - 1]
-                config[".".join(label_scorer_top_level_key + ["num-scorers"])] = num_label_scorers
+                config[".".join(label_scorer_top_level_key + ["num-label-scorers"])] = num_label_scorers
 
                 for i, (c, pc) in enumerate(label_scorer_configs, start=1):
                     if c is not None:
