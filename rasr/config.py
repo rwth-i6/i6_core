@@ -268,8 +268,8 @@ def build_config_from_mapping(crp, mapping, include_log_config=True, parallelize
         for key in keys:
             if mkey == "label_scorers":
                 label_scorer_configs = getattr(crp, mkey, None)
-                if label_scorer_configs is not None:
-                    num_label_scorers = len(label_scorer_configs)
+                num_label_scorers = len(label_scorer_configs)
+                if num_label_scorers > 0:
                     label_scorer_top_level_key = key.split(".")[: len(key.split(".")) - 1]
                     config[".".join(label_scorer_top_level_key + ["num-label-scorers"])] = num_label_scorers
     
