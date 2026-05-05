@@ -912,7 +912,7 @@ class BuildGlobalCacheJob(rasr.RasrCommand, Job):
         }
 
         if search_algorithm_interface_type == "search-v2":
-            mapping_dict["label_scorer"] = "speech-recognizer.model-combination.label-scorer"
+            mapping_dict["label_scorers"] = "speech-recognizer.model-combination.label-scorer"
 
         config, post_config = rasr.build_config_from_mapping(crp, mapping_dict)
 
