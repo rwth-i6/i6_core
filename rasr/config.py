@@ -267,13 +267,8 @@ def build_config_from_mapping(crp, mapping, include_log_config=True, parallelize
             keys = (keys,)
         for key in keys:
             if mkey == "label_scorers":
-                label_scorer_configs = getattr(crp, mkey)
+                label_scorer_configs = crp.label_scorers
                 num_label_scorers = len(label_scorer_configs)
-                if num_label_scorers == 0:
-                    continue
-
-                label_scorer_top_level_key = key.split(".")[: len(key.split(".")) - 1]
-                config[".".join(label_scorer_top_level_key + ["num-label-scorers"])] = num_label_scorers
 
                 if num_label_scorers == 1:
                     c, pc = label_scorer_configs[0]
@@ -281,7 +276,9 @@ def build_config_from_mapping(crp, mapping, include_log_config=True, parallelize
                         config[key] = c
                     if pc is not None:
                         post_config[key] = pc
-                else:
+                elif num_label_scorers > 1:
+                    label_scorer_top_level_key = key.split(".")[: len(key.split(".")) - 1]
+                    config[".".join(label_scorer_top_level_key + ["num-label-scorers"])] = num_label_scorers
                     for i, (c, pc) in enumerate(label_scorer_configs, start=1):
                         if c is not None:
                             config[f"{key}-{i}"] = c
