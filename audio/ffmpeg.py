@@ -159,8 +159,9 @@ class BlissFfmpegJob(Job):
         c.load("temp_corpus.xml.gz")
 
         for r in c.all_recordings():
-            assert len(r.segments) == 1, "needs to be a single segment recording"
-            segment = r.segments[0]
+            recording_segments = list(r.segments)
+            assert len(recording_segments) == 1, "needs to be a single segment recording"
+            segment = recording_segments[0]
             old_duration = segment.end
             assert r.audio is not None
             data, sample_rate = soundfile.read(open(r.audio, "rb"))

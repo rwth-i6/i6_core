@@ -262,7 +262,7 @@ class CreateSwitchboardBlissCorpusJob(Job):
             rec_to_segs.pop("sw02167B")
 
         for rec_name, segs in sorted(rec_to_segs.items()):
-            recording = corpus.Recording()
+            recording = corpus.Recording(corpus=c)
             recording.name = rec_name
             recording.audio = os.path.join(self.audio_dir.get_path(), rec_name + ".wav")
 
@@ -272,7 +272,7 @@ class CreateSwitchboardBlissCorpusJob(Job):
             rec_speaker_id = rec_to_speaker[rec_name]["speaker_id"]
 
             for seg in segs:
-                segment = corpus.Segment()
+                segment = corpus.Segment(recording=recording)
                 segment.name = seg[0]
                 segment.start = float(seg[1])
                 segment.end = float(seg[2])
@@ -280,9 +280,6 @@ class CreateSwitchboardBlissCorpusJob(Job):
                 segment.orth = self._filter_orth(seg[3])
                 if len(segment.orth) == 0:
                     continue
-
-                recording.segments.append(segment)
-            c.recordings.append(recording)
 
         # add speakers to corpus
         for speaker_info in rec_to_speaker.values():

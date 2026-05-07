@@ -26,17 +26,13 @@ class _CorpusCreatorHelper:
         :param corpus_dict: Definition of a corpus in dictionary form.
         :return: Corpus object defined by the corpus dictionary provided.
         """
-        corpus = libcorpus.Corpus()
-        corpus.name = corpus_dict["name"]
+        corpus = libcorpus.Corpus(name=corpus_dict["name"])
         for recording_dict in corpus_dict.get("recordings", []):
-            recording = libcorpus.Recording()
-            recording.name = recording_dict["name"]
-            for segment_name in recording_dict.get("segments", []):
-                segment = libcorpus.Segment()
-                segment.name = segment_name
-                segment.orth = ""
-                recording.add_segment(segment)
+            recording = libcorpus.Recording(name=recording_dict["name"])
             corpus.add_recording(recording)
+            for segment_name in recording_dict.get("segments", []):
+                segment = libcorpus.Segment(name=segment_name, orth="")
+                recording.add_segment(segment)
         for subcorpus_dict in corpus_dict.get("subcorpora", []):
             corpus.add_subcorpus(_CorpusCreatorHelper._create_corpus_with_structure(subcorpus_dict))
 

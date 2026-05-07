@@ -136,21 +136,18 @@ class LibriSpeechCreateBlissCorpusJob(Job):
 
         for transcript in self._transcripts:
             name = "{0}-{1}-{2:04d}".format(transcript["speaker_id"], transcript["chapter"], transcript["segment"])
-            recording = corpus.Recording()
+            recording = corpus.Recording(corpus=c)
             recording.name = name
             recording.speaker_name = transcript["speaker_id"]
             recording.audio = "{}/{}.flac".format(transcript["path"], name)
 
             used_speaker_ids.add(transcript["speaker_id"])
 
-            segment = corpus.Segment()
+            segment = corpus.Segment(recording=recording)
             segment.name = name
             segment.start = 0
             segment.end = float("inf")
             segment.orth = transcript["orth"].strip()
-
-            recording.segments.append(segment)
-            c.recordings.append(recording)
 
         for speaker_id, speaker_info in sorted(self._speakers.items()):
             if speaker_id not in used_speaker_ids:
