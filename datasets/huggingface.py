@@ -24,9 +24,11 @@ def load_hf_dataset(path, **opts):
     """
     import os
     from datasets import load_dataset
-    from huggingface_hub import snapshot_download
+    from huggingface_hub import snapshot_download, is_offline_mode
 
     if is_offline_mode():
+        # `snapshot_download` just locates the dataset files, if they already exist on disk
+        # `load_dataset` does more, including a check for metadata online, which would not work without internet access
         path = snapshot_download(
             repo_id=path,
             repo_type="dataset",
