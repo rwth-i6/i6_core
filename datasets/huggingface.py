@@ -26,7 +26,7 @@ def load_hf_dataset(path, **opts):
     from datasets import load_dataset
     from huggingface_hub import snapshot_download
 
-    if os.environ.get("HF_HUB_OFFLINE") == "1":
+    if is_offline_mode():
         path = snapshot_download(
             repo_id=path,
             repo_type="dataset",
