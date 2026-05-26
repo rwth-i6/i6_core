@@ -15,6 +15,29 @@ if TYPE_CHECKING:
     TransformFuncT = Union[Callable[[DatasetDict], DatasetDict], Callable[[Dataset], Dataset]]
 
 
+def load_hf_dataset(path, **opts):
+    """
+    If `HF_HUB_OFFLINE` is set to true, only use the local files in `HF_HOME` to load the dataset.
+    Otherwise, `load_dataset` tries to load metadata from the internet.
+
+    This can be used for nodes which don't have internet access (e.g. JUPITER in Jülich).
+    """
+    import os
+    from datasets import load_dataset
+    from huggingface_hub import snapshot_download, is_offline_mode
+
+    if is_offline_mode():
+        # `snapshot_download` just locates the dataset files, if they already exist on disk
+        # `load_dataset` does more, including a check for metadata online, which would not work without internet access
+        path = snapshot_download(
+            repo_id=path,
+            repo_type="dataset",
+            local_files_only=True,
+        )
+
+    return load_dataset(path, **opts)
+
+
 class DownloadAndPrepareHuggingFaceDatasetJob(Job):
     """
     https://huggingface.co/docs/datasets/
@@ -242,7 +265,7 @@ class TransformAndMapHuggingFaceDatasetJob(Job):
                 " or via job.set_env"
             )
 
-            ds = load_dataset(dataset_path, **load_dataset_opts)
+            ds = load_hf_dataset(dataset_path, **load_dataset_opts)
             assert isinstance(ds, (Dataset, DatasetDict))
 
         if self.transform:
@@ -342,7 +365,7 @@ class ExtractTextFromHuggingFaceDatasetJob(Job):
         import time
         from datasets import load_dataset, Dataset
 
-        ds = load_dataset(self.path, self.name, split=self.split)
+        ds = load_hf_dataset(self.path, name=self.name, split=self.split)
         assert isinstance(ds, Dataset), f"Expected a Dataset, got {type(ds)} {ds}"
         assert self.column_name in ds.column_names, f"Column name {self.column_name} not in columns {ds.column_names}"
 
