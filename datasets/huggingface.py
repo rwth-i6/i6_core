@@ -145,6 +145,7 @@ class TransformAndMapHuggingFaceDatasetJob(Job):
         non_hashed_map_opts: Optional[Dict[str, Any]] = None,
         num_shards: Union[None, int, Dict[str, int]] = None,
         max_shard_size: Union[None, str, int] = None,
+        concurrent: int = 1,
     ):
         """
         :param path: for :func:`datasets.load_dataset`,
@@ -171,11 +172,14 @@ class TransformAndMapHuggingFaceDatasetJob(Job):
             If not given, will be auto-detected based on the dataset size and ``max_shard_size``.
         :param max_shard_size: maximum size of each shard.
             If not given, will use ``"500MB"``.
+        :param concurrent: number of Sisyphus workers to use for the transform/map step.
         """
         super().__init__()
 
         if max_shard_size is not None and num_shards is not None:
             raise ValueError(f"{self}: please specify either max_shard_size or num_shards, but not both.")
+        if concurrent < 1:
+            raise ValueError(f"{self}: concurrent must be at least 1, got {concurrent!r}.")
 
         self.path = path
         self.name = name
@@ -187,8 +191,10 @@ class TransformAndMapHuggingFaceDatasetJob(Job):
         self.non_hashed_map_opts = non_hashed_map_opts
         self.num_shards = num_shards
         self.max_shard_size = max_shard_size
+        self.concurrent = concurrent
 
         self.rqmt = {"cpu": 16, "mem": 16, "time": 12}
+        self.merge_rqmt = {"cpu": 1, "mem": 16, "time": 4}
 
         self.out_dir = self.output_path("dataset", directory=True)
 
@@ -196,16 +202,17 @@ class TransformAndMapHuggingFaceDatasetJob(Job):
     def hash(cls, kwargs):
         kwargs.pop("non_hashed_load_dataset_opts")
         kwargs.pop("non_hashed_map_opts")
+        kwargs.pop("concurrent", None)
         return super().hash(kwargs)
 
     def tasks(self):
-        yield Task("run", resume="run", rqmt=self.rqmt)
+        yield Task("run", resume="run", rqmt=self.rqmt, args=range(1, self.concurrent + 1))
+        if self.concurrent > 1:
+            yield Task("merge", resume="merge", rqmt=self.merge_rqmt)
 
-    def run(self):
+    def _load_dataset(self):
         import os
-        import shutil
         from datasets import load_dataset, Dataset, DatasetDict
-        from datasets.utils.py_utils import convert_file_size_to_int
         from datasets import config
 
         dataset_path = instanciate_delayed(self.path)
@@ -245,6 +252,11 @@ class TransformAndMapHuggingFaceDatasetJob(Job):
             ds = load_dataset(dataset_path, **load_dataset_opts)
             assert isinstance(ds, (Dataset, DatasetDict))
 
+        return ds
+
+    def _apply_transform(self, ds):
+        from datasets import Dataset, DatasetDict
+
         if self.transform:
             if callable(self.transform):
                 ds = self.transform(ds)
@@ -254,35 +266,43 @@ class TransformAndMapHuggingFaceDatasetJob(Job):
                     ds = func(ds)
                     assert isinstance(ds, (Dataset, DatasetDict)), f"After {func} got {type(ds)}"
 
-        # We create this tmp dir inside the job work dir,
-        # because this might need a lot of space, e.g. several TB, e.g. 2TB for Loquacious,
-        # which is often more than what we have available on the local disk (/var/tmp or so).
-        work_out_d = "tmp-map-output"
-        if os.path.exists(work_out_d):
-            shutil.rmtree(work_out_d)
-        os.makedirs(work_out_d)
+        return ds
+
+    def _shard_dataset(self, ds, task_id: int):
+        from datasets import Dataset, DatasetDict
+
+        if self.concurrent == 1:
+            return ds
+        shard_index = task_id - 1
+        if isinstance(ds, Dataset):
+            return ds.shard(num_shards=self.concurrent, index=shard_index, contiguous=True)
+        if isinstance(ds, DatasetDict):
+            return DatasetDict(
+                {
+                    key: dataset.shard(num_shards=self.concurrent, index=shard_index, contiguous=True)
+                    for key, dataset in ds.items()
+                }
+            )
+        raise TypeError(f"Unexpected type: {type(ds)}")
+
+    def _get_map_opts(self, ds):
         map_opts = self.map_opts
         if callable(map_opts):
             map_opts = map_opts(ds)
+        return map_opts or {}
+
+    def _get_map_num_proc(self):
         map_extra_opts = {}
         if self.non_hashed_map_opts and "num_proc" in self.non_hashed_map_opts:
             num_proc = self.non_hashed_map_opts["num_proc"]
         else:
             num_proc = self.rqmt["cpu"] * 2
             map_extra_opts["num_proc"] = num_proc
-        if self.map_func:
-            ds = ds.map(
-                self.map_func,
-                **(map_opts or {}),
-                **(self.non_hashed_map_opts or {}),
-                **({"cache_file_name": f"{work_out_d}/data.arrow"} if isinstance(ds, Dataset) else {}),
-                **(
-                    {"cache_file_names": {k: f"{work_out_d}/data-{k}.arrow" for k in ds.keys()}}
-                    if isinstance(ds, DatasetDict)
-                    else {}
-                ),
-                **map_extra_opts,
-            )
+        return num_proc, map_extra_opts
+
+    def _get_num_shards(self, ds, num_proc: int):
+        from datasets import Dataset, DatasetDict
+        from datasets.utils.py_utils import convert_file_size_to_int
 
         num_shards = self.num_shards
         max_shard_size = self.max_shard_size or "500MB"
@@ -298,10 +318,100 @@ class TransformAndMapHuggingFaceDatasetJob(Job):
                 num_shards = int(ds._estimate_nbytes() / max_shard_size) + 1
             else:
                 raise TypeError(f"Unexpected type: {type(ds)}")
+        return num_shards, num_proc
 
-        ds.save_to_disk(self.out_dir.get_path(), num_shards=num_shards, num_proc=num_proc)
+    def _worker_out_dir(self, task_id: int) -> str:
+        return f"worker-{task_id}-dataset"
+
+    def run(self, task_id: int):
+        import os
+        import shutil
+        from datasets import Dataset, DatasetDict
+
+        assert 1 <= task_id <= self.concurrent
+        ds = self._load_dataset()
+        ds = self._apply_transform(ds)
+        map_opts = self._get_map_opts(ds)
+        ds = self._shard_dataset(ds, task_id)
+
+        # We create this tmp dir inside the job work dir,
+        # because this might need a lot of space, e.g. several TB, e.g. 2TB for Loquacious,
+        # which is often more than what we have available on the local disk (/var/tmp or so).
+        work_out_d = f"tmp-map-output-{task_id}"
+        if os.path.exists(work_out_d):
+            shutil.rmtree(work_out_d)
+        os.makedirs(work_out_d)
+        num_proc, map_extra_opts = self._get_map_num_proc()
+        if self.map_func:
+            ds = ds.map(
+                self.map_func,
+                **map_opts,
+                **(self.non_hashed_map_opts or {}),
+                **({"cache_file_name": f"{work_out_d}/data-{task_id}.arrow"} if isinstance(ds, Dataset) else {}),
+                **(
+                    {"cache_file_names": {k: f"{work_out_d}/data-{task_id}-{k}.arrow" for k in ds.keys()}}
+                    if isinstance(ds, DatasetDict)
+                    else {}
+                ),
+                **map_extra_opts,
+            )
+
+        if self.concurrent > 1:
+            out_dir = self._worker_out_dir(task_id)
+            if os.path.exists(out_dir):
+                shutil.rmtree(out_dir)
+        else:
+            out_dir = self.out_dir.get_path()
+
+        num_shards, num_proc = self._get_num_shards(ds, num_proc)
+        ds.save_to_disk(out_dir, num_shards=num_shards, num_proc=num_proc)
         del ds
         shutil.rmtree(work_out_d)
+
+    def merge(self):
+        import os
+        import shutil
+        from datasets import Dataset, DatasetDict, concatenate_datasets
+
+        worker_dirs = [self._worker_out_dir(task_id) for task_id in range(1, self.concurrent + 1)]
+        datasets = []
+        for worker_dir in worker_dirs:
+            if not os.path.exists(worker_dir):
+                raise FileNotFoundError(f"Missing worker output directory {worker_dir!r}")
+            datasets.append(self._load_dataset_from_disk(worker_dir))
+
+        first_ds = datasets[0]
+        if isinstance(first_ds, Dataset):
+            ds = concatenate_datasets(datasets)
+        elif isinstance(first_ds, DatasetDict):
+            ds = DatasetDict(
+                {
+                    key: concatenate_datasets([worker_ds[key] for worker_ds in datasets])
+                    for key in first_ds.keys()
+                }
+            )
+        else:
+            raise TypeError(f"Unexpected type: {type(first_ds)}")
+
+        if os.path.exists(self.out_dir.get_path()):
+            shutil.rmtree(self.out_dir.get_path())
+        num_proc, _ = self._get_map_num_proc()
+        num_shards, num_proc = self._get_num_shards(ds, num_proc)
+        ds.save_to_disk(self.out_dir.get_path(), num_shards=num_shards, num_proc=num_proc)
+
+    @staticmethod
+    def _load_dataset_from_disk(path):
+        import os
+        from datasets import Dataset, DatasetDict
+        from datasets import config
+
+        if os.path.exists(f"{path}/{config.DATASET_INFO_FILENAME}") and os.path.exists(
+            f"{path}/{config.DATASET_STATE_JSON_FILENAME}"
+        ):
+            return Dataset.load_from_disk(path)
+        if os.path.exists(f"{path}/{config.DATASETDICT_JSON_FILENAME}"):
+            return DatasetDict.load_from_disk(path)
+        raise FileNotFoundError(f"Could not find a saved Hugging Face dataset in {path!r}")
 
 
 class ExtractTextFromHuggingFaceDatasetJob(Job):
