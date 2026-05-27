@@ -138,7 +138,7 @@ class LibriSpeechCreateBlissCorpusJob(Job):
             name = "{0}-{1}-{2:04d}".format(transcript["speaker_id"], transcript["chapter"], transcript["segment"])
             recording = corpus.Recording()
             recording.name = name
-            recording.speaker_name = transcript["speaker_id"]
+            recording.speaker_name = str(transcript["speaker_id"])
             recording.audio = "{}/{}.flac".format(transcript["path"], name)
 
             used_speaker_ids.add(transcript["speaker_id"])
@@ -156,7 +156,7 @@ class LibriSpeechCreateBlissCorpusJob(Job):
             if speaker_id not in used_speaker_ids:
                 continue
             speaker = corpus.Speaker()
-            speaker.name = speaker_id
+            speaker.name = str(speaker_id)
             speaker.attribs["gender"] = "male" if speaker_info[0] == "M" else "female"
             c.add_speaker(speaker)
 
