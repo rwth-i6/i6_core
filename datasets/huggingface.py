@@ -24,7 +24,16 @@ def load_hf_dataset(path, **opts):
     """
     import os
     from datasets import load_dataset
-    from huggingface_hub import snapshot_download, is_offline_mode
+    from huggingface_hub import snapshot_download
+
+    try:
+        # noinspection PyProtectedMember
+        from huggingface_hub import is_offline_mode  # type: ignore[attr-defined]
+    except ImportError:
+        # ``is_offline_mode`` is not exported in earlier ``huggingface_hub`` releases;
+        # mirror its semantics by checking the ``HF_HUB_OFFLINE`` env var directly.
+        def is_offline_mode() -> bool:
+            return os.environ.get("HF_HUB_OFFLINE", "").lower() in ("1", "true", "yes")
 
     if is_offline_mode():
         # `snapshot_download` just locates the dataset files, if they already exist on disk
