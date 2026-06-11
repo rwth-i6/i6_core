@@ -263,7 +263,7 @@ class ReturnnTrainingJob(Job):
                 prefix += [
                     f"--nnodes={self.multi_node_slots or 1}",
                     f"--nproc-per-node={self.horovod_num_processes}",
-                    "--tee=3",  # Tee each rank's stdout+stderr to per-rank files
+                    "--tee=3",  # add prefix on stdout/stderr to distinguish each worker
                 ]
                 run_cmd = prefix + run_cmd[1:]
             elif self.distributed_launch_cmd == "mpirun":
