@@ -33,9 +33,12 @@ def escape_or_none(string: Optional[str]):
 
 
 class NamedEntity:
-    def __init__(self):
+    def __init__(self, name: Optional[str] = None):
+        """
+        :param name: Name of the entity.
+        """
         super().__init__()
-        self.name: Optional[str] = None
+        self.name = name
 
     def __repr__(self):
         if self.name is None:
@@ -57,7 +60,7 @@ class CorpusParser(sax.handler.ContentHandler):
     """
     This classes methods are called by the sax-parser whenever it encounters an event in the xml-file
     (tags/characters/namespaces/...). It uses a stack of elements to remember the part of the corpus that
-    is currently beeing read.
+    is currently being read.
     """
 
     def __init__(self, corpus: Corpus, path: str, *, reformat_orth: bool = True):
@@ -86,33 +89,24 @@ class CorpusParser(sax.handler.ContentHandler):
             e.name = attrs["name"]
         elif name == "subcorpus":
             assert isinstance(e, Corpus), "<subcorpus> may only occur within a <corpus> or <subcorpus> element"
-            subcorpus = Corpus()
-            subcorpus.name = attrs["name"]
-            subcorpus.parent_corpus = e
-            e.subcorpora.append(subcorpus)
+            subcorpus = Corpus(name=attrs["name"])
+            e.add_subcorpus(subcorpus)
             self.elements.append(subcorpus)
         elif name == "include":
             assert isinstance(e, Corpus), "<include> may only occur within a <corpus> or <subcorpus> element"
-            path = os.path.join(os.path.dirname(self.path), attrs["file"])
-            c = Corpus()
-            c.load(path)
+            c = Corpus(load_from=os.path.join(os.path.dirname(self.path), attrs["file"]))
             if c.name != e.name:
                 print(
                     "Warning: included corpus (%s) has a different name than the current corpus (%s)" % (c.name, e.name)
                 )
             for sc in c.subcorpora:
-                sc.parent_corpus = e.parent_corpus
+                e.add_subcorpus(sc)
             for r in c.recordings:
-                r.corpus = e
-            e.subcorpora.extend(c.subcorpora)
-            e.recordings.extend(c.recordings)
+                e.add_recording(r)
             e.speakers.update(c.speakers)
         elif name == "recording":
             assert isinstance(e, Corpus), "<recording> may only occur within a <corpus> or <subcorpus> element"
-            rec = Recording()
-            rec.name = attrs["name"]
-            rec.audio = attrs["audio"]
-            e.add_recording(rec)
+            rec = Recording(name=attrs["name"], audio=attrs["audio"], corpus=e)
             self.elements.append(rec)
         elif name == "segment":
             assert isinstance(e, Recording), "<segment> may only occur within a <recording> element"
@@ -180,13 +174,67 @@ class Corpus(NamedEntity, CorpusSection):
     attribute is set. Corpora with include statements can be read but are written back as a single file.
     """
 
-    def __init__(self):
-        super().__init__()
+    name: Optional[str]
+    parent_corpus: Optional[Corpus]
+    _recordings: Dict[str, Recording]  # recording-name: Recording
+    _subcorpora: Dict[str, Corpus]  # corpus-name: Corpus
 
-        self.parent_corpus: Optional[Corpus] = None
+    def __init__(
+        self, name: Optional[str] = None, *, parent_corpus: Optional[Corpus] = None, load_from: Optional[str] = None
+    ):
+        """
+        :param name: Corpus name.
+        :param parent_corpus: If provided, `self` will be directly linked as a subcorpus of :param:`parent_corpus`.
+        :param load_from: If provided, :func:`Corpus.load` will be directly run with this parameter.
+        """
+        super().__init__(name=name)
 
-        self.subcorpora: List[Corpus] = []
-        self.recordings: List[Recording] = []
+        self._subcorpora = {}
+        self._recordings = {}
+
+        if parent_corpus:
+            self.parent_corpus.add_subcorpus(self)
+        else:
+            self.parent_corpus = None
+
+        if load_from:
+            self.load(load_from)
+
+    @property
+    def subcorpora(self) -> Iterable[Corpus]:
+        """
+        :return: Iterable of all top-level subcorpora.
+        """
+        return self._subcorpora.values()
+
+    @subcorpora.setter
+    def subcorpora(self, value: List[Corpus]):
+        """
+        :param value: List of subcorpora that the recording must hold.
+            The previous subcorpora will be overwritten.
+        """
+        assert isinstance(value, list) and all(isinstance(c, Corpus) for c in value), (
+            f"Can only set Corpus.subcorpora to a list, but tried setting it to {type(value)}."
+        )
+        self._subcorpora = {c.name: c for c in value}
+
+    @property
+    def recordings(self) -> Iterable[Recording]:
+        """
+        :return: Iterable of all top-level recordings.
+        """
+        return self._recordings.values()
+
+    @recordings.setter
+    def recordings(self, value: List[Recording]):
+        """
+        :param value: List of recordings that the corpus must hold.
+            The previous recordings will be overwritten.
+        """
+        assert isinstance(value, list) and all(isinstance(r, Recording) for r in value), (
+            f"Can only set Corpus.recordings to a list, but tried setting it to {type(value)}."
+        )
+        self._recordings = {r.name: r for r in value}
 
     def segments(self) -> Iterable[Segment]:
         """
@@ -199,21 +247,47 @@ class Corpus(NamedEntity, CorpusSection):
 
     def get_recording_by_name(self, name: str) -> Recording:
         """
-        :return: the recording specified by its name
+        :return: the recording specified by its name relative to `self`.
         """
-        for rec in self.all_recordings():
-            if rec.fullname() == name:
-                return rec
-        assert False, f"Recording '{name}' was not found in corpus"
+        if "/" not in name:
+            assert name in self._recordings, f"Recording '{name}' was not found in corpus."
+            return self._recordings[name]
+        else:
+            subcorpus_name, recording_relative_name = name.split("/", maxsplit=1)
+            return self.get_subcorpus_by_name(subcorpus_name).get_recording_by_name(recording_relative_name)
+
+    def get_subcorpus_by_name(self, name: str) -> Corpus:
+        """
+        :return: The corpus specified by its name relative to `self`.
+        """
+        if "/" not in name:
+            assert name in self._subcorpora, f"Subcorpus '{name}' was not found in corpus."
+            return self._subcorpora[name]
+        else:
+            _, subcorpus_relative_name = name.split("/", maxsplit=1)
+            return self.get_subcorpus_by_name(subcorpus_relative_name)
 
     def get_segment_by_name(self, name: str) -> Segment:
         """
-        :return: the segment specified by its name
+        :param name: Segment name relative to the corpus.
+            Note that it must be at least two levels deep, to also include the recording name.
+            Example: `my_recording/my_segment`.
+        :return: the segment specified by its name relative to `self`.
         """
-        for seg in self.segments():
-            if seg.fullname() == name:
-                return seg
-        assert False, f"Segment '{name}' was not found in corpus"
+        assert "/" in name, (
+            "When running Corpus.get_segment_by_name(), at least two levels of depth 'recording/segment' "
+            "must be provided, separated with '/'."
+        )
+        recording_name, segment_name = name.split("/", maxsplit=1)
+        if recording_name in self._recordings:
+            return self.get_recording_by_name(recording_name).get_segment_by_name(segment_name)
+        else:
+            # The first part is the subcorpus, and the second is the rest of the segment.
+            subcorpus_name, segment_relative_name = recording_name, segment_name
+            assert subcorpus_name in self._subcorpora, (
+                f"When searching for segment '{name}', recording '{recording_name}' was not found in corpus."
+            )
+            return self.get_subcorpus_by_name(subcorpus_name).get_segment_by_name(segment_relative_name)
 
     def all_recordings(self) -> Iterable[Recording]:
         yield from self.recordings
@@ -235,37 +309,38 @@ class Corpus(NamedEntity, CorpusSection):
         yield from self.speakers.values()
 
     def remove_recording(self, recording: Recording):
-        to_delete = []
-        for idx, r in enumerate(self.recordings):
-            if r is recording or r == recording or r.name == recording:
-                to_delete.append(idx)
-        for idx in reversed(to_delete):
-            del self.recordings[idx]
-        for sc in self.subcorpora:
+        if recording.name in self._recordings:
+            del self._recordings[recording.name]
+        for sc in self.subcorpora.values():
             sc.remove_recording(recording)
 
     def remove_recordings(self, recordings: List[Recording]):
-        recording_fullnames = {recording.fullname() for recording in recordings}
-        to_delete = []
-        for idx, r in enumerate(self.recordings):
-            if r.fullname() in recording_fullnames:
-                to_delete.append(idx)
-        for idx in reversed(to_delete):
-            del self.recordings[idx]
-        for sc in self.subcorpora:
-            sc.remove_recordings(recordings)
+        for r in recordings:
+            self.remove_recording(r)
 
     def add_recording(self, recording: Recording):
+        assert recording.name not in self._recordings, (
+            f"Tried to add recording {recording.name} to corpus {self.fullname()}, "
+            "but the recording is already contained in the corpus."
+        )
         assert isinstance(recording, Recording)
         recording.corpus = self
-        self.recordings.append(recording)
+        self._recordings[recording.name] = recording
 
     def add_subcorpus(self, corpus: Corpus):
+        assert corpus.name not in self._subcorpora, (
+            f"Tried to add subcorpus {corpus.name} to corpus {self.fullname()}, "
+            "but the subcorpus is already contained in the corpus."
+        )
         assert isinstance(corpus, Corpus)
         corpus.parent_corpus = self
-        self.subcorpora.append(corpus)
+        self._subcorpora[corpus.name] = corpus
 
     def add_speaker(self, speaker: Speaker):
+        assert speaker.name not in self.speakers, (
+            f"Tried to add speaker {speaker.name} to corpus {self.fullname()}, "
+            "but the speaker is already contained in the corpus."
+        )
         assert isinstance(speaker, Speaker)
         self.speakers[speaker.name] = speaker
 
@@ -293,10 +368,10 @@ class Corpus(NamedEntity, CorpusSection):
         filter all segments (including in subcorpora) using filter_function
         :param filter_function: takes arguments corpus, recording and segment, returns True if segment should be kept
         """
-        for r in self.recordings:
-            r.segments = [s for s in r.segments if filter_function(self, r, s)]
-        for sc in self.subcorpora:
-            sc.filter_segments(filter_function)
+        for rec_full_name, r in self._recordings.items():
+            self._recordings[rec_full_name]._segments = {s.name: s for s in r.segments if filter_function(self, r, s)}
+        for subcorpus_full_name in self._subcorpora():
+            self._subcorpora[subcorpus_full_name].filter_segments(filter_function)
 
     def load(self, path: str, *, reformat_orth: bool = True):
         """
@@ -362,13 +437,53 @@ class Corpus(NamedEntity, CorpusSection):
 
 
 class Recording(NamedEntity, CorpusSection):
-    def __init__(self):
-        super().__init__()
-        self.audio: Optional[str] = None
-        self.corpus: Optional[Corpus] = None
-        self.segments: List[Segment] = []
+    """
+    This class represents a recording in Bliss format.
+    """
+
+    name: Optional[str]
+    audio: Optional[str]
+    _segments: Dict[str, Segment]
+    corpus: Optional[Corpus]
+
+    def __init__(self, name: Optional[str] = None, *, audio: Optional[str] = None, corpus: Optional[Corpus] = None):
+        """
+        :param name: Recording name.
+        :param audio: Actual path to the audio file which contains the playable media.
+        :param corpus: If provided, `self` will be directly linked as a recording of :param:`corpus`.
+        """
+        super().__init__(name=name)
+
+        self.audio = audio
+        self._segments = {}
+
+        if corpus:
+            corpus.add_recording(self)
+        else:
+            self.corpus = None
+
+    @property
+    def segments(self) -> Iterable[Segment]:
+        """
+        :return: Iterable of all segments in a recording.
+        """
+        return self._segments.values()
+
+    @segments.setter
+    def segments(self, value: List[Segment]):
+        """
+        :param value: List of segments that the recording must hold.
+            The previous segments will be overwritten.
+        """
+        assert isinstance(value, list) and all(isinstance(s, Segment) for s in value), (
+            f"Can only set Recording.segments to a list, but tried setting it to {type(value)}."
+        )
+        self._segments = {s.name: s for s in value}
 
     def fullname(self) -> str:
+        assert self.corpus is not None, (
+            "Please add the recording to a corpus via Corpus.add_recording() before triggering fullname()."
+        )
         return self.corpus.fullname() + "/" + self.name
 
     def speaker(self, speaker_name: Optional[str] = None) -> Speaker:
@@ -395,24 +510,60 @@ class Recording(NamedEntity, CorpusSection):
 
         out.write("%s</recording>\n" % indentation)
 
+    def get_segment_by_name(self, name: str) -> Segment:
+        """
+        :param name: Name or full name of the segment.
+
+        :return: Segment which is identified by the full name specified in :param:`name`.
+        """
+        assert "/" not in name, (
+            "Depth levels 'recording/segment' are not supported for Recording.get_segment_by_name(). "
+            "Use Corpus.get_segment_by_name() instead."
+        )
+        assert name in self._segments, f"Segment '{name}' was not found in recording '{self.name}'"
+        return self._segments[name]
+
     def add_segment(self, segment: Segment):
+        assert segment.name not in self._segments, (
+            f"Tried to add segment {segment.name} to recording {self.fullname()}, "
+            "but the segment is already contained in the recording."
+        )
         assert isinstance(segment, Segment)
         segment.recording = self
-        self.segments.append(segment)
+        self._segments[segment.name] = segment
+
+    def remove_segment(self, segment: Segment):
+        assert segment.name in self._segments, f"Segment '{segment.name}' was not found in recording '{self.name}'"
+        del self._segments[segment.name]
 
     def get_segment_mapping(self) -> Dict[str, Segment]:
         """
         :return: Mapping from segment fullnames to actual segments.
         """
-        return {seg.fullname(): seg for seg in self.segments}
+        return self._segments.copy()
 
     def __repr__(self):
         return f"<{self.__class__.__name__} {self.fullname()}>"
 
 
 class Segment(NamedEntity):
+    """
+    This class represents a segment in Bliss format.
+    """
+
+    name: Optional[str]
+    start: Optional[float]
+    end: Optional[float]
+    track: Optional[int]
+    orth: Optional[str]
+    left_context_orth: Optional[str]
+    right_context_orth: Optional[str]
+    speaker_name: Optional[str]
+    recording: Optional[Recording]
+
     def __init__(
         self,
+        name: Optional[str] = None,
         *,
         start: float = 0.0,
         end: float = 0.0,
@@ -424,6 +575,7 @@ class Segment(NamedEntity):
         recording: Optional[Recording] = None,
     ):
         """
+        :param name: Segment name.
         :param start: Segment start.
         :param end: Segment end.
         :param track: Segment track/channel.
@@ -431,9 +583,9 @@ class Segment(NamedEntity):
         :param left_context_orth: Optional left context when aligning (specific for RASR alignment).
         :param right_context_orth: Optional right context when aligning (specific for RASR alignment).
         :param speaker_name: Speaker name.
-        :param recording: Recording in which the segment is embedded.
+        :param recording: If provided, `self` will be directly added to the segments in :param:`recording`.
         """
-        super().__init__()
+        super().__init__(name=name)
 
         self.start = start
         self.end = end
@@ -443,7 +595,10 @@ class Segment(NamedEntity):
         self.right_context_orth = right_context_orth
         self.speaker_name = speaker_name
 
-        self.recording = recording
+        if recording:
+            recording.add_segment(self)
+        else:
+            self.recording = None
 
     def full_orth(self) -> str:
         """
@@ -452,6 +607,9 @@ class Segment(NamedEntity):
         return " ".join([s for s in [self.left_context_orth, self.orth, self.right_context_orth] if s])
 
     def fullname(self) -> str:
+        assert self.recording is not None, (
+            "Please add the recording to a corpus via Recording.add_segment() before triggering Segment.fullname()."
+        )
         return self.recording.fullname() + "/" + self.name
 
     def speaker(self) -> Speaker:
