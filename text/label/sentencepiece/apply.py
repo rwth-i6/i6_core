@@ -1,13 +1,12 @@
 import logging
-import shutil
-import subprocess as sp
-import tempfile
-import os
+from collections import defaultdict
+from typing import TextIO, cast
 
 from sisyphus import Job, Task, tk, gs
 from typing import Any, Dict, Optional
 
 import i6_core.util as util
+from i6_core.util import uopen
 
 try:
     import sentencepiece
@@ -61,3 +60,29 @@ class ApplySentencepieceToTextJob(Job):
             for line in fin:
                 pieces = spm.encode(line.rstrip("\n"), out_type=str)
                 fout.write(" ".join(pieces) + "\n")
+
+
+class GetSpmOovJob(ApplySentencepieceToTextJob):
+    def run(self):
+        import unicodedata
+
+        import sentencepiece  # update nox env then move this to top
+
+        oovs = defaultdict(int)
+        spm = sentencepiece.SentencePieceProcessor(model_file=self.sentencepiece_model.get_path())
+        if self.enable_unk:
+            spm.set_encode_extra_options("unk")
+
+        with uopen(self.text_file, "rt") as fin:
+            for line in cast(TextIO, fin):
+                line = line.strip()
+                line = unicodedata.normalize("NFKC", line.lower())  # should match spm training
+                words = line.split()
+                for word in words:
+                    new_word = spm.encode(word, out_type=str)
+                    if "<unk>" in new_word:
+                        oovs[word] += 1
+
+        with uopen(self.out_sentencepiece_text, "wt") as fout:
+            for word, count in sorted(oovs.items()):
+                fout.write(f"{word} {count}\n")
