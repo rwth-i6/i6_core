@@ -277,8 +277,8 @@ def build_config_from_mapping(crp, mapping, include_log_config=True, parallelize
                     if pc is not None:
                         post_config[key] = pc
                 elif num_label_scorers > 1:
-                    label_scorer_top_level_key = key.split(".")[: len(key.split(".")) - 1]
-                    config[".".join(label_scorer_top_level_key + ["num-label-scorers"])] = num_label_scorers
+                    label_scorer_top_level_key = key.rsplit(".", maxsplit=1)[0]
+                    config[label_scorer_top_level_key + ".num-label-scorers"] = num_label_scorers
                     for i, (c, pc) in enumerate(label_scorer_configs, start=1):
                         if c is not None:
                             config[f"{key}-{i}"] = c
