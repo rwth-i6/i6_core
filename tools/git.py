@@ -77,7 +77,29 @@ class CloneGitRepositoryJob(Job):
         elif self.commit is not None:
             args = ["git", "checkout", self.commit]
             logging.info("running command: %s" % " ".join(args))
-            sp.run(args, cwd=repository_dir, check=True)
+            try:
+                sp.run(args, cwd=repository_dir, check=True)
+            except sp.CalledProcessError:
+                # Commit not reachable from the default branch
+                # (e.g. a PR-side commit that was rebased/squash-merged into the target branch,
+                # leaving the original SHA only in refs/pull/*/head on GitHub).
+                # Try to fetch it explicitly, then PR refs as a broader fallback, and retry the checkout.
+                logging.info("checkout failed; fetching commit / PR refs as fallback")
+                fetched = False
+                for fetch_args in (
+                    ["git", "fetch", "origin", self.commit],
+                    ["git", "fetch", "origin", "+refs/pull/*/head:refs/remotes/origin/pr/*"],
+                ):
+                    try:
+                        logging.info("running command: %s" % " ".join(fetch_args))
+                        sp.run(fetch_args, cwd=repository_dir, check=True)
+                        fetched = True
+                        break
+                    except sp.CalledProcessError as e:
+                        logging.info("fallback fetch failed (%s); trying next" % e)
+                if not fetched:
+                    raise
+                sp.run(args, cwd=repository_dir, check=True)
         if self.patches is not None:
             for patch in self.patches:
                 args = ["git", "apply", "-"]
