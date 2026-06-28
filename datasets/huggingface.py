@@ -341,6 +341,8 @@ class ExtractTextFromHuggingFaceDatasetJob(Job):
     Extract a text column from a HF dataset and write it to a gzipped text file.
     """
 
+    __sis_hash_exclude__ = {"revision": None}
+
     def __init__(
         self,
         path: Union[str, Path],
@@ -367,13 +369,6 @@ class ExtractTextFromHuggingFaceDatasetJob(Job):
         self.rqmt = {"cpu": 4, "mem": 8, "time": 10}
 
         self.out_text = self.output_path("text.txt.gz")
-
-    @classmethod
-    def hash(cls, kwargs):
-        # keep the hash stable for callers that do not pin a revision
-        if kwargs.get("revision") is None:
-            kwargs = {k: v for k, v in kwargs.items() if k != "revision"}
-        return super().hash(kwargs)
 
     def tasks(self):
         yield Task("run", resume="run", rqmt=self.rqmt)
