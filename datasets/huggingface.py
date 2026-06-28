@@ -348,22 +348,32 @@ class ExtractTextFromHuggingFaceDatasetJob(Job):
         *,
         split: Optional[str] = "train",
         column_name: str = "text",
+        revision: Optional[str] = None,
     ):
         """
         :param path: for :func:`datasets.load_dataset`
         :param name: for :func:`datasets.load_dataset`
         :param split: for :func:`datasets.load_dataset`
         :param column_name: name of the text column to extract
+        :param revision: dataset version (git revision) of the dataset
         """
         super().__init__()
         self.path = path
         self.name = name
         self.split = split
         self.column_name = column_name
+        self.revision = revision
 
         self.rqmt = {"cpu": 4, "mem": 8, "time": 10}
 
         self.out_text = self.output_path("text.txt.gz")
+
+    @classmethod
+    def hash(cls, kwargs):
+        # keep the hash stable for callers that do not pin a revision
+        if kwargs.get("revision") is None:
+            kwargs = {k: v for k, v in kwargs.items() if k != "revision"}
+        return super().hash(kwargs)
 
     def tasks(self):
         yield Task("run", resume="run", rqmt=self.rqmt)
@@ -374,7 +384,7 @@ class ExtractTextFromHuggingFaceDatasetJob(Job):
         import time
         from datasets import load_dataset, Dataset
 
-        ds = load_hf_dataset(self.path, name=self.name, split=self.split)
+        ds = load_hf_dataset(self.path, name=self.name, split=self.split, revision=self.revision)
         assert isinstance(ds, Dataset), f"Expected a Dataset, got {type(ds)} {ds}"
         assert self.column_name in ds.column_names, f"Column name {self.column_name} not in columns {ds.column_names}"
 
