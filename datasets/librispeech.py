@@ -149,8 +149,8 @@ class LibriSpeechCreateBlissCorpusJob(Job):
             segment.end = float("inf")
             segment.orth = transcript["orth"].strip()
 
-            recording.segments.append(segment)
-            c.recordings.append(recording)
+            recording.add_segment(segment)
+            c.add_recording(recording)
 
         for speaker_id, speaker_info in sorted(self._speakers.items()):
             if speaker_id not in used_speaker_ids:
