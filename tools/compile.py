@@ -108,3 +108,87 @@ class MakeJob(Job):
         d = kwargs.copy()
         d.pop("num_processes")
         return super().hash(d)
+
+
+class CMakeJob(Job):
+    """
+    Builds a CMake project using a configure, build and install sequence.
+    """
+
+    def __init__(
+        self,
+        source_folder: tk.Path,
+        cmake_opts: Optional[List[str]] = None,
+        num_processes: int = 1,
+        mem_rqmt: int = 4,
+    ):
+        """
+        :param source_folder: Source folder containing CMakeLists.txt
+        :param cmake_opts: Additional arguments passed to the initial cmake configuration call
+        :param num_processes: Number of CPUs used for building
+        :param mem_rqmt: Memory requirement in GB
+        """
+        self.source_folder = source_folder
+        self.cmake_opts = cmake_opts if cmake_opts is not None else []
+        self.num_processes = num_processes
+
+        self.rqmt = {"cpu": num_processes, "mem": mem_rqmt}
+
+        self.out_install_dir = self.output_path("install", directory=True)
+
+    def tasks(self) -> Iterator[Task]:
+        yield Task("run", resume="run", rqmt=self.rqmt)
+
+    def run(self):
+        with TemporaryDirectory(prefix=gs.TMP_PREFIX) as build_dir:
+            try:
+                shutil.rmtree(build_dir)
+                os.makedirs(build_dir)
+
+                # 1. Configure
+                configure_args = [
+                    "cmake",
+                    "-S",
+                    self.source_folder.get(),
+                    "-B",
+                    build_dir,
+                ]
+                if shutil.which("ninja"):  # Use Ninja build system for speedup if available
+                    configure_args.extend(["-G", "Ninja"])
+                configure_args.extend(self.cmake_opts)
+
+                logging.info(f"Configuring: {' '.join(configure_args)}")
+                sp.run(configure_args, check=True)
+
+                # 2. Build
+                build_args = [
+                    "cmake",
+                    "--build",
+                    build_dir,
+                    "--parallel",
+                    str(self.num_processes),
+                ]
+                logging.info(f"Building: {' '.join(build_args)}")
+                sp.run(build_args, check=True)
+
+                # 3. Install
+                install_args = [
+                    "cmake",
+                    "--install",
+                    build_dir,
+                    "--prefix",
+                    self.out_install_dir.get_path(),
+                ]
+                logging.info(f"Installing: {' '.join(install_args)}")
+                sp.run(install_args, check=True)
+
+            except Exception as e:
+                shutil.copytree(build_dir, "crash_repo")
+                raise e
+
+    @classmethod
+    def hash(cls, parsed_args):
+        d = parsed_args.copy()
+        d.pop("num_processes", None)
+        d.pop("mem_rqmt", None)
+        return super().hash(d)
