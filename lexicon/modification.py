@@ -281,9 +281,12 @@ class ReorderPhonemeInventoryJob(Job):
     The job will raise an error if the phoneme set does not match between both lexica.
     """
 
-    def __init__(self, lex_to_modify: tk.Path, ref_lex: tk.Path):
+    __sis_hash_exclude__ = {"prettify": True}
+
+    def __init__(self, lex_to_modify: tk.Path, ref_lex: tk.Path, prettify: bool = True):
         self.lex_to_modify = lex_to_modify
         self.ref_lex = ref_lex
+        self.prettify = prettify
 
         self.out_lexicon = self.output_path("lex.xml.gz")
 
@@ -310,4 +313,4 @@ class ReorderPhonemeInventoryJob(Job):
 
         lex_to_modify.phonemes = ref_lex.phonemes
 
-        write_xml(self.out_lexicon.get_path(), lex_to_modify.to_xml())
+        write_xml(self.out_lexicon.get_path(), lex_to_modify.to_xml(), prettify=self.prettify)
