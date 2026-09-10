@@ -47,6 +47,97 @@ def load_hf_dataset(path, **opts):
     return load_dataset(path, **opts)
 
 
+_hf_hub_transient_retries_patched = False
+
+
+def patch_hf_hub_transient_retries(*, max_retries: int = 8, max_wait_time: float = 30.0):
+    """
+    Make ``huggingface_hub`` survive mid-download connection drops.
+
+    Observed on large WebDataset tar shards (~3-4GB): the CDN closes the connection mid-body,
+    raising ``httpx.RemoteProtocolError("peer closed connection without sending complete message
+    body")``. Two gaps in ``huggingface_hub`` (checked with 1.16.1) turn that into a hard failure,
+    losing the whole (many hours long) shard:
+
+    - ``_DEFAULT_RETRY_ON_EXCEPTIONS`` is ``(httpx.TimeoutException, httpx.NetworkError)``, which
+      does not cover ``httpx.RemoteProtocolError``, so the backoff in ``http_backoff`` /
+      ``http_stream_backoff`` does not apply to it.
+    - ``HfFileSystemStreamFile.read`` retries a failed stream read exactly once.
+
+    Both are patched here. The stream read reopens the connection with a ``Range`` header at the
+    current offset, so a retry resumes instead of restarting the download.
+
+    Best effort: any failure to patch (e.g. after a ``huggingface_hub`` refactoring) is logged and
+    ignored, leaving the original behaviour in place. Idempotent.
+    """
+    global _hf_hub_transient_retries_patched
+    if _hf_hub_transient_retries_patched:
+        return
+    _hf_hub_transient_retries_patched = True
+
+    import logging
+    import time
+    import httpx
+
+    try:
+        from huggingface_hub.utils import _http as hf_http
+
+        retry_on = tuple(hf_http._DEFAULT_RETRY_ON_EXCEPTIONS)
+        if httpx.RemoteProtocolError not in retry_on:
+            retry_on += (httpx.RemoteProtocolError,)
+        hf_http._DEFAULT_RETRY_ON_EXCEPTIONS = retry_on
+        # The default is bound at def time, so updating the module global alone has no effect.
+        # http_stream_backoff is a @contextmanager, i.e. its defaults live on the wrapped function.
+        patched_funcs = 0
+        for func_name in ("_http_backoff_base", "http_backoff", "http_stream_backoff"):
+            func = getattr(hf_http, func_name, None)
+            func = getattr(func, "__wrapped__", func)
+            kwdefaults = getattr(func, "__kwdefaults__", None)
+            if kwdefaults and "retry_on_exceptions" in kwdefaults:
+                kwdefaults["retry_on_exceptions"] = retry_on
+                patched_funcs += 1
+        assert patched_funcs == 3, f"patched {patched_funcs} of 3 huggingface_hub backoff functions"
+    except Exception as exc:
+        logging.warning(f"Could not patch huggingface_hub retry_on_exceptions: {exc}")
+
+    try:
+        from huggingface_hub.hf_file_system import HfFileSystemStreamFile
+
+        orig_read = HfFileSystemStreamFile.read
+
+        def read(self, length=-1):
+            wait_time = 1.0
+            for attempt in range(max_retries):
+                try:
+                    return orig_read(self, length)
+                except (httpx.HTTPError, OSError) as exc:
+                    if attempt == max_retries - 1:
+                        raise
+                    logging.warning(
+                        f"'{exc}' while reading {getattr(self, 'path', '?')} at offset {self.loc},"
+                        f" resuming in {wait_time}s [retry {attempt + 1}/{max_retries - 1}]"
+                    )
+                    # Force _open_connection() on the next attempt: it sends a Range header from
+                    # self.loc, i.e. the read resumes rather than restarting.
+                    self.response = None
+                    time.sleep(wait_time)
+                    wait_time = min(max_wait_time, wait_time * 2)
+
+        HfFileSystemStreamFile.read = read
+    except Exception as exc:
+        logging.warning(f"Could not patch HfFileSystemStreamFile.read: {exc}")
+
+
+def _shard_data_files(data_files, *, concurrent: int, task_id: int):
+    """
+    Round-robin partition ``data_files`` (a list of files, or dict split name -> list of files) into
+    ``concurrent`` buckets, and return the bucket for ``task_id`` (1-indexed, as in :class:`Task`).
+    """
+    if isinstance(data_files, dict):
+        return {split: files[task_id - 1 :: concurrent] for split, files in data_files.items()}
+    return data_files[task_id - 1 :: concurrent]
+
+
 class DownloadAndPrepareHuggingFaceDatasetJob(Job):
     """
     https://huggingface.co/docs/datasets/
@@ -162,6 +253,8 @@ class TransformAndMapHuggingFaceDatasetJob(Job):
     Then we clean up the work dir again.
     """
 
+    __sis_hash_exclude__ = {"concurrent": None}
+
     def __init__(
         self,
         path: Union[str, Path],
@@ -177,6 +270,7 @@ class TransformAndMapHuggingFaceDatasetJob(Job):
         non_hashed_map_opts: Optional[Dict[str, Any]] = None,
         num_shards: Union[None, int, Dict[str, int]] = None,
         max_shard_size: Union[None, str, int] = None,
+        concurrent: Optional[int] = None,
     ):
         """
         :param path: for :func:`datasets.load_dataset`,
@@ -203,11 +297,24 @@ class TransformAndMapHuggingFaceDatasetJob(Job):
             If not given, will be auto-detected based on the dataset size and ``max_shard_size``.
         :param max_shard_size: maximum size of each shard.
             If not given, will use ``"500MB"``.
+        :param concurrent: if given, splits ``load_dataset_opts["data_files"]`` (which must be set --
+            either a list of files, or a dict mapping split name to a list of files) round-robin into
+            this many buckets. Each bucket is processed as its own task (like a SLURM array job) and
+            written to its own output dir (``self.out_dirs[i]`` instead of a single ``self.out_dir``),
+            so e.g. a huge dataset can be downloaded/processed as many independent, independently
+            resumable, and independently progress-trackable jobs instead of one big one -- and the
+            resulting per-bucket dirs double as shards for training.
         """
         super().__init__()
 
         if max_shard_size is not None and num_shards is not None:
             raise ValueError(f"{self}: please specify either max_shard_size or num_shards, but not both.")
+        if concurrent is not None:
+            assert concurrent > 0, f"{self}: concurrent must be > 0, got {concurrent}"
+            assert load_dataset_opts and load_dataset_opts.get("data_files"), (
+                f"{self}: concurrent={concurrent} requires load_dataset_opts['data_files']"
+                f" (the list/dict of files to split into {concurrent} buckets)"
+            )
 
         self.path = path
         self.name = name
@@ -219,10 +326,14 @@ class TransformAndMapHuggingFaceDatasetJob(Job):
         self.non_hashed_map_opts = non_hashed_map_opts
         self.num_shards = num_shards
         self.max_shard_size = max_shard_size
+        self.concurrent = concurrent
 
         self.rqmt = {"cpu": 16, "mem": 16, "time": 12}
 
-        self.out_dir = self.output_path("dataset", directory=True)
+        if concurrent is not None:
+            self.out_dirs = {i: self.output_path(f"dataset_shard_{i}", directory=True) for i in range(concurrent)}
+        else:
+            self.out_dir = self.output_path("dataset", directory=True)
 
     @classmethod
     def hash(cls, kwargs):
@@ -231,14 +342,19 @@ class TransformAndMapHuggingFaceDatasetJob(Job):
         return super().hash(kwargs)
 
     def tasks(self):
-        yield Task("run", resume="run", rqmt=self.rqmt)
+        if self.concurrent is not None:
+            yield Task("run", resume="run", rqmt=self.rqmt, args=range(1, self.concurrent + 1))
+        else:
+            yield Task("run", resume="run", rqmt=self.rqmt)
 
-    def run(self):
+    def run(self, task_id: Optional[int] = None):
         import os
         import shutil
-        from datasets import load_dataset, Dataset, DatasetDict
+        from datasets import load_dataset, Dataset, DatasetDict, IterableDataset, IterableDatasetDict
         from datasets.utils.py_utils import convert_file_size_to_int
         from datasets import config
+
+        patch_hf_hub_transient_retries()
 
         dataset_path = instanciate_delayed(self.path)
         split = None
@@ -246,6 +362,19 @@ class TransformAndMapHuggingFaceDatasetJob(Job):
         load_dataset_opts.update(instanciate_delayed(self.non_hashed_load_dataset_opts) or {})
         if self.name is not None:
             load_dataset_opts["name"] = self.name
+        if callable(load_dataset_opts.get("features")):
+            # `features` (a datasets.Features/Audio/Value/... object) can't be stored directly as a
+            # job attribute: sisyphus's generic object-state reflection (used e.g. to find tk.Path
+            # inputs, regardless of whether the containing dict is hashed) walks the whole job
+            # __dict__ and fails on the underlying pyarrow DataType objects. So `features` may instead
+            # be a plain top-level function that builds and returns the Features object -- exactly
+            # like `map_func`/`transform`, which are already handled this way -- called here instead
+            # of being stored anywhere.
+            load_dataset_opts["features"] = load_dataset_opts["features"]()
+        if task_id is not None:
+            load_dataset_opts["data_files"] = _shard_data_files(
+                load_dataset_opts["data_files"], concurrent=self.concurrent, task_id=task_id
+            )
         if "split" in load_dataset_opts:
             split = load_dataset_opts["split"]
         path_ext = f"{dataset_path}/{split}" if split is not None else dataset_path
@@ -275,21 +404,36 @@ class TransformAndMapHuggingFaceDatasetJob(Job):
             )
 
             ds = load_hf_dataset(dataset_path, **load_dataset_opts)
-            assert isinstance(ds, (Dataset, DatasetDict))
+            # A streaming load (load_dataset_opts={"streaming": True}) yields Iterable* here; a
+            # transform must materialize it back to Dataset/DatasetDict (e.g. via Dataset.from_generator)
+            # before we reach .map()/.save_to_disk() below, which require a map-style dataset.
+            assert isinstance(ds, (Dataset, DatasetDict, IterableDataset, IterableDatasetDict))
 
         if self.transform:
             if callable(self.transform):
                 ds = self.transform(ds)
-                assert isinstance(ds, (Dataset, DatasetDict)), f"After {self.transform} got {type(ds)}"
+                assert isinstance(ds, (Dataset, DatasetDict, IterableDataset, IterableDatasetDict)), (
+                    f"After {self.transform} got {type(ds)}"
+                )
             else:
                 for func in self.transform:
                     ds = func(ds)
-                    assert isinstance(ds, (Dataset, DatasetDict)), f"After {func} got {type(ds)}"
+                    assert isinstance(ds, (Dataset, DatasetDict, IterableDataset, IterableDatasetDict)), (
+                        f"After {func} got {type(ds)}"
+                    )
+
+        assert isinstance(ds, (Dataset, DatasetDict)), (
+            f"{self}: dataset must be materialized (Dataset/DatasetDict) before .map()/.save_to_disk(), got {type(ds)}."
+            f" If loading via streaming=True, one of the transform funcs must materialize it"
+            f" (e.g. via Dataset.from_generator)."
+        )
 
         # We create this tmp dir inside the job work dir,
         # because this might need a lot of space, e.g. several TB, e.g. 2TB for Loquacious,
         # which is often more than what we have available on the local disk (/var/tmp or so).
-        work_out_d = "tmp-map-output"
+        # Suffixed by task_id when concurrent (array-job-like) tasks are used: those all run in the
+        # same job work dir, so a fixed name would collide/interfere between concurrent task instances.
+        work_out_d = "tmp-map-output" if task_id is None else f"tmp-map-output-{task_id}"
         if os.path.exists(work_out_d):
             shutil.rmtree(work_out_d)
         os.makedirs(work_out_d)
@@ -331,7 +475,8 @@ class TransformAndMapHuggingFaceDatasetJob(Job):
             else:
                 raise TypeError(f"Unexpected type: {type(ds)}")
 
-        ds.save_to_disk(self.out_dir.get_path(), num_shards=num_shards, num_proc=num_proc)
+        out_dir = self.out_dirs[task_id - 1] if task_id is not None else self.out_dir
+        ds.save_to_disk(out_dir.get_path(), num_shards=num_shards, num_proc=num_proc)
         del ds
         shutil.rmtree(work_out_d)
 
