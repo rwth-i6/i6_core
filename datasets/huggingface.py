@@ -35,7 +35,9 @@ def load_hf_dataset(path, **opts):
         def is_offline_mode() -> bool:
             return os.environ.get("HF_HUB_OFFLINE", "").lower() in ("1", "true", "yes")
 
-    if is_offline_mode():
+    if is_offline_mode() and "/" in path and not os.path.exists(path):
+        # Only a Hub repo id ("<org>/<name>") can be snapshot-downloaded; a packaged builder name
+        # ("webdataset", "parquet", ...) or a local path is passed through as is.
         # `snapshot_download` just locates the dataset files, if they already exist on disk
         # `load_dataset` does more, including a check for metadata online, which would not work without internet access
         path = snapshot_download(
