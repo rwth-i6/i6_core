@@ -367,19 +367,10 @@ class TransformAndMapHuggingFaceDatasetJob(Job):
         if self.name is not None:
             load_dataset_opts["name"] = self.name
         if callable(load_dataset_opts.get("features")):
-            # `features` (a datasets.Features/Audio/Value/... object) can't be stored directly as a
-            # job attribute: sisyphus's generic object-state reflection (used e.g. to find tk.Path
-            # inputs, regardless of whether the containing dict is hashed) walks the whole job
-            # __dict__ and fails on the underlying pyarrow DataType objects. So `features` may instead
-            # be a plain top-level function that builds and returns the Features object -- exactly
-            # like `map_func`/`transform`, which are already handled this way -- called here instead
-            # of being stored anywhere.
+            # Sisyphus state reflection chokes on pyarrow types in job __dict__.
             load_dataset_opts["features"] = load_dataset_opts["features"]()
         if callable(load_dataset_opts.get("data_files")):
-            # Like `features` above, `data_files` may be a plain top-level function, called here. This
-            # keeps a hashed, portable file list (e.g. repo-relative names, or none at all) in the job
-            # kwargs while the actual paths -- e.g. the local HF hub cache, which differs per machine
-            # and would otherwise poison the hash -- are only resolved at run time.
+            # Machine-specific paths must not reach the job hash.
             load_dataset_opts["data_files"] = load_dataset_opts["data_files"]()
         if task_id is not None:
             load_dataset_opts["data_files"] = _shard_data_files(
@@ -414,9 +405,6 @@ class TransformAndMapHuggingFaceDatasetJob(Job):
             )
 
             ds = load_hf_dataset(dataset_path, **load_dataset_opts)
-            # A streaming load (load_dataset_opts={"streaming": True}) yields Iterable* here; a
-            # transform must materialize it back to Dataset/DatasetDict (e.g. via Dataset.from_generator)
-            # before we reach .map()/.save_to_disk() below, which require a map-style dataset.
             assert isinstance(ds, (Dataset, DatasetDict, IterableDataset, IterableDatasetDict))
 
         if self.transform:
@@ -441,8 +429,6 @@ class TransformAndMapHuggingFaceDatasetJob(Job):
         # We create this tmp dir inside the job work dir,
         # because this might need a lot of space, e.g. several TB, e.g. 2TB for Loquacious,
         # which is often more than what we have available on the local disk (/var/tmp or so).
-        # Suffixed by task_id when concurrent (array-job-like) tasks are used: those all run in the
-        # same job work dir, so a fixed name would collide/interfere between concurrent task instances.
         work_out_d = "tmp-map-output" if task_id is None else f"tmp-map-output-{task_id}"
         if os.path.exists(work_out_d):
             shutil.rmtree(work_out_d)
