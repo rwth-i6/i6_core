@@ -18,7 +18,7 @@ filters = {
 }
 
 
-def extract_audio_from_text(entry, output_path):
+def extract_audio_from_text(entry, output_path, bitrate="16k"):
     sp.run(
         [
             "ffmpeg",
@@ -37,7 +37,7 @@ def extract_audio_from_text(entry, output_path):
             "-c:a",
             "libvorbis",
             "-b:a",
-            "16k",
+            bitrate,
             os.path.join(output_path, entry["ID"] + ".ogg"),
         ],
         input=BytesIO(entry["wav"]["bytes"]).read(),
@@ -68,6 +68,8 @@ def create_recording_from_entry(entry, out_dir: str):
 
 
 class PrepareLoquaciousDatasetJob(Job):
+    audio_bitrate = "16k"
+
     @classmethod
     def hash(cls, parsed_args: Dict[str, Any]) -> str:
         d = {}
@@ -104,7 +106,7 @@ class PrepareLoquaciousTrainSmallDatasetJob(PrepareLoquaciousDatasetJob):
         print("extract audio")
         text_only_dataset = dataset.map(
             extract_audio_from_text,
-            fn_kwargs={"output_path": self.out_dir.get_path()},
+            fn_kwargs={"output_path": self.out_dir.get_path(), "bitrate": self.audio_bitrate},
             num_proc=8,
             load_from_cache_file=False,
         )
@@ -164,7 +166,7 @@ class PrepareLoquaciousTrainMediumDatasetJob(PrepareLoquaciousDatasetJob):
         print("extract audio from medium set")
         text_only_dataset_medium = dataset_medium.map(
             extract_audio_from_text,
-            fn_kwargs={"output_path": self.out_dir.get_path()},
+            fn_kwargs={"output_path": self.out_dir.get_path(), "bitrate": self.audio_bitrate},
             num_proc=8,
             load_from_cache_file=False,
         )
@@ -257,13 +259,13 @@ class PrepareLoquaciousTestDatasetsJob(PrepareLoquaciousDatasetJob):
         print("extract audio")
         text_only_dataset_dev = dataset_dev.map(
             extract_audio_from_text,
-            fn_kwargs={"output_path": self.out_dir.get_path()},
+            fn_kwargs={"output_path": self.out_dir.get_path(), "bitrate": self.audio_bitrate},
             num_proc=8,
             load_from_cache_file=False,
         )
         text_only_dataset_test = dataset_test.map(
             extract_audio_from_text,
-            fn_kwargs={"output_path": self.out_dir.get_path()},
+            fn_kwargs={"output_path": self.out_dir.get_path(), "bitrate": self.audio_bitrate},
             num_proc=8,
             load_from_cache_file=False,
         )
@@ -307,3 +309,15 @@ class PrepareLoquaciousTestDatasetsJob(PrepareLoquaciousDatasetJob):
             dev_corpus.dump(self.out_dev_corpora[key].get_path())
         for key, test_corpus in test_corpora.items():
             test_corpus.dump(self.out_test_corpora[key].get_path())
+
+
+class PrepareLoquaciousTrainSmallDatasetJobV2(PrepareLoquaciousTrainSmallDatasetJob):
+    audio_bitrate = "48k"
+
+
+class PrepareLoquaciousTrainMediumDatasetJobV2(PrepareLoquaciousTrainMediumDatasetJob):
+    audio_bitrate = "48k"
+
+
+class PrepareLoquaciousTestDatasetsJobV2(PrepareLoquaciousTestDatasetsJob):
+    audio_bitrate = "48k"
