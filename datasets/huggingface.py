@@ -282,6 +282,8 @@ class TransformAndMapHuggingFaceDatasetJob(Job):
         :param load_dataset_opts: other options for :func:`datasets.load_dataset`
             or :func:`datasets.Dataset.load_from_disk` or :func:`datasets.DatasetDict.load_from_disk`.
             E.g. "split", "revision", ...
+            ``features`` and ``data_files`` may each be given as a plain top-level function instead of
+            a value; it is called in :func:`run` (see there).
         :param non_hashed_load_dataset_opts: like ``load_dataset_opts``, but not hashed.
             E.g. ``{"num_proc": 8}``.
         :param transform: function or list of functions to transform the dataset
@@ -373,6 +375,12 @@ class TransformAndMapHuggingFaceDatasetJob(Job):
             # like `map_func`/`transform`, which are already handled this way -- called here instead
             # of being stored anywhere.
             load_dataset_opts["features"] = load_dataset_opts["features"]()
+        if callable(load_dataset_opts.get("data_files")):
+            # Like `features` above, `data_files` may be a plain top-level function, called here. This
+            # keeps a hashed, portable file list (e.g. repo-relative names, or none at all) in the job
+            # kwargs while the actual paths -- e.g. the local HF hub cache, which differs per machine
+            # and would otherwise poison the hash -- are only resolved at run time.
+            load_dataset_opts["data_files"] = load_dataset_opts["data_files"]()
         if task_id is not None:
             load_dataset_opts["data_files"] = _shard_data_files(
                 load_dataset_opts["data_files"], concurrent=self.concurrent, task_id=task_id
