@@ -626,7 +626,7 @@ class ApplyLexiconToCorpusJob(Job):
 
         for segment in c.segments():
             try:
-                words = [lookup_dict[w] for w in segment.orth.split(" ")]
+                words = [lookup_dict[w] for w in segment.orth.split()]
                 segment.orth = separator.join(words)
             except LookupError:
                 raise LookupError(
