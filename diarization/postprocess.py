@@ -24,6 +24,7 @@ def words_to_turns(words: Sequence[Sequence[Word]], *, max_gap: float) -> list[W
     Inter-pausal units: words of a channel joined while the pause between them is at most `max_gap`.
 
     :param words: per channel, `{text, start, end}` sorted by start
+    :param max_gap: maximal pause in seconds between joined words
     :return: `{channel, start, end, text}` sorted by start
     """
     turns = []
@@ -53,6 +54,8 @@ def _speaker_intervals(segments: Sequence[Segment]) -> dict[str, list[Interval]]
 def _overlap_and_distance(intervals: Sequence[Interval], start: float, end: float) -> tuple[float, float]:
     """
     :param intervals: disjoint and sorted
+    :param start: start of the queried span in seconds
+    :param end: end of the queried span in seconds
     :return: the seconds of `[start, end]` covered by the intervals, and the gap to the nearest interval
         (0 if one overlaps, inf without intervals)
     """
@@ -110,6 +113,8 @@ def attribute_speakers(
 
 def _separated(a: Word, b: Word, barriers: Sequence[Interval]) -> bool:
     """
+    :param a: earlier word, `{start, end, ...}`
+    :param b: later word, `{start, end, ...}`
     :param barriers: disjoint and sorted
     :return: whether a barrier reaches into the time between the words
     """
@@ -120,6 +125,7 @@ def _separated(a: Word, b: Word, barriers: Sequence[Interval]) -> bool:
 def _split_at_barriers(words: Sequence[Word], barriers: Sequence[Interval]) -> list[list[Word]]:
     """
     :param words: sorted by start
+    :param barriers: `(start, end)` not to be spanned by a group, disjoint and sorted
     :return: the words split between consecutive ones separated by a barrier
     """
     groups = []
@@ -152,6 +158,7 @@ def speaker_turns(words: Sequence[Word], *, gap_seconds: float) -> list[Word]:
     (their words joined at pauses up to `gap_seconds`); shorter interjections stay inside the turn.
 
     :param words: `{text, start, end, speaker, channel}` sorted by start
+    :param gap_seconds: maximal pause within speech of other speakers and its minimal duration to split a turn
     :return: `{start, end, speaker, channel, words}` sorted by start, `channel` the majority channel
     """
     turns = []
@@ -166,6 +173,8 @@ def speaker_turns(words: Sequence[Word], *, gap_seconds: float) -> list[Word]:
 
 def _channel_speakers(words: Sequence[Sequence[Word]], segments: Sequence[Segment]) -> list[list[str]]:
     """
+    :param words: per channel, `{text, start, end}`
+    :param segments: diarization `(speaker, start, end)`
     :return: per channel the diarized speakers whose speech overlaps the words of that channel most
     """
     intervals = _speaker_intervals(segments)
@@ -185,6 +194,7 @@ def _channel_speakers(words: Sequence[Sequence[Word]], segments: Sequence[Segmen
 def _recording_words(tracks: dict[int, list[tuple[str, float, float]]], *, per_channel: bool) -> list[list[Word]]:
     """
     :param tracks: CTM `(word, start, end)` per track, the track being the channel + 1
+    :param per_channel: whether the recording was recognized per channel
     :return: per channel `{text, start, end}` sorted by start; all words in one channel if not `per_channel`
     """
     if per_channel:
@@ -196,6 +206,7 @@ def _recording_words(tracks: dict[int, list[tuple[str, float, float]]], *, per_c
 
 def _distribution(values: Sequence[float]) -> dict[str, float] | None:
     """
+    :param values: samples to summarize
     :return: count, mean and percentiles of the values, or None without values
     """
     import numpy as np
