@@ -2,6 +2,7 @@ __all__ = [
     "Seconds",
     "ChannelIndex",
     "SpeakerInfo",
+    "EntitySpan",
     "TimedTranscript",
     "Segment",
     "Recording",
@@ -43,6 +44,32 @@ class SpeakerInfo(BaseModel):
     id: str = Field(default=..., description="Stable identifier for the speaker.")
     name: Optional[str] = Field(default=None, description="Human-readable speaker name/label, if available.")
     gender: Optional[str] = Field(default=None, description="Gender information about the speaker, if available.")
+
+
+class EntitySpan(BaseModel):
+    """A named-entity span over a segment's timed transcripts."""
+
+    label: str = Field(default=..., description="Named-entity category, for example PERSON or DATE_TIME.")
+    transcript_start: NonNegativeInt = Field(
+        default=...,
+        description="Inclusive index of the first TimedTranscript in the entity.",
+    )
+    transcript_end: PositiveInt = Field(
+        default=...,
+        description="Exclusive index after the last TimedTranscript in the entity.",
+    )
+    confidence: Optional[float] = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="Optional entity-recognizer confidence score.",
+    )
+
+    @model_validator(mode="after")
+    def check_span(self):
+        if self.transcript_start >= self.transcript_end:
+            raise ValueError("transcript_start must be smaller than transcript_end")
+        return self
 
 
 class TimedTranscript(BaseModel):
@@ -121,6 +148,10 @@ class Segment(BaseModel):
     speaker: Optional[SpeakerInfo] = Field(
         default=None,
         description="Optional speaker information.",
+    )
+    entities: list[EntitySpan] = Field(
+        default_factory=list,
+        description="Named-entity spans over this segment's TimedTranscript list.",
     )
 
 
