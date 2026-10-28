@@ -1,10 +1,11 @@
-__all__ = ["compute_rec_duration"]
+__all__ = ["compute_rec_duration", "distinct_channels"]
 
 
 import logging
 import subprocess as sp
 import tempfile
 
+import numpy as np
 import soundfile as sf
 
 
@@ -72,3 +73,25 @@ def compute_rec_duration(audio_file: str) -> float:
         # Wav or any format parseable by soundfile.
         with sf.SoundFile(audio_file) as f:
             return f.frames / f.samplerate  # In seconds.
+
+
+def distinct_channels(audio_file: str, *, max_seconds: float, max_correlation: float, min_rms_ratio: float) -> int:
+    """
+    :param max_seconds: audio seconds read to decide whether the channels differ
+    :return: the number of channels carrying different signals: 1 for mono files and files whose
+        channels are copies of each other (correlation above `max_correlation` or one channel
+        quieter than `min_rms_ratio` times the other), else the number of channels
+    """
+    info = sf.info(audio_file)
+    if info.channels == 1:
+        return 1
+    wav, _ = sf.read(audio_file, frames=int(max_seconds * info.samplerate), dtype="float64", always_2d=True)
+    wav = wav - wav.mean(0)  # (T, C)
+    rms = np.sqrt((wav**2).mean(0))  # (C,)
+    for i in range(info.channels):
+        for j in range(i + 1, info.channels):
+            rms_ratio = min(rms[i], rms[j]) / max(rms[i], rms[j], 1e-12)
+            correlation = (wav[:, i] * wav[:, j]).mean() / max(rms[i] * rms[j], 1e-12)
+            if correlation > max_correlation or rms_ratio < min_rms_ratio:
+                return 1
+    return info.channels

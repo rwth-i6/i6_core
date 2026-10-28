@@ -6,6 +6,7 @@ __all__ = [
     "MergeStrategy",
     "MergeCorpusSegmentsAndAudioJob",
     "ShiftCorpusSegmentStartJob",
+    "ExpandSegmentsPerChannelJob",
     "ApplyLexiconToCorpusJob",
     "MapRecordingsJob",
     "IntegrateContextIntoOrthJob",
@@ -13,7 +14,9 @@ __all__ = [
 
 import bisect
 import collections
+import copy
 import enum
+import json
 import logging
 import math
 import os
@@ -564,6 +567,72 @@ class ShiftCorpusSegmentStartJob(Job):
 
         with open(str(self.out_segments), "w") as segments_outfile:
             segments_outfile.writelines(segment_file_names)
+
+
+class ExpandSegmentsPerChannelJob(Job):
+    """
+    Duplicates the segments of recordings whose channels carry different signals (see
+    `distinct_channels`) once per channel as `<name>.<track>` with the `track` attribute set, so
+    the channels are processed separately; the segments of the other recordings are kept as they
+    are.
+
+    `summary.json` holds the recordings, the multi-channel recordings and the segments.
+    """
+
+    def __init__(
+        self,
+        *,
+        corpus: tk.Path,
+        channel_check_seconds: float = 60.0,
+        channel_max_correlation: float = 0.99,
+        channel_min_rms_ratio: float = 0.01,
+    ):
+        """
+        :param corpus: bliss corpus
+        :param channel_check_seconds: audio seconds read to decide whether the channels differ
+        :param channel_max_correlation: channels with a higher correlation are copies
+        :param channel_min_rms_ratio: channels with a lower rms ratio are copies
+        """
+        self.corpus = corpus
+        self.channel_check_seconds = channel_check_seconds
+        self.channel_max_correlation = channel_max_correlation
+        self.channel_min_rms_ratio = channel_min_rms_ratio
+
+        self.out_corpus = self.output_path("corpus.xml.gz")
+        self.out_summary = self.output_path("summary.json")
+
+        self.rqmt = {"cpu": 1, "mem": 4, "time": 2}
+
+    def tasks(self):
+        yield Task("run", rqmt=self.rqmt)
+
+    def run(self):
+        from i6_core.lib.audio import distinct_channels
+
+        c = corpus.Corpus()
+        c.load(self.corpus.get_path())
+        summary = {"recordings": 0, "multi_channel_recordings": 0, "segments": 0}
+        for recording in c.all_recordings():
+            num_channels = distinct_channels(
+                recording.audio,
+                max_seconds=self.channel_check_seconds,
+                max_correlation=self.channel_max_correlation,
+                min_rms_ratio=self.channel_min_rms_ratio,
+            )
+            if num_channels > 1:
+                segments, recording.segments = recording.segments, []
+                for segment in segments:
+                    for track in range(num_channels):
+                        track_segment = copy.copy(segment)
+                        track_segment.name = f"{segment.name}.{track}"
+                        track_segment.track = track
+                        recording.add_segment(track_segment)
+            summary["recordings"] += 1
+            summary["multi_channel_recordings"] += num_channels > 1
+            summary["segments"] += len(recording.segments)
+        c.dump(self.out_corpus.get_path())
+        with open(self.out_summary.get_path(), "wt") as f:
+            json.dump(summary, f, indent=2)
 
 
 class LexiconStrategy(enum.Enum):
