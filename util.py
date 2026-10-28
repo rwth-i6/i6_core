@@ -6,7 +6,7 @@ import os
 import shutil
 import stat
 import subprocess as sp
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Sequence, TypeVar, Union
 import xml.dom.minidom
 import xml.etree.ElementTree as ET
 
@@ -15,6 +15,8 @@ from sisyphus.delayed_ops import DelayedBase, DelayedFormat
 
 
 Path = setup_path(__package__)
+
+T = TypeVar("T")
 
 
 class MultiPath:
@@ -184,6 +186,25 @@ def chunks(l: List, n: int) -> List[List]:
         end = start + block_size + (1 if i < bigger_count else 0)
         yield l[start:end]
         start = end
+
+
+def balanced_chunks(l: Sequence[T], n: int, size: Callable[[T], float]) -> List[List[T]]:
+    """
+    Deterministic split into n chunks of about equal total size, largest item first into
+    the chunk with the smallest total so far. Items keep their order within a chunk.
+
+    :param l: list which should be split into chunks
+    :param n: number of chunks
+    :param size: size of an item, e.g. its audio duration
+    :return: n chunks
+    """
+    totals = [0.0] * n
+    assignment = [0] * len(l)
+    for i in sorted(range(len(l)), key=lambda i: (-size(l[i]), i)):
+        c = min(range(n), key=lambda c: (totals[c], c))
+        assignment[i] = c
+        totals[c] += size(l[i])
+    return [[item for item, a in zip(l, assignment) if a == c] for c in range(n)]
 
 
 def relink(src: str, dst: str):
