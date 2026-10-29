@@ -6,6 +6,7 @@ __all__ = [
     "MergeStrategy",
     "MergeCorpusSegmentsAndAudioJob",
     "ShiftCorpusSegmentStartJob",
+    "SegmentsToPaddedRecordingsJob",
     "ApplyLexiconToCorpusJob",
     "MapRecordingsJob",
     "IntegrateContextIntoOrthJob",
@@ -14,6 +15,7 @@ __all__ = [
 import bisect
 import collections
 import enum
+import json
 import logging
 import math
 import os
@@ -564,6 +566,113 @@ class ShiftCorpusSegmentStartJob(Job):
 
         with open(str(self.out_segments), "w") as segments_outfile:
             segments_outfile.writelines(segment_file_names)
+
+
+def _pad_segment(
+    start: float, end: float, words: list[tuple[str, float, float]], *, duration: float, pad_seconds: float
+) -> tuple[float, float, str]:
+    """
+    :param words: `(word, start, end)` of the whole recording track, sorted by start
+    :return: start and end padded by `pad_seconds` but at most to the midpoint of the gap to the
+        neighbouring words, and the words with their midpoint in the segment as orth
+    """
+    before = [w for w in words if (w[1] + w[2]) / 2 < start]
+    after = [w for w in words if (w[1] + w[2]) / 2 > end]
+    inside = [w for w in words if start <= (w[1] + w[2]) / 2 <= end]
+    padded_start = max(start - pad_seconds, min(start, (before[-1][2] + start) / 2) if before else 0.0)
+    padded_end = min(end + pad_seconds, max(end, (end + after[0][1]) / 2) if after else duration)
+    return padded_start, padded_end, " ".join(w[0] for w in inside)
+
+
+class SegmentsToPaddedRecordingsJob(Job):
+    """
+    Turns each segment into its own recording `<recording>.<segment>` on the original audio with one
+    segment on the `track` of the input segment, padded by `pad_seconds` but at most to the midpoint
+    of the gap to the neighbouring words of the CTM on that channel.
+
+    `corpus.xml.gz` has the orth of the CTM words in the padded segment (the words of the channel,
+    i.e. for a downmix also the other speakers) and the speaker of the input segment, `summary.json`
+    the segments, recordings, hours and tracks.
+    """
+
+    def __init__(
+        self, *, corpus: tk.Path, ctms: list[tk.Path], corpus_name: str = "padded_segments", pad_seconds: float = 0.2
+    ):
+        """
+        :param corpus: bliss corpus
+        :param ctms: word-level CTMs of the recordings, the track column being the channel + 1
+        :param corpus_name: name of the output corpus
+        :param pad_seconds: audio kept before and after a segment
+        """
+        self.corpus = corpus
+        self.ctms = ctms
+        self.corpus_name = corpus_name
+        self.pad_seconds = pad_seconds
+
+        self.out_corpus = self.output_path("corpus.xml.gz")
+        self.out_summary = self.output_path("summary.json")
+
+        self.rqmt = {"cpu": 1, "mem": 4, "time": 1}
+
+    def tasks(self):
+        yield Task("run", rqmt=self.rqmt)
+
+    def run(self):
+        import soundfile
+
+        from i6_core.lib.ctm import parse_ctm_words
+
+        words = {}
+        for ctm in self.ctms:
+            for name, tracks in parse_ctm_words(ctm).items():
+                # ctm track 1 is channel 0 or the downmix
+                words.setdefault(name, {}).update({track - 1: track_words for track, track_words in tracks.items()})
+
+        c = corpus.Corpus()
+        c.load(self.corpus.get_path())
+        speakers = {speaker.name: speaker for speaker in c.all_speakers()}
+        padded_recordings = []
+        num_recordings = 0
+        for recording in c.all_recordings():
+            if not recording.segments:
+                continue
+            num_recordings += 1
+            duration = soundfile.info(recording.audio).duration
+            recording_words = words.get(recording.name, {})
+            for segment in recording.segments:
+                start, end, orth = _pad_segment(
+                    segment.start,
+                    segment.end,
+                    recording_words.get(segment.track or 0, []),
+                    duration=duration,
+                    pad_seconds=self.pad_seconds,
+                )
+                padded_recording = corpus.Recording()
+                padded_recording.name = f"{recording.name}.{segment.name}"
+                padded_recording.audio = recording.audio
+                padded_segment = corpus.Segment(
+                    start=start, end=end, track=segment.track, orth=orth, speaker_name=segment.speaker_name
+                )
+                padded_segment.name = "1"
+                padded_recording.add_segment(padded_segment)
+                padded_recordings.append(padded_recording)
+
+        nc = corpus.Corpus()
+        nc.name = self.corpus_name
+        for name in sorted({r.segments[0].speaker_name for r in padded_recordings} & speakers.keys()):
+            nc.add_speaker(speakers[name])
+        for padded_recording in padded_recordings:
+            nc.add_recording(padded_recording)
+        nc.dump(self.out_corpus.get_path())
+
+        summary = {
+            "segments": len(padded_recordings),
+            "recordings": num_recordings,
+            "hours": sum(r.segments[0].end - r.segments[0].start for r in padded_recordings) / 3600,
+            "tracks": dict(collections.Counter(str(r.segments[0].track) for r in padded_recordings)),
+        }
+        with open(self.out_summary.get_path(), "wt") as f:
+            json.dump(summary, f, indent=2)
 
 
 class LexiconStrategy(enum.Enum):
