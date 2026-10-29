@@ -6,7 +6,7 @@ import os
 import shutil
 import stat
 import subprocess as sp
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 import xml.dom.minidom
 import xml.etree.ElementTree as ET
 
@@ -319,7 +319,7 @@ already_printed_gs_warnings = set()
 def get_executable_path(
     path: Optional[Union[tk.Path, str, DelayedFormat]],
     gs_member_name: Optional[str],
-    default_exec_path: Optional[tk.Path] = None,
+    default_exec_path: Optional[Union[tk.Path, Callable[[], tk.Path]]] = None,
 ) -> tk.Path:
     """
     Helper function that allows to select a specific version of software while
@@ -329,7 +329,8 @@ def get_executable_path(
 
     :param path: Directly specify the path to be used
     :param gs_member_name: get path from sisyphus.global_settings.<gs_member_name>
-    :param default_exec_path: general fallback if no specific version is given
+    :param default_exec_path: general fallback if no specific version is given,
+        or a function creating it, called only when the fallback is used
     """
     global already_printed_gs_warnings
     if path is not None:
@@ -367,6 +368,8 @@ def get_executable_path(
 
         return tk.Path(getattr(gs, gs_member_name))
     if default_exec_path is not None:
+        if callable(default_exec_path) and not isinstance(default_exec_path, DelayedBase):
+            return default_exec_path()
         return default_exec_path
     raise ValueError(f"get_executable_path: could not find executable for {gs_member_name}")
 
@@ -378,21 +381,23 @@ def get_returnn_root(returnn_root: tk.Path) -> tk.Path:
 
 def get_returnn_python_exe(returnn_python_exe: tk.Path) -> tk.Path:
     """gets the path to a python binary or script that is used to run RETURNN"""
-    system_python = tk.Path(shutil.which(gs.SIS_COMMAND[0]))
-    return get_executable_path(returnn_python_exe, "RETURNN_PYTHON_EXE", system_python)
+    return get_executable_path(
+        returnn_python_exe, "RETURNN_PYTHON_EXE", lambda: tk.Path(shutil.which(gs.SIS_COMMAND[0]))
+    )
 
 
 def get_g2p_path(g2p_path: tk.Path) -> tk.Path:
     """gets the path to the sequitur g2p script"""
-    system_python_path = os.path.dirname(shutil.which(gs.SIS_COMMAND[0]))
-    system_g2p = tk.Path(system_python_path).join_right("g2p.py")
-    return get_executable_path(g2p_path, "G2P_PATH", system_g2p)
+    return get_executable_path(
+        g2p_path,
+        "G2P_PATH",
+        lambda: tk.Path(os.path.dirname(shutil.which(gs.SIS_COMMAND[0]))).join_right("g2p.py"),
+    )
 
 
 def get_g2p_python(g2p_python: tk.Path) -> tk.Path:
     """gets the path to a python binary or script that is used to run g2p"""
-    system_python = tk.Path(shutil.which(gs.SIS_COMMAND[0]))
-    return get_executable_path(g2p_python, "G2P_PYTHON", system_python)
+    return get_executable_path(g2p_python, "G2P_PYTHON", lambda: tk.Path(shutil.which(gs.SIS_COMMAND[0])))
 
 
 def get_subword_nmt_repo(subword_nmt_repo: tk.Path) -> tk.Path:
