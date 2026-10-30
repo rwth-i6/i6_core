@@ -29,6 +29,61 @@ def _synchronize():
         torch.cuda.synchronize()
 
 
+def _embed(model, waveforms, weights, *, bf16: bool):
+    """
+    :param model: pyannote WeSpeaker ResNet
+    :param waveforms: (B, 1, T)
+    :param weights: (B, S, T') pooling weights per speaker
+    :return: (B, S, F) speaker embeddings
+    """
+    import torch
+
+    fbank = model.compute_fbank(waveforms)  # (B, 1, T) -> (B, T', F)
+    with torch.autocast("cuda", dtype=torch.bfloat16, enabled=bf16):
+        frames = model.resnet.forward_frames(fbank)
+    embeddings = model.resnet.forward_embedding(frames.float(), weights=weights)
+    return embeddings[1] if isinstance(embeddings, tuple) else embeddings
+
+
+def _get_embeddings(pipeline, file, binary_segmentations, exclude_overlap: bool = False, hook=None, *, embed):
+    """
+    pyannote's `SpeakerDiarization.get_embeddings` with one embedding forward per chunk instead of per (chunk, speaker),
+    the speakers differing only in their pooling weights.
+
+    :param embed: `_embed` with bound model
+    :return: (B, S, F) embeddings per chunk and local speaker
+    """
+    import math
+
+    import numpy as np
+    import torch
+    import torch.nn.functional as F
+
+    num_chunks, num_frames, _ = binary_segmentations.data.shape
+    masks = np.nan_to_num(binary_segmentations.data, nan=0.0).astype(np.float32)  # (B, T', S)
+    if exclude_overlap:
+        num_samples = binary_segmentations.sliding_window.duration * pipeline._embedding.sample_rate
+        min_num_frames = math.ceil(num_frames * pipeline._embedding.min_num_samples / num_samples)
+        clean = masks * (masks.sum(axis=2, keepdims=True) < 2)
+        masks = np.where(clean.sum(axis=1, keepdims=True) > min_num_frames, clean, masks)
+    masks = torch.from_numpy(masks).transpose(1, 2)  # (B, T', S) -> (B, S, T')
+
+    chunks = [chunk for chunk, _ in binary_segmentations]
+    batch_size = pipeline.embedding_batch_size
+    embeddings = []
+    with torch.inference_mode():
+        for i in range(0, num_chunks, batch_size):
+            waveforms = torch.stack([pipeline._audio.crop(file, c, mode="pad")[0] for c in chunks[i : i + batch_size]])
+            weights = masks[i : i + batch_size]
+            size = waveforms.shape[0]
+            # fixed batch shape avoids recompilation
+            waveforms = F.pad(waveforms, (0, 0, 0, 0, 0, batch_size - size))  # (b, 1, T) -> (B, 1, T)
+            weights = F.pad(weights, (0, 0, 0, 0, 0, batch_size - size))  # (b, S, T') -> (B, S, T')
+            batch = embed(waveforms.to(pipeline.device), weights.to(pipeline.device))
+            embeddings.append(batch[:size].float().cpu())
+    return torch.cat(embeddings).numpy()
+
+
 def _diarize(pipeline, mix, sample_rate: int):
     """
     :param mix: (1, T)
@@ -61,7 +116,10 @@ class PyannoteDiarizeRecordingsJob(Job):
     audio shorter than a second) and `stats/<name>.json`, where `name` is the recording name for a
     bliss corpus and the file name without extension otherwise. The files are split into `num_shards`
     tasks of about equal audio duration; an interrupted shard resumes. The pipeline is loaded from the
-    HuggingFace hub with the token of `huggingface_hub.get_token`.
+    HuggingFace hub with the token of `huggingface_hub.get_token`. The audio is resampled once per
+    recording. With `deduplicate_embeddings`, which assumes a WeSpeaker ResNet speaker embedding (as in
+    `pyannote/speaker-diarization-3.1` and `-community-1`), the embedding model runs once per chunk for
+    all its local speakers instead of once per (chunk, speaker).
     """
 
     def __init__(
@@ -71,6 +129,9 @@ class PyannoteDiarizeRecordingsJob(Job):
         python_site_pkg: tk.Path,
         diarization_model: str = "pyannote/speaker-diarization-community-1",
         num_shards: int = 1,
+        deduplicate_embeddings: bool = True,
+        embedding_bf16: bool = True,
+        compile_embedding: bool = True,
     ):
         """
         :param audio_files: audio files, a bliss corpus (`.xml`, `.xml.gz`), or a text file with one audio
@@ -78,11 +139,22 @@ class PyannoteDiarizeRecordingsJob(Job):
         :param python_site_pkg: site-packages with pyannote.audio
         :param diarization_model: pyannote pipeline on the HuggingFace hub
         :param num_shards: number of GPU tasks
+        :param deduplicate_embeddings: one embedding forward per chunk for all its local speakers; needs a
+            WeSpeaker ResNet embedding, False for other embeddings (pyannote's own `get_embeddings`)
+        :param embedding_bf16: run the embedding ResNet in bf16 autocast (needs Ampere or newer and
+            `deduplicate_embeddings`)
+        :param compile_embedding: `torch.compile` the embedding model (needs `deduplicate_embeddings`)
         """
+        assert deduplicate_embeddings or not (embedding_bf16 or compile_embedding), (
+            "embedding_bf16 and compile_embedding need deduplicate_embeddings"
+        )
         self.audio_files = audio_files
         self.python_site_pkg = python_site_pkg
         self.diarization_model = diarization_model
         self.num_shards = num_shards
+        self.deduplicate_embeddings = deduplicate_embeddings
+        self.embedding_bf16 = embedding_bf16
+        self.compile_embedding = compile_embedding
 
         self.out_rttm_dir = self.output_path("rttm", directory=True)
         self.out_stats_dir = self.output_path("stats", directory=True)
@@ -117,15 +189,27 @@ class PyannoteDiarizeRecordingsJob(Job):
         return list(zip(names, audio_files))
 
     def _load_pipeline(self):
+        import functools
         import sys
+        import types
 
         sys.path.insert(0, self.python_site_pkg.get_path())
         import torch
         from huggingface_hub import get_token
         from pyannote.audio import Pipeline
 
-        pipeline = Pipeline.from_pretrained(self.diarization_model, token=get_token())
-        return pipeline.to(torch.device("cuda"))
+        pipeline = Pipeline.from_pretrained(self.diarization_model, token=get_token()).to(torch.device("cuda"))
+        if not self.deduplicate_embeddings:
+            return pipeline
+        model = getattr(pipeline._embedding, "model_", None)
+        assert hasattr(model, "resnet"), (
+            f"embedding {type(pipeline._embedding).__name__} is no WeSpeaker ResNet, set deduplicate_embeddings=False"
+        )
+        embed = functools.partial(_embed, model.eval(), bf16=self.embedding_bf16)
+        if self.compile_embedding:
+            embed = torch.compile(embed, dynamic=False)
+        pipeline.get_embeddings = types.MethodType(functools.partial(_get_embeddings, embed=embed), pipeline)
+        return pipeline
 
     def run(self, task_id: int):
         import soundfile
