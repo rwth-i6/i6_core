@@ -36,8 +36,14 @@ def _diarize(pipeline, mix, sample_rate: int):
     """
     import time
 
+    import torchaudio
+
     _synchronize()
     start_time = time.monotonic()
+    if sample_rate != pipeline._audio.sample_rate:
+        # the pipeline would resample every overlapping chunk separately
+        mix = torchaudio.functional.resample(mix.to(pipeline.device), sample_rate, pipeline._audio.sample_rate).cpu()
+        sample_rate = pipeline._audio.sample_rate
     output = pipeline({"waveform": mix, "sample_rate": sample_rate})
     _synchronize()
     seconds = time.monotonic() - start_time
