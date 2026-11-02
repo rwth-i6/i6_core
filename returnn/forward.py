@@ -416,82 +416,40 @@ def _get_model_path(model: Checkpoint) -> tk.Path:
     return model
 
 
-class _UnhashedRuntimeOpts:
+class BatchedReturnnForwardJob(Job):
     """
-    Mixin for the engine jobs: excludes the runtime options ``workers_per_gpu`` and ``use_mps`` from the hash.
-    They change how the items are run, not what they compute, so changing them must not create a new job.
-    """
+    Runs a set of RETURNN forward work items (e.g. recognition of several test sets or data shards) on all GPUs
+    of one node.
 
-    _unhashed_init_args = ("workers_per_gpu", "use_mps")
+    Each work item is a ready-to-run RETURNN forward config (e.g. from
+    :meth:`ReturnnForwardJobV2.create_returnn_config`, i.e. with ``task=forward`` and the checkpoint) together
+    with the file(s) it writes into its working directory. The job places each item's output(s) at a declared
+    ``output_path``.
 
-    @classmethod
-    def hash(cls, parsed_args: Dict[str, Any]) -> str:
-        return super().hash({k: v for k, v in parsed_args.items() if k not in cls._unhashed_init_args})
+    How the items are run:
 
+    - one worker process per GPU (or several, see ``workers_per_gpu``), all pulling from a shared work queue:
+      each worker claims the next unclaimed item (an ``O_EXCL`` marker file), so the GPUs share the work
+      dynamically; items with a ``cost`` estimate (:class:`BatchedReturnnForwardDynamicJob`) are queued
+      longest-first,
+    - resumable: an item whose output file(s) already exist is skipped (outputs are moved into place
+      atomically, so existence means done),
+    - stops before the time limit, like RETURNN's ``stop_for_resubmission``: when the average item time
+      times ``_stop_safety_factor`` exceeds the remaining Slurm time, a worker finishes its current item and
+      waits until the other workers have done the same; then the job exits as interrupted and Sisyphus
+      resubmits it (``Task("run", resume="run")``),
+    - ``completed_fraction`` = items done / all items, for the Sisyphus progress display.
 
+    Several workers per GPU (``workers_per_gpu``) are only useful under NVIDIA MPS (``use_mps``), which lets
+    the kernels of several processes on one GPU run concurrently; this helps if a single process does not
+    keep the GPU busy (e.g. decoding with many small kernels). Without MPS, the GPU time-slices between the
+    processes, which is slower than one process per GPU.
 
-class BatchedReturnnForwardJob(_UnhashedRuntimeOpts, Job):
-    """
-    Run a set of RETURNN forward work items across a full multi-GPU node.
-
-    Batched multi-shard / multi-cell RETURNN forward on a full multi-GPU node (JUPITER policy).
-
-    Copy of ``i6_experiments.users.schmitt.forward_batched`` (2026-10-13) with one addition: several workers
-    per GPU under NVIDIA MPS (``workers_per_gpu``, ``use_mps``; runtime options, not hashed), see
-    :func:`_spawn_and_wait_workers`. For decoding with RASR, one process per GPU leaves the GPU idle ~60% of the
-    time (the CPU issues ~2000 small kernels per decoding step); with MPS, the kernels of 2 processes run
-    concurrently: ~1.7x throughput, bit-identical outputs (login-node test, 2026-10-13). Without MPS, the GPU
-    time-slices between the processes, and 2 workers per GPU are slower than 1.
-
-    :class:`BatchedReturnnForwardJob` is a generic engine: it runs a set of *work items*, each a
-    ready-to-run RETURNN forward config (``task=forward``, i.e. forced-align forward OR search/recog)
-    plus the output filename(s) that config writes, across the GPUs of one node and returns each item's
-    output(s) at a declared ``output_path``. The same engine drives:
-
-    - :func:`batched_forward_to_hdf` -- forward a dataset to HDF, split into ``num_shards >> num_gpus``
-      disjoint logical shards (one HDF per shard), and
-    - ``recog_training_exp_batched`` (in ``recog_batched``) -- one job for all ``(epoch x test_set)``
-      recog cells of a training, optionally each split into shards.
-
-    Why one node, sharded:
-    :func:`forward_to_hdf` runs ONE single-GPU :class:`ReturnnForwardJobV2` -> one HDF. On JUPITER
-    (4x GH200 / node, flat-per-node billing) that wastes 3/4 of the node, and for large corpora
-    (Loquacious ~25k h) a single GPU exceeds the 12 h QOS wall.
-
-    Engine properties:
-
-    - splits a dataset into disjoint logical shards via RETURNN's principled ``_num_shards`` /
-      ``_shard_index`` (partition_epoch=1 -> disjoint partitions whose union is all seqs exactly once;
-      see :func:`Dataset._apply_partition_epoch_and_sharding`) -- see :class:`_ShardedDataset`,
-    - runs ``num_gpus`` independent worker processes (no NCCL: forward is per-seq independent) that
-      pull from a shared work queue (each claims the next unclaimed item via an ``O_EXCL`` marker),
-      each writing its item's declared output file(s); items carrying a ``cost`` estimate are queued
-      longest-first, which together with the pull queue gives an LPT schedule -- items differ in cost
-      by >10x (an Arrow shard's audio hours), so a static round-robin left GPUs idle for hours,
-    - is resumable: an item whose output file(s) already exist is skipped, so a walltime kill just
-      continues where it left off (the os.replace of each final file is atomic, so existence == done),
-    - proactively stops before the wall (mirrors :meth:`returnn...Engine._maybe_stop_for_resubmission`):
-      when EMA-per-item-time * safety exceeds ``slurm_time_left_sec()``, a worker finishes its in-flight
-      item, then waits at a filesystem barrier for the other still-active workers to reach their own
-      stop point, so all exit together cleanly; the parent run() then exits as interrupted so sis
-      resubmits via ``Task("run", resume="run")``,
-    - exposes ``completed_fraction`` = (#items fully written) / (#items) for sis ETA, mirroring
-      :meth:`ReturnnTrainingJob.completed_fraction`.
-
-    Hashing: the job hashes on ``work_items`` (keys + each item's returnn_config + output filenames)
-    plus ``returnn_python_exe`` / ``returnn_root``. The node shape + stop policy live in ``self.rqmt``
-    and class attrs (not __init__ args -> not hashed). ``workers_per_gpu`` and ``use_mps`` are __init__ args
-    but excluded from the hash (:class:`_UnhashedRuntimeOpts`), so the hash equals that of the original jobs.
-
-    Each work item is a ready-to-run RETURNN forward config (already passed through
-    :meth:`ReturnnForwardJobV2.create_returnn_config`, so it has ``task=forward`` + the checkpoint
-    load) together with the filename(s) it writes in its cwd. The engine runs them all, resumably,
-    across the node's GPUs and places each item's output(s) at a declared ``output_path``.
+    Hashing: only the work items and ``returnn_python_exe`` / ``returnn_root``; how they are run (node
+    size, workers per GPU, MPS) does not change the result and is not hashed.
     """
 
-    # Runtime knobs (not __init__ args -> not hashed): node shape + stop policy.
-    _num_gpus = 4  # JUPITER node = 4x GH200
-    _stop_safety_factor = 1.2  # same default as returnn stop_for_resubmission_safety_factor
+    _stop_safety_factor = 1.2  # same default as RETURNN's stop_for_resubmission_safety_factor
     _stop_exit_code = 3
 
     def __init__(
@@ -500,6 +458,10 @@ class BatchedReturnnForwardJob(_UnhashedRuntimeOpts, Job):
         *,
         returnn_python_exe: Optional[tk.Path] = None,
         returnn_root: Optional[tk.Path] = None,
+        num_gpus: int = 4,
+        cpu_rqmt: Optional[int] = None,
+        mem_rqmt: Optional[float] = None,
+        time_rqmt: float = 11.95,
         workers_per_gpu: int = 1,
         use_mps: bool = False,
     ):
@@ -515,11 +477,18 @@ class BatchedReturnnForwardJob(_UnhashedRuntimeOpts, Job):
             config); the config is what is hashed.
         :param returnn_python_exe:
         :param returnn_root:
-        :param workers_per_gpu: worker processes per GPU (not hashed), see :func:`_spawn_and_wait_workers`
-        :param use_mps: run the workers under NVIDIA MPS (not hashed), see :func:`_spawn_and_wait_workers`
+        :param num_gpus: number of GPUs of the node to run the workers on. The defaults of the requirements
+            correspond to a full JUPITER node (4x GH200, 72 cores and ~100 GB host memory per GPU, 12 h limit)
+        :param cpu_rqmt: job cpu requirement (all workers together), default 72 per GPU
+        :param mem_rqmt: job memory requirement in GB (all workers together), default 100 per GPU
+        :param time_rqmt: job time requirement in hours (the job stops early and is resubmitted, see above)
+        :param workers_per_gpu: worker processes per GPU, see :func:`_spawn_and_wait_workers`
+        :param use_mps: run the workers under NVIDIA MPS, see :func:`_spawn_and_wait_workers`
         """
         super().__init__()
+        assert num_gpus >= 1, num_gpus
         assert workers_per_gpu >= 1, workers_per_gpu
+        self.num_gpus = num_gpus
         self.workers_per_gpu = workers_per_gpu
         self.use_mps = use_mps
         assert work_items, "BatchedReturnnForwardJob: work_items dict must be non-empty"
@@ -536,9 +505,7 @@ class BatchedReturnnForwardJob(_UnhashedRuntimeOpts, Job):
                 assert isinstance(fn, str) and fn, f"item {key}: output_files entries must be non-empty str"
 
         self.work_items = work_items
-        self.returnn_python_exe = (
-            util.get_returnn_python_exe(returnn_python_exe)
-        )
+        self.returnn_python_exe = util.get_returnn_python_exe(returnn_python_exe)
         self.returnn_root = util.get_returnn_root(returnn_root)
 
         # Per-item outputs: dict key -> dict output_filename -> Path inside the Job's output/.
@@ -549,13 +516,11 @@ class BatchedReturnnForwardJob(_UnhashedRuntimeOpts, Job):
             for key, item in work_items.items()
         }
 
-        # Full node: 4 GPUs, all 288 cores, ~400 GiB host RAM; clipped to the 12 h QOS wall.
         self.rqmt = {
-            "gpu": self._num_gpus,
-            "gpu_mem": 96,
-            "cpu": 72 * self._num_gpus,
-            "mem": 100 * self._num_gpus,
-            "time": 11.95,
+            "gpu": num_gpus,
+            "cpu": cpu_rqmt if cpu_rqmt is not None else 72 * num_gpus,
+            "mem": mem_rqmt if mem_rqmt is not None else 100 * num_gpus,
+            "time": time_rqmt,
         }
 
     def tasks(self):
@@ -609,7 +574,7 @@ class BatchedReturnnForwardJob(_UnhashedRuntimeOpts, Job):
     def run(self):
         """Spawn ``workers_per_gpu`` workers per GPU; round-robin items; resubmit if stopped early for walltime."""
         codes = _spawn_and_wait_workers(
-            num_gpus=self._num_gpus,
+            num_gpus=self.num_gpus,
             returnn_python_exe_path=self.returnn_python_exe.get_path(),
             stop_safety_factor=self._stop_safety_factor,
             stop_exit_code=self._stop_exit_code,
@@ -624,9 +589,17 @@ class BatchedReturnnForwardJob(_UnhashedRuntimeOpts, Job):
             label="BatchedReturnnForwardJob",
         )
 
+    @classmethod
+    def hash(cls, kwargs):
+        d = {
+            "work_items": kwargs["work_items"],
+            "returnn_python_exe": kwargs["returnn_python_exe"],
+            "returnn_root": kwargs["returnn_root"],
+        }
+        return super().hash(d)
 
 
-class BatchedReturnnForwardDynamicJob(_UnhashedRuntimeOpts, Job):
+class BatchedReturnnForwardDynamicJob(Job):
     """
     Like :class:`BatchedReturnnForwardJob`, but the set of work items (cells) is NOT known at
     __init__ -- it is enumerated at run time by a user callable. Hence a single directory output
@@ -656,18 +629,8 @@ class BatchedReturnnForwardDynamicJob(_UnhashedRuntimeOpts, Job):
     resumability (a cell whose output(s) exist is skipped) as :class:`BatchedReturnnForwardJob`.
     """
 
-    # Runtime knobs (not __init__ args -> not hashed): node shape + stop policy.
-    _num_gpus = 4
     _stop_safety_factor = 1.2
     _stop_exit_code = 3
-    # FileCache tuning, injected into each cell's post_config in run() so it stays hash-free.
-    # The 4 workers share one /tmp cache (fixed 96 GB tmpfs cap on the GH200 node). RETURNN's
-    # proactive-cleanup "wanted" threshold defaults to 1 day, so within a multi-hour run no
-    # released .arrow shard is ever old enough to evict and the cache grows until ENOSPC.
-    # ~1 min lets the want-branch keep the 20% free margin during the run; it stays well above
-    # the ~10 s in-use detection window, so shards being read are never evicted (each shard is
-    # forwarded exactly once, so there is no re-copy cost to evicting promptly).
-    _file_cache_opts = {"cleanup_files_wanted_older_than_days": 1.0 / (24 * 60)}
 
     def __init__(
         self,
@@ -675,8 +638,13 @@ class BatchedReturnnForwardDynamicJob(_UnhashedRuntimeOpts, Job):
         *,
         returnn_python_exe: Optional[tk.Path] = None,
         returnn_root: Optional[tk.Path] = None,
+        num_gpus: int = 4,
+        cpu_rqmt: Optional[int] = None,
+        mem_rqmt: Optional[float] = None,
+        time_rqmt: float = 11.95,
         workers_per_gpu: int = 1,
         use_mps: bool = False,
+        file_cache_opts: Optional[Dict[str, Any]] = None,
     ):
         """
         :param enumerate_cells: zero-arg callable returning ``list[(key, make_config, outputs)]``
@@ -684,29 +652,44 @@ class BatchedReturnnForwardDynamicJob(_UnhashedRuntimeOpts, Job):
             ``completed_fraction``, so it must be cheap, deterministic, picklable + hashable.
         :param returnn_python_exe:
         :param returnn_root:
-        :param workers_per_gpu: worker processes per GPU (not hashed), see :func:`_spawn_and_wait_workers`
-        :param use_mps: run the workers under NVIDIA MPS (not hashed), see :func:`_spawn_and_wait_workers`
+        :param num_gpus: number of GPUs of the node to run the workers on. The defaults of the requirements
+            correspond to a full JUPITER node (4x GH200, 72 cores and ~100 GB host memory per GPU, 12 h limit)
+        :param cpu_rqmt: job cpu requirement (all workers together), default 72 per GPU
+        :param mem_rqmt: job memory requirement in GB (all workers together), default 100 per GPU
+        :param time_rqmt: job time requirement in hours (the job stops early and is resubmitted)
+        :param workers_per_gpu: worker processes per GPU, see :func:`_spawn_and_wait_workers`
+        :param use_mps: run the workers under NVIDIA MPS, see :func:`_spawn_and_wait_workers`
+        :param file_cache_opts: RETURNN ``file_cache_opts``, set in each cell's ``post_config`` (unless the cell
+            sets it itself). Only has an effect if the cells read their data via RETURNN's file cache. Default
+            (None): ``{"cleanup_files_wanted_older_than_days": 1 / (24 * 60)}``, i.e. the files of finished cells
+            may be removed from the cache after a minute instead of after a day: the workers share one local
+            cache directory, and with RETURNN's default it would fill up within a multi-hour run (each cell's
+            data is read once, so evicting early costs nothing; files in use are never evicted).
+            ``{}``: RETURNN's defaults.
         """
         super().__init__()
+        assert num_gpus >= 1, num_gpus
         assert workers_per_gpu >= 1, workers_per_gpu
+        self.num_gpus = num_gpus
         self.workers_per_gpu = workers_per_gpu
         self.use_mps = use_mps
-        self.enumerate_cells = enumerate_cells
-        self.returnn_python_exe = (
-            util.get_returnn_python_exe(returnn_python_exe)
+        self.file_cache_opts = (
+            file_cache_opts
+            if file_cache_opts is not None
+            else {"cleanup_files_wanted_older_than_days": 1.0 / (24 * 60)}
         )
+        self.enumerate_cells = enumerate_cells
+        self.returnn_python_exe = util.get_returnn_python_exe(returnn_python_exe)
         self.returnn_root = util.get_returnn_root(returnn_root)
 
         # Single dynamic-count directory output: filled with each cell's file(s) in run().
         self.out_dir = self.output_path("out", directory=True)
 
-        # Full node: 4 GPUs, all 288 cores, ~400 GiB host RAM; clipped to the 12 h QOS wall.
         self.rqmt = {
-            "gpu": self._num_gpus,
-            "gpu_mem": 96,
-            "cpu": 72 * self._num_gpus,
-            "mem": 100 * self._num_gpus,
-            "time": 11.95,
+            "gpu": num_gpus,
+            "cpu": cpu_rqmt if cpu_rqmt is not None else 72 * num_gpus,
+            "mem": mem_rqmt if mem_rqmt is not None else 100 * num_gpus,
+            "time": time_rqmt,
         }
 
     def tasks(self):
@@ -759,8 +742,8 @@ class BatchedReturnnForwardDynamicJob(_UnhashedRuntimeOpts, Job):
             if all(os.path.exists(dest) for dest in dests.values()):
                 continue  # resumable: this cell already done
             cfg = make_config()
-            if self._file_cache_opts:
-                cfg.post_config.setdefault("file_cache_opts", self._file_cache_opts)
+            if self.file_cache_opts:
+                cfg.post_config.setdefault("file_cache_opts", self.file_cache_opts)
             item_dir = os.path.join("items", key)
             os.makedirs(item_dir, exist_ok=True)
             cfg_path = os.path.join(item_dir, "returnn.config")
@@ -782,7 +765,7 @@ class BatchedReturnnForwardDynamicJob(_UnhashedRuntimeOpts, Job):
                 returnn_python_exe_path=self.returnn_python_exe.get_path(),
             )
             codes = _spawn_and_wait_workers(
-                num_gpus=self._num_gpus,
+                num_gpus=self.num_gpus,
                 returnn_python_exe_path=self.returnn_python_exe.get_path(),
                 stop_safety_factor=self._stop_safety_factor,
                 stop_exit_code=self._stop_exit_code,
@@ -800,6 +783,14 @@ class BatchedReturnnForwardDynamicJob(_UnhashedRuntimeOpts, Job):
             label="BatchedReturnnForwardDynamicJob",
         )
 
+    @classmethod
+    def hash(cls, kwargs):
+        d = {
+            "enumerate_cells": kwargs["enumerate_cells"],
+            "returnn_python_exe": kwargs["returnn_python_exe"],
+            "returnn_root": kwargs["returnn_root"],
+        }
+        return super().hash(d)
 
 
 def _worker_main():
@@ -840,8 +831,6 @@ def _worker_main():
     rnn_py = manifest["rnn_py"]
     job_dir = os.path.dirname(os.path.abspath(args.manifest))
 
-    if args.rank == 0:
-        _log_node_usage("worker start")
     ema = None
     for si, item in enumerate(items):
         if _worker_item_done(item):  # atomic os.replace -> existence == complete
@@ -854,8 +843,6 @@ def _worker_main():
                 _worker_barrier_and_exit(args.rank, args.world, job_dir, ema)
         if not _worker_claim(args.claims, si):  # a peer got there first
             continue
-        if args.rank == 0:  # node-global /tmp+RAM snapshot, to diagnose the RAM-tmpfs ENOSPC
-            _log_node_usage("before %s (item %i/%i)" % (item["key"], si, len(items)))
         t0 = time.time()
         _worker_run_item(python_exe, rnn_py, item)
         dt = time.time() - t0
@@ -936,28 +923,6 @@ def _worker_barrier_and_exit(rank, world, job_dir, ema):
     sys.exit(3)
 
 
-def _log_node_usage(tag):
-    """
-    Log node /tmp (RAM-backed tmpfs) + RAM usage, to diagnose the tmpfs ENOSPC crashes.
-
-    Node-global view, so call from rank 0 only. ``du`` of /tmp's top level reveals which entry eats
-    the 96 GB rootfs, given our own output staging is only ~12 MB/shard.
-    """
-    import subprocess
-    import sys
-
-    print("=== node-usage [%s] ===" % tag, flush=True)
-    for cmd in (["df", "-h", "/tmp"], ["free", "-g"], ["du", "-xh", "--max-depth=1", "/tmp"]):
-        try:
-            r = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
-            sys.stdout.write(r.stdout)
-            if r.stderr:
-                sys.stdout.write(r.stderr)
-        except Exception as e:
-            print("  %s failed: %r" % (" ".join(cmd), e))
-    sys.stdout.flush()
-
-
 def _write_manifest(*, items: List[Dict[str, Any]], returnn_root_path: str, returnn_python_exe_path: str):
     """
     Write the worker ``manifest.json`` (the work items + the returnn/python paths used to run them).
@@ -989,8 +954,8 @@ def _write_worker_driver():
 
     Serialize an import of the worker entry point with i6_core's serialization_v2, so the logic lives
     as a real function in this module (:func:`_worker_main`) instead of a source-string blob. The
-    generated worker.py is run by a plain Python (not via rnn.py). serialization_v2 resolves the direct
-    i6_experiments import (and its sys.path); we add the remaining non-base sys.path entries (sisyphus,
+    generated worker.py is run by a plain Python (not via rnn.py). serialization_v2 resolves the import
+    of this module (and its sys.path); we add the remaining non-base sys.path entries (sisyphus,
     returnn, ...) explicitly, then append the call.
     """
     import sys
@@ -1029,7 +994,7 @@ def _spawn_and_wait_workers(
     mps_env = _start_mps_daemon(num_gpus=num_gpus) if use_mps else None
     if workers_per_gpu > 1 and mps_env is None:
         print(
-            "forward_batched: %i workers per GPU need MPS (%s), using 1 worker per GPU"
+            "BatchedReturnnForward: %i workers per GPU need MPS (%s), using 1 worker per GPU"
             % (workers_per_gpu, "not started" if use_mps else "use_mps=False"),
             flush=True,
         )
@@ -1061,13 +1026,13 @@ def _start_mps_daemon(*, num_gpus: int) -> Optional[Dict[str, str]]:
     import tempfile
 
     if shutil.which("nvidia-cuda-mps-control") is None:
-        print("forward_batched: MPS: nvidia-cuda-mps-control not found", flush=True)
+        print("BatchedReturnnForward: MPS: nvidia-cuda-mps-control not found", flush=True)
         return None
     # Clients address GPUs relative to the devices the MPS server sees. With the whole node
     # (CUDA_VISIBLE_DEVICES unset or 0..n-1) this equals the absolute index used in _run_workers.
     parent_cvd = os.environ.get("CUDA_VISIBLE_DEVICES")
     if parent_cvd and parent_cvd.split(",") != [str(i) for i in range(num_gpus)]:
-        print("forward_batched: MPS: unexpected CUDA_VISIBLE_DEVICES=%s, not using MPS" % parent_cvd, flush=True)
+        print("BatchedReturnnForward: MPS: unexpected CUDA_VISIBLE_DEVICES=%s, not using MPS" % parent_cvd, flush=True)
         return None
     base_dir = tempfile.mkdtemp(prefix="mps_", dir="/tmp")  # node-local, not $TMPDIR (may be shared FS)
     env = {
@@ -1076,17 +1041,16 @@ def _start_mps_daemon(*, num_gpus: int) -> Optional[Dict[str, str]]:
     }
     for d in env.values():
         os.makedirs(d)
-    res = subprocess.run(
-        ["nvidia-cuda-mps-control", "-d"], env={**os.environ, **env}, capture_output=True, text=True
-    )
+    res = subprocess.run(["nvidia-cuda-mps-control", "-d"], env={**os.environ, **env}, capture_output=True, text=True)
     if res.returncode != 0:
         print(
-            "forward_batched: MPS: daemon start failed (%i): %s" % (res.returncode, (res.stdout + res.stderr).strip()),
+            "BatchedReturnnForward: MPS: daemon start failed (%i): %s"
+            % (res.returncode, (res.stdout + res.stderr).strip()),
             flush=True,
         )
         shutil.rmtree(base_dir, ignore_errors=True)
         return None
-    print("forward_batched: MPS: daemon started, pipe directory %s" % env["CUDA_MPS_PIPE_DIRECTORY"], flush=True)
+    print("BatchedReturnnForward: MPS: daemon started, pipe directory %s" % env["CUDA_MPS_PIPE_DIRECTORY"], flush=True)
     return env
 
 
@@ -1098,14 +1062,18 @@ def _stop_mps_daemon(env: Dict[str, str]):
 
     try:
         subprocess.run(
-            ["nvidia-cuda-mps-control"], input="quit\n", env={**os.environ, **env}, text=True, timeout=60,
+            ["nvidia-cuda-mps-control"],
+            input="quit\n",
+            env={**os.environ, **env},
+            text=True,
+            timeout=60,
             capture_output=True,
         )
     except subprocess.TimeoutExpired:
-        print("forward_batched: MPS: daemon did not quit within 60 s", flush=True)
+        print("BatchedReturnnForward: MPS: daemon did not quit within 60 s", flush=True)
     shutil.copytree(env["CUDA_MPS_LOG_DIRECTORY"], "mps_logs", dirs_exist_ok=True)
     shutil.rmtree(os.path.dirname(env["CUDA_MPS_PIPE_DIRECTORY"]), ignore_errors=True)
-    print("forward_batched: MPS: daemon stopped", flush=True)
+    print("BatchedReturnnForward: MPS: daemon stopped", flush=True)
 
 
 def _run_workers(
