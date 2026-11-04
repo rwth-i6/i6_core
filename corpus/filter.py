@@ -686,7 +686,7 @@ class FilterCorpusByDiarizationJob(Job):
     diarized turns ordered by start, so a turn within another speaker's turn counts as one change.
 
     `corpus.xml.gz` is the input corpus restricted to the kept recordings, `audio_files.txt` their
-    audio files. `skipped.jsonl` holds per skipped recording `name`, `reason` (`speakers` or
+    audio files. `skipped.jsonl` holds per skipped recording its full `name`, `reason` (`speakers` or
     `speaker_changes`), `num_speakers`, `speaker_changes` and `duration`. `summary.json` holds the
     recordings and hours kept and skipped per reason.
     """
@@ -700,8 +700,9 @@ class FilterCorpusByDiarizationJob(Job):
         min_speaker_changes: int = 4,
     ):
         """
-        :param corpus: bliss corpus, recordings named by their audio file
-        :param rttm_dir: `rttm/<name>.rttm` per recording, e.g. `out_rttm_dir` of `PyannoteDiarizeRecordingsJob`
+        :param corpus: bliss corpus
+        :param rttm_dir: directory with one `<full recording name>.rttm` per recording, where the full name
+            `<corpus>/<subcorpus>/.../<recording>` gives subdirectories
         :param min_speakers: recordings with fewer diarized speakers are skipped
         :param min_speaker_changes: recordings with fewer changes of the diarized speaker are skipped
         """
@@ -736,7 +737,7 @@ class FilterCorpusByDiarizationJob(Job):
             self.out_audio_files.get_path(), "wt"
         ) as f_audio:
             for recording in bliss_corpus.all_recordings():
-                turns = parse_rttm(os.path.join(self.rttm_dir.get_path(), f"{recording.name}.rttm"))
+                turns = parse_rttm(os.path.join(self.rttm_dir.get_path(), f"{recording.fullname()}.rttm"))
                 num_speakers = len({t.speaker for t in turns})
                 changes = max(sum(1 for _ in itertools.groupby(t.speaker for t in turns)) - 1, 0)
                 duration = soundfile.info(recording.audio).duration
@@ -752,7 +753,7 @@ class FilterCorpusByDiarizationJob(Job):
                 else:
                     removed.append(recording)
                     skip = {
-                        "name": recording.name,
+                        "name": recording.fullname(),
                         "reason": reason,
                         "num_speakers": num_speakers,
                         "speaker_changes": changes,
