@@ -6,6 +6,7 @@ __all__ = [
     "MergeStrategy",
     "MergeCorpusSegmentsAndAudioJob",
     "ShiftCorpusSegmentStartJob",
+    "SplitRecordingsIntoPiecesJob",
     "ApplyLexiconToCorpusJob",
     "MapRecordingsJob",
     "IntegrateContextIntoOrthJob",
@@ -14,6 +15,7 @@ __all__ = [
 import bisect
 import collections
 import enum
+import json
 import logging
 import math
 import os
@@ -564,6 +566,60 @@ class ShiftCorpusSegmentStartJob(Job):
 
         with open(str(self.out_segments), "w") as segments_outfile:
             segments_outfile.writelines(segment_file_names)
+
+
+class SplitRecordingsIntoPiecesJob(Job):
+    """
+    Replaces the segments of each recording by pieces of at most `max_piece_seconds`, cut at the
+    pauses of the diarization (see `split_pieces`) or at `max_piece_seconds` without diarization.
+
+    `corpus.xml.gz` holds the pieces as segments `1`, `2`, ... without orth, `summary.json` the
+    recordings, pieces and hours.
+    """
+
+    def __init__(self, *, corpus: tk.Path, rttm_dir: tk.Path | None = None, max_piece_seconds: float = 120.0):
+        """
+        :param corpus: bliss corpus, recordings named by their audio file
+        :param rttm_dir: `rttm/<name>.rttm` per recording
+        :param max_piece_seconds: maximal piece duration
+        """
+        self.corpus = corpus
+        self.rttm_dir = rttm_dir
+        self.max_piece_seconds = max_piece_seconds
+
+        self.out_corpus = self.output_path("corpus.xml.gz")
+        self.out_summary = self.output_path("summary.json")
+
+    def tasks(self):
+        yield Task("run", mini_task=True)
+
+    def run(self):
+        import soundfile
+
+        from i6_core.lib.intervals import split_pieces
+        from i6_core.lib.rttm import parse_rttm
+
+        c = corpus.Corpus()
+        c.load(self.corpus.get_path())
+        summary = {"recordings": 0, "pieces": 0, "hours": 0.0}
+        for recording in c.all_recordings():
+            duration = soundfile.info(recording.audio).duration
+            speech = []
+            if self.rttm_dir is not None:
+                rttm = os.path.join(self.rttm_dir.get_path(), f"{recording.name}.rttm")
+                speech = [(start, end) for _, start, end in parse_rttm(rttm)]
+            pieces = split_pieces(speech, duration=duration, max_seconds=self.max_piece_seconds)
+            recording.segments = []
+            for i, (start, end) in enumerate(pieces, start=1):
+                segment = corpus.Segment(start=start, end=end)
+                segment.name = str(i)
+                recording.add_segment(segment)
+            summary["recordings"] += 1
+            summary["pieces"] += len(pieces)
+            summary["hours"] += duration / 3600
+        c.dump(self.out_corpus.get_path())
+        with open(self.out_summary.get_path(), "wt") as f:
+            json.dump(summary, f, indent=2)
 
 
 class LexiconStrategy(enum.Enum):
