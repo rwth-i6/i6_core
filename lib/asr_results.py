@@ -3,17 +3,23 @@ __all__ = [
     "ChannelIndex",
     "SpeakerInfo",
     "TimedTranscript",
+    "ReferenceTimedTranscript",
+    "Transcript",
     "Segment",
     "Recording",
     "ASRResultsStream",
+    "ReferenceTranscriptStream",
     "BatchSegment",
     "BatchRecording",
     "stream_asr_results",
+    "stream_reference_transcripts",
     "parse_asr_results",
+    "parse_reference_transcripts",
     "write_asr_results",
+    "write_reference_transcripts",
 ]
 
-from collections.abc import Generator
+from collections.abc import Generator, Iterable
 from os import PathLike
 from pathlib import Path
 from typing import Annotated, Literal, Optional
@@ -101,6 +107,25 @@ class TimedTranscript(BaseModel):
         return self
 
 
+class ReferenceTimedTranscript(TimedTranscript):
+    """Evaluation-reference text with an optional named-entity label and other meta data."""
+
+    type: Literal["rtt"] = "rtt"
+    text: str = Field(default=..., description="Reference word or phrase.")
+    entity: Optional[str] = Field(
+        default=None,
+        description="Named-entity label, for example PERSON or DATE_TIME.",
+    )
+    gender: Optional[str] = Field(default=None, description="Speaker gender label from the reference.")
+    age: Optional[str] = Field(default=None, description="Speaker age label from the reference.")
+    dialect: Optional[str] = Field(default=None, description="Speaker dialect label from the reference.")
+    education: Optional[str] = Field(default=None, description="Speaker education label from the reference.")
+    domain: Optional[str] = Field(default=None, description="Domain label from the reference.")
+
+
+Transcript = Annotated[TimedTranscript | ReferenceTimedTranscript, Field(discriminator="type")]
+
+
 class Segment(BaseModel):
     """
     A segment of the recording. Segments are used to group multiple transcripts into an n-best list.
@@ -136,6 +161,10 @@ class Recording(BaseModel):
 
 
 ASRResultsStream = Annotated[Recording | Segment | TimedTranscript, Field(discriminator="type")]
+ReferenceTranscriptStream = Annotated[
+    Recording | Segment | ReferenceTimedTranscript,
+    Field(discriminator="type"),
+]
 
 
 class BatchSegment(Segment):
@@ -143,7 +172,10 @@ class BatchSegment(Segment):
     Batched version of a segment, containing the list of transcripts for this segment.
     """
 
-    transcripts: list[TimedTranscript] = Field(default=..., description="List of transcripts for this segment.")
+    transcripts: list[Transcript] = Field(
+        default=...,
+        description="List of transcripts for this segment.",
+    )
 
 
 class BatchRecording(Recording):
@@ -155,18 +187,8 @@ class BatchRecording(Recording):
     alternatives: list[list[BatchSegment]] = Field(default=..., description="List of segment alternatives.")
 
 
-def stream_asr_results(path: str | PathLike) -> Generator[ASRResultsStream]:
-    """
-    Stream ASR results from a file.
-
-    Reads the file line by line, parsing each line as a JSON object and validating it
-    against the ASRResultsStream union type (Recording, Segment, or TimedTranscript).
-
-    :param path: Path to the input file.
-    :yield: Parsed ASR result objects (Recording, Segment, or TimedTranscript).
-    """
-    record_adapter = TypeAdapter(ASRResultsStream)
-
+def _stream_transcripts(path: str | PathLike, stream_type) -> Generator:
+    record_adapter = TypeAdapter(stream_type)
     in_recording: bool = False
     in_segment: bool = False
     with uopen(path, "rt", encoding="utf-8") as f:
@@ -191,17 +213,31 @@ def stream_asr_results(path: str | PathLike) -> Generator[ASRResultsStream]:
             yield record
 
 
-def parse_asr_results(path: str | PathLike) -> list[BatchRecording]:
+def stream_asr_results(path: str | PathLike) -> Generator[ASRResultsStream]:
     """
-    Parse ASR results from a file into a list of BatchRecording objects.
+    Stream ASR hypotheses from a file.
 
     :param path: Path to the input file.
-    :return: List of BatchRecording objects containing the parsed results.
+    :yield: Recording, Segment, and TimedTranscript objects.
     """
+    yield from _stream_transcripts(path, ASRResultsStream)
+
+
+def stream_reference_transcripts(path: str | PathLike) -> Generator[ReferenceTranscriptStream]:
+    """
+    Stream evaluation-reference transcripts from a file.
+
+    :param path: Path to the input file.
+    :yield: Recording, Segment, and ReferenceTimedTranscript objects.
+    """
+    yield from _stream_transcripts(path, ReferenceTranscriptStream)
+
+
+def _parse_transcripts(records: Iterable) -> list[BatchRecording]:
     result = []
     current_recording = None
     current_alternatives = None
-    for idx, record in enumerate(stream_asr_results(path), 1):
+    for record in records:
         if isinstance(record, Recording):
             if current_alternatives:
                 current_alternatives.sort(key=lambda seg: seg.n_best_index)
@@ -225,13 +261,31 @@ def parse_asr_results(path: str | PathLike) -> list[BatchRecording]:
     return result
 
 
-def write_asr_results(results: list[BatchRecording], path: str | PathLike):
+def parse_asr_results(path: str | PathLike) -> list[BatchRecording]:
     """
-    Write ASR results to a file.
+    Parse ASR hypotheses into BatchRecording objects.
 
-    :param results: List of BatchRecording objects containing the parsed results.
-    :param path: Path to the output file.
+    :param path: Path to the input file.
+    :return: List of BatchRecording objects containing ASR hypotheses.
     """
+    return _parse_transcripts(stream_asr_results(path))
+
+
+def parse_reference_transcripts(path: str | PathLike) -> list[BatchRecording]:
+    """
+    Parse evaluation references into BatchRecording objects.
+
+    :param path: Path to the input file.
+    :return: List of BatchRecording objects containing reference transcripts.
+    """
+    return _parse_transcripts(stream_reference_transcripts(path))
+
+
+def _write_transcripts(
+    results: list[BatchRecording],
+    path: str | PathLike,
+    transcript_type: type[TimedTranscript],
+):
     with uopen(path, "wt", encoding="utf-8") as f:
         for batch_recording in results:
             alternatives = batch_recording.alternatives
@@ -249,4 +303,28 @@ def write_asr_results(results: list[BatchRecording], path: str | PathLike):
                     seg = Segment(**batch_seg.model_dump(exclude={"transcripts"}))
                     f.write(seg.model_dump_json(exclude_unset=True, exclude_none=True) + "\n")
                     for transcript in transcripts:
+                        if type(transcript) is not transcript_type:
+                            raise TypeError(
+                                f"expected {transcript_type.__name__}, got {type(transcript).__name__}"
+                            )
                         f.write(transcript.model_dump_json(exclude_unset=True, exclude_none=True) + "\n")
+
+
+def write_asr_results(results: list[BatchRecording], path: str | PathLike):
+    """
+    Write ASR hypotheses to a file.
+
+    :param results: List of BatchRecording objects containing ASR hypotheses.
+    :param path: Path to the output file.
+    """
+    _write_transcripts(results, path, TimedTranscript)
+
+
+def write_reference_transcripts(results: list[BatchRecording], path: str | PathLike):
+    """
+    Write evaluation-reference transcripts to a file.
+
+    :param results: List of BatchRecording objects containing reference transcripts.
+    :param path: Path to the output file.
+    """
+    _write_transcripts(results, path, ReferenceTimedTranscript)

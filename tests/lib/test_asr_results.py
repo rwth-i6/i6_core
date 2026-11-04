@@ -6,11 +6,14 @@ import pytest
 from i6_core.lib.asr_results import (
     BatchRecording,
     Recording,
+    ReferenceTimedTranscript,
     Segment,
     TimedTranscript,
     parse_asr_results,
+    parse_reference_transcripts,
     stream_asr_results,
     write_asr_results,
+    write_reference_transcripts,
 )
 
 
@@ -103,3 +106,32 @@ def test_write_asr_results(sample_asr_file, tmp_path):
         records_f1 = [json.loads(line) for line in f1]
         records_f2 = [json.loads(line) for line in f2]
         assert records_f1 == records_f2
+
+
+def test_reference_timed_transcript_round_trip(tmp_path):
+    input_file = tmp_path / "reference.jsonl"
+    input_file.write_text(
+        '{"type":"rec","name":"rec1"}\n'
+        '{"type":"seg","name":"seg1"}\n'
+        '{"type":"rtt","text":"in","start":0.0,"end":1.0,"gender":"female","domain":"call-center"}\n'
+        '{"type":"rtt","text":"New York","start":1.0,"end":3.0,"entity":"LOCATION",'
+        '"gender":"female","domain":"call-center"}\n'
+    )
+
+    with pytest.raises(ValueError):
+        list(stream_asr_results(input_file))
+
+    recordings = parse_reference_transcripts(input_file)
+    ordinary_transcript = recordings[0].alternatives[0][0].transcripts[0]
+    entity_transcript = recordings[0].alternatives[0][0].transcripts[1]
+    assert isinstance(ordinary_transcript, ReferenceTimedTranscript)
+    assert ordinary_transcript.entity is None
+    assert ordinary_transcript.gender == "female"
+    assert ordinary_transcript.domain == "call-center"
+    assert isinstance(entity_transcript, ReferenceTimedTranscript)
+    assert entity_transcript.text == "New York"
+    assert entity_transcript.entity == "LOCATION"
+
+    output_file = tmp_path / "output.jsonl"
+    write_reference_transcripts(recordings, output_file)
+    assert output_file.read_text() == input_file.read_text()
