@@ -715,8 +715,10 @@ class FilterCorpusByDiarizationJob(Job):
         self.out_skipped = self.output_path("skipped.jsonl")
         self.out_summary = self.output_path("summary.json")
 
+        self.rqmt = None
+
     def tasks(self):
-        yield Task("run", mini_task=True)
+        yield Task("run", rqmt=self.rqmt, mini_task=self.rqmt is None)
 
     def run(self):
         import itertools
