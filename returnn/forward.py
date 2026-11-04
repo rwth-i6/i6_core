@@ -445,8 +445,13 @@ class BatchedReturnnForwardJob(Job):
     keep the GPU busy (e.g. decoding with many small kernels). Without MPS, the GPU time-slices between the
     processes, which is slower than one process per GPU.
 
+    By default, each item runs as its own rnn.py process, i.e. RETURNN starts up and loads the model again for
+    every item. With ``persistent_workers``, a worker runs its items in its own process instead and does this only
+    once (if the configs of all items are the same except ``forward_data``, otherwise each item still gets its
+    own process), which saves the startup time of all but the first item of each worker.
+
     Hashing: only the work items and ``returnn_python_exe`` / ``returnn_root``; how they are run (node
-    size, workers per GPU, MPS) does not change the result and is not hashed.
+    size, workers per GPU, MPS, persistent workers) does not change the result and is not hashed.
     """
 
     _stop_safety_factor = 1.2  # same default as RETURNN's stop_for_resubmission_safety_factor
@@ -464,6 +469,7 @@ class BatchedReturnnForwardJob(Job):
         time_rqmt: float = 11.95,
         workers_per_gpu: int = 1,
         use_mps: bool = False,
+        persistent_workers: bool = False,
     ):
         """
         :param work_items: mapping ``key -> {"returnn_config": ReturnnConfig,
@@ -484,6 +490,9 @@ class BatchedReturnnForwardJob(Job):
         :param time_rqmt: job time requirement in hours (the job stops early and is resubmitted, see above)
         :param workers_per_gpu: worker processes per GPU, see :func:`_spawn_and_wait_workers`
         :param use_mps: run the workers under NVIDIA MPS, see :func:`_spawn_and_wait_workers`
+        :param persistent_workers: run the items of a worker in the worker process itself, so RETURNN is
+            initialized and the model is loaded only once per worker instead of once per item, see
+            :func:`_worker_main`. Only used if the configs of all items are the same except ``forward_data``
         """
         super().__init__()
         assert num_gpus >= 1, num_gpus
@@ -491,6 +500,7 @@ class BatchedReturnnForwardJob(Job):
         self.num_gpus = num_gpus
         self.workers_per_gpu = workers_per_gpu
         self.use_mps = use_mps
+        self.persistent_workers = persistent_workers
         assert work_items, "BatchedReturnnForwardJob: work_items dict must be non-empty"
         for key, item in work_items.items():
             assert isinstance(key, str) and key and "/" not in key and "\\" not in key, (
@@ -550,6 +560,7 @@ class BatchedReturnnForwardJob(Job):
             item_dir = os.path.join("items", key)
             os.makedirs(item_dir, exist_ok=True)
             cfg_path = os.path.join(item_dir, "returnn.config")
+            signature = _config_signature(item["returnn_config"])
             item["returnn_config"].write(cfg_path)
             items.append(
                 {
@@ -557,6 +568,7 @@ class BatchedReturnnForwardJob(Job):
                     "config": os.path.abspath(cfg_path),
                     # Where each file the config writes (relative to cwd) must end up.
                     "outputs": {fn: self.out_files[key][fn].get_path() for fn in item["output_files"]},
+                    "signature": signature,
                 }
             )
             ckpt = item.get("model_checkpoint")
@@ -580,6 +592,7 @@ class BatchedReturnnForwardJob(Job):
             stop_exit_code=self._stop_exit_code,
             workers_per_gpu=self.workers_per_gpu,
             use_mps=self.use_mps,
+            persistent=self.persistent_workers,
         )
         _finish_run(
             codes=codes,
@@ -602,7 +615,7 @@ class BatchedReturnnForwardJob(Job):
 class BatchedReturnnForwardDynamicJob(Job):
     """
     Like :class:`BatchedReturnnForwardJob`, but the set of work items (cells) is NOT known at
-    __init__ -- it is enumerated at run time by a user callable. Hence a single directory output
+    __init__ -- it is enumerated at run time by a user callable. Hence, a single directory output
     ``out/`` into which each cell writes its file(s) at a cell-chosen relative path, instead of one
     declared ``output_path`` per (statically known) cell. Use this when the cell list is only
     discoverable at run time (e.g. one cell per dynamically-discovered data shard); for a statically
@@ -644,6 +657,7 @@ class BatchedReturnnForwardDynamicJob(Job):
         time_rqmt: float = 11.95,
         workers_per_gpu: int = 1,
         use_mps: bool = False,
+        persistent_workers: bool = False,
         file_cache_opts: Optional[Dict[str, Any]] = None,
     ):
         """
@@ -659,6 +673,9 @@ class BatchedReturnnForwardDynamicJob(Job):
         :param time_rqmt: job time requirement in hours (the job stops early and is resubmitted)
         :param workers_per_gpu: worker processes per GPU, see :func:`_spawn_and_wait_workers`
         :param use_mps: run the workers under NVIDIA MPS, see :func:`_spawn_and_wait_workers`
+        :param persistent_workers: run the items of a worker in the worker process itself, so RETURNN is
+            initialized and the model is loaded only once per worker instead of once per item, see
+            :func:`_worker_main`. Only used if the configs of all items are the same except ``forward_data``
         :param file_cache_opts: RETURNN ``file_cache_opts``, set in each cell's ``post_config`` (unless the cell
             sets it itself). Only has an effect if the cells read their data via RETURNN's file cache. Default
             (None): ``{"cleanup_files_wanted_older_than_days": 1 / (24 * 60)}``, i.e. the files of finished cells
@@ -673,6 +690,7 @@ class BatchedReturnnForwardDynamicJob(Job):
         self.num_gpus = num_gpus
         self.workers_per_gpu = workers_per_gpu
         self.use_mps = use_mps
+        self.persistent_workers = persistent_workers
         self.file_cache_opts = (
             file_cache_opts
             if file_cache_opts is not None
@@ -747,6 +765,7 @@ class BatchedReturnnForwardDynamicJob(Job):
             item_dir = os.path.join("items", key)
             os.makedirs(item_dir, exist_ok=True)
             cfg_path = os.path.join(item_dir, "returnn.config")
+            signature = _config_signature(cfg)
             cfg.write(cfg_path)
             # cost (optional 4th element) -> queue order, see _write_manifest
             items.append(
@@ -755,6 +774,7 @@ class BatchedReturnnForwardDynamicJob(Job):
                     "config": os.path.abspath(cfg_path),
                     "outputs": dests,
                     "cost": cell[3] if len(cell) > 3 else None,
+                    "signature": signature,
                 }
             )
 
@@ -771,6 +791,7 @@ class BatchedReturnnForwardDynamicJob(Job):
                 stop_exit_code=self._stop_exit_code,
                 workers_per_gpu=self.workers_per_gpu,
                 use_mps=self.use_mps,
+                persistent=self.persistent_workers,
             )
         else:
             codes = [0]  # nothing left (all cells already present)
@@ -800,11 +821,18 @@ def _worker_main():
     One worker process per GPU, all pulling from one shared work queue: walk the manifest's items in
     order (longest-first, see :func:`_write_manifest`), skip the ones whose output file(s) already
     exist (resumable) or that a peer has claimed, claim the next one atomically
-    (:func:`_worker_claim`), run its config with rnn.py, repeat until the queue is drained; and
+    (:func:`_worker_claim`), run its config, repeat until the queue is drained; and
     barrier-stop together with the other workers when low on walltime. Pulling instead of striding
     means a worker that draws a cheap item comes back for more, so no GPU idles while a peer still
-    has hours of work queued. Args ``--rank/--world/--manifest/--claims/--safety`` come from argv;
-    ``--claims`` is a per-run directory (stale claims of an earlier run would deadlock the queue).
+    has hours of work queued. Args ``--rank/--world/--manifest/--claims/--safety/--persistent`` come from
+    argv; ``--claims`` is a per-run directory (stale claims of an earlier run would deadlock the queue).
+
+    Each item runs either as its own rnn.py process (:func:`_worker_run_item`) or, with ``--persistent`` and
+    if the configs of all items are the same except ``forward_data``, in this process
+    (:func:`_worker_run_item_in_process`): RETURNN is initialized and the model is loaded for the first item
+    only, the later items only create their dataset and run the forward. This saves the startup (imports,
+    CUDA init, model and checkpoint loading, and everything the forward step caches, e.g. a RASR search)
+    for all but the first item of a worker. An error in an item ends the worker in both modes.
     """
     import argparse
     import json
@@ -818,6 +846,7 @@ def _worker_main():
     ap.add_argument("--manifest", required=True)
     ap.add_argument("--claims", required=True)
     ap.add_argument("--safety", type=float, default=1.2)
+    ap.add_argument("--persistent", action="store_true")
     args = ap.parse_args()
 
     with open(args.manifest) as f:
@@ -830,6 +859,19 @@ def _worker_main():
     python_exe = manifest["python_exe"]
     rnn_py = manifest["rnn_py"]
     job_dir = os.path.dirname(os.path.abspath(args.manifest))
+
+    persistent = args.persistent
+    if persistent:
+        signatures = {item.get("signature") for item in items}
+        if None in signatures or len(signatures) > 1:
+            if args.rank == 0:
+                print(
+                    "BatchedReturnnForward: the item configs differ in more than forward_data, "
+                    "running each item as its own rnn.py process",
+                    flush=True,
+                )
+            persistent = False
+    in_process_state = {}
 
     ema = None
     for si, item in enumerate(items):
@@ -844,10 +886,15 @@ def _worker_main():
         if not _worker_claim(args.claims, si):  # a peer got there first
             continue
         t0 = time.time()
-        _worker_run_item(python_exe, rnn_py, item)
+        if persistent:
+            _worker_run_item_in_process(in_process_state, item)
+        else:
+            _worker_run_item(python_exe, rnn_py, item)
         dt = time.time() - t0
         ema = dt if ema is None else 0.5 * ema + 0.5 * dt
 
+    if in_process_state:
+        _worker_finish_in_process(in_process_state)
     # Queue drained: register so a stopping peer's barrier can complete, then exit clean.
     open(os.path.join(job_dir, "stopping.rank%i" % args.rank), "w").close()
     sys.exit(0)
@@ -883,20 +930,111 @@ def _worker_claim(claims_dir, item_index):
 
 def _worker_run_item(python_exe, rnn_py, item):
     """Run one item's config with rnn.py in a fresh tmp cwd, then atomically move its outputs into place."""
-    import os
-    import shutil
     import subprocess
     import tempfile
 
     with tempfile.TemporaryDirectory() as tmp:
         subprocess.check_call([python_exe, rnn_py, item["config"]], cwd=tmp)
-        for fn, dest in item["outputs"].items():
-            src = os.path.join(tmp, fn)
-            assert os.path.exists(src), "item produced no %s: %s" % (fn, item["config"])
-            os.makedirs(os.path.dirname(dest), exist_ok=True)
-            staged = dest + ".inprogress"  # same fs as final -> os.replace is atomic
-            shutil.move(src, staged)
-            os.replace(staged, dest)
+        _worker_move_outputs(tmp, item)
+
+
+def _worker_run_item_in_process(state, item):
+    """
+    Run one item's forward in this process (persistent worker), in a fresh tmp cwd, then atomically move its
+    outputs into place.
+
+    The first call initializes RETURNN with the item's config (like rnn.py) and builds the model
+    (``engine.init_network_from_config``); this stays for all later items, whose configs are the same except
+    ``forward_data`` (checked via the item signatures in :func:`_worker_main`). So per item only the dataset and
+    the forward callback are created, as in RETURNN's ``execute_main_task`` for ``task="forward"``.
+
+    :param dict state: empty before the first item, then holds the worker's RETURNN working directory and the
+        original cwd
+    :param dict item: manifest entry
+    """
+    import os
+    import tempfile
+
+    import returnn.__main__ as rnn_main
+    from returnn.config import Config
+
+    if not state:
+        # RETURNN opens its log file (e.g. ./returnn.log) relative to the cwd at init: keep it in a worker dir
+        state["orig_cwd"] = os.getcwd()
+        state["work_dir"] = tempfile.mkdtemp(prefix="returnn_worker_")
+        os.chdir(state["work_dir"])
+        rnn_main.init(config_filename=item["config"], extra_greeting="BatchedReturnnForward: persistent worker")
+        assert rnn_main.config.value("task", "train") == "forward", "persistent workers need task=forward"
+        rnn_main.engine.init_network_from_config(rnn_main.config)
+        forward_data = rnn_main.config.opt_typed_value("forward_data")
+    else:
+        item_config = Config()
+        item_config.load_file(item["config"])
+        forward_data = item_config.opt_typed_value("forward_data")
+        rnn_main.config.set("forward_data", forward_data)
+    assert isinstance(forward_data, dict), "item %s: forward_data must be a dataset dict" % item["key"]
+
+    with tempfile.TemporaryDirectory() as tmp:
+        os.chdir(tmp)  # the forward callback writes its output file(s) relative to the cwd
+        try:
+            dataset = rnn_main.init_dataset(forward_data)
+            forward_callback = rnn_main.config.typed_value("forward_callback")
+            assert forward_callback, "no forward_callback specified"
+            if callable(forward_callback):
+                forward_callback = forward_callback()
+            rnn_main.engine.forward_with_callback(
+                dataset=dataset,
+                callback=forward_callback,
+                allow_skipping_seqs=rnn_main.config.bool("allow_skipping_seqs_in_forward", False),
+            )
+            del dataset, forward_callback
+        finally:
+            os.chdir(state["work_dir"])
+        _worker_move_outputs(tmp, item)
+
+
+def _worker_finish_in_process(state):
+    """Shut down the RETURNN instance of a persistent worker (:func:`_worker_run_item_in_process`)."""
+    import os
+    import shutil
+
+    import returnn.__main__ as rnn_main
+
+    rnn_main.finalize()
+    os.chdir(state["orig_cwd"])  # RETURNN's exit handlers still use the cwd
+    shutil.rmtree(state["work_dir"], ignore_errors=True)
+
+
+def _worker_move_outputs(tmp, item):
+    """Atomically move the output file(s) an item wrote into ``tmp`` to their destinations."""
+    import os
+    import shutil
+
+    for fn, dest in item["outputs"].items():
+        src = os.path.join(tmp, fn)
+        assert os.path.exists(src), "item produced no %s: %s" % (fn, item["config"])
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        staged = dest + ".inprogress"  # same fs as final -> os.replace is atomic
+        shutil.move(src, staged)
+        os.replace(staged, dest)
+
+
+def _config_signature(returnn_config: ReturnnConfig) -> Optional[str]:
+    """
+    :return: fingerprint of an item's config without ``forward_data``, so that items with the same fingerprint
+        can share one RETURNN instance and model (persistent workers); None if ``forward_data`` is not a dataset
+        dict (e.g. ``"eval"``), then the item needs its own process
+    """
+    import hashlib
+
+    if not isinstance(returnn_config.get("forward_data"), dict):
+        return None
+    cfg = copy.deepcopy(returnn_config)  # _serialize() modifies the config: merges post_config into config
+    for key in cfg.post_config:  # already merged if the config was written before
+        cfg.config.pop(key, None)
+    cfg.config.pop("forward_data", None)
+    cfg.post_config.pop("forward_data", None)
+    return hashlib.sha256(cfg._serialize().encode("utf8")).hexdigest()
 
 
 def _worker_barrier_and_exit(rank, world, job_dir, ema):
@@ -956,14 +1094,17 @@ def _write_worker_driver():
     as a real function in this module (:func:`_worker_main`) instead of a source-string blob. The
     generated worker.py is run by a plain Python (not via rnn.py). serialization_v2 resolves the import
     of this module (and its sys.path); we add the remaining non-base sys.path entries (sisyphus,
-    returnn, ...) explicitly, then append the call.
+    returnn, ...) explicitly, then append the (``__main__``-guarded) call.
     """
     import sys
     from i6_core.serialization.serialization_v2 import serialize_config, get_base_sys_path_list
 
     extra_sys_paths = [p for p in sys.path if p not in get_base_sys_path_list()]
     worker_code = (
-        serialize_config({"_worker_main": _worker_main}, extra_sys_paths=extra_sys_paths) + "\n_worker_main()\n"
+        serialize_config({"_worker_main": _worker_main}, extra_sys_paths=extra_sys_paths)
+        # guarded: subprocesses started with multiprocessing "spawn" (e.g. by RETURNN's data loading in a persistent
+        # worker) import this file as their main module and must not run the worker again
+        + '\nif __name__ == "__main__":\n    _worker_main()\n'
     )
     with open("worker.py", "w") as f:
         f.write(worker_code)
@@ -977,6 +1118,7 @@ def _spawn_and_wait_workers(
     stop_exit_code: int,
     workers_per_gpu: int = 1,
     use_mps: bool = False,
+    persistent: bool = False,
 ) -> List[int]:
     """
     Run the workers (:func:`_run_workers`), optionally under a private NVIDIA MPS daemon.
@@ -990,6 +1132,7 @@ def _spawn_and_wait_workers(
 
     :param workers_per_gpu: worker processes per GPU, all pulling from the same queue
     :param use_mps: run the workers under MPS
+    :param persistent: persistent workers, see :func:`_worker_main`
     """
     mps_env = _start_mps_daemon(num_gpus=num_gpus) if use_mps else None
     if workers_per_gpu > 1 and mps_env is None:
@@ -1007,6 +1150,7 @@ def _spawn_and_wait_workers(
             stop_exit_code=stop_exit_code,
             workers_per_gpu=workers_per_gpu,
             extra_env=mps_env or {},
+            persistent=persistent,
         )
     finally:
         if mps_env is not None:
@@ -1084,6 +1228,7 @@ def _run_workers(
     stop_exit_code: int,
     workers_per_gpu: int,
     extra_env: Dict[str, str],
+    persistent: bool = False,
 ) -> List[int]:
     """
     Clear stale barrier/claim state, spawn ``workers_per_gpu`` workers per GPU (shared queue), wait; return
@@ -1136,6 +1281,8 @@ def _run_workers(
             "--safety",
             str(stop_safety_factor),
         ]
+        if persistent:
+            cmd.append("--persistent")
         # Own session/process group so a fail-fast kill takes the worker's rnn.py child with it.
         procs.append(subprocess.Popen(cmd, env=env, start_new_session=True))
 
