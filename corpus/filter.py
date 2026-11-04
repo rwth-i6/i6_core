@@ -7,11 +7,9 @@ __all__ = [
     "FilterCorpusRemoveUnknownWordSegmentsJob",
     "FilterCorpusBySegmentDurationJob",
     "FilterCorpusByDiarizationJob",
-    "speaker_changes",
 ]
 
 from collections import defaultdict, Counter
-from collections.abc import Sequence
 import gzip
 import json
 import logging
@@ -23,7 +21,6 @@ from typing import Dict, List, Optional, Tuple, Union
 
 from i6_core import rasr
 from i6_core.lib import corpus
-from i6_core.lib.rttm import RttmSpeakerTurn
 from i6_core.util import chunks, uopen, MultiOutputPath
 
 from sisyphus import *
@@ -682,19 +679,11 @@ class FilterCorpusBySegmentDurationJob(Job):
         c.dump(self.out_corpus.get_path())
 
 
-def speaker_changes(turns: Sequence[RttmSpeakerTurn]) -> int:
-    """
-    :param turns: diarized speaker turns
-    :return: changes of the speaker between consecutive turns sorted by start
-    """
-    speakers = [t.speaker for t in sorted(turns, key=lambda t: (t.start, t.end))]
-    return sum(a != b for a, b in zip(speakers, speakers[1:]))
-
-
 class FilterCorpusByDiarizationJob(Job):
     """
     Keeps the recordings with at least `min_speakers` diarized speakers and `min_speaker_changes`
-    changes of the diarized speaker (see `speaker_changes`).
+    changes of the diarized speaker. A speaker change is a change of the speaker between consecutive
+    diarized turns ordered by start, so a turn within another speaker's turn counts as one change.
 
     `corpus.xml.gz` is the input corpus restricted to the kept recordings, `audio_files.txt` their
     audio files. `skipped.jsonl` holds per skipped recording `name`, `reason` (`speakers` or
@@ -730,6 +719,8 @@ class FilterCorpusByDiarizationJob(Job):
         yield Task("run", mini_task=True)
 
     def run(self):
+        import itertools
+
         import soundfile
 
         from i6_core.lib.rttm import parse_rttm
@@ -745,7 +736,7 @@ class FilterCorpusByDiarizationJob(Job):
             for recording in bliss_corpus.all_recordings():
                 turns = parse_rttm(os.path.join(self.rttm_dir.get_path(), f"{recording.name}.rttm"))
                 num_speakers = len({t.speaker for t in turns})
-                changes = speaker_changes(turns)
+                changes = max(sum(1 for _ in itertools.groupby(t.speaker for t in turns)) - 1, 0)
                 duration = soundfile.info(recording.audio).duration
                 reason = None
                 if num_speakers < self.min_speakers:
