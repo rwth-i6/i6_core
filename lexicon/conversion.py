@@ -53,9 +53,10 @@ class LexiconToPhonemeListJob(Job):
         yield Task("run", mini_task=True)
 
     def run(self):
-        with uopen(self.bliss_lexicon.get_path(), "r") as lexicon_file, open(
-            self.out_phoneme_list.get_path(), "wt"
-        ) as phoneme_file:
+        with (
+            uopen(self.bliss_lexicon.get_path(), "r") as lexicon_file,
+            open(self.out_phoneme_list.get_path(), "wt") as phoneme_file,
+        ):
             lex = lexicon.Lexicon()
             lex.load(self.bliss_lexicon)
             for phon in lex.phonemes.keys():
