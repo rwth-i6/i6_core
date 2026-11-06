@@ -344,9 +344,10 @@ class UpdateSegmentsWithSegmentMapJob(Job):
         for map_item in sm.map_entries:
             segment_map_dict[map_item.key] = map_item.value
 
-        with open(self.segment_file.get_path(), "rt") as in_segments, open(
-            self.out_segments.get_path(), "wt"
-        ) as out_segments:
+        with (
+            open(self.segment_file.get_path(), "rt") as in_segments,
+            open(self.out_segments.get_path(), "wt") as out_segments,
+        ):
             for in_segment in in_segments:
                 out_segment = segment_map_dict[in_segment.strip()].strip()
                 out_segments.write(out_segment + "\n")

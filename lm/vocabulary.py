@@ -189,9 +189,10 @@ class VocabularyFromTextJob(Job):
 
         cutoff = min(num_words, len(counter))
 
-        with open(self.out_vocabulary, "w") as vocabulary, open(
-            self.out_vocabulary_with_counts, "w"
-        ) as vocabulary_with_counts:
+        with (
+            open(self.out_vocabulary, "w") as vocabulary,
+            open(self.out_vocabulary_with_counts, "w") as vocabulary_with_counts,
+        ):
             for word, count in counter.most_common(cutoff):
                 vocabulary.write(f"{word}\n")
                 vocabulary_with_counts.write(f"{word} {count}\n")

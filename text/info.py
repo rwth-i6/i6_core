@@ -48,9 +48,10 @@ class SentenceLengthHistogramJob(Job):
         counter_chars = Counter()
         num_sentences_full_corpus = 0
         num_sentences_removed = 0
-        with uopen(self.input_text.get_path(), "rt") as f_in, uopen(
-            self.out_removed_sentences.get_path(), "wt"
-        ) as f_out:
+        with (
+            uopen(self.input_text.get_path(), "rt") as f_in,
+            uopen(self.out_removed_sentences.get_path(), "wt") as f_out,
+        ):
             for line in f_in:
                 num_sentences_full_corpus += 1
                 line = line.strip()

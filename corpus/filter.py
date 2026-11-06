@@ -388,9 +388,10 @@ class FilterRecordingsByAlignmentConfidenceJob(FilterSegmentsByAlignmentConfiden
 
         filtered_segments = []
         # Write outputs that are local to this job here to avoid passing more variables around.
-        with uopen(self.out_kept_recordings.get_path(), "wt") as f_kept, uopen(
-            self.out_discarded_recordings.get_path(), "wt"
-        ) as f_discarded:
+        with (
+            uopen(self.out_kept_recordings.get_path(), "wt") as f_kept,
+            uopen(self.out_discarded_recordings.get_path(), "wt") as f_discarded,
+        ):
             for full_rec_name, avg_alignment_score in recording_to_average_conf.items():
                 if avg_alignment_score <= avg_score_threshold:
                     # Keep the whole recording.
