@@ -1,4 +1,9 @@
-__all__ = ["ExtractOovWordsFromCorpusJob", "CountCorpusWordFrequenciesJob", "DumpRecordingAudiosJob"]
+__all__ = [
+    "ExtractOovWordsFromCorpusJob",
+    "ExtractOovWordsFromTextJob",
+    "CountCorpusWordFrequenciesJob",
+    "DumpRecordingAudiosJob",
+]
 
 from collections import Counter
 from contextlib import nullcontext
@@ -70,6 +75,55 @@ class ExtractOovWordsFromCorpusJob(Job):
                 for w in kw.text.strip().split()
                 if change_casing(w) not in iv_words
             }
+
+        with uopen(self.out_oov_words, "wt") as f:
+            for w in sorted(oov_words):
+                f.write("%s\n" % w)
+
+
+class ExtractOovWordsFromTextJob(Job):
+    """
+    Extracts the out of vocabulary words of a plain text corpus
+    (one utterance per line, words separated by whitespace) w.r.t. a lexicon.
+    Same semantics as :class:`ExtractOovWordsFromCorpusJob`, without a Bliss corpus.
+    """
+
+    def __init__(self, text_file: tk.Path, *, bliss_lexicon: tk.Path, casing: str = "none"):
+        """
+        :param text_file: text corpus, may be gzipped
+        :param bliss_lexicon: path to lexicon
+        :param casing: changes the casing of the orthography (options: upper, lower, none)
+        """
+        assert casing in ("upper", "lower", "none"), casing
+        self.text_file = text_file
+        self.bliss_lexicon = bliss_lexicon
+        self.casing = casing
+
+        self.out_oov_words = self.output_path("oov_words")
+
+        self.rqmt = {"cpu": 1, "mem": 4, "time": 1}
+
+    def tasks(self):
+        yield Task("run", rqmt=self.rqmt)
+
+    def run(self):
+        def change_casing(text_str):
+            if self.casing == "upper":
+                return text_str.upper()
+            elif self.casing == "lower":
+                return text_str.lower()
+            return text_str
+
+        with uopen(self.bliss_lexicon, "rt", encoding="utf-8") as f:
+            tree = ET.parse(f)
+            iv_words = {change_casing(orth.text) for orth in tree.findall(".//lemma/orth") if orth.text}
+
+        oov_words = set()
+        with uopen(self.text_file, "rt", encoding="utf-8") as f:
+            for line in f:
+                for w in line.split():
+                    if change_casing(w) not in iv_words:
+                        oov_words.add(w)
 
         with uopen(self.out_oov_words, "wt") as f:
             for w in sorted(oov_words):

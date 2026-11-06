@@ -218,6 +218,13 @@ class ReturnnTrainingJob(Job):
                 for pt_path in [self.output_path("models/epoch.%.3d.pt" % k)]
             }
             self.out_models = None
+        elif self.returnn_config.get("backend", None) == "jax":
+            # A directory, not a file.
+            # Not directory=True: pre-creating them empty could confuse other code.
+            self.out_checkpoints = {
+                k: self.output_path("models/epoch.%.3d.orbax" % k) for k in stored_epochs if k in self.keep_epochs
+            }
+            self.out_models = None
         else:
             raise ValueError("'backend' not specified in config")
 
