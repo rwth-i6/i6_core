@@ -102,7 +102,7 @@ class TimedTranscript(BaseModel):
 
     @model_validator(mode="after")
     def check_times(self):
-        if self.start > self.end:
+        if self.start is not None and self.end is not None and self.start > self.end:
             raise ValueError("Start time must be smaller or equal to end time.")
         return self
 
@@ -112,6 +112,14 @@ class ReferenceTimedTranscript(TimedTranscript):
 
     type: Literal["rtt"] = "rtt"
     text: str = Field(default=..., description="Reference word or phrase.")
+    start: Optional[Seconds] = Field(
+        default=None,
+        description="Aligned start time, if real reference timing is available.",
+    )
+    end: Optional[Seconds] = Field(
+        default=None,
+        description="Aligned end time, if real reference timing is available.",
+    )
     entity: Optional[str] = Field(
         default=None,
         description="Named-entity label, for example PERSON or DATE_TIME.",
@@ -121,6 +129,12 @@ class ReferenceTimedTranscript(TimedTranscript):
     dialect: Optional[str] = Field(default=None, description="Speaker dialect label from the reference.")
     education: Optional[str] = Field(default=None, description="Speaker education label from the reference.")
     domain: Optional[str] = Field(default=None, description="Domain label from the reference.")
+
+    @model_validator(mode="after")
+    def check_optional_times(self):
+        if (self.start is None) != (self.end is None):
+            raise ValueError("Reference start and end time must either both be set or both be omitted.")
+        return self
 
 
 Transcript = Annotated[TimedTranscript | ReferenceTimedTranscript, Field(discriminator="type")]

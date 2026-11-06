@@ -113,8 +113,8 @@ def test_reference_timed_transcript_round_trip(tmp_path):
     input_file.write_text(
         '{"type":"rec","name":"rec1"}\n'
         '{"type":"seg","name":"seg1"}\n'
-        '{"type":"rtt","text":"in","start":0.0,"end":1.0,"gender":"female","domain":"call-center"}\n'
-        '{"type":"rtt","text":"New York","start":1.0,"end":3.0,"entity":"LOCATION",'
+        '{"type":"rtt","text":"in","gender":"female","domain":"call-center"}\n'
+        '{"type":"rtt","text":"New York","entity":"LOCATION",'
         '"gender":"female","domain":"call-center"}\n'
     )
 
@@ -126,6 +126,8 @@ def test_reference_timed_transcript_round_trip(tmp_path):
     entity_transcript = recordings[0].alternatives[0][0].transcripts[1]
     assert isinstance(ordinary_transcript, ReferenceTimedTranscript)
     assert ordinary_transcript.entity is None
+    assert ordinary_transcript.start is None
+    assert ordinary_transcript.end is None
     assert ordinary_transcript.gender == "female"
     assert ordinary_transcript.domain == "call-center"
     assert isinstance(entity_transcript, ReferenceTimedTranscript)
