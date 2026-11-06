@@ -6,12 +6,15 @@ __all__ = [
     "FilterCorpusBySegmentsJob",
     "FilterCorpusRemoveUnknownWordSegmentsJob",
     "FilterCorpusBySegmentDurationJob",
+    "FilterCorpusByDiarizationJob",
 ]
 
 from collections import defaultdict, Counter
 import gzip
+import json
 import logging
 import numpy as np
+import os
 import re
 import xml.etree.cElementTree as ET
 from typing import Dict, List, Optional, Tuple, Union
@@ -674,3 +677,99 @@ class FilterCorpusBySegmentDurationJob(Job):
             _delete_empty_recordings(c, self.out_removed_recordings.get_path())
 
         c.dump(self.out_corpus.get_path())
+
+
+class FilterCorpusByDiarizationJob(Job):
+    """
+    Keeps the recordings with at least `min_speakers` diarized speakers and `min_speaker_changes`
+    changes of the diarized speaker. A speaker change is a change of the speaker between consecutive
+    diarized turns ordered by start, so a turn within another speaker's turn counts as one change.
+
+    `corpus.xml.gz` is the input corpus restricted to the kept recordings, `audio_files.txt` their
+    audio files. `skipped.jsonl` holds per skipped recording its full `name`, `reason` (`speakers` or
+    `speaker_changes`), `num_speakers`, `speaker_changes` and `duration`. `summary.json` holds the
+    recordings and hours kept and skipped per reason.
+    """
+
+    def __init__(
+        self,
+        *,
+        corpus: tk.Path,
+        rttm_dir: tk.Path,
+        min_speakers: int = 2,
+        min_speaker_changes: int = 4,
+    ):
+        """
+        :param corpus: bliss corpus
+        :param rttm_dir: directory with one `<full recording name>.rttm` per recording, where the full name
+            `<corpus>/<subcorpus>/.../<recording>` gives subdirectories
+        :param min_speakers: recordings with fewer diarized speakers are skipped
+        :param min_speaker_changes: recordings with fewer changes of the diarized speaker are skipped
+        """
+        self.corpus = corpus
+        self.rttm_dir = rttm_dir
+        self.min_speakers = min_speakers
+        self.min_speaker_changes = min_speaker_changes
+
+        self.out_corpus = self.output_path("corpus.xml.gz")
+        self.out_audio_files = self.output_path("audio_files.txt")
+        self.out_skipped = self.output_path("skipped.jsonl")
+        self.out_summary = self.output_path("summary.json")
+
+        self.rqmt = None
+
+    def tasks(self):
+        yield Task("run", rqmt=self.rqmt, mini_task=self.rqmt is None)
+
+    def run(self):
+        import itertools
+
+        import soundfile
+
+        from i6_core.lib.rttm import parse_rttm
+
+        bliss_corpus = corpus.Corpus()
+        bliss_corpus.load(self.corpus.get_path())
+        kept = {"recordings": 0, "hours": 0.0}
+        skipped = {}
+        removed = []
+        with open(self.out_skipped.get_path(), "wt") as f_skipped, open(
+            self.out_audio_files.get_path(), "wt"
+        ) as f_audio:
+            for recording in bliss_corpus.all_recordings():
+                turns = parse_rttm(os.path.join(self.rttm_dir.get_path(), f"{recording.fullname()}.rttm"))
+                num_speakers = len({t.speaker for t in turns})
+                changes = max(sum(1 for _ in itertools.groupby(t.speaker for t in turns)) - 1, 0)
+                duration = soundfile.info(recording.audio).duration
+                reason = None
+                if num_speakers < self.min_speakers:
+                    reason = "speakers"
+                elif changes < self.min_speaker_changes:
+                    reason = "speaker_changes"
+
+                if reason is None:
+                    f_audio.write(recording.audio + "\n")
+                    entry = kept
+                else:
+                    removed.append(recording)
+                    skip = {
+                        "name": recording.fullname(),
+                        "reason": reason,
+                        "num_speakers": num_speakers,
+                        "speaker_changes": changes,
+                        "duration": duration,
+                    }
+                    f_skipped.write(json.dumps(skip) + "\n")
+                    entry = skipped.setdefault(reason, {"recordings": 0, "hours": 0.0})
+                entry["recordings"] += 1
+                entry["hours"] += duration / 3600
+        bliss_corpus.remove_recordings(removed)
+        bliss_corpus.dump(self.out_corpus.get_path())
+
+        summary = {
+            "recordings": kept["recordings"] + sum(e["recordings"] for e in skipped.values()),
+            "kept": kept,
+            "skipped": skipped,
+        }
+        with open(self.out_summary.get_path(), "wt") as f:
+            json.dump(summary, f, indent=2)
