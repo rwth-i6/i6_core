@@ -5,6 +5,8 @@ import pytest
 
 from i6_core.lib.asr_results import (
     BatchRecording,
+    BatchSegment,
+    SpeakerInfo,
     Recording,
     Segment,
     TimedTranscript,
@@ -103,3 +105,170 @@ def test_write_asr_results(sample_asr_file, tmp_path):
         records_f1 = [json.loads(line) for line in f1]
         records_f2 = [json.loads(line) for line in f2]
         assert records_f1 == records_f2
+
+
+def test_write_parse_roundtrip_python_models(tmp_path):
+    recordings = [
+        BatchRecording(
+            name="rec1",
+            alternatives=[
+                [
+                    BatchSegment(
+                        name="seg1",
+                        n_best_index=0,
+                        transcripts=[TimedTranscript(text="hello", start=0.0, end=1.0)],
+                    ),
+                    BatchSegment(
+                        name="seg1",
+                        n_best_index=1,
+                        transcripts=[TimedTranscript(text="yellow", start=0.0, end=1.0, confidence=0.5)],
+                    ),
+                ]
+            ],
+        )
+    ]
+    output_file = tmp_path / "output.jsonl"
+    write_asr_results(recordings, output_file)
+    assert parse_asr_results(output_file) == recordings
+
+
+def _write_lines(path: Path, records: list[dict]):
+    with open(path, "w") as f:
+        for record in records:
+            f.write(json.dumps(record) + "\n")
+
+
+def test_parse_asr_results_without_n_best_index(tmp_path):
+    input_file = tmp_path / "input.jsonl"
+    _write_lines(
+        input_file,
+        [
+            {"type": "rec", "name": "rec1"},
+            {"type": "seg", "name": "seg1"},
+            {"type": "tt", "text": "foo", "start": 0.0, "end": 1.0},
+            {"type": "seg", "name": "seg1"},
+            {"type": "tt", "text": "bar", "start": 0.0, "end": 1.0},
+        ],
+    )
+    (rec,) = parse_asr_results(input_file)
+    (alt,) = rec.alternatives
+    assert [seg.n_best_index for seg in alt] == [None, None]
+    assert [seg.transcripts[0].text for seg in alt] == ["foo", "bar"]
+
+
+def test_parse_asr_results_mixed_n_best_index(tmp_path):
+    input_file = tmp_path / "input.jsonl"
+    _write_lines(
+        input_file,
+        [
+            {"type": "rec", "name": "rec1"},
+            {"type": "seg", "name": "seg1", "n_best_index": 0},
+            {"type": "tt", "text": "foo", "start": 0.0, "end": 1.0},
+            {"type": "seg", "name": "seg1"},
+            {"type": "tt", "text": "bar", "start": 0.0, "end": 1.0},
+        ],
+    )
+    (rec,) = parse_asr_results(input_file)
+    (alt,) = rec.alternatives
+    assert [seg.n_best_index for seg in alt] == [None, 0]
+    assert [seg.transcripts[0].text for seg in alt] == ["bar", "foo"]
+
+
+def test_parse_asr_results_inconsistent_speaker(tmp_path):
+    input_file = tmp_path / "input.jsonl"
+    _write_lines(
+        input_file,
+        [
+            {"type": "rec", "name": "rec1"},
+            {"type": "seg", "name": "seg1", "speaker": {"id": "a", "gender": "f"}},
+            {"type": "tt", "text": "foo", "start": 0.0, "end": 1.0, "speaker": {"id": "a", "gender": "f"}},
+            {"type": "rec", "name": "rec2"},
+            {"type": "seg", "name": "seg1"},
+            {"type": "tt", "text": "bar", "start": 0.0, "end": 1.0, "speaker": {"id": "a"}},
+        ],
+    )
+    with pytest.raises(ValueError, match="speaker 'a' given with different name or gender"):
+        list(stream_asr_results(input_file))
+    with pytest.raises(ValueError, match="speaker 'a' given with different name or gender"):
+        parse_asr_results(input_file)
+
+
+def test_write_asr_results_inconsistent_speaker(tmp_path):
+    recordings = [
+        BatchRecording(
+            name="rec1",
+            alternatives=[
+                [
+                    BatchSegment(
+                        name="seg1",
+                        speaker=SpeakerInfo(id="a", name="Alice"),
+                        transcripts=[
+                            TimedTranscript(text="foo", start=0.0, end=1.0, speaker=SpeakerInfo(id="a", name="Bob"))
+                        ],
+                    )
+                ]
+            ],
+        )
+    ]
+    output_file = tmp_path / "output.jsonl"
+    with pytest.raises(ValueError, match="speaker 'a' given with different name or gender"):
+        write_asr_results(recordings, output_file)
+    assert not output_file.exists()
+
+
+def test_parse_asr_results_consistent_speaker(tmp_path):
+    input_file = tmp_path / "input.jsonl"
+    speaker = {"id": "a", "name": "Alice", "gender": "f"}
+    _write_lines(
+        input_file,
+        [
+            {"type": "rec", "name": "rec1"},
+            {"type": "seg", "name": "seg1", "speaker": speaker},
+            {"type": "tt", "text": "foo", "start": 0.0, "end": 1.0, "speaker": speaker},
+            {"type": "rec", "name": "rec2"},
+            {"type": "seg", "name": "seg1", "speaker": speaker},
+            {"type": "tt", "text": "bar", "start": 0.0, "end": 1.0, "speaker": speaker},
+        ],
+    )
+    assert len(parse_asr_results(input_file)) == 2
+
+
+def test_parse_asr_results_recording_revisit(tmp_path):
+    input_file = tmp_path / "input.jsonl"
+    _write_lines(
+        input_file,
+        [
+            {"type": "rec", "name": "rec1", "path": "/a.wav"},
+            {"type": "seg", "name": "seg1"},
+            {"type": "tt", "text": "foo", "start": 0.0, "end": 1.0},
+            {"type": "rec", "name": "rec2"},
+            {"type": "seg", "name": "seg1"},
+            {"type": "tt", "text": "bar", "start": 0.0, "end": 1.0},
+            {"type": "rec", "name": "rec1", "path": "/a.wav"},
+            {"type": "seg", "name": "seg2"},
+            {"type": "tt", "text": "baz", "start": 1.0, "end": 2.0},
+        ],
+    )
+    assert [record.name for record in stream_asr_results(input_file) if isinstance(record, Recording)] == [
+        "rec1",
+        "rec2",
+        "rec1",
+    ]
+    rec1, rec2 = parse_asr_results(input_file)
+    assert (rec1.name, rec2.name) == ("rec1", "rec2")
+    assert [alt[0].name for alt in rec1.alternatives] == ["seg1", "seg2"]
+    assert [alt[0].transcripts[0].text for alt in rec1.alternatives] == ["foo", "baz"]
+    assert [alt[0].transcripts[0].text for alt in rec2.alternatives] == ["bar"]
+
+
+def test_parse_asr_results_recording_revisit_different_path(tmp_path):
+    input_file = tmp_path / "input.jsonl"
+    _write_lines(
+        input_file,
+        [
+            {"type": "rec", "name": "rec1", "path": "/a.wav"},
+            {"type": "rec", "name": "rec1", "path": "/b.wav"},
+        ],
+    )
+    with pytest.raises(ValueError, match="recording 'rec1' given again with different path"):
+        parse_asr_results(input_file)
