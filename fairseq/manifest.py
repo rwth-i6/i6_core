@@ -130,9 +130,11 @@ class SplitTrainCvDataJob(Job):
 
     def run(self):
         rand = random.Random(self.seed)
-        with open(self.tsv_file, "r") as f_in, open(
-            os.path.join(self.out_manifest_path, "train.tsv"), "w"
-        ) as f_train, open(os.path.join(self.out_manifest_path, "valid.tsv"), "w") as f_valid:
+        with (
+            open(self.tsv_file, "r") as f_in,
+            open(os.path.join(self.out_manifest_path, "train.tsv"), "w") as f_train,
+            open(os.path.join(self.out_manifest_path, "valid.tsv"), "w") as f_valid,
+        ):
             for line in f_in:
                 # common path
                 if "\t" not in line:
