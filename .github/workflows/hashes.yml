@@ -23,7 +23,7 @@ jobs:
         path: "sisyphus"
     - uses: actions/setup-python@v6
       with:
-        python-version: 3.10.12
+        python-version: "3.10"
         cache: "pip"
     - run: |
         pip install --user --upgrade pip setuptools wheel
