@@ -35,12 +35,12 @@ class ReturnnModel:
     This is deprecated, use :class:`Checkpoint` instead.
     """
 
-    def __init__(self, returnn_config_file, model, epoch):
+    def __init__(self, returnn_config_file: Path, model: Path, epoch: int):
         """
 
-        :param Path returnn_config_file: Path to a returnn config file
-        :param Path model: Path to a RETURNN checkpoint (only the .meta for Tensorflow)
-        :param int epoch:
+        :param returnn_config_file: Path to a returnn config file
+        :param model: Path to a RETURNN checkpoint (only the .meta for Tensorflow)
+        :param epoch:
         """
         self.returnn_config_file = returnn_config_file
         self.model = model
@@ -52,7 +52,7 @@ class Checkpoint:
     Checkpoint object which holds the (Tensorflow) index file path as tk.Path,
     and will return the checkpoint path as common prefix of the .index/.meta/.data[...]
 
-    A checkpoint object should directly assigned to a RasrConfig entry (do not call `.ckpt_path`)
+    A checkpoint object should be directly assigned to a RasrConfig entry (do not call `.ckpt_path`)
     so that the hash will resolve correctly
     """
 
