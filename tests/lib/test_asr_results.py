@@ -8,9 +8,10 @@ from i6_core.lib.asr_results import (
     BatchSegment,
     SpeakerInfo,
     Recording,
-    ReferenceTimedTranscript,
+    ReferenceTranscript,
     Segment,
     TimedTranscript,
+    TranscriptBase,
     parse_asr_results,
     parse_reference_transcripts,
     stream_asr_results,
@@ -110,7 +111,7 @@ def test_write_asr_results(sample_asr_file, tmp_path):
         assert records_f1 == records_f2
 
 
-def test_reference_timed_transcript_round_trip(tmp_path):
+def test_reference_transcript_round_trip(tmp_path):
     input_file = tmp_path / "reference.jsonl"
     input_file.write_text(
         '{"type":"rec","name":"rec1"}\n'
@@ -126,13 +127,13 @@ def test_reference_timed_transcript_round_trip(tmp_path):
     recordings = parse_reference_transcripts(input_file)
     ordinary_transcript = recordings[0].alternatives[0][0].transcripts[0]
     entity_transcript = recordings[0].alternatives[0][0].transcripts[1]
-    assert isinstance(ordinary_transcript, ReferenceTimedTranscript)
+    assert isinstance(ordinary_transcript, ReferenceTranscript)
     assert ordinary_transcript.entity is None
     assert ordinary_transcript.start is None
     assert ordinary_transcript.end is None
     assert ordinary_transcript.gender == "female"
     assert ordinary_transcript.domain == "call-center"
-    assert isinstance(entity_transcript, ReferenceTimedTranscript)
+    assert isinstance(entity_transcript, ReferenceTranscript)
     assert entity_transcript.text == "New York"
     assert entity_transcript.entity == "LOCATION"
 
@@ -317,8 +318,8 @@ def test_write_parse_reference_roundtrip_python_models(tmp_path):
                     BatchSegment(
                         name="seg1",
                         transcripts=[
-                            ReferenceTimedTranscript(text="in"),
-                            ReferenceTimedTranscript(text="New York", entity="LOCATION", start=0.5, end=1.0),
+                            ReferenceTranscript(text="in"),
+                            ReferenceTranscript(text="New York", entity="LOCATION", start=0.5, end=1.0),
                         ],
                     )
                 ]
@@ -336,10 +337,38 @@ def test_write_rejects_other_transcript_type(tmp_path):
     recordings = [
         BatchRecording(
             name="rec1",
-            alternatives=[[BatchSegment(name="seg1", transcripts=[ReferenceTimedTranscript(text="in")])]],
+            alternatives=[[BatchSegment(name="seg1", transcripts=[ReferenceTranscript(text="in")])]],
         )
     ]
     output_file = tmp_path / "output.jsonl"
-    with pytest.raises(TypeError, match="expected TimedTranscript, got ReferenceTimedTranscript"):
+    with pytest.raises(TypeError, match="expected TimedTranscript, got ReferenceTranscript"):
         write_asr_results(recordings, output_file)
     assert not output_file.exists()
+
+
+def test_reference_transcript_is_not_a_timed_transcript():
+    reference = ReferenceTranscript(text="in")
+    assert isinstance(reference, TranscriptBase)
+    assert not isinstance(reference, TimedTranscript)
+    assert not hasattr(reference, "am_score")
+    assert not hasattr(reference, "confidence")
+    with pytest.raises(ValueError):
+        TimedTranscript(text="in")  # times are required for hypotheses
+
+
+@pytest.mark.parametrize("times", [{"start": 1.0}, {"end": 1.0}])
+def test_reference_transcript_requires_both_or_no_times(times):
+    with pytest.raises(ValueError, match="both be set or both be omitted"):
+        ReferenceTranscript(text="in", **times)
+
+
+def test_reference_transcript_start_after_end():
+    with pytest.raises(ValueError, match="Start time must be smaller or equal to end time"):
+        ReferenceTranscript(text="in", start=2.0, end=1.0)
+
+
+def test_transcript_base_is_abstract():
+    with pytest.raises(TypeError, match="TranscriptBase is abstract"):
+        TranscriptBase(type="tt", text="in")
+    with pytest.raises(TypeError, match="TranscriptBase is abstract"):
+        TranscriptBase.model_validate({"type": "tt", "text": "in"})

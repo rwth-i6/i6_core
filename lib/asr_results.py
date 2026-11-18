@@ -2,8 +2,9 @@ __all__ = [
     "Seconds",
     "ChannelIndex",
     "SpeakerInfo",
+    "TranscriptBase",
     "TimedTranscript",
-    "ReferenceTimedTranscript",
+    "ReferenceTranscript",
     "Transcript",
     "Segment",
     "Recording",
@@ -54,9 +55,46 @@ class SpeakerInfo(BaseModel):
     gender: Optional[str] = Field(default=None, description="Gender information about the speaker, if available.")
 
 
-class TimedTranscript(BaseModel):
+def _check_start_before_end(start: Optional[float], end: Optional[float]):
+    if start is not None and end is not None and start > end:
+        raise ValueError("Start time must be smaller or equal to end time.")
+
+
+class TranscriptBase(BaseModel):
     """
-    One snippet of text with timing and other metadata.
+    Fields shared by all kinds of transcripts: one snippet of text with channel, language and speaker information.
+    Abstract: only subclasses such as TimedTranscript and ReferenceTranscript can be instantiated.
+    """
+
+    type: str  # placeholder, so `type` is the first key in the JSON
+
+    text: str = Field(
+        default=...,
+        description="Word(s) of the transcript.",
+    )
+    channel: ChannelIndex = Field(
+        default=1,
+        description="Channel index of inside of the recognized recording (starting with 1).",
+    )
+
+    lang_code: Optional[str] = Field(
+        default=None,
+        description="Language code for the text if available.",
+    )
+    speaker: Optional[SpeakerInfo] = Field(
+        default=None,
+        description="Optional speaker information.",
+    )
+
+    def model_post_init(self, context):
+        # runs for every way of creating a model (constructor, model_validate, model_construct, ...)
+        if type(self) is TranscriptBase:
+            raise TypeError("TranscriptBase is abstract, use TimedTranscript or ReferenceTranscript")
+
+
+class TimedTranscript(TranscriptBase):
+    """
+    One snippet of recognized text with timing, scores and other metadata.
     """
 
     type: Literal["tt"] = "tt"
@@ -73,19 +111,6 @@ class TimedTranscript(BaseModel):
     end: Seconds = Field(
         default=...,
         description="End time in seconds from the beginning of recording.",
-    )
-    channel: ChannelIndex = Field(
-        default=1,
-        description="Channel index of inside of the recognized recording (starting with 1).",
-    )
-
-    lang_code: Optional[str] = Field(
-        default=None,
-        description="Language code for the text if available.",
-    )
-    speaker: Optional[SpeakerInfo] = Field(
-        default=None,
-        description="Optional speaker information.",
     )
 
     am_score: Optional[float] = Field(
@@ -105,15 +130,15 @@ class TimedTranscript(BaseModel):
 
     @model_validator(mode="after")
     def check_times(self):
-        if self.start is not None and self.end is not None and self.start > self.end:
-            raise ValueError("Start time must be smaller or equal to end time.")
+        _check_start_before_end(self.start, self.end)
         return self
 
 
-class ReferenceTimedTranscript(TimedTranscript):
-    """Evaluation-reference text with an optional named-entity label and other meta data."""
+class ReferenceTranscript(TranscriptBase):
+    """Evaluation-reference text with optional timing, an optional named-entity label and other meta data."""
 
     type: Literal["rtt"] = "rtt"
+
     text: str = Field(default=..., description="Reference word or phrase.")
     start: Optional[Seconds] = Field(
         default=None,
@@ -134,13 +159,14 @@ class ReferenceTimedTranscript(TimedTranscript):
     domain: Optional[str] = Field(default=None, description="Domain label from the reference.")
 
     @model_validator(mode="after")
-    def check_optional_times(self):
+    def check_times(self):
         if (self.start is None) != (self.end is None):
             raise ValueError("Reference start and end time must either both be set or both be omitted.")
+        _check_start_before_end(self.start, self.end)
         return self
 
 
-Transcript = Annotated[TimedTranscript | ReferenceTimedTranscript, Field(discriminator="type")]
+Transcript = Annotated[TimedTranscript | ReferenceTranscript, Field(discriminator="type")]
 
 
 class Segment(BaseModel):
@@ -179,7 +205,7 @@ class Recording(BaseModel):
 
 ASRResultsStream = Annotated[Recording | Segment | TimedTranscript, Field(discriminator="type")]
 ReferenceTranscriptStream = Annotated[
-    Recording | Segment | ReferenceTimedTranscript,
+    Recording | Segment | ReferenceTranscript,
     Field(discriminator="type"),
 ]
 
@@ -249,9 +275,9 @@ def _stream_transcripts(path: str | PathLike, stream_type) -> Generator:
                     assert in_recording, f"Encountered a Segment outside of a recording in line {line_no}"
                     in_segment = True
                     speakers.check(record.speaker)
-                case TimedTranscript():
-                    assert in_recording, f"Encountered a TimedTranscript outside of a Recording in line {line_no}"
-                    assert in_segment, f"Encountered a TimedTranscript outside of a Segment in line {line_no}"
+                case TranscriptBase():
+                    assert in_recording, f"Encountered a transcript outside of a Recording in line {line_no}"
+                    assert in_segment, f"Encountered a transcript outside of a Segment in line {line_no}"
                     speakers.check(record.speaker)
             yield record
 
@@ -275,7 +301,7 @@ def stream_reference_transcripts(path: str | PathLike) -> Generator[ReferenceTra
     Stream evaluation-reference transcripts from a file. Same rules as stream_asr_results.
 
     :param path: Path to the input file.
-    :yield: Recording, Segment, and ReferenceTimedTranscript objects.
+    :yield: Recording, Segment, and ReferenceTranscript objects.
     """
     yield from _stream_transcripts(path, ReferenceTranscriptStream)
 
@@ -323,7 +349,7 @@ def _parse_transcripts(records: Iterable) -> list[BatchRecording]:
                 current_alternatives = []
                 current_recording.alternatives.append(current_alternatives)
             current_alternatives.append(batch_segment)
-        elif isinstance(record, TimedTranscript):
+        elif isinstance(record, TranscriptBase):
             current_alternatives[-1].transcripts.append(record)
 
     if current_alternatives:
@@ -354,7 +380,7 @@ def parse_reference_transcripts(path: str | PathLike) -> list[BatchRecording]:
     return _parse_transcripts(stream_reference_transcripts(path))
 
 
-def _to_json_line(record: Recording | Segment | TimedTranscript) -> str:
+def _to_json_line(record: Recording | Segment | TranscriptBase) -> str:
     """
     Serialize a record as one JSON line. The `type` discriminator is always written, even if it was only set by
     default, as it is required to parse the line again.
@@ -366,7 +392,7 @@ def _to_json_line(record: Recording | Segment | TimedTranscript) -> str:
 def _write_transcripts(
     results: list[BatchRecording],
     path: str | PathLike,
-    transcript_type: type[TimedTranscript],
+    transcript_type: type[TranscriptBase],
 ):
     """
     Raises a ValueError before writing anything if a speaker id is given with different name or gender
@@ -417,9 +443,9 @@ def write_asr_results(results: list[BatchRecording], path: str | PathLike):
 
 def write_reference_transcripts(results: list[BatchRecording], path: str | PathLike):
     """
-    Write evaluation-reference transcripts to a file. Same checks as write_asr_results, for ReferenceTimedTranscript.
+    Write evaluation-reference transcripts to a file. Same checks as write_asr_results, for ReferenceTranscript.
 
     :param results: List of BatchRecording objects containing reference transcripts.
     :param path: Path to the output file.
     """
-    _write_transcripts(results, path, ReferenceTimedTranscript)
+    _write_transcripts(results, path, ReferenceTranscript)
