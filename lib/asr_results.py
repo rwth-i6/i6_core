@@ -1,6 +1,7 @@
 __all__ = [
     "Seconds",
     "ChannelIndex",
+    "Properties",
     "SpeakerInfo",
     "TranscriptBase",
     "TimedTranscript",
@@ -40,6 +41,7 @@ from i6_core.util import uopen
 
 Seconds = NonNegativeFloat  # >= 0.0
 ChannelIndex = PositiveInt  # >= 1
+Properties = dict[str, str]  # generic key/value metadata, e.g. {"age": "30-40"} or {"domain": "call-center"}
 
 
 class SpeakerInfo(BaseModel):
@@ -47,12 +49,16 @@ class SpeakerInfo(BaseModel):
     Information about a single speaker.
 
     Within one results file a speaker id identifies one speaker: every occurrence of the same id must come with the
-    same name and gender. This is checked when reading and writing results files.
+    same name, gender and properties. This is checked when reading and writing results files.
     """
 
     id: str = Field(default=..., description="Stable identifier for the speaker.")
     name: Optional[str] = Field(default=None, description="Human-readable speaker name/label, if available.")
     gender: Optional[str] = Field(default=None, description="Gender information about the speaker, if available.")
+    properties: Optional[Properties] = Field(
+        default=None,
+        description="Further information about the speaker, e.g. age, dialect or education.",
+    )
 
 
 def _check_start_before_end(start: Optional[float], end: Optional[float]):
@@ -135,7 +141,10 @@ class TimedTranscript(TranscriptBase):
 
 
 class ReferenceTranscript(TranscriptBase):
-    """Evaluation-reference text with optional timing, an optional named-entity label and other meta data."""
+    """
+    Evaluation-reference text with optional timing and an optional named-entity label.
+    Information about the speaker belongs into `speaker`, about the segment or recording into their `properties`.
+    """
 
     type: Literal["rtt"] = "rtt"
 
@@ -152,11 +161,6 @@ class ReferenceTranscript(TranscriptBase):
         default=None,
         description="Named-entity label, for example PERSON or DATE_TIME.",
     )
-    gender: Optional[str] = Field(default=None, description="Speaker gender label from the reference.")
-    age: Optional[str] = Field(default=None, description="Speaker age label from the reference.")
-    dialect: Optional[str] = Field(default=None, description="Speaker dialect label from the reference.")
-    education: Optional[str] = Field(default=None, description="Speaker education label from the reference.")
-    domain: Optional[str] = Field(default=None, description="Domain label from the reference.")
 
     @model_validator(mode="after")
     def check_times(self):
@@ -190,6 +194,10 @@ class Segment(BaseModel):
         default=None,
         description="Optional speaker information.",
     )
+    properties: Optional[Properties] = Field(
+        default=None,
+        description="Further information about the segment, e.g. its domain.",
+    )
 
 
 class Recording(BaseModel):
@@ -201,6 +209,10 @@ class Recording(BaseModel):
 
     name: str = Field(default=..., description="Name of the recording")
     path: Optional[PathLike] = Field(default=None, description="Optional path of the recording file.")
+    properties: Optional[Properties] = Field(
+        default=None,
+        description="Further information about the recording, e.g. its domain.",
+    )
 
 
 ASRResultsStream = Annotated[Recording | Segment | TimedTranscript, Field(discriminator="type")]
@@ -242,8 +254,10 @@ class _SpeakerConsistencyChecker:
         if speaker is None:
             return
         known = self._speakers.setdefault(speaker.id, speaker)
-        if (known.name, known.gender) != (speaker.name, speaker.gender):
-            raise ValueError(f"speaker {speaker.id!r} given with different name or gender: {known!r} vs. {speaker!r}")
+        if known != speaker:
+            raise ValueError(
+                f"speaker {speaker.id!r} given with different name, gender or properties: {known!r} vs. {speaker!r}"
+            )
 
 
 def _stream_transcripts(path: str | PathLike, stream_type) -> Generator:
@@ -252,7 +266,7 @@ def _stream_transcripts(path: str | PathLike, stream_type) -> Generator:
 
     Segments belong to the most recent Recording line. A recording name that appears again later in the file
     starts a new Recording record; merging such revisits is left to the caller (see _parse_transcripts).
-    Raises a ValueError if a speaker id is given with different name or gender (see SpeakerInfo).
+    Raises a ValueError if a speaker id is given with different name, gender or properties (see SpeakerInfo).
     """
     record_adapter = TypeAdapter(stream_type)
     in_recording: bool = False
@@ -288,7 +302,7 @@ def stream_asr_results(path: str | PathLike) -> Generator[ASRResultsStream]:
 
     Segments belong to the most recent Recording line. A recording name that appears again later in the file
     starts a new Recording record; merging such revisits is left to the caller (see parse_asr_results).
-    Raises a ValueError if a speaker id is given with different name or gender (see SpeakerInfo).
+    Raises a ValueError if a speaker id is given with different name, gender or properties (see SpeakerInfo).
 
     :param path: Path to the input file.
     :yield: Recording, Segment, and TimedTranscript objects.
@@ -318,7 +332,8 @@ def _parse_transcripts(records: Iterable) -> list[BatchRecording]:
     Groups streamed records into BatchRecording objects.
 
     A recording name that appears again later in the file is merged into the first BatchRecording of that name:
-    its segment groups are appended in file order. Raises a ValueError if the repeated recording has a different path.
+    its segment groups are appended in file order. Raises a ValueError if the repeated recording has a different path
+    or different properties.
     """
     result = []
     recordings_by_name: dict[str, BatchRecording] = {}
@@ -330,10 +345,11 @@ def _parse_transcripts(records: Iterable) -> list[BatchRecording]:
                 current_alternatives.sort(key=_n_best_sort_key)
             if record.name in recordings_by_name:
                 current_recording = recordings_by_name[record.name]
-                if current_recording.path != record.path:
+                if (current_recording.path, current_recording.properties) != (record.path, record.properties):
                     raise ValueError(
-                        f"recording {record.name!r} given again with different path: "
-                        f"{current_recording.path!r} vs. {record.path!r}"
+                        f"recording {record.name!r} given again with different path or properties: "
+                        f"{(current_recording.path, current_recording.properties)!r} vs. "
+                        f"{(record.path, record.properties)!r}"
                     )
             else:
                 current_recording = BatchRecording(**record.model_dump(), alternatives=[])
@@ -362,7 +378,8 @@ def parse_asr_results(path: str | PathLike) -> list[BatchRecording]:
     Parse ASR hypotheses into BatchRecording objects.
 
     A recording name that appears again later in the file is merged into the first BatchRecording of that name:
-    its segment groups are appended in file order. Raises a ValueError if the repeated recording has a different path.
+    its segment groups are appended in file order. Raises a ValueError if the repeated recording has a different path
+    or different properties.
 
     :param path: Path to the input file.
     :return: List of BatchRecording objects containing ASR hypotheses.
@@ -395,8 +412,8 @@ def _write_transcripts(
     transcript_type: type[TranscriptBase],
 ):
     """
-    Raises a ValueError before writing anything if a speaker id is given with different name or gender
-    (see SpeakerInfo), and a TypeError before writing anything if a transcript is not of `transcript_type`.
+    Raises a ValueError before writing anything if a speaker id is given with different name, gender or
+    properties (see SpeakerInfo), and a TypeError before writing anything if a transcript is not of `transcript_type`.
     """
     speakers = _SpeakerConsistencyChecker()
     for batch_recording in results:
@@ -432,8 +449,8 @@ def write_asr_results(results: list[BatchRecording], path: str | PathLike):
     """
     Write ASR hypotheses to a file.
 
-    Raises a ValueError before writing anything if a speaker id is given with different name or gender
-    (see SpeakerInfo), and a TypeError if a transcript is not a TimedTranscript.
+    Raises a ValueError before writing anything if a speaker id is given with different name, gender or
+    properties (see SpeakerInfo), and a TypeError if a transcript is not a TimedTranscript.
 
     :param results: List of BatchRecording objects containing ASR hypotheses.
     :param path: Path to the output file.

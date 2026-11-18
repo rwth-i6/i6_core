@@ -114,11 +114,10 @@ def test_write_asr_results(sample_asr_file, tmp_path):
 def test_reference_transcript_round_trip(tmp_path):
     input_file = tmp_path / "reference.jsonl"
     input_file.write_text(
-        '{"type":"rec","name":"rec1"}\n'
-        '{"type":"seg","name":"seg1"}\n'
-        '{"type":"rtt","text":"in","gender":"female","domain":"call-center"}\n'
-        '{"type":"rtt","text":"New York","entity":"LOCATION",'
-        '"gender":"female","domain":"call-center"}\n'
+        '{"type":"rec","name":"rec1","properties":{"domain":"call-center"}}\n'
+        '{"type":"seg","name":"seg1","speaker":{"id":"spk1","gender":"female","properties":{"age":"30-40"}}}\n'
+        '{"type":"rtt","text":"in"}\n'
+        '{"type":"rtt","text":"New York","entity":"LOCATION"}\n'
     )
 
     with pytest.raises(ValueError):
@@ -131,8 +130,10 @@ def test_reference_transcript_round_trip(tmp_path):
     assert ordinary_transcript.entity is None
     assert ordinary_transcript.start is None
     assert ordinary_transcript.end is None
-    assert ordinary_transcript.gender == "female"
-    assert ordinary_transcript.domain == "call-center"
+    assert recordings[0].properties == {"domain": "call-center"}
+    segment_speaker = recordings[0].alternatives[0][0].speaker
+    assert segment_speaker.gender == "female"
+    assert segment_speaker.properties == {"age": "30-40"}
     assert isinstance(entity_transcript, ReferenceTranscript)
     assert entity_transcript.text == "New York"
     assert entity_transcript.entity == "LOCATION"
@@ -222,9 +223,9 @@ def test_parse_asr_results_inconsistent_speaker(tmp_path):
             {"type": "tt", "text": "bar", "start": 0.0, "end": 1.0, "speaker": {"id": "a"}},
         ],
     )
-    with pytest.raises(ValueError, match="speaker 'a' given with different name or gender"):
+    with pytest.raises(ValueError, match="speaker 'a' given with different name, gender or properties"):
         list(stream_asr_results(input_file))
-    with pytest.raises(ValueError, match="speaker 'a' given with different name or gender"):
+    with pytest.raises(ValueError, match="speaker 'a' given with different name, gender or properties"):
         parse_asr_results(input_file)
 
 
@@ -246,7 +247,7 @@ def test_write_asr_results_inconsistent_speaker(tmp_path):
         )
     ]
     output_file = tmp_path / "output.jsonl"
-    with pytest.raises(ValueError, match="speaker 'a' given with different name or gender"):
+    with pytest.raises(ValueError, match="speaker 'a' given with different name, gender or properties"):
         write_asr_results(recordings, output_file)
     assert not output_file.exists()
 
@@ -372,3 +373,63 @@ def test_transcript_base_is_abstract():
         TranscriptBase(type="tt", text="in")
     with pytest.raises(TypeError, match="TranscriptBase is abstract"):
         TranscriptBase.model_validate({"type": "tt", "text": "in"})
+
+
+def test_reference_transcript_has_no_per_word_speaker_fields():
+    assert {"gender", "age", "dialect", "education", "domain"}.isdisjoint(ReferenceTranscript.model_fields)
+
+
+def test_parse_asr_results_inconsistent_speaker_properties(tmp_path):
+    input_file = tmp_path / "input.jsonl"
+    _write_lines(
+        input_file,
+        [
+            {"type": "rec", "name": "rec1"},
+            {"type": "seg", "name": "seg1", "speaker": {"id": "a", "properties": {"age": "30-40"}}},
+            {
+                "type": "tt",
+                "text": "foo",
+                "start": 0.0,
+                "end": 1.0,
+                "speaker": {"id": "a", "properties": {"age": "50-60"}},
+            },
+        ],
+    )
+    with pytest.raises(ValueError, match="speaker 'a' given with different name, gender or properties"):
+        parse_asr_results(input_file)
+
+
+def test_parse_asr_results_recording_revisit_different_properties(tmp_path):
+    input_file = tmp_path / "input.jsonl"
+    _write_lines(
+        input_file,
+        [
+            {"type": "rec", "name": "rec1", "properties": {"domain": "news"}},
+            {"type": "rec", "name": "rec1", "properties": {"domain": "sports"}},
+        ],
+    )
+    with pytest.raises(ValueError, match="recording 'rec1' given again with different path or properties"):
+        parse_asr_results(input_file)
+
+
+def test_write_parse_roundtrip_properties(tmp_path):
+    speaker = SpeakerInfo(id="a", gender="f", properties={"dialect": "bavarian"})
+    recordings = [
+        BatchRecording(
+            name="rec1",
+            properties={"domain": "news"},
+            alternatives=[
+                [
+                    BatchSegment(
+                        name="seg1",
+                        speaker=speaker,
+                        properties={"topic": "weather"},
+                        transcripts=[TimedTranscript(text="hello", start=0.0, end=1.0, speaker=speaker)],
+                    )
+                ]
+            ],
+        )
+    ]
+    output_file = tmp_path / "output.jsonl"
+    write_asr_results(recordings, output_file)
+    assert parse_asr_results(output_file) == recordings
