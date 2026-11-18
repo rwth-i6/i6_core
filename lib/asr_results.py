@@ -217,6 +217,9 @@ ASRResultsStream = Annotated[Recording | Segment | TimedTranscript, Field(discri
 class BatchSegment(Segment):
     """
     Batched version of a segment, containing the list of transcripts for this segment.
+
+    Transcripts given as dicts must contain the `type` discriminator ("tt" for TimedTranscript, "rtt" for
+    ReferenceTranscript).
     """
 
     transcripts: list[Transcript] = Field(

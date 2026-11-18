@@ -466,3 +466,10 @@ def test_invalid_transcript_type(tmp_path, transcript_type):
         parse_asr_results(tmp_path / "unused.jsonl", transcript_type=transcript_type)
     with pytest.raises(TypeError, match="transcript_type must be"):
         write_asr_results([], tmp_path / "unused.jsonl", transcript_type=transcript_type)
+
+
+def test_batch_segment_transcript_dict_requires_type():
+    with pytest.raises(ValueError, match="Unable to extract tag using discriminator 'type'"):
+        BatchSegment(name="s", transcripts=[{"text": "a", "start": 0.0, "end": 1.0}])
+    segment = BatchSegment(name="s", transcripts=[{"type": "rtt", "text": "a"}])
+    assert isinstance(segment.transcripts[0], ReferenceTranscript)
