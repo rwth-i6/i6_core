@@ -10,15 +10,11 @@ __all__ = [
     "Segment",
     "Recording",
     "ASRResultsStream",
-    "ReferenceTranscriptStream",
     "BatchSegment",
     "BatchRecording",
     "stream_asr_results",
-    "stream_reference_transcripts",
     "parse_asr_results",
-    "parse_reference_transcripts",
     "write_asr_results",
-    "write_reference_transcripts",
 ]
 
 from collections.abc import Generator, Iterable
@@ -216,10 +212,6 @@ class Recording(BaseModel):
 
 
 ASRResultsStream = Annotated[Recording | Segment | TimedTranscript, Field(discriminator="type")]
-ReferenceTranscriptStream = Annotated[
-    Recording | Segment | ReferenceTranscript,
-    Field(discriminator="type"),
-]
 
 
 class BatchSegment(Segment):
@@ -260,15 +252,31 @@ class _SpeakerConsistencyChecker:
             )
 
 
-def _stream_transcripts(path: str | PathLike, stream_type) -> Generator:
-    """
-    Reads the file line by line, parsing each line as a JSON object and validating it against `stream_type`.
+def _check_transcript_type(transcript_type: type[TranscriptBase]):
+    if not (isinstance(transcript_type, type) and issubclass(transcript_type, TranscriptBase)) or (
+        transcript_type is TranscriptBase
+    ):
+        raise TypeError(f"transcript_type must be e.g. TimedTranscript or ReferenceTranscript, got {transcript_type!r}")
 
-    Segments belong to the most recent Recording line. A recording name that appears again later in the file
-    starts a new Recording record; merging such revisits is left to the caller (see _parse_transcripts).
-    Raises a ValueError if a speaker id is given with different name, gender or properties (see SpeakerInfo).
+
+def stream_asr_results(
+    path: str | PathLike,
+    transcript_type: type[TranscriptBase] = TimedTranscript,
+) -> Generator[Recording | Segment | TranscriptBase]:
     """
-    record_adapter = TypeAdapter(stream_type)
+    Stream transcripts from a file, by default ASR hypotheses.
+
+    A file contains only one kind of transcript: a transcript line of another type raises a ValueError.
+    Segments belong to the most recent Recording line. A recording name that appears again later in the file
+    starts a new Recording record; merging such revisits is left to the caller (see parse_asr_results).
+    Raises a ValueError if a speaker id is given with different name, gender or properties (see SpeakerInfo).
+
+    :param path: Path to the input file.
+    :param transcript_type: Kind of transcript in the file, e.g. TimedTranscript or ReferenceTranscript.
+    :yield: Recording, Segment, and `transcript_type` objects.
+    """
+    _check_transcript_type(transcript_type)
+    record_adapter = TypeAdapter(Annotated[Recording | Segment | transcript_type, Field(discriminator="type")])
     in_recording: bool = False
     in_segment: bool = False
     speakers = _SpeakerConsistencyChecker()
@@ -294,30 +302,6 @@ def _stream_transcripts(path: str | PathLike, stream_type) -> Generator:
                     assert in_segment, f"Encountered a transcript outside of a Segment in line {line_no}"
                     speakers.check(record.speaker)
             yield record
-
-
-def stream_asr_results(path: str | PathLike) -> Generator[ASRResultsStream]:
-    """
-    Stream ASR hypotheses from a file.
-
-    Segments belong to the most recent Recording line. A recording name that appears again later in the file
-    starts a new Recording record; merging such revisits is left to the caller (see parse_asr_results).
-    Raises a ValueError if a speaker id is given with different name, gender or properties (see SpeakerInfo).
-
-    :param path: Path to the input file.
-    :yield: Recording, Segment, and TimedTranscript objects.
-    """
-    yield from _stream_transcripts(path, ASRResultsStream)
-
-
-def stream_reference_transcripts(path: str | PathLike) -> Generator[ReferenceTranscriptStream]:
-    """
-    Stream evaluation-reference transcripts from a file. Same rules as stream_asr_results.
-
-    :param path: Path to the input file.
-    :yield: Recording, Segment, and ReferenceTranscript objects.
-    """
-    yield from _stream_transcripts(path, ReferenceTranscriptStream)
 
 
 def _n_best_sort_key(seg: Segment) -> tuple[bool, int]:
@@ -373,28 +357,22 @@ def _parse_transcripts(records: Iterable) -> list[BatchRecording]:
     return result
 
 
-def parse_asr_results(path: str | PathLike) -> list[BatchRecording]:
+def parse_asr_results(
+    path: str | PathLike,
+    transcript_type: type[TranscriptBase] = TimedTranscript,
+) -> list[BatchRecording]:
     """
-    Parse ASR hypotheses into BatchRecording objects.
+    Parse transcripts, by default ASR hypotheses, into BatchRecording objects. Same rules as stream_asr_results.
 
     A recording name that appears again later in the file is merged into the first BatchRecording of that name:
     its segment groups are appended in file order. Raises a ValueError if the repeated recording has a different path
     or different properties.
 
     :param path: Path to the input file.
-    :return: List of BatchRecording objects containing ASR hypotheses.
+    :param transcript_type: Kind of transcript in the file, e.g. TimedTranscript or ReferenceTranscript.
+    :return: List of BatchRecording objects containing `transcript_type` transcripts.
     """
-    return _parse_transcripts(stream_asr_results(path))
-
-
-def parse_reference_transcripts(path: str | PathLike) -> list[BatchRecording]:
-    """
-    Parse evaluation references into BatchRecording objects. Same rules as parse_asr_results.
-
-    :param path: Path to the input file.
-    :return: List of BatchRecording objects containing reference transcripts.
-    """
-    return _parse_transcripts(stream_reference_transcripts(path))
+    return _parse_transcripts(stream_asr_results(path, transcript_type))
 
 
 def _to_json_line(record: Recording | Segment | TranscriptBase) -> str:
@@ -406,15 +384,22 @@ def _to_json_line(record: Recording | Segment | TranscriptBase) -> str:
     return record.model_dump_json(exclude_unset=True, exclude_none=True) + "\n"
 
 
-def _write_transcripts(
+def write_asr_results(
     results: list[BatchRecording],
     path: str | PathLike,
-    transcript_type: type[TranscriptBase],
+    transcript_type: type[TranscriptBase] = TimedTranscript,
 ):
     """
+    Write transcripts, by default ASR hypotheses, to a file.
+
     Raises a ValueError before writing anything if a speaker id is given with different name, gender or
     properties (see SpeakerInfo), and a TypeError before writing anything if a transcript is not of `transcript_type`.
+
+    :param results: List of BatchRecording objects.
+    :param path: Path to the output file.
+    :param transcript_type: Kind of transcript to write, e.g. TimedTranscript or ReferenceTranscript.
     """
+    _check_transcript_type(transcript_type)
     speakers = _SpeakerConsistencyChecker()
     for batch_recording in results:
         for alt in batch_recording.alternatives:
@@ -443,26 +428,3 @@ def _write_transcripts(
                     f.write(_to_json_line(seg))
                     for transcript in transcripts:
                         f.write(_to_json_line(transcript))
-
-
-def write_asr_results(results: list[BatchRecording], path: str | PathLike):
-    """
-    Write ASR hypotheses to a file.
-
-    Raises a ValueError before writing anything if a speaker id is given with different name, gender or
-    properties (see SpeakerInfo), and a TypeError if a transcript is not a TimedTranscript.
-
-    :param results: List of BatchRecording objects containing ASR hypotheses.
-    :param path: Path to the output file.
-    """
-    _write_transcripts(results, path, TimedTranscript)
-
-
-def write_reference_transcripts(results: list[BatchRecording], path: str | PathLike):
-    """
-    Write evaluation-reference transcripts to a file. Same checks as write_asr_results, for ReferenceTranscript.
-
-    :param results: List of BatchRecording objects containing reference transcripts.
-    :param path: Path to the output file.
-    """
-    _write_transcripts(results, path, ReferenceTranscript)

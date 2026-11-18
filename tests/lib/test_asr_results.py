@@ -13,10 +13,8 @@ from i6_core.lib.asr_results import (
     TimedTranscript,
     TranscriptBase,
     parse_asr_results,
-    parse_reference_transcripts,
     stream_asr_results,
     write_asr_results,
-    write_reference_transcripts,
 )
 
 
@@ -123,7 +121,7 @@ def test_reference_transcript_round_trip(tmp_path):
     with pytest.raises(ValueError):
         list(stream_asr_results(input_file))
 
-    recordings = parse_reference_transcripts(input_file)
+    recordings = parse_asr_results(input_file, transcript_type=ReferenceTranscript)
     ordinary_transcript = recordings[0].alternatives[0][0].transcripts[0]
     entity_transcript = recordings[0].alternatives[0][0].transcripts[1]
     assert isinstance(ordinary_transcript, ReferenceTranscript)
@@ -139,7 +137,7 @@ def test_reference_transcript_round_trip(tmp_path):
     assert entity_transcript.entity == "LOCATION"
 
     output_file = tmp_path / "output.jsonl"
-    write_reference_transcripts(recordings, output_file)
+    write_asr_results(recordings, output_file, transcript_type=ReferenceTranscript)
     assert output_file.read_text() == input_file.read_text()
 
 
@@ -328,9 +326,9 @@ def test_write_parse_reference_roundtrip_python_models(tmp_path):
         )
     ]
     output_file = tmp_path / "output.jsonl"
-    write_reference_transcripts(recordings, output_file)
+    write_asr_results(recordings, output_file, transcript_type=ReferenceTranscript)
 
-    parsed = parse_reference_transcripts(output_file)
+    parsed = parse_asr_results(output_file, transcript_type=ReferenceTranscript)
     assert parsed == recordings
 
 
@@ -433,3 +431,38 @@ def test_write_parse_roundtrip_properties(tmp_path):
     output_file = tmp_path / "output.jsonl"
     write_asr_results(recordings, output_file)
     assert parse_asr_results(output_file) == recordings
+
+
+def test_write_reference_rejects_hypothesis(tmp_path):
+    recordings = [
+        BatchRecording(
+            name="rec1",
+            alternatives=[[BatchSegment(name="seg1", transcripts=[TimedTranscript(text="in", start=0.0, end=1.0)])]],
+        )
+    ]
+    output_file = tmp_path / "output.jsonl"
+    with pytest.raises(TypeError, match="expected ReferenceTranscript, got TimedTranscript"):
+        write_asr_results(recordings, output_file, transcript_type=ReferenceTranscript)
+    assert not output_file.exists()
+
+
+def test_parse_reference_rejects_hypothesis_line(tmp_path):
+    input_file = tmp_path / "input.jsonl"
+    _write_lines(
+        input_file,
+        [
+            {"type": "rec", "name": "rec1"},
+            {"type": "seg", "name": "seg1"},
+            {"type": "tt", "text": "foo", "start": 0.0, "end": 1.0},
+        ],
+    )
+    with pytest.raises(ValueError):
+        parse_asr_results(input_file, transcript_type=ReferenceTranscript)
+
+
+@pytest.mark.parametrize("transcript_type", [TranscriptBase, Segment, "tt"])
+def test_invalid_transcript_type(tmp_path, transcript_type):
+    with pytest.raises(TypeError, match="transcript_type must be"):
+        parse_asr_results(tmp_path / "unused.jsonl", transcript_type=transcript_type)
+    with pytest.raises(TypeError, match="transcript_type must be"):
+        write_asr_results([], tmp_path / "unused.jsonl", transcript_type=transcript_type)
