@@ -4,6 +4,7 @@ __all__ = [
     "CompressCorpusJob",
     "MergeCorporaJob",
     "MergeStrategy",
+    "SampleRecordingsJob",
     "MergeCorpusSegmentsAndAudioJob",
     "ShiftCorpusSegmentStartJob",
     "ApplyLexiconToCorpusJob",
@@ -14,6 +15,9 @@ __all__ = [
 import bisect
 import collections
 import enum
+import hashlib
+import heapq
+import json
 import logging
 import math
 import os
@@ -434,6 +438,168 @@ class MergeCorporaJob(Job):
                     f"Affected recording (to be added): {seg.recording.fullname()}.\n"
                 )
             base.add_segment(seg)
+
+
+def _sample_sort_key(seed: int, name: str) -> int:
+    return int(hashlib.sha1(f"{seed}:{name}".encode()).hexdigest()[:16], 16)
+
+
+def _sample_candidates(args):
+    """
+    The `max_candidates` recordings of a corpus with the smallest sort keys, the speaker
+    descriptions of the corpus as XML, and the largest key among the candidates, or None if the
+    corpus has no more recordings than that.
+
+    :return: `[(key, {name, audio, speakers, xml})]` sorted by key, `{speaker name: xml}`, max key
+    """
+    corpus_file, seed, max_candidates = args
+    heap = []
+    speakers = {}
+    num_recordings = 0
+    with uopen(corpus_file, "rb") as f:
+        for _, element in ET.iterparse(f):
+            if element.tag == "speaker-description":
+                speakers[element.get("name")] = ET.tostring(element, encoding="unicode")
+                continue
+            if element.tag != "recording":
+                continue
+            num_recordings += 1
+            name = element.get("name")
+            key = _sample_sort_key(seed, name)
+            if len(heap) < max_candidates or key < -heap[0][0]:
+                recording = {
+                    "name": name,
+                    "audio": element.get("audio"),
+                    "speakers": sorted({s.get("name") for s in element.iter("speaker") if s.get("name")}),
+                    "xml": ET.tostring(element, encoding="unicode"),
+                }
+                if len(heap) < max_candidates:
+                    heapq.heappush(heap, (-key, name, recording))
+                else:
+                    heapq.heapreplace(heap, (-key, name, recording))
+            element.clear()
+    candidates = sorted((-neg_key, recording) for neg_key, _, recording in heap)
+    max_key = candidates[-1][0] if num_recordings > max_candidates else None
+    return candidates, speakers, max_key
+
+
+class SampleRecordingsJob(Job):
+    """
+    Random sample of whole recordings from several bliss corpora, until `hours` of audio, as one flat
+    bliss corpus with the recordings (and the speaker descriptions they reference) copied unchanged.
+
+    Every recording gets a sort key hashed from `seed` and its name, the sample is the prefix of all
+    recordings in key order, which is uniform over recordings and independent of the corpus order.
+    Recordings must be named by their audio file.
+    """
+
+    def __init__(
+        self,
+        bliss_corpora: Dict[str, tk.Path],
+        hours: float,
+        seed: int = 0,
+        max_candidates_per_corpus: int = 2000,
+        name: str = "sample",
+    ):
+        """
+        :param bliss_corpora: {corpus key: bliss corpus file}
+        :param hours: audio hours to sample
+        :param seed: seed of the sort keys
+        :param max_candidates_per_corpus: recordings kept per corpus while parsing, must exceed the
+            number of recordings sampled from any corpus
+        :param name: name of the output corpus
+        """
+        self.bliss_corpora = bliss_corpora
+        self.hours = hours
+        self.seed = seed
+        self.max_candidates_per_corpus = max_candidates_per_corpus
+        self.name = name
+
+        self.out_corpus = self.output_path("corpus.xml.gz")
+        self.out_audio_files = self.output_path("audio_files.txt")
+        self.out_summary = self.output_path("summary.json")
+        self.out_num_recordings = self.output_var("num_recordings")
+        self.out_hours = self.output_var("hours")
+
+        self.rqmt = {"cpu": 8, "mem": 16, "time": 4}
+
+    def tasks(self):
+        yield Task("run", rqmt=self.rqmt)
+
+    def run(self):
+        from concurrent.futures import ProcessPoolExecutor
+        from xml.sax.saxutils import quoteattr
+
+        import soundfile
+
+        corpus_keys = sorted(self.bliss_corpora)
+        jobs = [(self.bliss_corpora[key].get_path(), self.seed, self.max_candidates_per_corpus) for key in corpus_keys]
+        with ProcessPoolExecutor(self.rqmt["cpu"]) as executor:
+            parsed = list(executor.map(_sample_candidates, jobs))
+
+        candidates = sorted(
+            (
+                (key, corpus_key, recording)
+                for corpus_key, (corpus_candidates, _, _) in zip(corpus_keys, parsed)
+                for key, recording in corpus_candidates
+            ),
+            key=lambda c: c[0],
+        )
+        speakers = {}
+        for _, corpus_speakers, _ in parsed:
+            for speaker_name, xml in corpus_speakers.items():
+                speakers.setdefault(speaker_name, xml)
+        max_keys = [max_key for _, _, max_key in parsed if max_key is not None]
+        key_limit = min(max_keys) if max_keys else None
+
+        sample, unreadable, total = [], [], 0.0
+        for key, corpus_key, recording in candidates:
+            if total >= self.hours * 3600:
+                break
+            assert key_limit is None or key <= key_limit, (
+                "a corpus ran out of candidates, increase max_candidates_per_corpus"
+            )
+            assert os.path.splitext(os.path.basename(recording["audio"]))[0] == recording["name"], (
+                recording["name"],
+                recording["audio"],
+            )
+            try:
+                duration = soundfile.info(recording["audio"]).duration
+            except Exception as e:
+                unreadable.append({"name": recording["name"], "audio": recording["audio"], "error": str(e)})
+                continue
+            sample.append({**recording, "corpus": corpus_key, "duration": duration})
+            total += duration
+        assert total >= self.hours * 3600, f"only {total / 3600:.1f} h of audio in all corpora"
+
+        referenced = sorted({s for recording in sample for s in recording["speakers"]})
+        missing = [s for s in referenced if s not in speakers]
+        assert not missing, f"speaker descriptions missing: {missing}"
+        with uopen(self.out_corpus.get_path(), "wt") as f:
+            f.write(f'<?xml version="1.0" encoding="utf-8"?>\n<corpus name={quoteattr(self.name)}>\n')
+            for speaker_name in referenced:
+                f.write(speakers[speaker_name].strip() + "\n")
+            for recording in sample:
+                f.write(recording["xml"].strip() + "\n")
+            f.write("</corpus>\n")
+        c = corpus.Corpus()
+        c.load(self.out_corpus.get_path())
+        assert len(list(c.all_recordings())) == len(sample)
+
+        with uopen(self.out_audio_files.get_path(), "wt") as f:
+            for recording in sample:
+                f.write(recording["audio"] + "\n")
+
+        summary = {
+            "recordings": len(sample),
+            "hours": total / 3600,
+            "corpora": dict(sorted(collections.Counter(recording["corpus"] for recording in sample).items())),
+            "unreadable": unreadable,
+        }
+        with open(self.out_summary.get_path(), "wt") as f:
+            json.dump(summary, f, indent=2)
+        self.out_num_recordings.set(len(sample))
+        self.out_hours.set(total / 3600)
 
 
 class MergeCorpusSegmentsAndAudioJob(Job):
