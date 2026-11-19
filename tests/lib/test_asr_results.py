@@ -510,3 +510,30 @@ def test_models_reject_unknown_keys():
         TimedTranscript(text="a", start=0.0, end=1.0, confidance=0.5)
     with pytest.raises(ValueError, match="Extra inputs are not permitted"):
         BatchSegment(name="s", transcripts=[], ignore=True)
+
+
+def test_properties_keep_value_types(tmp_path):
+    input_file = tmp_path / "input.jsonl"
+    input_file.write_text(
+        '{"type":"rec","name":"rec1","properties":{"snr":12.5,"native":true}}\n'
+        '{"type":"seg","name":"seg1","speaker":{"id":"a","properties":{"age":30,"dialect":"bavarian"}}}\n'
+        '{"type":"rt","text":"in"}\n'
+    )
+    (rec,) = parse_asr_results(input_file, transcript_type=ReferenceTranscript)
+    assert rec.properties == {"snr": 12.5, "native": True}
+    assert type(rec.properties["native"]) is bool
+    speaker_properties = rec.alternatives[0][0].speaker.properties
+    assert speaker_properties == {"age": 30, "dialect": "bavarian"}
+    assert type(speaker_properties["age"]) is int
+
+    output_file = tmp_path / "output.jsonl"
+    write_asr_results([rec], output_file, transcript_type=ReferenceTranscript)
+    assert output_file.read_text() == input_file.read_text()
+
+
+@pytest.mark.parametrize("value", ["NaN", "Infinity", "null", "[1]", '{"a":1}'])
+def test_properties_reject_other_values(tmp_path, value):
+    input_file = tmp_path / "input.jsonl"
+    input_file.write_text('{"type":"rec","name":"rec1","properties":{"x":' + value + "}}\n")
+    with pytest.raises(ValueError):
+        parse_asr_results(input_file)

@@ -37,7 +37,10 @@ from i6_core.util import uopen
 
 Seconds = NonNegativeFloat  # >= 0.0
 ChannelIndex = PositiveInt  # >= 1
-Properties = dict[str, str]  # generic key/value metadata, e.g. {"age": "30-40"} or {"domain": "call-center"}
+# generic key/value metadata, e.g. {"age": "30-40", "snr": 12.5, "native": True}
+# int and bool are listed separately so that 30 and true are not read back as 30.0 and 1.0;
+# NaN and infinity are rejected as JSON has no representation for them.
+Properties = dict[str, str | int | Annotated[float, Field(allow_inf_nan=False)] | bool]
 
 
 class _StrictModel(BaseModel):
