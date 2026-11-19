@@ -193,6 +193,7 @@ class Segment(_StrictModel):
     A segment of the recording. Segments are used to group multiple transcripts into an n-best list.
 
     A reference segment without start and end covers the whole recording, i.e. from 0 to Recording.duration.
+    Reference segments have no n_best_index.
     """
 
     type: Literal["seg"] = "seg"
@@ -265,6 +266,8 @@ class BatchSegment(Segment):
     def check_transcripts(self):
         if self.channel is not None:
             self.transcripts = [_with_segment_channel(self, t) for t in self.transcripts]
+        if any(isinstance(t, ReferenceTranscript) for t in self.transcripts):
+            _check_reference_segment(self)
         return self
 
 
@@ -281,6 +284,11 @@ def _with_segment_channel(segment: Segment, transcript: TranscriptBase) -> Trans
             f"is on channel {transcript.channel}"
         )
     return transcript.model_copy(update={"channel": segment.channel})
+
+
+def _check_reference_segment(segment: Segment):
+    if segment.n_best_index is not None:
+        raise ValueError(f"reference segment {segment.name!r} has an n_best_index, which has no meaning for references")
 
 
 class BatchRecording(Recording):
@@ -354,6 +362,8 @@ def stream_asr_results(
                 case Segment():
                     assert in_recording, f"Encountered a Segment outside of a recording in line {line_no}"
                     current_segment = record
+                    if transcript_type is ReferenceTranscript:
+                        _check_reference_segment(record)
                     speakers.check(record.speaker)
                 case TranscriptBase():
                     assert in_recording, f"Encountered a transcript outside of a Recording in line {line_no}"
@@ -454,8 +464,8 @@ def write_asr_results(
     Write transcripts, by default ASR hypotheses, to a file.
 
     Raises a ValueError before writing anything if a speaker id is given with different name, gender or
-    properties (see SpeakerInfo) or if a transcript has another channel than its segment, and a TypeError before
-    writing anything if a transcript is not of `transcript_type`.
+    properties (see SpeakerInfo), if a transcript has another channel than its segment, or if a reference segment
+    has an n_best_index, and a TypeError before writing anything if a transcript is not of `transcript_type`.
 
     :param results: List of BatchRecording objects.
     :param path: Path to the output file.
@@ -466,6 +476,8 @@ def write_asr_results(
     for batch_recording in results:
         for alt in batch_recording.alternatives:
             for batch_seg in alt:
+                if transcript_type is ReferenceTranscript:
+                    _check_reference_segment(batch_seg)
                 speakers.check(batch_seg.speaker)
                 for transcript in batch_seg.transcripts:
                     if type(transcript) is not transcript_type:

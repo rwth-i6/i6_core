@@ -620,3 +620,30 @@ def test_segment_ignore_in_scoring(tmp_path):
     output_file = tmp_path / "output.jsonl"
     write_asr_results([rec], output_file, transcript_type=ReferenceTranscript)
     assert output_file.read_text() == input_file.read_text()
+
+
+def test_reference_segment_rejects_n_best_index(tmp_path):
+    with pytest.raises(ValueError, match="has an n_best_index"):
+        BatchSegment(name="s", n_best_index=0, transcripts=[ReferenceTranscript(text="in")])
+
+    input_file = tmp_path / "input.jsonl"
+    _write_lines(
+        input_file,
+        [
+            {"type": "rec", "name": "rec1"},
+            {"type": "seg", "name": "seg1", "n_best_index": 0},
+            {"type": "rt", "text": "in"},
+        ],
+    )
+    with pytest.raises(ValueError, match="has an n_best_index"):
+        parse_asr_results(input_file, transcript_type=ReferenceTranscript)
+
+    segment = BatchSegment(name="seg1", transcripts=[])
+    segment.n_best_index = 0
+    segment.transcripts.append(ReferenceTranscript(text="in"))
+    output_file = tmp_path / "output.jsonl"
+    with pytest.raises(ValueError, match="has an n_best_index"):
+        write_asr_results(
+            [BatchRecording(name="rec1", alternatives=[[segment]])], output_file, transcript_type=ReferenceTranscript
+        )
+    assert not output_file.exists()
