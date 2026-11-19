@@ -191,6 +191,8 @@ Transcript = Annotated[TimedTranscript | ReferenceTranscript, Field(discriminato
 class Segment(_StrictModel):
     """
     A segment of the recording. Segments are used to group multiple transcripts into an n-best list.
+
+    A reference segment without start and end covers the whole recording, i.e. from 0 to Recording.duration.
     """
 
     type: Literal["seg"] = "seg"
@@ -230,6 +232,11 @@ class Recording(_StrictModel):
 
     name: str = Field(default=..., description="Name of the recording")
     path: Optional[PathLike] = Field(default=None, description="Optional path of the recording file.")
+    duration: Optional[Seconds] = Field(
+        default=None,
+        description="Duration of the recording in seconds, if known. "
+        "It is the end of reference segments that have no times.",
+    )
     properties: Optional[Properties] = Field(
         default=None,
         description="Further information about the recording, e.g. its domain.",

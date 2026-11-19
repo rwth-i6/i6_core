@@ -586,3 +586,16 @@ def test_segment_channel_mismatch(tmp_path):
     with pytest.raises(ValueError, match="is on channel 2, but transcript 'foo' is on channel 1"):
         write_asr_results([BatchRecording(name="rec1", alternatives=[[segment]])], output_file)
     assert not output_file.exists()
+
+
+def test_reference_segment_without_times_and_recording_duration(tmp_path):
+    input_file = tmp_path / "input.jsonl"
+    input_file.write_text(
+        '{"type":"rec","name":"rec1","duration":61.5}\n{"type":"seg","name":"seg1"}\n{"type":"rt","text":"in"}\n'
+    )
+    (rec,) = parse_asr_results(input_file, transcript_type=ReferenceTranscript)
+    assert rec.duration == 61.5
+    assert rec.alternatives[0][0].start is None and rec.alternatives[0][0].end is None
+    output_file = tmp_path / "output.jsonl"
+    write_asr_results([rec], output_file, transcript_type=ReferenceTranscript)
+    assert output_file.read_text() == input_file.read_text()
