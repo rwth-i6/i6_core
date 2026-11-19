@@ -42,8 +42,7 @@ Properties = dict[str, str]  # generic key/value metadata, e.g. {"age": "30-40"}
 
 class _StrictModel(BaseModel):
     """
-    Base of all models in this module: unknown keys are rejected instead of silently dropped, so that typos such as
-    "propeties" or keys in the wrong place fail when a file is read. Generic information goes into `properties`.
+    Base of all models in this module: unknown keys are rejected instead of silently dropped.
     """
 
     model_config = ConfigDict(extra="forbid")
