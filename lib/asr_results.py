@@ -212,6 +212,11 @@ class Segment(_StrictModel):
         description="Channel of all transcripts in this segment (starting with 1). If set, it is written only here "
         "and not on every transcript, and a transcript with another channel is an error.",
     )
+    ignore_in_scoring: bool = Field(
+        default=False,
+        description="Whether this segment is a region excluded from scoring, e.g. IGNORE_TIME_SEGMENT_IN_SCORING in "
+        "STM files: hypotheses in it are not scored, and code reading reference words should skip it.",
+    )
 
     speaker: Optional[SpeakerInfo] = Field(
         default=None,
@@ -483,7 +488,7 @@ def write_asr_results(
                 for batch_seg in alt:
                     transcripts = batch_seg.transcripts
                     seg = Segment(**batch_seg.model_dump(exclude={"transcripts"}))
-                    f.write(_to_json_line(seg))
+                    f.write(_to_json_line(seg, exclude=None if seg.ignore_in_scoring else {"ignore_in_scoring"}))
                     # the segment's channel is written once on the segment
                     exclude = {"channel"} if batch_seg.channel is not None else None
                     for transcript in transcripts:
