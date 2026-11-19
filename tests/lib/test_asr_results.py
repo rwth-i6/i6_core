@@ -114,8 +114,8 @@ def test_reference_transcript_round_trip(tmp_path):
     input_file.write_text(
         '{"type":"rec","name":"rec1","properties":{"domain":"call-center"}}\n'
         '{"type":"seg","name":"seg1","speaker":{"id":"spk1","gender":"female","properties":{"age":"30-40"}}}\n'
-        '{"type":"rtt","text":"in"}\n'
-        '{"type":"rtt","text":"New York","entity":"LOCATION"}\n'
+        '{"type":"rt","text":"in"}\n'
+        '{"type":"rt","text":"New York","entity":"LOCATION","entity_score":0.93}\n'
     )
 
     with pytest.raises(ValueError):
@@ -135,6 +135,8 @@ def test_reference_transcript_round_trip(tmp_path):
     assert isinstance(entity_transcript, ReferenceTranscript)
     assert entity_transcript.text == "New York"
     assert entity_transcript.entity == "LOCATION"
+    assert entity_transcript.entity_score == 0.93
+    assert ordinary_transcript.entity_score is None
 
     output_file = tmp_path / "output.jsonl"
     write_asr_results(recordings, output_file, transcript_type=ReferenceTranscript)
@@ -471,5 +473,14 @@ def test_invalid_transcript_type(tmp_path, transcript_type):
 def test_batch_segment_transcript_dict_requires_type():
     with pytest.raises(ValueError, match="Unable to extract tag using discriminator 'type'"):
         BatchSegment(name="s", transcripts=[{"text": "a", "start": 0.0, "end": 1.0}])
-    segment = BatchSegment(name="s", transcripts=[{"type": "rtt", "text": "a"}])
+    segment = BatchSegment(name="s", transcripts=[{"type": "rt", "text": "a"}])
     assert isinstance(segment.transcripts[0], ReferenceTranscript)
+
+
+def test_reference_transcript_entity_score():
+    assert ReferenceTranscript(text="Paris", entity="LOCATION", entity_score=0.5).entity_score == 0.5
+    with pytest.raises(ValueError, match="entity_score is given without entity"):
+        ReferenceTranscript(text="in", entity_score=0.5)
+    for score in (-0.1, 1.1):
+        with pytest.raises(ValueError):
+            ReferenceTranscript(text="Paris", entity="LOCATION", entity_score=score)

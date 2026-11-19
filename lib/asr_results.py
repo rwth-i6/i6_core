@@ -89,7 +89,6 @@ class TranscriptBase(BaseModel):
     )
 
     def model_post_init(self, context):
-        # runs for every way of creating a model (constructor, model_validate, model_construct, ...)
         if type(self) is TranscriptBase:
             raise TypeError("TranscriptBase is abstract, use TimedTranscript or ReferenceTranscript")
 
@@ -138,11 +137,11 @@ class TimedTranscript(TranscriptBase):
 
 class ReferenceTranscript(TranscriptBase):
     """
-    Evaluation-reference text with optional timing and an optional named-entity label.
+    Evaluation-reference text with optional timing and an optional named-entity label with its model score.
     Information about the speaker belongs into `speaker`, about the segment or recording into their `properties`.
     """
 
-    type: Literal["rtt"] = "rtt"
+    type: Literal["rt"] = "rt"
 
     text: str = Field(default=..., description="Reference word or phrase.")
     start: Optional[Seconds] = Field(
@@ -157,11 +156,19 @@ class ReferenceTranscript(TranscriptBase):
         default=None,
         description="Named-entity label, for example PERSON or DATE_TIME.",
     )
+    entity_score: Optional[float] = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description="Confidence score between 0 and 1 of the model that assigned `entity`, if it was computed by one.",
+    )
 
     @model_validator(mode="after")
     def check_times(self):
         if (self.start is None) != (self.end is None):
             raise ValueError("Reference start and end time must either both be set or both be omitted.")
+        if self.entity_score is not None and self.entity is None:
+            raise ValueError("entity_score is given without entity.")
         _check_start_before_end(self.start, self.end)
         return self
 
@@ -218,7 +225,7 @@ class BatchSegment(Segment):
     """
     Batched version of a segment, containing the list of transcripts for this segment.
 
-    Transcripts given as dicts must contain the `type` discriminator ("tt" for TimedTranscript, "rtt" for
+    Transcripts given as dicts must contain the `type` discriminator ("tt" for TimedTranscript, "rt" for
     ReferenceTranscript).
     """
 
