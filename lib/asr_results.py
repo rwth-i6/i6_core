@@ -9,7 +9,6 @@ __all__ = [
     "Transcript",
     "Segment",
     "Recording",
-    "ASRResultsStream",
     "BatchSegment",
     "BatchRecording",
     "stream_asr_results",
@@ -216,9 +215,6 @@ class Recording(BaseModel):
         default=None,
         description="Further information about the recording, e.g. its domain.",
     )
-
-
-ASRResultsStream = Annotated[Recording | Segment | TimedTranscript, Field(discriminator="type")]
 
 
 class BatchSegment(Segment):
