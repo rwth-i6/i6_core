@@ -537,3 +537,52 @@ def test_properties_reject_other_values(tmp_path, value):
     input_file.write_text('{"type":"rec","name":"rec1","properties":{"x":' + value + "}}\n")
     with pytest.raises(ValueError):
         parse_asr_results(input_file)
+
+
+def test_segment_channel_round_trip(tmp_path):
+    input_file = tmp_path / "input.jsonl"
+    input_file.write_text(
+        '{"type":"rec","name":"rec1"}\n'
+        '{"type":"seg","name":"seg1","channel":2}\n'
+        '{"type":"rt","text":"hello"}\n'
+        '{"type":"rt","text":"world"}\n'
+        '{"type":"seg","name":"seg2"}\n'
+        '{"type":"rt","text":"foo"}\n'
+    )
+    (rec,) = parse_asr_results(input_file, transcript_type=ReferenceTranscript)
+    seg1, seg2 = (alt[0] for alt in rec.alternatives)
+    assert [t.channel for t in seg1.transcripts] == [2, 2]
+    assert [t.channel for t in seg2.transcripts] == [1]
+
+    output_file = tmp_path / "output.jsonl"
+    write_asr_results([rec], output_file, transcript_type=ReferenceTranscript)
+    assert output_file.read_text() == input_file.read_text()
+
+
+def test_segment_channel_python_models():
+    segment = BatchSegment(name="s", channel=2, transcripts=[TimedTranscript(text="a", start=0.0, end=1.0)])
+    assert segment.transcripts[0].channel == 2
+    assert BatchSegment(name="s", channel=2, transcripts=[{"type": "rt", "text": "a", "channel": 2}])
+    with pytest.raises(ValueError, match="segment 's' is on channel 2, but transcript 'a' is on channel 3"):
+        BatchSegment(name="s", channel=2, transcripts=[TimedTranscript(text="a", start=0.0, end=1.0, channel=3)])
+
+
+def test_segment_channel_mismatch(tmp_path):
+    input_file = tmp_path / "input.jsonl"
+    _write_lines(
+        input_file,
+        [
+            {"type": "rec", "name": "rec1"},
+            {"type": "seg", "name": "seg1", "channel": 2},
+            {"type": "tt", "text": "foo", "start": 0.0, "end": 1.0, "channel": 1},
+        ],
+    )
+    with pytest.raises(ValueError, match="is on channel 2, but transcript 'foo' is on channel 1"):
+        parse_asr_results(input_file)
+
+    segment = BatchSegment(name="seg1", channel=2, transcripts=[])
+    segment.transcripts.append(TimedTranscript(text="foo", start=0.0, end=1.0, channel=1))
+    output_file = tmp_path / "output.jsonl"
+    with pytest.raises(ValueError, match="is on channel 2, but transcript 'foo' is on channel 1"):
+        write_asr_results([BatchRecording(name="rec1", alternatives=[[segment]])], output_file)
+    assert not output_file.exists()
