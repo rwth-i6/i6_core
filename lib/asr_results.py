@@ -23,6 +23,7 @@ from typing import Annotated, Literal, Optional
 
 from pydantic import (
     BaseModel,
+    ConfigDict,
     Field,
     NonNegativeFloat,
     NonNegativeInt,
@@ -39,7 +40,16 @@ ChannelIndex = PositiveInt  # >= 1
 Properties = dict[str, str]  # generic key/value metadata, e.g. {"age": "30-40"} or {"domain": "call-center"}
 
 
-class SpeakerInfo(BaseModel):
+class _StrictModel(BaseModel):
+    """
+    Base of all models in this module: unknown keys are rejected instead of silently dropped, so that typos such as
+    "propeties" or keys in the wrong place fail when a file is read. Generic information goes into `properties`.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class SpeakerInfo(_StrictModel):
     """
     Information about a single speaker.
 
@@ -61,7 +71,7 @@ def _check_start_before_end(start: Optional[float], end: Optional[float]):
         raise ValueError("Start time must be smaller or equal to end time.")
 
 
-class TranscriptBase(BaseModel):
+class TranscriptBase(_StrictModel):
     """
     Fields shared by all kinds of transcripts: one snippet of text with channel, language and speaker information.
     Abstract: only subclasses such as TimedTranscript and ReferenceTranscript can be instantiated.
@@ -175,7 +185,7 @@ class ReferenceTranscript(TranscriptBase):
 Transcript = Annotated[TimedTranscript | ReferenceTranscript, Field(discriminator="type")]
 
 
-class Segment(BaseModel):
+class Segment(_StrictModel):
     """
     A segment of the recording. Segments are used to group multiple transcripts into an n-best list.
     """
@@ -202,7 +212,7 @@ class Segment(BaseModel):
     )
 
 
-class Recording(BaseModel):
+class Recording(_StrictModel):
     """
     Information about a recording.
     """

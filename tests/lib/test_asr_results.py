@@ -484,3 +484,29 @@ def test_reference_transcript_entity_score():
     for score in (-0.1, 1.1):
         with pytest.raises(ValueError):
             ReferenceTranscript(text="Paris", entity="LOCATION", entity_score=score)
+
+
+@pytest.mark.parametrize(
+    "line",
+    [
+        {"type": "rec", "name": "rec1", "propeties": {"domain": "news"}},
+        {"type": "seg", "name": "seg1", "ignore": True},
+        {"type": "seg", "name": "seg1", "speaker": {"id": "a", "age": "30-40"}},
+        {"type": "rt", "text": "Smith", "entitiy": "PERSON"},
+    ],
+)
+def test_parse_rejects_unknown_keys(tmp_path, line):
+    input_file = tmp_path / "input.jsonl"
+    records = [{"type": "rec", "name": "rec1"}, {"type": "seg", "name": "seg1"}, line]
+    _write_lines(input_file, records[: ["rec", "seg", "rt"].index(line["type"])] + [line])
+    with pytest.raises(ValueError, match="Extra inputs are not permitted"):
+        parse_asr_results(input_file, transcript_type=ReferenceTranscript)
+
+
+def test_models_reject_unknown_keys():
+    with pytest.raises(ValueError, match="Extra inputs are not permitted"):
+        ReferenceTranscript(text="Smith", gender="male", domain="call-center", entity="PERSON")
+    with pytest.raises(ValueError, match="Extra inputs are not permitted"):
+        TimedTranscript(text="a", start=0.0, end=1.0, confidance=0.5)
+    with pytest.raises(ValueError, match="Extra inputs are not permitted"):
+        BatchSegment(name="s", transcripts=[], ignore=True)
