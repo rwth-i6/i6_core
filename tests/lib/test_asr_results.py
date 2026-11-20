@@ -577,27 +577,6 @@ def test_reference_segment_without_times_and_recording_duration(tmp_path):
     assert output_file.read_text() == input_file.read_text()
 
 
-def test_segment_ignore_in_scoring(tmp_path):
-    input_file = tmp_path / "input.jsonl"
-    input_file.write_text(
-        '{"type":"rec","name":"rec1"}\n'
-        '{"type":"seg","name":"seg1","start":0.0,"end":2.5}\n'
-        '{"type":"rt","text":"in"}\n'
-        '{"type":"seg","name":"seg2","start":2.5,"end":4.0,"ignore_in_scoring":true}\n'
-        '{"type":"seg","name":"seg3","start":4.0,"end":5.0}\n'
-        '{"type":"rt","text":"out"}\n'
-    )
-    (rec,) = parse_asr_results(input_file, transcript_type=ReferenceTranscript)
-    seg1, seg2, seg3 = (alt[0] for alt in rec.alternatives)
-    assert (seg1.ignore_in_scoring, seg2.ignore_in_scoring, seg3.ignore_in_scoring) == (False, True, False)
-    assert (seg2.start, seg2.end, seg2.transcripts) == (2.5, 4.0, [])
-
-    # the ignored segment is kept, and the flag is only written where it is set
-    output_file = tmp_path / "output.jsonl"
-    write_asr_results([rec], output_file, transcript_type=ReferenceTranscript)
-    assert output_file.read_text() == input_file.read_text()
-
-
 def test_reference_segment_rejects_n_best_index(tmp_path):
     with pytest.raises(ValueError, match="has an n_best_index"):
         BatchSegment(name="s", n_best_index=0, transcripts=[ReferenceTranscript(text="in")])

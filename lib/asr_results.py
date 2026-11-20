@@ -208,12 +208,6 @@ class Segment(_StrictModel):
         description="Index in the n-best list for this segment. For segments to be grouped into an n-best list the segment name should match.",
     )
 
-    ignore_in_scoring: bool = Field(
-        default=False,
-        description="Whether this segment is a region excluded from scoring, e.g. IGNORE_TIME_SEGMENT_IN_SCORING in "
-        "STM files: hypotheses in it are not scored, and code reading reference words should skip it.",
-    )
-
     speaker: Optional[SpeakerInfo] = Field(
         default=None,
         description="Optional speaker information.",
@@ -482,6 +476,6 @@ def write_asr_results(
                 for batch_seg in alt:
                     transcripts = batch_seg.transcripts
                     seg = Segment(**batch_seg.model_dump(exclude={"transcripts"}))
-                    f.write(_to_json_line(seg, exclude=None if seg.ignore_in_scoring else {"ignore_in_scoring"}))
+                    f.write(_to_json_line(seg))
                     for transcript in transcripts:
                         f.write(_to_json_line(transcript))
