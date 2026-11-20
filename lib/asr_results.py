@@ -69,7 +69,7 @@ class SpeakerInfo(_StrictModel):
 
 
 def _check_start_before_end(start: Optional[float], end: Optional[float]):
-    if start is not None and end is not None and start > end:
+    if start is not None and end is not None and start >= end:
         raise ValueError("Start time must be smaller or equal to end time.")
 
 
