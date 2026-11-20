@@ -624,3 +624,29 @@ def test_segment_start_after_end():
         Segment(name="s", start=5.0, end=1.0)
     with pytest.raises(ValueError, match="Start time must be smaller or equal to end time"):
         BatchSegment(name="s", start=5.0, end=1.0, transcripts=[])
+
+
+def test_zero_length_transcripts():
+    assert TimedTranscript(text="a", start=1.0, end=1.0).end == 1.0
+    assert ReferenceTranscript(text="a", start=1.0, end=1.0).end == 1.0
+
+
+def test_reference_segment_needs_both_times_or_neither(tmp_path):
+    BatchSegment(name="s", transcripts=[ReferenceTranscript(text="a")])
+    BatchSegment(name="s", start=0.0, end=1.0, transcripts=[ReferenceTranscript(text="a")])
+    # hypothesis segments may still have only one of the two
+    BatchSegment(name="s", start=0.0, transcripts=[TimedTranscript(text="a", start=0.0, end=1.0)])
+    with pytest.raises(ValueError, match="reference segment 's' must have both start and end time, or neither"):
+        BatchSegment(name="s", start=0.0, transcripts=[ReferenceTranscript(text="a")])
+
+    input_file = tmp_path / "input.jsonl"
+    _write_lines(
+        input_file,
+        [
+            {"type": "rec", "name": "rec1"},
+            {"type": "seg", "name": "seg1", "end": 1.0},
+            {"type": "rt", "text": "a"},
+        ],
+    )
+    with pytest.raises(ValueError, match="reference segment 'seg1' must have both start and end time, or neither"):
+        parse_asr_results(input_file, ReferenceTranscript)

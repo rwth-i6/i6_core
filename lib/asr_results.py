@@ -87,8 +87,7 @@ class TranscriptBase(_StrictModel):
     )
     channel: ChannelIndex = Field(
         default=1,
-        description="Channel index of inside of the recognized recording (starting with 1). "
-        "Taken from the segment if the segment has a channel.",
+        description="Audio channel of the recording that the text belongs to (starting with 1).",
     )
 
     lang_code: Optional[str] = Field(
@@ -192,8 +191,14 @@ class Segment(_StrictModel):
     """
     A segment of the recording. Segments are used to group multiple transcripts into an n-best list.
 
-    A reference segment without start and end covers the whole recording, i.e. from 0 to Recording.duration.
-    Reference segments have no n_best_index.
+    In a reference file, the segments define what is scored:
+
+    - a segment without transcripts means that the correct output is no words,
+    - parts of the recording that are not covered by any segment are not scored (as IGNORE_TIME_SEGMENT_IN_SCORING
+      in STM files),
+    - a segment without start and end covers the whole recording, i.e. from 0 to Recording.duration.
+
+    Reference segments have no n_best_index, and either both a start and an end time or neither.
     """
 
     type: Literal["seg"] = "seg"
@@ -266,6 +271,8 @@ class BatchSegment(Segment):
 def _check_reference_segment(segment: Segment):
     if segment.n_best_index is not None:
         raise ValueError(f"reference segment {segment.name!r} has an n_best_index, which has no meaning for references")
+    if (segment.start is None) != (segment.end is None):
+        raise ValueError(f"reference segment {segment.name!r} must have both start and end time, or neither")
 
 
 class BatchRecording(Recording):
