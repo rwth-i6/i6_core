@@ -408,7 +408,7 @@ def test_parse_asr_results_recording_revisit_different_properties(tmp_path):
             {"type": "rec", "name": "rec1", "properties": {"domain": "sports"}},
         ],
     )
-    with pytest.raises(ValueError, match="recording 'rec1' given again with different path or properties"):
+    with pytest.raises(ValueError, match="recording 'rec1' given again with different path, duration or properties"):
         parse_asr_results(input_file)
 
 
@@ -647,3 +647,25 @@ def test_reference_segment_rejects_n_best_index(tmp_path):
             [BatchRecording(name="rec1", alternatives=[[segment]])], output_file, transcript_type=ReferenceTranscript
         )
     assert not output_file.exists()
+
+
+def test_parse_asr_results_recording_revisit_different_duration(tmp_path):
+    input_file = tmp_path / "input.jsonl"
+    _write_lines(
+        input_file,
+        [
+            {"type": "rec", "name": "rec1", "duration": 10.0},
+            {"type": "rec", "name": "rec1", "duration": 20.0},
+        ],
+    )
+    with pytest.raises(ValueError, match="recording 'rec1' given again with different path, duration or properties"):
+        parse_asr_results(input_file)
+
+
+def test_segment_start_after_end():
+    Segment(name="s", start=1.0, end=1.0)
+    Segment(name="s", start=1.0)
+    with pytest.raises(ValueError, match="Start time must be smaller or equal to end time"):
+        Segment(name="s", start=5.0, end=1.0)
+    with pytest.raises(ValueError, match="Start time must be smaller or equal to end time"):
+        BatchSegment(name="s", start=5.0, end=1.0, transcripts=[])

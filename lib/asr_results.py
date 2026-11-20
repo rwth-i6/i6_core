@@ -228,6 +228,11 @@ class Segment(_StrictModel):
         description="Further information about the segment, e.g. its domain.",
     )
 
+    @model_validator(mode="after")
+    def check_segment_times(self):
+        _check_start_before_end(self.start, self.end)
+        return self
+
 
 class Recording(_StrictModel):
     """
@@ -387,8 +392,8 @@ def _parse_transcripts(records: Iterable) -> list[BatchRecording]:
     Groups streamed records into BatchRecording objects.
 
     A recording name that appears again later in the file is merged into the first BatchRecording of that name:
-    its segment groups are appended in file order. Raises a ValueError if the repeated recording has a different path
-    or different properties.
+    its segment groups are appended in file order. Raises a ValueError if the repeated recording has a different path,
+    duration or properties.
     """
     result = []
     recordings_by_name: dict[str, BatchRecording] = {}
@@ -400,11 +405,12 @@ def _parse_transcripts(records: Iterable) -> list[BatchRecording]:
                 current_alternatives.sort(key=_n_best_sort_key)
             if record.name in recordings_by_name:
                 current_recording = recordings_by_name[record.name]
-                if (current_recording.path, current_recording.properties) != (record.path, record.properties):
+                known = (current_recording.path, current_recording.duration, current_recording.properties)
+                given = (record.path, record.duration, record.properties)
+                if known != given:
                     raise ValueError(
-                        f"recording {record.name!r} given again with different path or properties: "
-                        f"{(current_recording.path, current_recording.properties)!r} vs. "
-                        f"{(record.path, record.properties)!r}"
+                        f"recording {record.name!r} given again with different path, duration or properties: "
+                        f"{known!r} vs. {given!r}"
                     )
             else:
                 current_recording = BatchRecording(**record.model_dump(), alternatives=[])
@@ -436,8 +442,8 @@ def parse_asr_results(
     Parse transcripts, by default ASR hypotheses, into BatchRecording objects. Same rules as stream_asr_results.
 
     A recording name that appears again later in the file is merged into the first BatchRecording of that name:
-    its segment groups are appended in file order. Raises a ValueError if the repeated recording has a different path
-    or different properties.
+    its segment groups are appended in file order. Raises a ValueError if the repeated recording has a different path,
+    duration or properties.
 
     :param path: Path to the input file.
     :param transcript_type: Kind of transcript in the file, e.g. TimedTranscript or ReferenceTranscript.
