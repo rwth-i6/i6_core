@@ -208,11 +208,6 @@ class Segment(_StrictModel):
         description="Index in the n-best list for this segment. For segments to be grouped into an n-best list the segment name should match.",
     )
 
-    channel: Optional[ChannelIndex] = Field(
-        default=None,
-        description="Channel of all transcripts in this segment (starting with 1). If set, it is written only here "
-        "and not on every transcript, and a transcript with another channel is an error.",
-    )
     ignore_in_scoring: bool = Field(
         default=False,
         description="Whether this segment is a region excluded from scoring, e.g. IGNORE_TIME_SEGMENT_IN_SCORING in "
@@ -269,26 +264,9 @@ class BatchSegment(Segment):
 
     @model_validator(mode="after")
     def check_transcripts(self):
-        if self.channel is not None:
-            self.transcripts = [_with_segment_channel(self, t) for t in self.transcripts]
         if any(isinstance(t, ReferenceTranscript) for t in self.transcripts):
             _check_reference_segment(self)
         return self
-
-
-def _with_segment_channel(segment: Segment, transcript: TranscriptBase) -> TranscriptBase:
-    """
-    :return: the transcript with the channel of the segment, if the segment has one.
-        Raises a ValueError if the transcript explicitly has another channel.
-    """
-    if segment.channel is None or transcript.channel == segment.channel:
-        return transcript
-    if "channel" in transcript.model_fields_set:
-        raise ValueError(
-            f"segment {segment.name!r} is on channel {segment.channel}, but transcript {transcript.text!r} "
-            f"is on channel {transcript.channel}"
-        )
-    return transcript.model_copy(update={"channel": segment.channel})
 
 
 def _check_reference_segment(segment: Segment):
@@ -375,7 +353,6 @@ def stream_asr_results(
                     assert current_segment is not None, (
                         f"Encountered a transcript outside of a Segment in line {line_no}"
                     )
-                    record = _with_segment_channel(current_segment, record)
                     speakers.check(record.speaker)
             yield record
 
@@ -470,8 +447,8 @@ def write_asr_results(
     Write transcripts, by default ASR hypotheses, to a file.
 
     Raises a ValueError before writing anything if a speaker id is given with different name, gender or
-    properties (see SpeakerInfo), if a transcript has another channel than its segment, or if a reference segment
-    has an n_best_index, and a TypeError before writing anything if a transcript is not of `transcript_type`.
+    properties (see SpeakerInfo), or if a reference segment has an n_best_index, and a TypeError before writing
+    anything if a transcript is not of `transcript_type`.
 
     :param results: List of BatchRecording objects.
     :param path: Path to the output file.
@@ -488,7 +465,6 @@ def write_asr_results(
                 for transcript in batch_seg.transcripts:
                     if type(transcript) is not transcript_type:
                         raise TypeError(f"expected {transcript_type.__name__}, got {type(transcript).__name__}")
-                    _with_segment_channel(batch_seg, transcript)  # raises if the channels differ
                     speakers.check(transcript.speaker)
 
     with uopen(path, "wt", encoding="utf-8") as f:
@@ -507,7 +483,5 @@ def write_asr_results(
                     transcripts = batch_seg.transcripts
                     seg = Segment(**batch_seg.model_dump(exclude={"transcripts"}))
                     f.write(_to_json_line(seg, exclude=None if seg.ignore_in_scoring else {"ignore_in_scoring"}))
-                    # the segment's channel is written once on the segment
-                    exclude = {"channel"} if batch_seg.channel is not None else None
                     for transcript in transcripts:
-                        f.write(_to_json_line(transcript, exclude=exclude))
+                        f.write(_to_json_line(transcript))
