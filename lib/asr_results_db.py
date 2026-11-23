@@ -132,7 +132,8 @@ Rules:
   - ``confidences`` (hypotheses), ``entity_confidences`` (references): little-endian uint16 holding
     ``confidence * 10000`` rounded half to even (0..10000), 65535 if the token has none. NULL if no token has one.
   - ``am_scores``, ``lm_scores`` (hypotheses): little-endian float32, NaN if the token has no score. NULL if no token
-    has one.
+    has one. Scores are stored with float32 precision: a score that is a float32 value (as produced by
+    models and RASR) reads back exactly, any other ``x`` reads back as ``float(numpy.float32(x))``.
   - ``entities`` (references): little-endian uint32, ``entities.id`` of the token's entity, 0 if it has none. NULL if
     no token has one. A token with an entity_confidence has an entity.
 
@@ -1306,7 +1307,10 @@ class ASRResultsDBReader:
 
     def _decode_blobs(self, num_tokens: int, blobs: list) -> list:
         if self._decompress is not None:
-            blobs = [None if b is None else self._decompress(b) for b in blobs]
+            try:
+                blobs = [None if b is None else self._decompress(b) for b in blobs]
+            except Exception as e:  # the zstd errors are no ValueErrors
+                raise _FormatError(f"cannot decompress blob: {e}") from None
         if num_tokens == 0 and any(b is not None for b in blobs):
             raise _FormatError("per-token values for 0 tokens")
         return blobs
@@ -1324,7 +1328,10 @@ class ASRResultsDBReader:
             return []
         if tokens is None:
             raise _FormatError("tokens missing")
-        token_list = tokens.decode("utf-8").split("\0")
+        try:
+            token_list = tokens.decode("utf-8").split("\0")
+        except UnicodeDecodeError as e:
+            raise _FormatError(f"tokens are not valid UTF-8: {e}") from None
         if len(token_list) != num_tokens:
             raise _FormatError(f"{len(token_list)} tokens instead of {num_tokens}")
         return token_list

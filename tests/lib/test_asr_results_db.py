@@ -336,6 +336,40 @@ def test_value_limits(tmp_path):
         writer.add_recording_arrays("r", [segment(end=4294967.295, n_best_index=2**63 - 1)])
 
 
+def test_scores_have_float32_precision(tmp_path):
+    """
+    Scores that are float32 values read back exactly, others are rounded to float32.
+    """
+    from_float32 = float(np.float32(-123.4567))  # what a float32 model score becomes as a Python float
+    scores = [from_float32, -123.4567, 0.1]
+    assert from_float32 != -123.4567  # -123.4567 and 0.1 are not exact in float32
+    recording = BatchRecording(
+        name="r",
+        alternatives=[
+            [
+                BatchSegment(
+                    name="s",
+                    start=0.0,
+                    end=3.0,
+                    transcripts=[
+                        TimedTranscript(text=f"w{i}", start=float(i), end=i + 1.0, am_score=score, lm_score=score)
+                        for i, score in enumerate(scores)
+                    ],
+                )
+            ]
+        ],
+    )
+    db_path = tmp_path / "results.db"
+    with ASRResultsDBWriter(db_path) as writer:
+        writer.add_recording(recording)
+    with ASRResultsDBReader(db_path) as reader:
+        transcript = reader.get_recording("r").alternatives[0][0].transcripts
+    expected = [float(np.float32(score)) for score in scores]
+    assert expected[0] == from_float32
+    assert [t.am_score for t in transcript] == expected
+    assert [t.lm_score for t in transcript] == expected
+
+
 def test_confidences_round_half_to_even(tmp_path):
     db_path = tmp_path / "results.db"
     with ASRResultsDBWriter(db_path, codec="none") as writer:
@@ -364,6 +398,7 @@ def test_confidences_round_half_to_even(tmp_path):
         ("UPDATE hypothesis_segments SET confidences = X'1127FFFF'", "confidences: code out of range"),  # 10001
         ("UPDATE hypothesis_segments SET lang_codes = X'05000000'", "unknown lang_code or speaker index"),
         ("UPDATE hypothesis_segments SET end_ms = -1", "end -1 ms out of range"),
+        ("UPDATE hypothesis_segments SET tokens = X'FF0062'", "segment s: tokens are not valid UTF-8"),
     ],
 )
 def test_reader_rejects_malformed_segments(tmp_path, sql, message):
@@ -383,6 +418,26 @@ def test_reader_rejects_malformed_segments(tmp_path, sql, message):
     db.close()
     with ASRResultsDBReader(db_path) as reader:
         with pytest.raises(ValueError, match=message):
+            reader.get_recording_arrays("r")
+
+
+def test_reader_rejects_corrupt_zstd_blob(tmp_path):
+    db_path = tmp_path / "results.db"
+    with ASRResultsDBWriter(db_path, codec="zstd") as writer:
+        writer.add_recording_arrays(
+            "r",
+            [
+                HypothesisSegmentArrays(
+                    name="s", tokens=["a", "b"], starts_ms=np.array([0, 10]), ends_ms=np.array([5, 20])
+                )
+            ],
+        )
+    db = sqlite3.connect(db_path)
+    db.execute("UPDATE hypothesis_segments SET tokens = X'78797A78797A78797A'")  # not a zstd frame
+    db.commit()
+    db.close()
+    with ASRResultsDBReader(db_path) as reader:
+        with pytest.raises(ValueError, match="segment s: cannot decompress blob"):
             reader.get_recording_arrays("r")
 
 
