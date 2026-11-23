@@ -11,9 +11,10 @@ jobs:
     strategy:
       matrix:
         python-version:
-          - 3.10.12
+          - "3.10"
         tests_path:
           - tests/job_tests
+          - tests/lib
           - tests/unit_tests
     runs-on: ubuntu-latest
     steps:
