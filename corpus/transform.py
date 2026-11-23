@@ -499,7 +499,7 @@ class SampleRecordingsJob(Job):
         hours: float,
         seed: int = 0,
         max_candidates_per_corpus: int = 2000,
-        name: str = "sample",
+        name: str = "corpus",
     ):
         """
         :param bliss_corpora: {corpus key: bliss corpus file}
@@ -507,7 +507,7 @@ class SampleRecordingsJob(Job):
         :param seed: seed of the sort keys
         :param max_candidates_per_corpus: recordings kept per corpus while parsing, must exceed the
             number of recordings sampled from any corpus
-        :param name: name of the output corpus
+        :param name: name of the output corpus, i.e. the first part of all segment full names
         """
         self.bliss_corpora = bliss_corpora
         self.hours = hours
