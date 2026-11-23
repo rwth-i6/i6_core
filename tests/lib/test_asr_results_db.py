@@ -7,6 +7,7 @@ import pytest
 from i6_core.lib.asr_results import (
     BatchRecording,
     BatchSegment,
+    ReferenceTranscript,
     SpeakerInfo,
     TimedTranscript,
     parse_asr_results,
@@ -16,7 +17,8 @@ from i6_core.lib.asr_results_db import (
     APPLICATION_ID,
     ASRResultsDBReader,
     ASRResultsDBWriter,
-    SegmentArrays,
+    ReferenceSegmentArrays,
+    HypothesisSegmentArrays,
 )
 
 DATA_DIR = Path(__file__).parent
@@ -147,7 +149,7 @@ def test_arrays_and_recording_fields(tmp_path):
         writer.add_recording_arrays(
             "call-1",
             [
-                SegmentArrays(
+                HypothesisSegmentArrays(
                     name="call-1/1",
                     tokens=["so", "yes", "."],
                     starts_ms=np.array([100, 250, 400]),
@@ -211,7 +213,7 @@ def test_writer_rejects_invalid_input(tmp_path):
 
     def segment(**kwargs):
         values = {"name": "s", "tokens": ["a"], "starts_ms": np.array([0]), "ends_ms": np.array([1])}
-        return SegmentArrays(**{**values, **kwargs})
+        return HypothesisSegmentArrays(**{**values, **kwargs})
 
     with ASRResultsDBWriter(db_path) as writer:
         with pytest.raises(ValueError, match="NUL"):
@@ -227,7 +229,7 @@ def test_writer_rejects_invalid_input(tmp_path):
         with pytest.raises(ValueError, match="values for 1 tokens"):
             writer.add_recording_arrays("r6", [segment(lang_codes=["en", "de"])])
         writer.add_recording_arrays("ok", [segment()])
-        with pytest.raises(ValueError, match="different name or gender"):
+        with pytest.raises(ValueError, match="different name, gender or properties"):
             writer.add_recording_arrays("r7", [segment(speaker=SpeakerInfo(id="x", name="A"))])
             writer.add_recording_arrays("r8", [segment(speaker=SpeakerInfo(id="x", name="B"))])
         # a rejected recording that introduced a speaker and a language must not leave them behind
@@ -246,7 +248,7 @@ def test_writer_rejects_invalid_input(tmp_path):
     # rejected recordings are not written, not even partially
     with ASRResultsDBReader(db_path) as reader:
         assert reader.recording_names() == ["ok", "r7", "r10"]
-        assert reader.execute("SELECT COUNT(*) FROM segments").fetchone()[0] == 3
+        assert reader.execute("SELECT COUNT(*) FROM hypothesis_segments").fetchone()[0] == 3
         (r10,) = reader.get_recording_arrays("r10").segments
         assert r10.lang_codes == ["fr"] and r10.token_speakers == [SpeakerInfo(id="y")]
 
@@ -283,7 +285,7 @@ def test_per_token_fields(tmp_path):
         (default,) = reader.get_recording_arrays("default").segments
         assert (default.channels, default.lang_codes, default.token_speakers) == (None, None, None)
         nulls = reader.execute(
-            "SELECT channels IS NULL, lang_codes IS NULL, token_speakers IS NULL FROM segments ORDER BY id"
+            "SELECT channels IS NULL, lang_codes IS NULL, token_speakers IS NULL FROM hypothesis_segments ORDER BY id"
         ).fetchall()
         assert nulls == [(0, 0, 0), (1, 1, 1)]
         assert sorted(code for (code,) in reader.execute("SELECT lang_code FROM languages")) == ["de", "en"]
@@ -306,7 +308,7 @@ def test_unordered_token_times(tmp_path):
     starts, ends = np.array([5000, 1000, 1000, 2**32 - 2, 0]), np.array([6000, 1500, 1000, 2**32 - 1, 2**32 - 1])
     with ASRResultsDBWriter(db_path) as writer:
         writer.add_recording_arrays(
-            "r", [SegmentArrays(name="s", tokens=["c", "a", "b", "z", "all"], starts_ms=starts, ends_ms=ends)]
+            "r", [HypothesisSegmentArrays(name="s", tokens=["c", "a", "b", "z", "all"], starts_ms=starts, ends_ms=ends)]
         )
     with ASRResultsDBReader(db_path) as reader:
         (segment,) = reader.get_recording_arrays("r").segments
@@ -317,7 +319,7 @@ def test_unordered_token_times(tmp_path):
 def test_value_limits(tmp_path):
     def segment(**kwargs):
         values = {"name": "s", "tokens": ["a"], "starts_ms": np.array([0]), "ends_ms": np.array([1])}
-        return SegmentArrays(**{**values, **kwargs})
+        return HypothesisSegmentArrays(**{**values, **kwargs})
 
     with ASRResultsDBWriter(tmp_path / "results.db") as writer:
         for bad in (
@@ -340,7 +342,7 @@ def test_confidences_round_half_to_even(tmp_path):
         writer.add_recording_arrays(
             "r",
             [
-                SegmentArrays(
+                HypothesisSegmentArrays(
                     name="s",
                     tokens=["a", "b", "c"],
                     starts_ms=np.array([0, 0, 0]),
@@ -349,26 +351,31 @@ def test_confidences_round_half_to_even(tmp_path):
                 )
             ],
         )
-    (blob,) = sqlite3.connect(db_path).execute("SELECT confidences FROM segments").fetchone()
+    (blob,) = sqlite3.connect(db_path).execute("SELECT confidences FROM hypothesis_segments").fetchone()
     assert np.frombuffer(blob, "<u2").tolist() == [0, 2, 4]
 
 
 @pytest.mark.parametrize(
     "sql, message",
     [
-        ("UPDATE segments SET num_tokens = 3", "tokens instead of 3"),
-        ("UPDATE segments SET durations = X'01000000'", "durations does not hold 2 values"),
-        ("UPDATE segments SET channels = X'00000100'", "channel 0"),
-        ("UPDATE segments SET confidences = X'1127FFFF'", "confidence code out of range"),  # 10001
-        ("UPDATE segments SET lang_codes = X'05000000'", "unknown lang_code or speaker index"),
-        ("UPDATE segments SET end_ms = -1", "end -1 ms out of range"),
+        ("UPDATE hypothesis_segments SET num_tokens = 3", "tokens instead of 3"),
+        ("UPDATE hypothesis_segments SET durations = X'01000000'", "durations does not hold 2 values"),
+        ("UPDATE hypothesis_segments SET channels = X'00000100'", "channel 0"),
+        ("UPDATE hypothesis_segments SET confidences = X'1127FFFF'", "confidences: code out of range"),  # 10001
+        ("UPDATE hypothesis_segments SET lang_codes = X'05000000'", "unknown lang_code or speaker index"),
+        ("UPDATE hypothesis_segments SET end_ms = -1", "end -1 ms out of range"),
     ],
 )
 def test_reader_rejects_malformed_segments(tmp_path, sql, message):
     db_path = tmp_path / "results.db"
     with ASRResultsDBWriter(db_path, codec="none") as writer:
         writer.add_recording_arrays(
-            "r", [SegmentArrays(name="s", tokens=["a", "b"], starts_ms=np.array([0, 10]), ends_ms=np.array([5, 20]))]
+            "r",
+            [
+                HypothesisSegmentArrays(
+                    name="s", tokens=["a", "b"], starts_ms=np.array([0, 10]), ends_ms=np.array([5, 20])
+                )
+            ],
         )
     db = sqlite3.connect(db_path)
     db.execute(sql)
@@ -385,7 +392,9 @@ def test_recording_added_in_several_calls(tmp_path):
     """
 
     def segment(name, start):
-        return SegmentArrays(name=name, tokens=[name], starts_ms=np.array([start]), ends_ms=np.array([start + 1]))
+        return HypothesisSegmentArrays(
+            name=name, tokens=[name], starts_ms=np.array([start]), ends_ms=np.array([start + 1])
+        )
 
     db_path = tmp_path / "results.db"
     with ASRResultsDBWriter(db_path, audio_root="/data/audio") as writer:
@@ -411,7 +420,7 @@ def test_reader_rejects_orphan_segments(tmp_path):
     with ASRResultsDBWriter(db_path) as writer:
         writer.add_recording_arrays("r", [])
     db = sqlite3.connect(db_path)
-    db.execute("INSERT INTO segments (recording_id, name, num_tokens) VALUES (99, 'lost', 0)")
+    db.execute("INSERT INTO hypothesis_segments (recording_id, name, num_tokens) VALUES (99, 'lost', 0)")
     db.commit()
     db.close()
     with ASRResultsDBReader(db_path) as reader:
@@ -462,3 +471,232 @@ def test_writer_rejects_unrepresentable_n_best_structures(tmp_path):
             [("a", 0), ("a", 1)],
             [("b", 0)],
         ]
+
+
+def _reference_recordings() -> list[BatchRecording]:
+    carol = SpeakerInfo(id="carol", gender="female", properties={"age": "30-40", "native": True})
+    return [
+        BatchRecording(
+            name="ref-a",
+            path="/data/audio/ref-a.wav",
+            duration=12.5,
+            properties={"domain": "finance", "snr": 12.5, "channels": 2, "noisy": False},
+            alternatives=[
+                [
+                    BatchSegment(
+                        name="ref-a/1",
+                        start=0.5,
+                        end=3.0,
+                        speaker=carol,
+                        properties={"topic": "loans"},
+                        transcripts=[
+                            ReferenceTranscript(text="I", start=0.5, end=0.75, speaker=carol),
+                            ReferenceTranscript(
+                                text="New York", start=0.75, end=1.5, entity="LOCATION", entity_confidence=0.93
+                            ),
+                            ReferenceTranscript(text="Bank", start=1.5, end=2.0, entity="ORGANIZATION"),
+                        ],
+                    )
+                ],
+                # partly timed, a channel and a lang_code
+                [
+                    BatchSegment(
+                        name="ref-a/2",
+                        start=3.0,
+                        end=5.0,
+                        transcripts=[
+                            ReferenceTranscript(text="yes", start=3.0, end=3.5, channel=2, lang_code="en"),
+                            ReferenceTranscript(text="uh", channel=2),
+                        ],
+                    )
+                ],
+                # no times at all, and a segment whose correct output is no words
+                [BatchSegment(name="ref-a/3", transcripts=[ReferenceTranscript(text="hello")])],
+                [BatchSegment(name="ref-a/4", start=6.0, end=7.0, transcripts=[])],
+            ],
+        ),
+        BatchRecording(name="ref-b", alternatives=[]),
+    ]
+
+
+@pytest.mark.parametrize("codec", ["zstd", "none"])
+def test_roundtrip_references(tmp_path, codec):
+    recordings = _reference_recordings()
+    db_path = tmp_path / "results.db"
+    with ASRResultsDBWriter(db_path, codec=codec) as writer:
+        for recording in recordings:
+            writer.add_recording(recording, ReferenceTranscript)
+    with ASRResultsDBReader(db_path) as reader:
+        assert reader.transcript_types == [ReferenceTranscript]
+        # the kind is found without transcript_type, as only references are in the file
+        assert _dump(list(reader.iter_recordings())) == _dump(recordings)
+        assert _dump([reader.get_recording("ref-a")]) == _dump(recordings[:1])
+        segments = reader.get_recording_arrays("ref-a").segments
+        assert [s.timed is None and s.starts_ms is not None for s in segments] == [True, False, False, False]
+        assert segments[1].timed.tolist() == [True, False]
+        assert segments[2].starts_ms is None and segments[2].timed is None
+        assert segments[0].entities == [None, "LOCATION", "ORGANIZATION"]
+        assert segments[0].entity_confidences[1] == 0.93 and np.isnan(segments[0].entity_confidences[2])
+        nulls = reader.execute(
+            "SELECT start_deltas IS NULL, timed IS NULL, entities IS NULL FROM reference_segments ORDER BY id"
+        ).fetchall()
+        assert nulls == [(0, 1, 0), (0, 0, 1), (1, 1, 1), (1, 1, 1)]
+        assert reader.execute("SELECT COUNT(*) FROM hypothesis_segments").fetchone()[0] == 0
+
+    # the JSONL format of references gives the same file directly and via the DB
+    write_asr_results(recordings, tmp_path / "direct.jsonl", ReferenceTranscript)
+    with ASRResultsDBReader(db_path) as reader:
+        from_db = list(reader.iter_recordings())
+    write_asr_results(from_db, tmp_path / "via_db.jsonl", ReferenceTranscript)
+    assert (tmp_path / "via_db.jsonl").read_text() == (tmp_path / "direct.jsonl").read_text()
+    assert parse_asr_results(tmp_path / "via_db.jsonl", ReferenceTranscript) == from_db
+
+
+def test_properties_and_duration(tmp_path):
+    """
+    Properties of speakers, recordings and segments keep the type of their values; durations are stored in ms.
+    """
+    speaker = SpeakerInfo(id="s", properties={"count": 30, "ratio": 30.0, "flag": True, "label": "30"})
+    recording = BatchRecording(
+        name="r",
+        duration=1.2345,  # stored as 1235 ms (rounded half to even)
+        properties={"big": 2**63 - 1, "neg": -1.5, "off": False},
+        alternatives=[
+            [
+                BatchSegment(
+                    name="s1",
+                    speaker=speaker,
+                    properties={"x": 1},
+                    transcripts=[TimedTranscript(text="a", start=0, end=1, speaker=speaker)],
+                )
+            ]
+        ],
+    )
+    db_path = tmp_path / "results.db"
+    with ASRResultsDBWriter(db_path) as writer:
+        writer.add_recording(recording)
+        for bad in ({"nan": float("nan")}, {"inf": float("inf")}, {"big": 2**63}, {"list": [1]}):
+            with pytest.raises(ValueError):
+                writer.add_recording_arrays("bad", [], properties=bad)
+        with pytest.raises(ValueError, match="different name, gender or properties"):
+            other = SpeakerInfo(id="s", properties={"count": 31})
+            writer.add_recording_arrays(
+                "bad", [HypothesisSegmentArrays(name="x", tokens=[], starts_ms=[], ends_ms=[], speaker=other)]
+            )
+        with pytest.raises(ValueError, match="different properties"):
+            writer.add_recording_arrays("r", [], properties={"big": 1})
+    with ASRResultsDBReader(db_path) as reader:
+        (read,) = reader.iter_recordings()
+        assert read.duration == 1.234
+        assert read.properties == recording.properties
+        assert [type(v) for v in read.properties.values()] == [int, float, bool]
+        segment = read.alternatives[0][0]
+        assert segment.properties == {"x": 1}
+        assert segment.speaker == speaker and segment.transcripts[0].speaker == speaker
+        assert [type(v) for v in segment.speaker.properties.values()] == [int, float, bool, str]
+        assert reader.recording_names() == ["r"]
+
+
+def test_hypotheses_and_references_in_one_file(tmp_path):
+    """
+    A file may hold recordings of both kinds, but a recording holds only one.
+    """
+    hypothesis = BatchRecording(
+        name="h", alternatives=[[BatchSegment(name="h/1", transcripts=[TimedTranscript(text="a", start=0, end=1)])]]
+    )
+    reference = BatchRecording(name="r", alternatives=[[BatchSegment(name="r/1", transcripts=[])]])
+    db_path = tmp_path / "results.db"
+    with ASRResultsDBWriter(db_path) as writer:
+        writer.add_recording(hypothesis)
+        writer.add_recording(reference, ReferenceTranscript)
+        writer.add_recording(BatchRecording(name="empty", alternatives=[]))
+        with pytest.raises(TypeError, match="expected ReferenceTranscript, got TimedTranscript"):
+            writer.add_recording(BatchRecording(name="x", alternatives=hypothesis.alternatives), ReferenceTranscript)
+        with pytest.raises(ValueError, match="both hypothesis and reference"):
+            writer.add_recording_arrays("h", [ReferenceSegmentArrays(name="h/2", tokens=[])])
+        with pytest.raises(ValueError, match="both hypothesis and reference"):
+            writer.add_recording_arrays(
+                "y",
+                [
+                    ReferenceSegmentArrays(name="y/1", tokens=[]),
+                    HypothesisSegmentArrays(name="y/2", tokens=[], starts_ms=[], ends_ms=[]),
+                ],
+            )
+        # the other kind's segments may follow once a recording has none yet
+        writer.add_recording_arrays("empty", [ReferenceSegmentArrays(name="empty/1", tokens=["z"])])
+    with ASRResultsDBReader(db_path) as reader:
+        assert reader.transcript_types == [TimedTranscript, ReferenceTranscript]
+        with pytest.raises(ValueError, match="give transcript_type"):
+            list(reader.iter_recordings())
+        assert [r.name for r in reader.iter_recordings(transcript_type=TimedTranscript)] == ["h"]
+        assert [r.name for r in reader.iter_recordings(transcript_type=ReferenceTranscript)] == ["r", "empty"]
+        # a single recording is read as its own kind
+        assert isinstance(reader.get_recording("h").alternatives[0][0].transcripts[0], TimedTranscript)
+        assert reader.get_recording("r").alternatives[0][0].transcripts == []
+        with pytest.raises(ValueError, match="no TimedTranscript segments"):
+            reader.get_recording("r", TimedTranscript)
+
+
+def test_reference_rules(tmp_path):
+    with ASRResultsDBWriter(tmp_path / "results.db") as writer:
+        with pytest.raises(ValueError, match="has an n_best_index"):
+            writer.add_recording(
+                BatchRecording(name="r", alternatives=[[BatchSegment(name="s", n_best_index=0, transcripts=[])]]),
+                ReferenceTranscript,
+            )
+        for bad, message in (
+            (ReferenceSegmentArrays(name="s", tokens=[], start=1.0), "both start and end"),
+            (ReferenceSegmentArrays(name="s", tokens=[], start=2.0, end=1.0), "start > end"),
+            (ReferenceSegmentArrays(name="s", tokens=["a"], starts_ms=np.array([0])), "both be given"),
+            (ReferenceSegmentArrays(name="s", tokens=["a"], timed=np.array([True])), "timed is given without"),
+            (
+                ReferenceSegmentArrays(name="s", tokens=["a"], entity_confidences=np.array([0.5])),
+                "entity_confidence without entity",
+            ),
+            (
+                ReferenceSegmentArrays(name="s", tokens=["a"], entities=["X"], entity_confidences=np.array([1.5])),
+                "between 0 and 1",
+            ),
+        ):
+            with pytest.raises(ValueError, match=message):
+                writer.add_recording_arrays("r", [bad])
+        with pytest.raises(ValueError, match="start > end"):
+            writer.add_recording_arrays(
+                "h", [HypothesisSegmentArrays(name="s", tokens=[], starts_ms=[], ends_ms=[], start=2, end=1)]
+            )
+
+
+@pytest.mark.parametrize(
+    "sql, message",
+    [
+        ("UPDATE reference_segments SET timed = X'0002'", "timed value other than 0 and 1"),
+        ("UPDATE reference_segments SET entities = X'0000000009000000'", "unknown entity index"),
+        ("UPDATE reference_segments SET entity_confidences = X'1027FFFF', entities = NULL", "without entity"),
+        ("UPDATE reference_segments SET durations = NULL", "only one of start_deltas and durations"),
+        ("UPDATE recording_properties SET kind = 'float'", "of kind 'float' has value 1"),
+    ],
+)
+def test_reader_rejects_malformed_references(tmp_path, sql, message):
+    db_path = tmp_path / "results.db"
+    with ASRResultsDBWriter(db_path, codec="none") as writer:
+        writer.add_recording_arrays(
+            "r",
+            [
+                ReferenceSegmentArrays(
+                    name="s",
+                    tokens=["a", "b"],
+                    starts_ms=np.array([0, 0]),
+                    ends_ms=np.array([5, 0]),
+                    timed=np.array([True, False]),
+                    entities=[None, "X"],
+                )
+            ],
+            properties={"n": 1},
+        )
+    db = sqlite3.connect(db_path)
+    db.execute(sql)
+    db.commit()
+    db.close()
+    with ASRResultsDBReader(db_path) as reader:
+        with pytest.raises(ValueError, match=message):
+            reader.get_recording_arrays("r")

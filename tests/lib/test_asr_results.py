@@ -115,7 +115,7 @@ def test_reference_transcript_round_trip(tmp_path):
         '{"type":"rec","name":"rec1","properties":{"domain":"call-center"}}\n'
         '{"type":"seg","name":"seg1","speaker":{"id":"spk1","gender":"female","properties":{"age":"30-40"}}}\n'
         '{"type":"rt","text":"in"}\n'
-        '{"type":"rt","text":"New York","entity":"LOCATION","entity_score":0.93}\n'
+        '{"type":"rt","text":"New York","entity":"LOCATION","entity_confidence":0.93}\n'
     )
 
     with pytest.raises(ValueError):
@@ -135,8 +135,8 @@ def test_reference_transcript_round_trip(tmp_path):
     assert isinstance(entity_transcript, ReferenceTranscript)
     assert entity_transcript.text == "New York"
     assert entity_transcript.entity == "LOCATION"
-    assert entity_transcript.entity_score == 0.93
-    assert ordinary_transcript.entity_score is None
+    assert entity_transcript.entity_confidence == 0.93
+    assert ordinary_transcript.entity_confidence is None
 
     output_file = tmp_path / "output.jsonl"
     write_asr_results(recordings, output_file, transcript_type=ReferenceTranscript)
@@ -477,13 +477,13 @@ def test_batch_segment_transcript_dict_requires_type():
     assert isinstance(segment.transcripts[0], ReferenceTranscript)
 
 
-def test_reference_transcript_entity_score():
-    assert ReferenceTranscript(text="Paris", entity="LOCATION", entity_score=0.5).entity_score == 0.5
-    with pytest.raises(ValueError, match="entity_score is given without entity"):
-        ReferenceTranscript(text="in", entity_score=0.5)
+def test_reference_transcript_entity_confidence():
+    assert ReferenceTranscript(text="Paris", entity="LOCATION", entity_confidence=0.5).entity_confidence == 0.5
+    with pytest.raises(ValueError, match="entity_confidence is given without entity"):
+        ReferenceTranscript(text="in", entity_confidence=0.5)
     for score in (-0.1, 1.1):
         with pytest.raises(ValueError):
-            ReferenceTranscript(text="Paris", entity="LOCATION", entity_score=score)
+            ReferenceTranscript(text="Paris", entity="LOCATION", entity_confidence=score)
 
 
 @pytest.mark.parametrize(
