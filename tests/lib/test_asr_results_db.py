@@ -312,6 +312,15 @@ def test_error_in_context_keeps_complete_recordings(tmp_path):
     assert _segment_names(db_path) == {"r1": ["s1"]}
 
 
+def test_writer_close_twice(tmp_path):
+    db_path = tmp_path / "results.db"
+    with ASRResultsDBWriter(db_path) as writer:
+        writer.add_recording_arrays("r1", [_hypothesis("s1", "a")])
+        writer.close()
+    writer.close()
+    assert _segment_names(db_path) == {"r1": ["s1"]}
+
+
 def test_append(tmp_path):
     db_path = tmp_path / "results.db"
     alice = SpeakerInfo(id="spk1", name="Alice", properties={"age": 30})

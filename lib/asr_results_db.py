@@ -757,12 +757,15 @@ class ASRResultsDBWriter:
 
     def close(self):
         """
-        Commits all recordings added and closes the file.
+        Commits all recordings added and closes the file. Calling it again does nothing.
         """
+        if self._db is None:
+            return
         if self._db.in_transaction:
             self._db.execute("COMMIT")
         self._db.execute("ANALYZE")
         self._db.close()
+        self._db = None
 
     def add_recording(
         self,
@@ -1176,6 +1179,9 @@ class ASRResultsDBReader:
     A file may hold recordings of hypotheses and of references. The reading methods take a ``transcript_type``
     (TimedTranscript or ReferenceTranscript) and then return the recordings of that kind, including those without
     segments. Without it, they return the kind the file holds, and require it for a file holding both.
+
+    Violations of the format raise a ValueError naming the file and, for a segment, the segment. A damaged SQLite
+    file raises sqlite3.DatabaseError.
     """
 
     def __init__(self, path: str | PathLike):
