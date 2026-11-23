@@ -486,7 +486,8 @@ def _sample_candidates(args):
 class SampleRecordingsJob(Job):
     """
     Random sample of whole recordings from several bliss corpora, until `hours` of audio, as one flat
-    bliss corpus with the recordings (and the speaker descriptions they reference) copied unchanged.
+    bliss corpus with the recordings (and the speaker descriptions they reference) as read and written
+    by the corpus lib.
 
     Every recording gets a sort key hashed from `seed` and its name, the sample is the prefix of all
     recordings in key order, which is uniform over recordings and independent of the corpus order.
@@ -528,6 +529,7 @@ class SampleRecordingsJob(Job):
 
     def run(self):
         from concurrent.futures import ProcessPoolExecutor
+        from xml import sax
         from xml.sax.saxutils import quoteattr
 
         import soundfile
@@ -575,16 +577,16 @@ class SampleRecordingsJob(Job):
         referenced = sorted({s for recording in sample for s in recording["speakers"]})
         missing = [s for s in referenced if s not in speakers]
         assert not missing, f"speaker descriptions missing: {missing}"
-        with uopen(self.out_corpus.get_path(), "wt") as f:
-            f.write(f'<?xml version="1.0" encoding="utf-8"?>\n<corpus name={quoteattr(self.name)}>\n')
-            for speaker_name in referenced:
-                f.write(speakers[speaker_name].strip() + "\n")
-            for recording in sample:
-                f.write(recording["xml"].strip() + "\n")
-            f.write("</corpus>\n")
-        c = corpus.Corpus()
-        c.load(self.out_corpus.get_path())
-        assert len(list(c.all_recordings())) == len(sample)
+        sampled_corpus = corpus.Corpus()
+        xml = "".join(
+            [f"<corpus name={quoteattr(self.name)}>"]
+            + [speakers[speaker_name] for speaker_name in referenced]
+            + [recording["xml"] for recording in sample]
+            + ["</corpus>"]
+        )
+        sax.parseString(xml.encode("utf-8"), corpus.CorpusParser(sampled_corpus, ""))
+        assert len(sampled_corpus.recordings) == len(sample)
+        sampled_corpus.dump(self.out_corpus.get_path())
 
         with uopen(self.out_audio_files.get_path(), "wt") as f:
             for recording in sample:
