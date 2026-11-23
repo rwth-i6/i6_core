@@ -817,6 +817,24 @@ def test_properties_and_duration(tmp_path):
         assert reader.recording_names() == ["r"]
 
 
+def test_get_recording_reads_only_its_segment_properties(tmp_path):
+    db_path = tmp_path / "results.db"
+    with ASRResultsDBWriter(db_path) as writer:
+        writer.add_recording_arrays("r1", [_hypothesis("s1", "a", properties={"x": 1})])
+        writer.add_recording_arrays("r2", [_hypothesis("s2", "b", properties={"x": 2})])
+    with sqlite3.connect(db_path) as db:
+        # a malformed property of r2's segment, so that reading it fails
+        db.execute("UPDATE hypothesis_segment_properties SET kind = 'str' WHERE value = 2")
+    db.close()
+    with ASRResultsDBReader(db_path) as reader:
+        (segment,) = reader.get_recording_arrays("r1").segments
+        assert segment.properties == {"x": 1}
+        with pytest.raises(ValueError, match="property x of kind 'str'"):
+            reader.get_recording_arrays("r2")
+        with pytest.raises(ValueError, match="property x of kind 'str'"):
+            list(reader.iter_recording_arrays())
+
+
 def test_hypotheses_and_references_in_one_file(tmp_path):
     """
     A file may hold recordings of both kinds, but a recording holds only one.

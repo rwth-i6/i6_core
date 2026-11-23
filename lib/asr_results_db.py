@@ -1225,8 +1225,6 @@ class ASRResultsDBReader:
         self._languages[0] = None
         self._entities: dict[int, Optional[str]] = dict(self._db.execute("SELECT id, entity FROM entities"))
         self._entities[0] = None
-        # {table: {segment id: properties}}, loaded when first needed
-        self._segment_properties: dict[str, dict[int, dict[str, Any]]] = {}
 
     def __enter__(self) -> "ASRResultsDBReader":
         return self
@@ -1285,6 +1283,8 @@ class ASRResultsDBReader:
         (other_table,) = (t for t in _SEGMENT_TABLES.values() if t != table)
         other_recordings = {i for (i,) in self._db.execute(f"SELECT DISTINCT recording_id FROM {other_table}")}
         recording_properties = self._properties("recording_properties", "recording_id")
+        # all segments are read, so load all their properties at once; local, so they are freed after the iteration
+        segment_properties = self._properties(_PROPERTY_TABLES[table], "segment_id")
         # segments of different recordings may be interleaved in the file, so read them grouped by recording
         segments = self._db.execute(
             f"SELECT recording_id, id, {_SEGMENT_COLUMNS[table]} FROM {table} ORDER BY recording_id, id"
@@ -1301,7 +1301,7 @@ class ASRResultsDBReader:
                 continue
             info = self._recording_info(recording_row, recording_properties.get(recording_id))
             while pending is not None and pending[0] == recording_id:
-                info.segments.append(self._segment(table, pending[1], pending[2:]))
+                info.segments.append(self._segment(table, pending[2:], segment_properties.get(pending[1])))
                 pending = next(segments, None)
             yield info
         if pending is not None:
@@ -1330,13 +1330,20 @@ class ASRResultsDBReader:
             _arrays_type(transcript_type)
             if kinds and kinds != [transcript_type]:
                 raise ValueError(f"{self.path}: recording {name} has no {transcript_type.__name__} segments")
-        properties = self._properties("recording_properties", "recording_id", recording_id).get(recording_id)
-        info = self._recording_info(row[1:], properties)
+        by_recording = self._properties("recording_properties", "recording_id", "recording_id = ?", (recording_id,))
+        info = self._recording_info(row[1:], by_recording.get(recording_id))
         table = _SEGMENT_TABLES[transcript_type]
+        # only the properties of this recording's segments
+        segment_properties = self._properties(
+            _PROPERTY_TABLES[table],
+            "segment_id",
+            f"segment_id IN (SELECT id FROM {table} WHERE recording_id = ?)",
+            (recording_id,),
+        )
         for segment_id, *segment_row in self._db.execute(
             f"SELECT id, {_SEGMENT_COLUMNS[table]} FROM {table} WHERE recording_id = ? ORDER BY id", (recording_id,)
         ):
-            info.segments.append(self._segment(table, segment_id, segment_row))
+            info.segments.append(self._segment(table, segment_row, segment_properties.get(segment_id)))
         return info
 
     def iter_recordings(
@@ -1370,15 +1377,17 @@ class ASRResultsDBReader:
             )
         return present[0] if present else TimedTranscript
 
-    def _properties(self, table: str, owner: str, owner_id: Optional[int] = None) -> dict[int, dict[str, Any]]:
+    def _properties(
+        self, table: str, owner: str, where: str = "", parameters: Sequence = ()
+    ) -> dict[int, dict[str, Any]]:
         """
-        :return: {owner id: properties}, of all owners or of `owner_id`
+        :param where: SQL condition selecting the rows, all rows if empty
+        :param parameters: values for the placeholders in `where`
+        :return: {owner id: properties}
         """
         sql = f"SELECT {owner}, key, kind, value FROM {table}"
-        parameters = ()
-        if owner_id is not None:
-            sql += f" WHERE {owner} = ?"
-            parameters = (owner_id,)
+        if where:
+            sql += f" WHERE {where}"
         properties: dict[int, dict[str, Any]] = {}
         for owner_value, key, kind, value in self._db.execute(sql + " ORDER BY rowid", parameters):
             properties.setdefault(owner_value, {})[key] = self._property_value(table, key, kind, value)
@@ -1399,12 +1408,8 @@ class ASRResultsDBReader:
         )
 
     def _segment(
-        self, table: str, segment_id: int, row: Sequence
+        self, table: str, row: Sequence, properties: Optional[dict[str, Any]]
     ) -> Union[HypothesisSegmentArrays, ReferenceSegmentArrays]:
-        properties_table = _PROPERTY_TABLES[table]
-        if properties_table not in self._segment_properties:
-            self._segment_properties[properties_table] = self._properties(properties_table, "segment_id")
-        properties = self._segment_properties[properties_table].get(segment_id)
         name = row[0]
         try:
             if table == "hypothesis_segments":
