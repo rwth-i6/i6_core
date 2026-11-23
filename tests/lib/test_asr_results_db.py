@@ -243,8 +243,6 @@ def test_writer_rejects_invalid_input(tmp_path):
             )
         writer.add_recording_arrays("r10", [segment(lang_codes=["fr"], token_speakers=[SpeakerInfo(id="y")])])
 
-    with pytest.raises(FileExistsError):
-        ASRResultsDBWriter(db_path)
     # rejected recordings are not written, not even partially
     with ASRResultsDBReader(db_path) as reader:
         assert reader.recording_names() == ["ok", "r7", "r10"]
@@ -291,13 +289,171 @@ def test_per_token_fields(tmp_path):
         assert sorted(code for (code,) in reader.execute("SELECT lang_code FROM languages")) == ["de", "en"]
 
 
-def test_failed_write_removes_file(tmp_path):
+def _hypothesis(name: str, *tokens: str, **kwargs) -> HypothesisSegmentArrays:
+    n = len(tokens)
+    return HypothesisSegmentArrays(
+        name=name, tokens=list(tokens), starts_ms=np.arange(n) * 10, ends_ms=np.arange(n) * 10 + 5, **kwargs
+    )
+
+
+def _segment_names(db_path) -> dict[str, list[str]]:
+    with ASRResultsDBReader(db_path) as reader:
+        return {info.name: [s.name for s in info.segments] for info in reader.iter_recording_arrays()}
+
+
+def test_error_in_context_keeps_complete_recordings(tmp_path):
     db_path = tmp_path / "results.db"
     with pytest.raises(RuntimeError):
         with ASRResultsDBWriter(db_path) as writer:
-            writer.add_recording_arrays("r", [])
+            writer.add_recording_arrays("r1", [_hypothesis("s1", "a")])
+            with pytest.raises(ValueError):
+                writer.add_recording_arrays("r2", [_hypothesis("s2", "a\0b")])
             raise RuntimeError("job died")
-    assert not db_path.exists()
+    assert _segment_names(db_path) == {"r1": ["s1"]}
+
+
+def test_append(tmp_path):
+    db_path = tmp_path / "results.db"
+    alice = SpeakerInfo(id="spk1", name="Alice", properties={"age": 30})
+    with ASRResultsDBWriter(db_path, codec="none", meta={"model": "m"}) as writer:
+        writer.add_recording_arrays(
+            "r1", [_hypothesis("s1", "a", lang_codes=["en"], token_speakers=[alice])], properties={"x": True}
+        )
+    # appending is the default: continue r1, add r2; the codec comes from the file
+    with ASRResultsDBWriter(db_path, meta={"model": "m", "language": "en"}) as writer:
+        writer.add_recording_arrays(
+            "r1", [_hypothesis("s2", "b", lang_codes=["en"], token_speakers=[alice])], properties={"x": True}
+        )
+        writer.add_recording_arrays("r2", [_hypothesis("s3", "c", lang_codes=["de"])])
+    assert _segment_names(db_path) == {"r1": ["s1", "s2"], "r2": ["s3"]}
+    db = sqlite3.connect(db_path)
+    assert db.execute("SELECT COUNT(*) FROM speakers").fetchone()[0] == 1
+    assert db.execute("SELECT lang_code FROM languages ORDER BY id").fetchall() == [("en",), ("de",)]
+    blobs = db.execute("SELECT tokens FROM hypothesis_segments").fetchall()
+    assert blobs == [(b"a",), (b"b",), (b"c",)]  # not compressed
+    db.close()
+    with ASRResultsDBReader(db_path) as reader:
+        assert reader.meta == {"codec": "none", "model": "m", "language": "en"}
+        segments = reader.get_recording_arrays("r1").segments
+        assert [s.token_speakers for s in segments] == [[alice], [alice]]
+        assert [s.lang_codes for s in segments] == [["en"], ["en"]]
+        assert reader.get_recording_arrays("r1").properties == {"x": True}
+
+
+def test_append_checks_the_stored_data(tmp_path):
+    db_path = tmp_path / "results.db"
+    with ASRResultsDBWriter(db_path, meta={"model": "m"}, audio_root="/data") as writer:
+        writer.add_recording_arrays("r1", [_hypothesis("s1", "a")], path="/data/r1.wav", duration=1.0)
+        writer.add_recording_arrays("r2", [_hypothesis("s1", "a", speaker=SpeakerInfo(id="spk", name="A"))])
+    for kwargs, message in [
+        ({"codec": "none"}, "has codec 'zstd'"),
+        ({"meta": {"model": "other"}}, "has meta model = 'm'"),
+        ({"audio_root": "/other"}, "has audio_root '/data'"),
+    ]:
+        with pytest.raises(ValueError, match=message):
+            ASRResultsDBWriter(db_path, **kwargs)
+    with ASRResultsDBWriter(db_path) as writer:
+        for call, message in [
+            (lambda: writer.add_recording_arrays("r1", [], path="/data/other.wav"), "different path"),
+            (lambda: writer.add_recording_arrays("r1", [], duration=2.0), "different duration"),
+            (
+                lambda: writer.add_recording_arrays("r1", [ReferenceSegmentArrays(name="s2", tokens=["a"])]),
+                "both hypothesis and reference",
+            ),
+            (lambda: writer.add_recording_arrays("r1", [_hypothesis("s1", "b")]), "join the n-best"),
+            (
+                lambda: writer.add_recording_arrays(
+                    "r3", [_hypothesis("s1", "a", speaker=SpeakerInfo(id="spk", name="B"))]
+                ),
+                "different name, gender or properties",
+            ),
+        ]:
+            with pytest.raises(ValueError, match=message):
+                call()
+        # the stored path matches after mapping through the stored audio_root
+        writer.add_recording_arrays("r1", [_hypothesis("s2", "b")], path="/data/r1.wav", duration=1.0)
+    assert _segment_names(db_path) == {"r1": ["s1", "s2"], "r2": ["s1"]}
+
+
+def test_append_false_replaces_the_file(tmp_path):
+    db_path = tmp_path / "results.db"
+    with ASRResultsDBWriter(db_path) as writer:
+        writer.add_recording_arrays("old", [_hypothesis("s", "a")])
+    (tmp_path / "results.db-journal").write_bytes(b"stale")
+    with ASRResultsDBWriter(db_path, append=False, codec="none") as writer:
+        writer.add_recording_arrays("new", [_hypothesis("s", "a")])
+    assert not (tmp_path / "results.db-journal").exists()
+    assert _segment_names(db_path) == {"new": ["s"]}
+    with ASRResultsDBReader(db_path) as reader:
+        assert reader.meta["codec"] == "none"
+
+    # also files that are no ASR results DB
+    text = tmp_path / "text.db"
+    text.write_text("not a database")
+    with ASRResultsDBWriter(text, append=False):
+        pass
+    assert _segment_names(text) == {}
+
+
+def test_append_rejects_other_files(tmp_path):
+    other = tmp_path / "other.db"
+    sqlite3.connect(other).execute("CREATE TABLE t (x)").connection.close()
+    with pytest.raises(ValueError, match="not an ASR results DB"):
+        ASRResultsDBWriter(other)
+    text = tmp_path / "text.db"
+    text.write_text("not a database")
+    with pytest.raises(sqlite3.DatabaseError):
+        ASRResultsDBWriter(text)
+    # an empty file is a new DB
+    empty = tmp_path / "empty.db"
+    empty.touch()
+    with ASRResultsDBWriter(empty) as writer:
+        writer.add_recording_arrays("r", [_hypothesis("s", "a")])
+    assert _segment_names(empty) == {"r": ["s"]}
+
+
+def test_reader_rejects_file_with_journal(tmp_path):
+    db_path = tmp_path / "results.db"
+    with ASRResultsDBWriter(db_path):
+        pass
+    (tmp_path / "results.db-journal").write_bytes(b"")
+    with pytest.raises(ValueError, match="being written, or a write was interrupted"):
+        ASRResultsDBReader(db_path)
+
+
+def test_killed_session_is_rolled_back(tmp_path):
+    """
+    A writer process that dies without closing: the next writer rolls its session back from the journal.
+    """
+    import subprocess
+    import sys
+    import textwrap
+
+    db_path = tmp_path / "results.db"
+    with ASRResultsDBWriter(db_path) as writer:
+        writer.add_recording_arrays("r1", [_hypothesis("s1", "a")])
+    script = textwrap.dedent(
+        f"""
+        import os, numpy as np
+        from i6_core.lib.asr_results_db import ASRResultsDBWriter, HypothesisSegmentArrays
+        writer = ASRResultsDBWriter({str(db_path)!r})
+        writer._db.execute("PRAGMA cache_size = 2")  # make SQLite write pages to the file before the commit
+        for i in range(200):
+            tokens = [str(t) for t in np.random.default_rng(i).integers(0, 10**9, 500)]
+            writer.add_recording_arrays(
+                f"new{{i}}",
+                [HypothesisSegmentArrays(name="s", tokens=tokens, starts_ms=np.zeros(500), ends_ms=np.zeros(500))],
+            )
+        assert os.path.exists({str(db_path) + "-journal"!r})
+        os._exit(0)
+        """
+    )
+    subprocess.run([sys.executable, "-c", script], check=True, cwd=Path(__file__).parents[3])
+    assert (tmp_path / "results.db-journal").exists()
+    with ASRResultsDBWriter(db_path) as writer:
+        writer.add_recording_arrays("r2", [_hypothesis("s1", "a")])
+    assert not (tmp_path / "results.db-journal").exists()
+    assert _segment_names(db_path) == {"r1": ["s1"], "r2": ["s1"]}
 
 
 def test_unordered_token_times(tmp_path):

@@ -162,7 +162,9 @@ Rules:
   values other than 0 and 1, lang_code, speaker or entity indices that do not exist, entity confidences without an
   entity, and property kinds other than the four above or not matching the value. Token ends above the limit (up to
   ``2 * (2**32 - 1)``, which a writer never produces) need not be rejected.
-* Files are written once and then only read. Readers may open them with ``?immutable=1``.
+* Writers may append to a file. A file must not be read while it is written, and not while ``<file>-journal``
+  exists: that is the rollback journal of a write in progress or of an interrupted one, which the next writer rolls
+  back. Otherwise readers may open files with ``?immutable=1``.
 """
 
 __all__ = [
@@ -596,43 +598,55 @@ def _arrays_type(transcript_type: type[TranscriptBase]) -> type:
 
 class ASRResultsDBWriter:
     """
-    Writes a new ASR results DB. Use as context manager, the file is complete once the context is left without error::
+    Writes an ASR results DB, a new one or by appending to an existing one. Use as context manager::
 
         with ASRResultsDBWriter("results.db", meta={"model": "..."}) as writer:
             for recording in recordings:
                 writer.add_recording(recording)
 
-    For files on network file systems, write to local storage and move the finished file.
+    All recordings of a session are written in one transaction, committed when the writer is closed. Each call that
+    adds a recording either writes it completely or raises without writing anything. An exception that leaves the
+    context does not discard the recordings added before it: they are committed as well. A session that is killed is
+    rolled back from the journal file (``<path>-journal``) the next time the file is opened by a writer.
+
+    While a writer is open, the file must not be read. For files on network file systems, write to local storage and
+    move the finished file.
     """
 
     def __init__(
         self,
         path: str | PathLike,
         *,
-        codec: str = "zstd",
+        append: bool = True,
+        codec: Optional[str] = None,
         compression_level: int = 3,
         meta: Optional[Mapping[str, str]] = None,
         audio_root: Optional[str] = None,
     ):
         """
-        :param path: the file to create, must not exist
-        :param codec: "zstd" or "none"
+        :param path: the file to write
+        :param append: if True, an existing file is appended to (a missing or empty one is created); if False, an
+            existing file (and its journal) is deleted and a new DB is created
+        :param codec: "zstd" or "none"; None means the codec of the file appended to, else "zstd". Appending requires
+            the codec of the file.
         :param compression_level: zstd compression level, 1..19 (higher is smaller and slower)
-        :param meta: additional meta entries, e.g. producer, model, language
+        :param meta: additional meta entries, e.g. producer, model, language. When appending, keys the file already
+            has must have the same value, others are added.
         :param audio_root: absolute directory; if set, recording paths are made absolute (relative ones against the
-            current directory), and those below it are stored relative to it
+            current directory), and those below it are stored relative to it. When appending, it must be None or
+            the audio_root of the file.
         """
-        if codec not in ("zstd", "none"):
+        if codec not in (None, "zstd", "none"):
             raise ValueError(f"unknown codec {codec!r}")
         if audio_root is not None:
             if not os.path.isabs(audio_root):
                 raise ValueError(f"audio_root must be absolute: {audio_root}")
             audio_root = os.path.normpath(audio_root)
-        if os.path.exists(path):
-            raise FileExistsError(path)
         self.path = os.fspath(path)
-        self._compress = _zstd_compressor(compression_level) if codec == "zstd" else None
-        self._audio_root = audio_root
+        if not append:
+            for file in (self.path, self.path + "-journal"):
+                if os.path.exists(file):
+                    os.remove(file)
         self._recordings: dict[str, _RecordingState] = {}
         self._speaker_ids: dict[str, tuple[int, SpeakerInfo]] = {}
         self._language_ids: dict[str, int] = {}
@@ -640,34 +654,113 @@ class ASRResultsDBWriter:
 
         # transactions are controlled explicitly: everything is written in one transaction
         self._db = sqlite3.connect(self.path, isolation_level=None)
-        # the rollback journal is needed for the per-recording savepoints, but never needs to survive a crash:
-        # a failed write deletes the file
-        self._db.execute("PRAGMA journal_mode = MEMORY")
-        self._db.execute("PRAGMA synchronous = OFF")
+        try:
+            # a journal on disk, so that a killed session is rolled back instead of corrupting data written before
+            self._db.execute("PRAGMA journal_mode = DELETE")
+            self._db.execute("PRAGMA synchronous = NORMAL")
+            # IMMEDIATE: take the write lock before looking at the file
+            self._db.execute("BEGIN IMMEDIATE")
+            if self._db.execute("SELECT COUNT(*) FROM sqlite_schema").fetchone()[0] == 0:
+                codec = codec or "zstd"
+                self._create(codec, meta, audio_root)
+            else:
+                codec, audio_root = self._open_existing(codec, meta, audio_root)
+        except BaseException:
+            self._db.close()  # rolls back
+            raise
+        self._compress = _zstd_compressor(compression_level) if codec == "zstd" else None
+        self._audio_root = audio_root
+
+    def _create(self, codec: str, meta: Optional[Mapping[str, str]], audio_root: Optional[str]):
         self._db.execute(f"PRAGMA application_id = {APPLICATION_ID}")
         self._db.execute(f"PRAGMA user_version = {FORMAT_VERSION}")
-        self._db.executescript(_SCHEMA)
+        for statement in _SCHEMA.split(";"):
+            if statement.strip():
+                self._db.execute(statement)
         entries = {"codec": codec, **(meta or {})}
         if audio_root is not None:
             entries["audio_root"] = audio_root
         self._db.executemany("INSERT INTO meta (key, value) VALUES (?, ?)", entries.items())
-        self._db.execute("BEGIN")
+
+    def _open_existing(
+        self, codec: Optional[str], meta: Optional[Mapping[str, str]], audio_root: Optional[str]
+    ) -> tuple[str, Optional[str]]:
+        """
+        Checks the file and the arguments against each other and loads the speakers, languages and entities.
+
+        :return: the codec and audio_root of the file
+        """
+        application_id = self._db.execute("PRAGMA application_id").fetchone()[0]
+        version = self._db.execute("PRAGMA user_version").fetchone()[0]
+        if application_id != APPLICATION_ID:
+            raise ValueError(f"{self.path} is not an ASR results DB (application_id {application_id:#x})")
+        if version != FORMAT_VERSION:
+            raise ValueError(f"{self.path} has format version {version}, supported is {FORMAT_VERSION}")
+        stored: dict[str, str] = dict(self._db.execute("SELECT key, value FROM meta"))
+        if codec is not None and codec != stored.get("codec"):
+            raise ValueError(f"{self.path} has codec {stored.get('codec')!r}, not {codec!r}")
+        if audio_root is not None and audio_root != stored.get("audio_root"):
+            raise ValueError(f"{self.path} has audio_root {stored.get('audio_root')!r}, not {audio_root!r}")
+        for key, value in (meta or {}).items():
+            if key not in stored:
+                self._db.execute("INSERT INTO meta (key, value) VALUES (?, ?)", (key, value))
+            elif stored[key] != value:
+                raise ValueError(f"{self.path} has meta {key} = {stored[key]!r}, not {value!r}")
+        self._language_ids = {code: i for i, code in self._db.execute("SELECT id, lang_code FROM languages")}
+        self._entity_ids = {entity: i for i, entity in self._db.execute("SELECT id, entity FROM entities")}
+        speaker_properties: dict[int, dict[str, Any]] = {}
+        for owner, key, kind, value in self._db.execute(
+            "SELECT speaker_id, key, kind, value FROM speaker_properties ORDER BY rowid"
+        ):
+            speaker_properties.setdefault(owner, {})[key] = bool(value) if kind == "bool" else value
+        for row_id, speaker_id, name, gender in self._db.execute("SELECT id, speaker_id, name, gender FROM speakers"):
+            speaker = SpeakerInfo(id=speaker_id, name=name, gender=gender, properties=speaker_properties.get(row_id))
+            self._speaker_ids[speaker_id] = (row_id, speaker)
+        return stored["codec"], stored.get("audio_root")
+
+    def _stored_recording(self, name: str) -> Optional[_RecordingState]:
+        """
+        :return: the state of a recording written in this or an earlier session, None for a new one
+        """
+        state = self._recordings.get(name)
+        if state is not None:
+            return state
+        row = self._db.execute(
+            "SELECT id, path, status, error, duration_ms FROM recordings WHERE name = ?", (name,)
+        ).fetchone()
+        if row is None:
+            return None
+        properties = {
+            key: bool(value) if kind == "bool" else value
+            for key, kind, value in self._db.execute(
+                "SELECT key, kind, value FROM recording_properties WHERE recording_id = ? ORDER BY rowid", (row[0],)
+            )
+        }
+        state = _RecordingState(*row, properties or None)
+        for kind, table in (
+            (HypothesisSegmentArrays, "hypothesis_segments"),
+            (ReferenceSegmentArrays, "reference_segments"),
+        ):
+            last = self._db.execute(
+                f"SELECT name FROM {table} WHERE recording_id = ? ORDER BY id DESC LIMIT 1", (row[0],)
+            ).fetchone()
+            if last is not None:
+                state.kind, state.last_segment = kind, last[0]
+        self._recordings[name] = state
+        return state
 
     def __enter__(self) -> "ASRResultsDBWriter":
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
-        if exc_type is None:
-            self.close()
-        else:
-            self._db.close()
-            os.remove(self.path)
+        self.close()
 
     def close(self):
         """
-        Commits all recordings and closes the file.
+        Commits all recordings added and closes the file.
         """
-        self._db.execute("COMMIT")
+        if self._db.in_transaction:
+            self._db.execute("COMMIT")
         self._db.execute("ANALYZE")
         self._db.close()
 
@@ -757,13 +850,13 @@ class ASRResultsDBWriter:
         kind = next(iter(kinds), None)
         stored_path = self._stored_path(path)
         duration_ms = _to_ms(duration)
-        properties = None if properties is None else dict(properties)
+        properties = dict(properties) if properties else None  # as read back
         property_rows = _property_rows(properties, f"recording {name}")
         # all or nothing: a rejected call leaves no rows behind, also no speakers, languages or entities it introduced
         caches = dict(self._speaker_ids), dict(self._language_ids), dict(self._entity_ids)
         self._db.execute("SAVEPOINT recording")
         try:
-            state = self._recordings.get(name)
+            state = self._stored_recording(name)
             if state is None:
                 cursor = self._db.execute(
                     "INSERT INTO recordings (name, path, status, error, duration_ms) VALUES (?, ?, ?, ?, ?)",
@@ -988,7 +1081,11 @@ class ASRResultsDBWriter:
             return None
         known = self._speaker_ids.get(speaker.id)
         if known is not None:
-            if known[1] != speaker:
+            if (known[1].name, known[1].gender, known[1].properties or None) != (
+                speaker.name,
+                speaker.gender,
+                speaker.properties or None,
+            ):
                 raise ValueError(
                     f"speaker {speaker.id} given with different name, gender or properties: {known[1]}, {speaker}"
                 )
@@ -1088,6 +1185,11 @@ class ASRResultsDBReader:
         self.path = os.fspath(path)
         if not os.path.isfile(self.path):
             raise FileNotFoundError(self.path)
+        if os.path.exists(self.path + "-journal"):
+            raise ValueError(
+                f"{self.path} is being written, or a write was interrupted: open it with ASRResultsDBWriter to roll "
+                "the interrupted write back"
+            )
         uri = "file:" + urllib.parse.quote(os.path.abspath(self.path)) + "?mode=ro&immutable=1"
         self._db = sqlite3.connect(uri, uri=True)
         application_id = self._db.execute("PRAGMA application_id").fetchone()[0]
