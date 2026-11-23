@@ -167,7 +167,7 @@ class ReferenceTranscript(TranscriptBase):
         default=None,
         description="Named-entity label, for example PERSON or DATE_TIME.",
     )
-    entity_score: Optional[float] = Field(
+    entity_confidence: Optional[float] = Field(
         default=None,
         ge=0.0,
         le=1.0,
@@ -178,8 +178,8 @@ class ReferenceTranscript(TranscriptBase):
     def check_times(self):
         if (self.start is None) != (self.end is None):
             raise ValueError("Reference start and end time must either both be set or both be omitted.")
-        if self.entity_score is not None and self.entity is None:
-            raise ValueError("entity_score is given without entity.")
+        if self.entity_confidence is not None and self.entity is None:
+            raise ValueError("entity_confidence is given without entity.")
         _check_start_before_end(self.start, self.end)
         return self
 
